@@ -5,8 +5,8 @@ import PrimaryButton from './PrimaryButton.jsx';
 
 const OTP_LENGTH = 6;
 
-const AuthForm = ({ onSignupComplete, onLoginComplete }) => {
-  const [currentStep, setCurrentStep] = useState('email');
+const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) => {
+  const [currentStep, setCurrentStep] = useState(initialStep);
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -33,6 +33,10 @@ const AuthForm = ({ onSignupComplete, onLoginComplete }) => {
   const showStep = (stepName) => {
     setCurrentStep(stepName);
   };
+
+  useEffect(() => {
+    setCurrentStep(initialStep);
+  }, [initialStep]);
 
   const showToast = (message) => {
     if (toastTimeout.current) {

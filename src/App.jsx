@@ -7,7 +7,8 @@ import OnboardingPage from "./pages/OnboardingPage.jsx";
 
 const App = () => {
   const [showPreloader, setShowPreloader] = useState(true);
-  const [currentPage, setCurrentPage] = useState("auth");
+  const [currentPage, setCurrentPage] = useState("welcome");
+  const [authStep, setAuthStep] = useState("email");
 
   useEffect(() => {
     setShowPreloader(true);
@@ -22,8 +23,18 @@ const App = () => {
     return <Preloader />;
   }
 
-  if (currentPage === "onboarding") {
-    return <OnboardingPage onGetStarted={() => setCurrentPage("home")} />;
+  const openAuthFlow = (step) => {
+    setAuthStep(step);
+    setCurrentPage("auth");
+  };
+
+  if (currentPage === "welcome") {
+    return (
+      <OnboardingPage
+        onCreateAccount={() => openAuthFlow("email")}
+        onLogin={() => openAuthFlow("loginEmail")}
+      />
+    );
   }
 
   if (currentPage === "home") {
@@ -32,7 +43,8 @@ const App = () => {
 
   return (
     <AuthPage
-      onSignupComplete={() => setCurrentPage("onboarding")}
+      initialStep={authStep}
+      onSignupComplete={() => setCurrentPage("home")}
       onLoginComplete={() => setCurrentPage("home")}
     />
   );

@@ -1,9 +1,13 @@
 import AuthLayout from '../components/AuthLayout.jsx';
 import AuthForm from '../components/AuthForm.jsx';
 
-const AuthPage = ({ onSignupComplete, onLoginComplete }) => (
+const AuthPage = ({ initialStep, onSignupComplete, onLoginComplete }) => (
   <AuthLayout>
-    <AuthForm onSignupComplete={onSignupComplete} onLoginComplete={onLoginComplete} />
+    <AuthForm
+      initialStep={initialStep}
+      onSignupComplete={onSignupComplete}
+      onLoginComplete={onLoginComplete}
+    />
   </AuthLayout>
 );
 

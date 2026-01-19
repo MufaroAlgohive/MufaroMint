@@ -1,6 +1,6 @@
 import React from "react";
 
-const OnboardingPage = ({ onGetStarted }) => {
+const OnboardingPage = ({ onCreateAccount, onLogin }) => {
   return (
     <div className="min-h-screen bg-white">
       <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
@@ -22,13 +22,20 @@ const OnboardingPage = ({ onGetStarted }) => {
               </p>
             </div>
 
-            <div className="space-y-4 animate-on-load delay-3">
+            <div className="flex flex-wrap gap-4 animate-on-load delay-3">
               <button
                 type="button"
-                onClick={onGetStarted}
-                className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 sm:w-auto"
+                onClick={onCreateAccount}
+                className="inline-flex flex-1 items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 sm:flex-none"
               >
-                Continue
+                Create Account
+              </button>
+              <button
+                type="button"
+                onClick={onLogin}
+                className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 sm:flex-none"
+              >
+                Login
               </button>
             </div>
           </div>
