@@ -1,38 +1,35 @@
 import React from "react";
 import { Capacitor } from "@capacitor/core";
-import { BiometricAuth } from "@aparajita/capacitor-biometric-auth";
 
 const MorePage = () => {
+  const isNative =
+    typeof Capacitor.isNativePlatform === "function"
+      ? Capacitor.isNativePlatform()
+      : Capacitor.getPlatform() !== "web";
+
   const handleSetupBiometrics = async () => {
-    const isIOS = Capacitor.getPlatform() === "ios";
     try {
-      if (!isIOS) {
+      if (!isNative) {
+        window.alert("Biometrics only works in the mobile app");
+        return;
+      }
+
+      const platform = Capacitor.getPlatform();
+      if (platform !== "ios" && platform !== "android") {
         window.alert("Not supported");
         return;
       }
 
-      if (typeof BiometricAuth.isAvailable === "function") {
-        const availability = await BiometricAuth.isAvailable();
-        if (!availability?.isAvailable) {
-          window.alert("Not supported");
-          return;
-        }
-      }
+      const moduleName = "@aparajita/capacitor-biometric-auth";
+      const { BiometricAuth } = await import(
+        /* @vite-ignore */
+        moduleName
+      );
 
-      const result = await BiometricAuth.authenticate({
+      await BiometricAuth.authenticate({
         reason: "Confirm your identity to enable biometrics",
         cancelTitle: "Cancel",
       });
-
-      const isVerified =
-        typeof result === "boolean"
-          ? result
-          : result?.verified ?? result?.authenticated ?? false;
-
-      if (!isVerified) {
-        window.alert("Biometric verification failed");
-        return;
-      }
 
       localStorage.setItem("biometricsEnabled", "true");
       window.alert("Biometrics enabled successfully");
@@ -40,6 +37,10 @@ const MorePage = () => {
       console.error("Failed to enable biometrics", error);
       window.alert("Biometric verification failed");
     }
+  };
+
+  const handleDisableBiometrics = () => {
+    localStorage.removeItem("biometricsEnabled");
   };
 
   const menuItems = [
@@ -68,6 +69,12 @@ const MorePage = () => {
           className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold tracking-[0.16em] text-white transition active:scale-95"
         >
           SETUP BIOMETRICS
+        </button>
+        <button
+          onClick={handleDisableBiometrics}
+          className="ml-3 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold tracking-[0.16em] text-slate-700 transition active:scale-95"
+        >
+          Disable Biometrics
         </button>
       </div>
       <div className="space-y-2">
