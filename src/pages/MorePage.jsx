@@ -1,20 +1,36 @@
 import React from "react";
 import { Capacitor } from "@capacitor/core";
+import { BiometricAuth } from "@aparajita/capacitor-biometric-auth";
 
 const MorePage = () => {
   const handleSetupBiometrics = async () => {
     const isIOS = Capacitor.getPlatform() === "ios";
-    if (!isIOS) {
-      window.alert("Biometrics not available on this device");
-      return;
-    }
-
     try {
-      // TODO: Replace with Capacitor Biometrics plugin.
-      const isAvailable = true;
+      if (!isIOS) {
+        window.alert("Not supported");
+        return;
+      }
 
-      if (!isAvailable) {
-        window.alert("Biometrics not available on this device");
+      if (typeof BiometricAuth.isAvailable === "function") {
+        const availability = await BiometricAuth.isAvailable();
+        if (!availability?.isAvailable) {
+          window.alert("Not supported");
+          return;
+        }
+      }
+
+      const result = await BiometricAuth.authenticate({
+        reason: "Confirm your identity to enable biometrics",
+        cancelTitle: "Cancel",
+      });
+
+      const isVerified =
+        typeof result === "boolean"
+          ? result
+          : result?.verified ?? result?.authenticated ?? false;
+
+      if (!isVerified) {
+        window.alert("Biometric verification failed");
         return;
       }
 
@@ -22,7 +38,7 @@ const MorePage = () => {
       window.alert("Biometrics enabled successfully");
     } catch (error) {
       console.error("Failed to enable biometrics", error);
-      window.alert("Biometrics not available on this device");
+      window.alert("Biometric verification failed");
     }
   };
 
