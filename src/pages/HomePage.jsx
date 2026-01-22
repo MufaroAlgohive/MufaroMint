@@ -2,19 +2,16 @@ import React from "react";
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen bg-slate-50 px-4 pb-8 pt-10 text-slate-900 md:px-8 md:pt-12">
+    <div className="min-h-screen bg-gradient-to-b from-sky-300 via-blue-300 to-blue-200 px-4 pb-8 pt-12 text-slate-900 md:px-8 md:pt-14">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between text-white">
           <div>
-            <p className="text-xs text-slate-500">Welcome Back</p>
-            <h1 className="text-lg font-semibold">Ms Thando Chiloane</h1>
+            <p className="text-lg font-semibold">Hello, Riyad 👋</p>
+            <p className="text-xs text-white/80">Welcome Back</p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold">
-              TC
-            </div>
             <button
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm"
               aria-label="Notifications"
               type="button"
             >
@@ -33,89 +30,87 @@ const HomePage = () => {
                 />
               </svg>
             </button>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-white/80 text-xs font-semibold text-slate-700">
+              RR
+            </div>
           </div>
         </header>
 
-        <section className="rounded-3xl bg-white p-5 shadow-sm">
-          <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500">
-            Cash Available
-          </span>
-          <div className="mt-3">
-            <p className="text-2xl font-semibold">R239,900.54</p>
-            <div className="mt-2 flex items-center gap-2 text-xs text-emerald-600">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>Cashback Today: 5%</span>
-            </div>
-          </div>
-          <div className="mt-5 grid grid-cols-2 gap-3 text-sm font-medium">
-            <button
-              className="rounded-full bg-emerald-500 py-2 text-white shadow-sm"
-              type="button"
-            >
-              Invest
-            </button>
-            <button
-              className="rounded-full border border-slate-200 bg-white py-2 text-slate-700 shadow-sm"
-              type="button"
-            >
-              Make a Deposit
-            </button>
-          </div>
-        </section>
-
-        <div className="flex items-center justify-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-slate-300" />
-          <span className="h-2 w-2 rounded-full bg-slate-900" />
-          <span className="h-2 w-2 rounded-full bg-slate-300" />
-        </div>
-
-        <section className="rounded-3xl bg-white px-4 py-5 shadow-sm">
-          <div className="grid grid-cols-4 gap-3 text-center text-xs font-medium text-slate-600">
+        <section className="rounded-3xl bg-white/15 p-5 text-center text-white shadow-sm backdrop-blur">
+          <p className="text-xs text-white/70">Total Balance</p>
+          <p className="mt-2 text-3xl font-semibold">$24,806.03</p>
+          <div className="mt-5 grid grid-cols-4 gap-3 text-[11px] font-medium">
             {[
-              { label: "Invest", icon: "I" },
-              { label: "Repay Loan", icon: "R" },
-              { label: "Deposit", icon: "D" },
-              { label: "Withdraw", icon: "W" },
+              { label: "Transfer", icon: "↗" },
+              { label: "Deposit", icon: "↓" },
+              { label: "Pay", icon: "▢" },
+              { label: "Scan", icon: "⌁" },
             ].map((item) => (
-              <div key={item.label} className="flex flex-col items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
-                  {item.icon}
-                </div>
+              <button
+                key={item.label}
+                className="flex flex-col items-center gap-2 rounded-2xl bg-white/80 px-2 py-3 text-slate-700 shadow-sm"
+                type="button"
+              >
+                <span className="text-lg">{item.icon}</span>
                 <span>{item.label}</span>
-              </div>
+              </button>
             ))}
           </div>
         </section>
 
-        <section className="rounded-3xl bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-800">Recent Activity</h2>
-            <button className="text-xs font-semibold text-emerald-600" type="button">
-              View All
-            </button>
-          </div>
-          <div className="mt-4 grid gap-3 text-xs">
-            <div className="grid grid-cols-[1.2fr_1fr_0.8fr] text-[10px] font-semibold text-slate-400">
-              <span>Type</span>
-              <span>Amount</span>
-              <span className="text-right">Date</span>
+        <section className="flex items-center justify-between gap-3 rounded-3xl bg-white px-4 py-3 shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-200 text-lg">
+              ✨
             </div>
+            <div>
+              <p className="text-[11px] text-slate-500">Personal Balance</p>
+              <p className="text-sm font-semibold">$206.03</p>
+            </div>
+          </div>
+          <button className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100" type="button">
+            →
+          </button>
+        </section>
+
+        <div className="flex items-center justify-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
+          <span className="h-1.5 w-4 rounded-full bg-white/90" />
+          <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
+        </div>
+
+        <section className="rounded-3xl bg-white p-5 shadow-lg">
+          <h2 className="text-sm font-semibold text-slate-800">Transactions</h2>
+          <div className="mt-4 grid gap-4 text-xs">
             {[
-              { type: "Cash Deposit", amount: "+R20,400", date: "11 Jan" },
-              { type: "Investment", amount: "-R45,900", date: "11 Jan" },
-              { type: "Investment", amount: "-R45,900", date: "11 Jan" },
-              { type: "Cash Deposit", amount: "+R20,400", date: "11 Jan" },
-              { type: "Cash Deposit", amount: "+R20,400", date: "11 Jan" },
-            ].map((row, index) => (
-              <div
-                key={`${row.type}-${index}`}
-                className="grid grid-cols-[1.2fr_1fr_0.8fr] items-center rounded-xl border border-slate-100 px-3 py-2 text-slate-600"
-              >
-                <span className="font-medium text-slate-700">{row.type}</span>
-                <span className={row.amount.startsWith("+") ? "text-emerald-600" : "text-rose-500"}>
+              {
+                title: "Subscribed to Dribbble pro",
+                amount: "-$25",
+                date: "12/06/24",
+                initials: "DR",
+                accent: "bg-slate-900 text-white",
+              },
+              {
+                title: "Received from Nix",
+                amount: "+$100",
+                date: "12/06/24",
+                initials: "NX",
+                accent: "bg-emerald-100 text-emerald-700",
+              },
+            ].map((row) => (
+              <div key={row.title} className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${row.accent}`}>
+                    {row.initials}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{row.title}</p>
+                    <p className="text-[11px] text-slate-400">{row.date}</p>
+                  </div>
+                </div>
+                <span className={row.amount.startsWith("+") ? "text-emerald-500" : "text-rose-500"}>
                   {row.amount}
                 </span>
-                <span className="text-right text-slate-500">{row.date}</span>
               </div>
             ))}
           </div>
