@@ -2,28 +2,45 @@ import React from "react";
 import { Capacitor } from "@capacitor/core";
 
 const MorePage = () => {
+  const isNative =
+    typeof Capacitor.isNativePlatform === "function"
+      ? Capacitor.isNativePlatform()
+      : Capacitor.getPlatform() !== "web";
+
   const handleSetupBiometrics = async () => {
-    const isIOS = Capacitor.getPlatform() === "ios";
-    if (!isIOS) {
-      window.alert("Biometrics not available on this device");
-      return;
-    }
-
     try {
-      // TODO: Replace with Capacitor Biometrics plugin.
-      const isAvailable = true;
-
-      if (!isAvailable) {
-        window.alert("Biometrics not available on this device");
+      if (!isNative) {
+        window.alert("Biometrics only works in the mobile app");
         return;
       }
+
+      const platform = Capacitor.getPlatform();
+      if (platform !== "ios" && platform !== "android") {
+        window.alert("Not supported");
+        return;
+      }
+
+      const moduleName = "@aparajita/capacitor-biometric-auth";
+      const { BiometricAuth } = await import(
+        /* @vite-ignore */
+        moduleName
+      );
+
+      await BiometricAuth.authenticate({
+        reason: "Confirm your identity to enable biometrics",
+        cancelTitle: "Cancel",
+      });
 
       localStorage.setItem("biometricsEnabled", "true");
       window.alert("Biometrics enabled successfully");
     } catch (error) {
       console.error("Failed to enable biometrics", error);
-      window.alert("Biometrics not available on this device");
+      window.alert("Biometric verification failed");
     }
+  };
+
+  const handleDisableBiometrics = () => {
+    localStorage.removeItem("biometricsEnabled");
   };
 
   const menuItems = [
@@ -52,6 +69,12 @@ const MorePage = () => {
           className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold tracking-[0.16em] text-white transition active:scale-95"
         >
           SETUP BIOMETRICS
+        </button>
+        <button
+          onClick={handleDisableBiometrics}
+          className="ml-3 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold tracking-[0.16em] text-slate-700 transition active:scale-95"
+        >
+          Disable Biometrics
         </button>
       </div>
       <div className="space-y-2">
