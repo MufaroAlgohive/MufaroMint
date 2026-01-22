@@ -1,8 +1,9 @@
 import React from "react";
+import TransactionSheet from "../components/TransactionSheet";
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#31005e] via-purple-200 to-white px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-12 text-slate-900 md:px-8 md:pt-14">
+    <div className="min-h-screen bg-gradient-to-b from-[#31005e] via-purple-200 to-white px-4 pb-[calc(72px+env(safe-area-inset-bottom))] pt-12 text-slate-900 md:px-8 md:pt-14">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
         <header className="flex items-center justify-between text-white">
           <div className="flex items-center gap-3">
@@ -14,14 +15,10 @@ const HomePage = () => {
               <p className="text-xs text-white/80">Welcome Back</p>
             </div>
           </div>
-          <button
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-slate-700 shadow-sm"
-            aria-label="Notifications"
-            type="button"
-          >
+          <button aria-label="Notifications" type="button">
             <svg
               aria-hidden="true"
-              className="h-4 w-4"
+              className="h-5 w-5 text-white"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -79,43 +76,8 @@ const HomePage = () => {
           <span className="h-1.5 w-1.5 rounded-full bg-white/40" />
         </div>
 
-        <section className="rounded-3xl bg-white p-5 shadow-lg">
-          <h2 className="text-sm font-semibold text-slate-800">Transactions</h2>
-          <div className="mt-4 grid gap-4 text-xs">
-            {[
-              {
-                title: "Subscribed to Dribbble pro",
-                amount: "-$25",
-                date: "12/06/24",
-                initials: "DR",
-                accent: "bg-slate-900 text-white",
-              },
-              {
-                title: "Received from Nix",
-                amount: "+$100",
-                date: "12/06/24",
-                initials: "NX",
-                accent: "bg-emerald-100 text-emerald-700",
-              },
-            ].map((row) => (
-              <div key={row.title} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${row.accent}`}>
-                    {row.initials}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-800">{row.title}</p>
-                    <p className="text-[11px] text-slate-400">{row.date}</p>
-                  </div>
-                </div>
-                <span className={row.amount.startsWith("+") ? "text-emerald-500" : "text-rose-500"}>
-                  {row.amount}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
+      <TransactionSheet />
     </div>
   );
 };
