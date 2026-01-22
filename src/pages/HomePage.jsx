@@ -2,8 +2,8 @@ import React from "react";
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-6 text-slate-900">
-      <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
+    <div className="min-h-screen bg-slate-50 px-4 pb-8 pt-10 text-slate-900 md:px-8 md:pt-12">
+      <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
         <header className="flex items-center justify-between">
           <div>
             <p className="text-xs text-slate-500">Welcome Back</p>
