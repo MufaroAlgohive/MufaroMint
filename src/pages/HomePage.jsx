@@ -14,31 +14,26 @@ const HomePage = () => {
               <p className="text-xs text-white/80">Welcome Back</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-full bg-white/85 px-3 py-1.5 text-slate-700 shadow-sm">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white shadow">
-              <img className="h-4 w-4" src="/favicon.svg" alt="Mint logo" />
-            </div>
-            <button
-              className="flex h-7 w-7 items-center justify-center rounded-full bg-white"
-              aria-label="Notifications"
-              type="button"
+          <button
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/85 text-slate-700 shadow-sm"
+            aria-label="Notifications"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2"
             >
-              <svg
-                aria-hidden="true"
-                className="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0"
-                />
-              </svg>
-            </button>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0"
+              />
+            </svg>
+          </button>
         </header>
 
         <section className="rounded-3xl bg-white/15 p-5 text-center text-white shadow-sm backdrop-blur">
