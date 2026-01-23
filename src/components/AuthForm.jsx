@@ -102,17 +102,13 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         const enabled = isBiometricsEnabled();
         const storedEmail = getBiometricsUserEmail();
         const hasLoggedInBefore = storedEmail ? !isFirstLogin(storedEmail) : false;
-        const emailMatches = storedEmail
-          ? (!loginEmail || storedEmail.toLowerCase() === loginEmail.toLowerCase())
-          : false;
-        const canUse = isNativeIOS() && available && enabled && emailMatches && hasLoggedInBefore;
+        const canUse = isNativeIOS() && available && enabled && hasLoggedInBefore;
         if (DEBUG_BIOMETRICS) {
           console.debug('[Biometrics] Login availability check', {
             available,
             enabled,
             storedEmail,
             hasLoggedInBefore,
-            emailMatches,
             canUse
           });
         }
@@ -143,7 +139,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     setIsLoading(true);
     try {
       const biometryName = getBiometryTypeName(biometryType);
-      const emailForBiometrics = loginEmail || biometricLoginEmail;
+      const emailForBiometrics = biometricLoginEmail || loginEmail;
       await authenticateWithBiometrics(`Use ${biometryName} to login`);
 
       const { data: { session }, error } = await supabase.auth.getSession();
