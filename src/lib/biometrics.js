@@ -10,7 +10,6 @@ export const isNativePlatform = () => {
     : Capacitor.getPlatform() !== 'web';
 };
 
-// Vercel safe: no import of native packages in the web bundle
 const NativeBiometric = registerPlugin('NativeBiometric');
 
 export const isBiometricsAvailable = async () => {
@@ -23,12 +22,7 @@ export const isBiometricsAvailable = async () => {
       biometryType: res?.biometryType || null
     };
   } catch (error) {
-    console.error('Error checking biometrics availability:', {
-      message: error?.message,
-      code: error?.code,
-      name: error?.name,
-      error
-    });
+    console.error('Error checking biometrics availability:', error);
     return { available: false, biometryType: null };
   }
 };
@@ -36,18 +30,8 @@ export const isBiometricsAvailable = async () => {
 export const authenticateWithBiometrics = async (reason = 'Authenticate to continue') => {
   if (!isNativePlatform()) throw new Error('Biometrics only available on native platforms');
 
-  try {
-    await NativeBiometric.verifyIdentity({ reason });
-    return true;
-  } catch (error) {
-    console.error('Biometric authentication failed:', {
-      message: error?.message,
-      code: error?.code,
-      name: error?.name,
-      error
-    });
-    throw error;
-  }
+  await NativeBiometric.verifyIdentity({ reason });
+  return true;
 };
 
 export const isBiometricsEnabled = () => {
