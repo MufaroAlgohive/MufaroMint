@@ -12,6 +12,7 @@ import TransactPage from "./pages/TransactPage.jsx";
 import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
 import BiometricsDebugPage from "./pages/BiometricsDebugPage.jsx";
+import EditProfilePage from "./pages/EditProfilePage.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -189,6 +190,10 @@ const App = () => {
         <BiometricsDebugPage onNavigate={setCurrentPage} />
       </AppLayout>
     );
+  }
+
+  if (currentPage === "editProfile") {
+    return <EditProfilePage onNavigate={setCurrentPage} />;
   }
 
   if (currentPage === "userOnboarding") {

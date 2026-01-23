@@ -5,7 +5,7 @@ import TransactionSheet from "../components/TransactionSheet";
 const HomePage = () => {
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
-      <div className="rounded-b-[36px] bg-gradient-to-b from-[#250046] via-[#3b1b7a] to-[#7fb1ff] px-4 pb-12 pt-12 text-white md:px-8">
+      <div className="rounded-b-[36px] bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
           <header className="flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
