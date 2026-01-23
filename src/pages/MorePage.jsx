@@ -189,16 +189,20 @@ const MorePage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-white px-6 pt-10 pb-24">
+      <header className="relative mb-8 flex items-center justify-center">
+        <button
+          type="button"
+          onClick={() => onNavigate?.("home")}
+          className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <h1 className="text-lg font-semibold text-slate-900">More</h1>
+      </header>
+
       <div className="flex flex-col items-center text-center">
-        <div className="relative flex w-full items-center justify-center">
-          <button
-            type="button"
-            onClick={() => onNavigate?.("home")}
-            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+        <div className="relative">
           {profile?.avatar_url ? (
             <img
               src={profile.avatar_url}
