@@ -41,14 +41,31 @@ const CreditPage = () => {
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
       <div className="rounded-b-[36px] bg-gradient-to-b from-[#250046] via-[#3b1b7a] to-[#7fb1ff] px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
-          <header className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold">Credit</h1>
-            <button
-              type="button"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20"
-              aria-label="Credit settings"
-            >
-              ⚙️
+          <header className="flex items-center justify-between text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
+                RR
+              </div>
+              <div>
+                <p className="text-lg font-semibold">Good Afternoon, Riyad</p>
+                <p className="text-xs text-white/80">Welcome Back</p>
+              </div>
+            </div>
+            <button aria-label="Notifications" type="button">
+              <svg
+                aria-hidden="true"
+                className="h-5 w-5 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0a3 3 0 1 1-6 0"
+                />
+              </svg>
             </button>
           </header>
 
