@@ -7,22 +7,19 @@ import {
 } from "../lib/biometrics";
 
 const formatErrorDetails = (error) => {
-  if (!error) {
-    return "Unknown error";
-  }
+  if (!error) return "Unknown error";
 
-  const name = error.name || "Unknown";
-  const message = error.message || String(error);
-  const code = error.code ?? "Unknown";
+  const name = error?.name || "Unknown";
+  const message = error?.message || String(error);
+  const code = error?.code ?? "Unknown";
+
   const details = [
     `Error name: ${name}`,
     `Error code: ${code}`,
     `Error message: ${message}`,
   ];
 
-  if (error.stack) {
-    details.push(`Stack: ${error.stack}`);
-  }
+  if (error?.stack) details.push(`Stack: ${error.stack}`);
 
   return details.join("\n");
 };
@@ -30,8 +27,6 @@ const formatErrorDetails = (error) => {
 const BiometricsDebugPage = ({ onNavigate }) => {
   const [logs, setLogs] = useState([]);
   const [isTesting, setIsTesting] = useState(false);
-  const platform = useMemo(() => Capacitor.getPlatform(), []);
-  const nativePlatform = useMemo(() => isNativePlatform(), []);
 
   const addLog = useCallback((message) => {
     setLogs((prev) => [
@@ -40,27 +35,21 @@ const BiometricsDebugPage = ({ onNavigate }) => {
     ]);
   }, []);
 
+  const platform = useMemo(() => Capacitor.getPlatform(), []);
+  const nativePlatform = useMemo(() => isNativePlatform(), []);
+
   useEffect(() => {
     addLog(`Platform: ${platform}`);
     addLog(`Native platform: ${nativePlatform}`);
-
-    const loadFaceIdModuleKeys = async () => {
-      try {
-        const mod = await import("capacitor-face-id");
-        const keys = Object.keys(mod);
-        addLog(`capacitor-face-id keys: ${keys.length ? keys.join(", ") : "(none)"}`);
-      } catch (error) {
-        addLog(`Failed to import capacitor-face-id. ${formatErrorDetails(error)}`);
-      }
-    };
-
-    loadFaceIdModuleKeys();
   }, [addLog, nativePlatform, platform]);
 
   const handleTest = async () => {
     if (isTesting) return;
+
     setIsTesting(true);
     addLog("Starting Face ID test...");
+    addLog(`Platform live: ${Capacitor.getPlatform()}`);
+    addLog(`Native live: ${isNativePlatform()}`);
 
     try {
       addLog("Checking biometrics availability...");
@@ -98,8 +87,7 @@ const BiometricsDebugPage = ({ onNavigate }) => {
 
       <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
         <p className="text-sm text-slate-600">
-          Use this tool to validate the Face ID plugin wiring and review step-by-step
-          logs.
+          Use this tool to validate the Face ID plugin wiring and review step by step logs.
         </p>
         <button
           onClick={handleTest}
