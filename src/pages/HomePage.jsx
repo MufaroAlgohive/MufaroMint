@@ -2,10 +2,11 @@ import React from "react";
 import { Bell } from "lucide-react";
 import TransactionSheet from "../components/TransactionSheet";
 import { useProfile } from "../lib/useProfile";
+import HomeSkeleton from "../components/HomeSkeleton";
 
 const HomePage = () => {
-  const { profile } = useProfile();
-  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Your Name";
+  const { profile, loading } = useProfile();
+  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
     .split(" ")
     .filter(Boolean)
@@ -13,6 +14,10 @@ const HomePage = () => {
     .map((part) => part[0])
     .join("")
     .toUpperCase();
+
+  if (loading) {
+    return <HomeSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
@@ -23,12 +28,12 @@ const HomePage = () => {
               {profile.avatarUrl ? (
                 <img
                   src={profile.avatarUrl}
-                  alt={displayName}
+                  alt={displayName || "Profile"}
                   className="h-10 w-10 rounded-full border border-white/40 object-cover"
                 />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
-                  {initials || "ME"}
+                  {initials || "—"}
                 </div>
               )}
             </div>

@@ -4,6 +4,7 @@ import CreditMetricCard from "../components/credit/CreditMetricCard.jsx";
 import CreditActionGrid from "../components/credit/CreditActionGrid.jsx";
 import CreditScorePage from "./CreditScorePage.jsx";
 import { useProfile } from "../lib/useProfile";
+import CreditSkeleton from "../components/CreditSkeleton";
 
 const creditOverview = {
   availableCredit: "R25,000",
@@ -19,8 +20,8 @@ const CreditPage = () => {
   const [view, setView] = useState(() =>
     window.location.pathname === "/credit/score" ? "score" : "overview"
   );
-  const { profile } = useProfile();
-  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "Your Name";
+  const { profile, loading } = useProfile();
+  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
     .split(" ")
     .filter(Boolean)
@@ -46,6 +47,10 @@ const CreditPage = () => {
     return <CreditScorePage onBack={() => navigate("/credit")} />;
   }
 
+  if (loading) {
+    return <CreditSkeleton />;
+  }
+
   const utilisationWidth = `${creditOverview.utilisationPercent}%`;
 
   return (
@@ -57,12 +62,12 @@ const CreditPage = () => {
               {profile.avatarUrl ? (
                 <img
                   src={profile.avatarUrl}
-                  alt={displayName}
+                  alt={displayName || "Profile"}
                   className="h-10 w-10 rounded-full border border-white/40 object-cover"
                 />
               ) : (
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
-                  {initials || "ME"}
+                  {initials || "—"}
                 </div>
               )}
             </div>
