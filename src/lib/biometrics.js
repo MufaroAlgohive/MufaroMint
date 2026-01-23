@@ -1,4 +1,4 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, Plugins } from '@capacitor/core';
 
 const BIOMETRICS_ENABLED_KEY = 'biometricsEnabled';
 const BIOMETRICS_USER_KEY = 'biometricsUserEmail';
@@ -16,8 +16,7 @@ export const isBiometricsAvailable = async () => {
   }
 
   try {
-    const mod = await import('capacitor-face-id');
-    const FaceId = mod.FaceId || mod.default || mod;
+    const { FaceId } = Plugins;
     const result = await FaceId.isAvailable();
     return {
       available: !!result.value,
@@ -34,15 +33,9 @@ export const authenticateWithBiometrics = async (reason = 'Authenticate to conti
     throw new Error('Biometrics only available on native platforms');
   }
 
-  try {
-    const mod = await import('capacitor-face-id');
-    const FaceId = mod.FaceId || mod.default || mod;
-    await FaceId.auth({ reason });
-    return true;
-  } catch (error) {
-    console.error('Biometric authentication failed:', error);
-    throw error;
-  }
+  const { FaceId } = Plugins;
+  await FaceId.auth({ reason });
+  return true;
 };
 
 export const isBiometricsEnabled = () => {
