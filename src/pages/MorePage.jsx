@@ -188,7 +188,7 @@ const MorePage = ({ onNavigate }) => {
   const usernameLabel = displayUsername || "Not set";
 
   return (
-    <div className="min-h-screen bg-white px-6 pt-12 pb-24">
+    <div className="min-h-screen bg-white px-6 pt-16 pb-24">
       <header className="mb-8 flex items-center">
         <button
           type="button"
