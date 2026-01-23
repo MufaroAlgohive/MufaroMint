@@ -7,9 +7,11 @@ import CreditPage from "./pages/CreditPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
 import TransactPage from "./pages/TransactPage.jsx";
 import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
+import BiometricsDebugPage from "./pages/BiometricsDebugPage.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -168,7 +170,23 @@ const App = () => {
   if (currentPage === "more") {
     return (
       <AppLayout activeTab="more" onTabChange={setCurrentPage}>
-        <MorePage />
+        <MorePage onNavigate={setCurrentPage} />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "settings") {
+    return (
+      <AppLayout activeTab="more" onTabChange={setCurrentPage}>
+        <SettingsPage onNavigate={setCurrentPage} />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "biometricsDebug") {
+    return (
+      <AppLayout activeTab="more" onTabChange={setCurrentPage}>
+        <BiometricsDebugPage onNavigate={setCurrentPage} />
       </AppLayout>
     );
   }

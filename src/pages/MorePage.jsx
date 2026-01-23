@@ -10,7 +10,7 @@ import {
   isNativePlatform
 } from "../lib/biometrics";
 
-const MorePage = () => {
+const MorePage = ({ onNavigate }) => {
   const [biometricsOn, setBiometricsOn] = useState(false);
   const [biometryType, setBiometryType] = useState(null);
   const [isAvailable, setIsAvailable] = useState(false);
@@ -70,7 +70,7 @@ const MorePage = () => {
     { id: "profile", label: "Profile Details" },
     { id: "kyc", label: "KYC Status" },
     { id: "banks", label: "Linked Bank Accounts" },
-    { id: "settings", label: "Settings" },
+    { id: "settings", label: "Settings", onClick: () => onNavigate?.("settings") },
     { id: "preferences", label: "Preferences" },
     { id: "help", label: "Help & FAQs" },
     { id: "legal", label: "Legal" },

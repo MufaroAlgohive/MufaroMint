@@ -16,7 +16,8 @@ export const isBiometricsAvailable = async () => {
   }
 
   try {
-    const { FaceId } = await import('capacitor-face-id');
+    const mod = await import('capacitor-face-id');
+    const FaceId = mod.FaceId || mod.default || mod;
     const result = await FaceId.isAvailable();
     return {
       available: !!result.value,
@@ -34,7 +35,8 @@ export const authenticateWithBiometrics = async (reason = 'Authenticate to conti
   }
 
   try {
-    const { FaceId } = await import('capacitor-face-id');
+    const mod = await import('capacitor-face-id');
+    const FaceId = mod.FaceId || mod.default || mod;
     await FaceId.auth({ reason });
     return true;
   } catch (error) {
