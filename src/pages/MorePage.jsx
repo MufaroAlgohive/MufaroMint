@@ -188,17 +188,17 @@ const MorePage = ({ onNavigate }) => {
   const usernameLabel = displayUsername || "Not set";
 
   return (
-    <div className="min-h-screen bg-white px-6 pt-10 pb-24">
-      <div className="flex flex-col items-center text-center">
-        <div className="relative flex w-full items-center justify-center">
-          <button
-            type="button"
-            onClick={() => onNavigate?.("home")}
-            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
-            aria-label="Back"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
+    <div className="min-h-screen bg-white px-6 pt-12 pb-24">
+      <header className="mb-8 flex items-center">
+        <button
+          type="button"
+          onClick={() => onNavigate?.("home")}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
+          aria-label="Back"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="flex flex-1 justify-center">
           {profile?.avatar_url ? (
             <img
               src={profile.avatar_url}
@@ -211,6 +211,10 @@ const MorePage = ({ onNavigate }) => {
             </div>
           )}
         </div>
+        <div className="h-10 w-10" aria-hidden="true" />
+      </header>
+
+      <div className="flex flex-col items-center text-center">
         <h2 className="mt-4 text-xl font-semibold text-slate-900">{nameLabel}</h2>
         <p className="mt-1 text-sm text-slate-500">{usernameLabel}</p>
         <button
