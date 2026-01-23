@@ -75,7 +75,7 @@ const BiometricPromptModal = ({ isOpen, onClose, userEmail, onComplete }) => {
           </div>
 
           <h2 className="mb-2 text-center text-xl font-semibold text-slate-900">
-            Enable {biometryName}?
+            Enable {biometryName} for next time?
           </h2>
           <p className="mb-8 text-center text-sm text-slate-500">
             Use {biometryName} for faster and more secure login next time.

@@ -12,7 +12,8 @@ import {
   isBiometricsEnabled, 
   authenticateWithBiometrics,
   getBiometricsUserEmail,
-  getBiometryTypeName
+  getBiometryTypeName,
+  isNativeIOS
 } from '../lib/biometrics.js';
 
 const OTP_LENGTH = 6;
@@ -23,6 +24,7 @@ const MAX_OTP_ATTEMPTS = 5;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_COOLDOWN_TIME = 1800;
 const COOLDOWN_TIMES = [300, 1800];
+const DEBUG_BIOMETRICS = false;
 
 const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) => {
   const [currentStep, setCurrentStep] = useState(initialStep);
@@ -60,8 +62,10 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
   const [pendingAuthCallback, setPendingAuthCallback] = useState(null);
   const [pendingAuthEmail, setPendingAuthEmail] = useState('');
+  const [pendingAuthShouldMarkLogin, setPendingAuthShouldMarkLogin] = useState(false);
   const [canUseBiometricLogin, setCanUseBiometricLogin] = useState(false);
   const [biometryType, setBiometryType] = useState(null);
+  const [biometricLoginEmail, setBiometricLoginEmail] = useState('');
   
   const toastTimeout = useRef(null);
   const loginTimeout = useRef(null);
@@ -71,6 +75,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const rateLimitInterval = useRef(null);
   const rateLimitDismissInterval = useRef(null);
   const loginCooldownInterval = useRef(null);
+  const biometricAutoPrompted = useRef(false);
 
   const heroDefault = 'Get started';
   const heroSubDefault = useMemo(
@@ -92,17 +97,45 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
 
   useEffect(() => {
     const checkBiometricLogin = async () => {
-      if (currentStep === 'loginPassword') {
+      if (currentStep.startsWith('login')) {
         const { available, biometryType: type } = await isBiometricsAvailable();
         const enabled = isBiometricsEnabled();
         const storedEmail = getBiometricsUserEmail();
-        const emailMatches = storedEmail && storedEmail.toLowerCase() === loginEmail.toLowerCase();
-        setCanUseBiometricLogin(available && enabled && emailMatches);
+        const hasLoggedInBefore = storedEmail ? !isFirstLogin(storedEmail) : false;
+        const emailMatches = storedEmail
+          ? (!loginEmail || storedEmail.toLowerCase() === loginEmail.toLowerCase())
+          : false;
+        const canUse = isNativeIOS() && available && enabled && emailMatches && hasLoggedInBefore;
+        if (DEBUG_BIOMETRICS) {
+          console.debug('[Biometrics] Login availability check', {
+            available,
+            enabled,
+            storedEmail,
+            hasLoggedInBefore,
+            emailMatches,
+            canUse
+          });
+        }
+        setCanUseBiometricLogin(canUse);
         setBiometryType(type);
+        setBiometricLoginEmail(storedEmail || '');
       }
     };
     checkBiometricLogin();
   }, [currentStep, loginEmail]);
+
+  useEffect(() => {
+    if (!currentStep.startsWith('login')) {
+      biometricAutoPrompted.current = false;
+      return;
+    }
+    if (!canUseBiometricLogin || biometricAutoPrompted.current) return;
+    biometricAutoPrompted.current = true;
+    if (DEBUG_BIOMETRICS) {
+      console.debug('[Biometrics] Auto prompting login');
+    }
+    handleBiometricLogin();
+  }, [currentStep, canUseBiometricLogin]);
 
   const handleBiometricLogin = async () => {
     if (!canUseBiometricLogin) return;
@@ -110,14 +143,32 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     setIsLoading(true);
     try {
       const biometryName = getBiometryTypeName(biometryType);
+      const emailForBiometrics = loginEmail || biometricLoginEmail;
       await authenticateWithBiometrics(`Use ${biometryName} to login`);
-      
-      markAsLoggedIn(loginEmail);
-      if (onLoginComplete) {
-        onLoginComplete();
+
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (DEBUG_BIOMETRICS) {
+        console.debug('[Biometrics] Session restore result', { hasSession: !!session, error });
       }
+      if (session) {
+        if (emailForBiometrics) {
+          markAsLoggedIn(emailForBiometrics);
+        }
+        if (onLoginComplete) {
+          onLoginComplete();
+        }
+        return;
+      }
+      
+      showToast('Please enter your password once to enable Face ID login.');
+      if (emailForBiometrics) {
+        setLoginEmail(emailForBiometrics);
+      }
+      showStep('loginPassword');
     } catch (error) {
-      console.error('Biometric login failed:', error);
+      if (DEBUG_BIOMETRICS) {
+        console.debug('[Biometrics] Login failed', error);
+      }
       showToast('Biometric authentication failed. Please use your password.');
     } finally {
       setIsLoading(false);
@@ -309,6 +360,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       if (available) {
         setPendingAuthEmail(email);
         setPendingAuthCallback(() => onSignupComplete);
+        setPendingAuthShouldMarkLogin(false);
         setTimeout(() => {
           setShowBiometricPrompt(true);
         }, 1000);
@@ -438,6 +490,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   
   const heroHeading = getHeroHeading();
   const heroSubheading = getHeroSubheading();
+  const biometryName = getBiometryTypeName(biometryType);
 
   const handleEmailContinue = () => {
     if (email && email.includes('@') && email.includes('.')) {
@@ -522,6 +575,18 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       }
       
       setLoginAttempts(0);
+      const isFirstTimeLogin = isFirstLogin(loginEmail);
+      if (isFirstTimeLogin) {
+        const { available } = await isBiometricsAvailable();
+        if (available && isNativeIOS()) {
+          setPendingAuthEmail(loginEmail);
+          setPendingAuthCallback(() => onLoginComplete);
+          setPendingAuthShouldMarkLogin(true);
+          setShowBiometricPrompt(true);
+          return;
+        }
+        markAsLoggedIn(loginEmail);
+      }
       if (onLoginComplete) {
         onLoginComplete();
       }
@@ -818,6 +883,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   </svg>
                 </PrimaryButton>
               </div>
+              {canUseBiometricLogin && (
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-foreground underline-offset-4 hover:underline transition"
+                  onClick={handleBiometricLogin}
+                >
+                  Use {biometryName}
+                </button>
+              )}
               <p className="text-center text-sm text-muted-foreground animate-on-load delay-5">
                 Need an account?
                 <button
@@ -885,6 +959,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   )}
                   
                   <div className="flex flex-col items-center gap-3">
+                    {canUseBiometricLogin && (
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-foreground underline-offset-4 hover:underline transition"
+                        onClick={handleBiometricLogin}
+                      >
+                        Use {biometryName}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition"
@@ -1218,9 +1301,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         userEmail={pendingAuthEmail}
         onComplete={(enabled) => {
           setShowBiometricPrompt(false);
+          if (pendingAuthShouldMarkLogin && pendingAuthEmail) {
+            markAsLoggedIn(pendingAuthEmail);
+          }
           if (pendingAuthCallback) {
             pendingAuthCallback();
           }
+          setPendingAuthCallback(null);
+          setPendingAuthEmail('');
+          setPendingAuthShouldMarkLogin(false);
         }}
       />
     </>

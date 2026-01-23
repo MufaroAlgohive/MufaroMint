@@ -10,6 +10,10 @@ export const isNativePlatform = () => {
     : Capacitor.getPlatform() !== 'web';
 };
 
+export const isNativeIOS = () => {
+  return isNativePlatform() && Capacitor.getPlatform() === 'ios';
+};
+
 const NativeBiometric = registerPlugin('NativeBiometric');
 
 export const isBiometricsAvailable = async () => {
