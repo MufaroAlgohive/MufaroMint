@@ -103,7 +103,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
                   triggerHaptic(ImpactStyle.Light);
                   setIsOpen(false);
                 }}
-                className="fixed inset-0 pointer-events-auto bg-white/40 backdrop-blur-[12px]"
+                className="fixed inset-0 pointer-events-auto bg-white/40 backdrop-blur-[6px]"
               />
             )}
           </AnimatePresence>
