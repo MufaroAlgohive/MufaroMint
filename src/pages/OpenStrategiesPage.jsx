@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { ArrowLeft, ChevronRight, Search } from "lucide-react";
-import StrategyReturnChart from "../components/StrategyReturnChart";
 
 const filterOptions = ["Low risk", "Balanced", "Growth", "High risk", "Income"];
 
@@ -75,13 +74,9 @@ const OpenStrategiesPage = ({ onBack }) => {
           </button>
         </header>
 
-        <div className="mt-6">
-          <StrategyReturnChart />
-        </div>
-
         <button
           type="button"
-          className="mt-4 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_6px_18px_rgba(15,23,42,0.06)]"
+          className="mt-6 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_6px_18px_rgba(15,23,42,0.06)]"
         >
           View factsheet
           <ChevronRight className="h-4 w-4 text-slate-400" />
