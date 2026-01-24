@@ -23,6 +23,11 @@ const OutstandingActionsSection = ({ actions, onViewAll, onSelectAction }) => {
             className="flex min-w-[240px] flex-1 snap-start flex-col justify-between rounded-2xl border border-slate-100 bg-white/90 px-4 py-4 text-left shadow-sm"
           >
             <div>
+              <div className="mb-3 flex items-center justify-between">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-50 text-violet-700">
+                  {action.icon ? <action.icon className="h-4 w-4" /> : null}
+                </span>
+              </div>
               <p className="text-sm font-semibold text-slate-900">{action.title}</p>
               <p className="mt-1 text-xs text-slate-500">{action.description}</p>
             </div>

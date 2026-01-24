@@ -1,5 +1,13 @@
 import React from "react";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  ChevronRight,
+  HandCoins,
+  Landmark,
+  TrendingUp,
+  UserPlus,
+} from "lucide-react";
 import ActionsSkeleton from "../components/ActionsSkeleton";
 
 const ActionsPage = ({ onBack, isLoading = false }) => {
@@ -12,24 +20,35 @@ const ActionsPage = ({ onBack, isLoading = false }) => {
       title: "Complete identity check",
       description: "Needed to unlock higher limits",
       status: "Required",
+      icon: BadgeCheck,
     },
     {
       id: "bank-link",
       title: "Link your primary bank",
       description: "Connect to enable instant transfers",
-      status: "Pending",
+      status: "In review",
+      icon: Landmark,
     },
     {
       id: "investments",
       title: "Review investment allocation",
       description: "Confirm your latest risk profile",
-      status: "Pending",
+      status: "Optional",
+      icon: TrendingUp,
     },
     {
       id: "credit",
       title: "Confirm credit preferences",
       description: "Set your preferred repayment day",
       status: "Required",
+      icon: HandCoins,
+    },
+    {
+      id: "invite",
+      title: "Invite a friend",
+      description: "Share Mint and earn bonus rewards",
+      status: "Optional",
+      icon: UserPlus,
     },
   ];
 
@@ -55,8 +74,8 @@ const ActionsPage = ({ onBack, isLoading = false }) => {
           </p>
           {actions.map((action) => (
             <div key={action.id} className="flex gap-3 rounded-3xl bg-white p-4 shadow-sm">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700">
-                {action.title?.[0] || "!"}
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-50 text-violet-700">
+                {action.icon ? <action.icon className="h-5 w-5" /> : null}
               </div>
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between gap-3">
