@@ -2,3 +2,7 @@ node_modules
 /dist
 .env
 .DS_Store
+
+# local asset sources
+assets/
+assets_fixed/
