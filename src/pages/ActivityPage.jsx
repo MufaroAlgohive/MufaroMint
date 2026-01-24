@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { ArrowLeft, BanknoteArrowDown, BanknoteArrowUp, CalendarDays } from "lucide-react";
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, CalendarDays } from "lucide-react";
 import ActivitySkeleton from "../components/ActivitySkeleton";
 
 const filters = ["All", "Investments", "Loans"];
@@ -13,7 +13,7 @@ const activityItems = [
 ];
 const iconGradientId = "activity-icon-gradient";
 const getActivityIcon = (item) =>
-  item.amount?.startsWith("+") ? BanknoteArrowUp : BanknoteArrowDown;
+  item.amount?.startsWith("+") ? ArrowDownLeft : ArrowUpRight;
 const formatGroupLabel = (dateString) => {
   const date = new Date(`${dateString}T00:00:00`);
   if (Number.isNaN(date.getTime())) {
