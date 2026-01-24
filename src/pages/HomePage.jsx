@@ -1,5 +1,5 @@
 import React from "react";
-import { Bell } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Bell, CreditCard, QrCode } from "lucide-react";
 import TransactionSheet from "../components/TransactionSheet";
 import { useProfile } from "../lib/useProfile";
 import HomeSkeleton from "../components/HomeSkeleton";
@@ -48,46 +48,34 @@ const HomePage = ({ onOpenNotifications }) => {
           </header>
 
           <section className="rounded-3xl bg-white/10 p-5 text-center text-white shadow-sm backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.2em] text-white/70">Total Balance</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-white/70">Mint Balance</p>
             <p className="mt-2 text-3xl font-semibold">$24,806.03</p>
-            <div className="mt-5 grid grid-cols-4 gap-3 text-[11px] font-medium">
-              {[
-                { label: "Transfer", icon: "↗" },
-                { label: "Deposit", icon: "↓" },
-                { label: "Pay", icon: "▢" },
-                { label: "Scan", icon: "⌁" },
-              ].map((item) => (
-                <button
-                  key={item.label}
-                  className="flex flex-col items-center gap-2 rounded-2xl bg-white/80 px-2 py-3 text-slate-700 shadow-sm"
-                  type="button"
-                >
-                  <span className="text-lg">{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
           </section>
         </div>
       </div>
 
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
-        <section className="flex items-center justify-between gap-3 rounded-3xl bg-white px-4 py-3 shadow-md">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-200 text-lg">
-              ✨
-            </div>
-            <div>
-              <p className="text-[11px] text-slate-500">Personal Balance</p>
-              <p className="text-sm font-semibold">$206.03</p>
-            </div>
-          </div>
-          <button
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100"
-            type="button"
-          >
-            →
-          </button>
+        <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
+          {[
+            { label: "Transfer", icon: ArrowUpRight },
+            { label: "Deposit", icon: ArrowDownLeft },
+            { label: "Pay", icon: CreditCard },
+            { label: "Scan", icon: QrCode },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md"
+                type="button"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-50 text-violet-700">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
         </section>
 
         <div className="flex items-center justify-center gap-2">
