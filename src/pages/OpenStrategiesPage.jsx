@@ -1,8 +1,6 @@
 import React, { useState } from "react";
-import { ArrowLeft, ArrowUpRight, ChevronRight, Search } from "lucide-react";
-import { formatZar } from "../lib/formatCurrency";
-
-const timeframeOptions = ["1W", "1M", "6M", "1Y", "All"];
+import { ArrowLeft, ChevronRight, Search } from "lucide-react";
+import StrategyReturnChart from "../components/StrategyReturnChart";
 
 const filterOptions = ["Low risk", "Balanced", "Growth", "High risk", "Income"];
 
@@ -46,7 +44,6 @@ const strategyCards = [
 ];
 
 const OpenStrategiesPage = ({ onBack }) => {
-  const [activeTimeframe, setActiveTimeframe] = useState("6M");
   const [activeFilter, setActiveFilter] = useState("Balanced");
 
   return (
@@ -78,61 +75,18 @@ const OpenStrategiesPage = ({ onBack }) => {
           </button>
         </header>
 
-        <section className="mt-6 rounded-3xl bg-white px-5 py-5 shadow-sm ring-1 ring-slate-100">
-          <p className="text-3xl font-semibold">{formatZar(182450)}</p>
-          <div className="mt-2 flex items-center gap-2 text-xs text-emerald-500">
-            <ArrowUpRight className="h-4 w-4" />
-            <span className="font-semibold">+R 12,341 (8.1%)</span>
-            <span className="text-slate-500">All time</span>
-          </div>
+        <div className="mt-6">
+          <StrategyReturnChart />
+        </div>
 
-          <div className="mt-4 rounded-2xl bg-slate-50 px-3 py-3">
-            <svg viewBox="0 0 320 120" className="h-28 w-full">
-              <defs>
-                <linearGradient id="strategyFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.2" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M10 90 L50 75 L90 82 L130 60 L170 64 L210 48 L250 55 L310 28"
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-              <path
-                d="M10 90 L50 75 L90 82 L130 60 L170 64 L210 48 L250 55 L310 28 L310 120 L10 120 Z"
-                fill="url(#strategyFill)"
-              />
-            </svg>
-          </div>
+        <button
+          type="button"
+          className="mt-4 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_6px_18px_rgba(15,23,42,0.06)]"
+        >
+          View factsheet
+          <ChevronRight className="h-4 w-4 text-slate-400" />
+        </button>
 
-          <div className="mt-4 flex gap-2 rounded-full bg-white p-1 shadow-sm">
-            {timeframeOptions.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setActiveTimeframe(option)}
-                className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  activeTimeframe === option
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className="mt-4 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700 shadow-[0_6px_18px_rgba(15,23,42,0.06)]"
-          >
-            View factsheet
-            <ChevronRight className="h-4 w-4 text-slate-400" />
-          </button>
-        </section>
 
         <div className="mt-5 space-y-3">
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
