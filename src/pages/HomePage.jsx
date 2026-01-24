@@ -136,11 +136,34 @@ const HomePage = ({
     { title: "Investment gain", date: "18 Apr", amount: "+R120" },
   ];
   const bestAssets = [
-    { symbol: "AMZN", name: "Amazon, Inc", value: "$2,857.86", change: "+0.05%" },
-    { symbol: "AAPL", name: "Apple, Inc", value: "$1,942.12", change: "+0.12%" },
-    { symbol: "NVDA", name: "Nvidia Corp", value: "$3,120.48", change: "+0.31%" },
-    { symbol: "TSLA", name: "Tesla, Inc", value: "$1,284.33", change: "+0.09%" },
-    { symbol: "MSFT", name: "Microsoft", value: "$2,015.72", change: "+0.07%" },
+    {
+      symbol: "CPI",
+      name: "Capitec",
+      value: "R2,857.86",
+      change: "+0.05%",
+      logo: "https://s3-symbol-logo.tradingview.com/capitec-bank-hldgs-ltd--big.svg",
+    },
+    {
+      symbol: "NPN",
+      name: "Naspers",
+      value: "R1,942.12",
+      change: "+0.12%",
+      logo: "https://s3-symbol-logo.tradingview.com/naspers--big.svg",
+    },
+    {
+      symbol: "FSR",
+      name: "First Rand",
+      value: "R3,120.48",
+      change: "+0.31%",
+      logo: "https://s3-symbol-logo.tradingview.com/firstrand-ltd--big.svg",
+    },
+    {
+      symbol: "ABG",
+      name: "ABSA Group",
+      value: "R1,284.33",
+      change: "+0.09%",
+      logo: "https://s3-symbol-logo.tradingview.com/absa-bank-ltd-pref--big.svg",
+    },
   ];
 
   const handleActionNavigation = (action) => {
@@ -235,8 +258,12 @@ const HomePage = ({
                 key={asset.symbol}
                 className="flex min-w-[260px] flex-1 snap-start items-center gap-4 rounded-3xl bg-white p-4 shadow-md"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-base font-semibold text-slate-700">
-                  {asset.symbol[0]}
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+                  <img
+                    src={asset.logo}
+                    alt={asset.name}
+                    className="h-10 w-10 object-contain"
+                  />
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-slate-900">{asset.symbol}</p>
