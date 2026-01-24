@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge-2";
+import { Badge } from './ui/badge-2'
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/line-charts-2";
+import { ChartContainer, ChartTooltip } from './ui/line-charts-2'
 import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
 /** @type {ChartConfig} */

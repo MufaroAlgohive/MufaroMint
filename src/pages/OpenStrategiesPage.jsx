@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ArrowLeft, ChevronRight, Search } from "lucide-react";
 import { StrategyReturnHeaderChart } from "../components/StrategyReturnHeaderChart";
 
+
 const filterOptions = ["Low risk", "Balanced", "Growth", "High risk", "Income"];
 
 const strategyCards = [
