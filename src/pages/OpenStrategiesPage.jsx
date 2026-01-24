@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ArrowLeft, ChevronRight, Search } from "lucide-react";
+import { StrategyReturnHeaderChart } from "@/components/StrategyReturnHeaderChart";
 
 const filterOptions = ["Low risk", "Balanced", "Growth", "High risk", "Income"];
 
@@ -44,6 +45,14 @@ const strategyCards = [
 
 const OpenStrategiesPage = ({ onBack }) => {
   const [activeFilter, setActiveFilter] = useState("Balanced");
+  const series = [
+    { label: "10", returnPct: 1.2 },
+    { label: "11", returnPct: 0.4 },
+    { label: "12", returnPct: 2.1 },
+    { label: "1", returnPct: 3.3 },
+    { label: "2", returnPct: 5.6 },
+    { label: "3", returnPct: 6.7 },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
@@ -73,6 +82,10 @@ const OpenStrategiesPage = ({ onBack }) => {
             <Search className="h-5 w-5" />
           </button>
         </header>
+
+        <div className="mt-6">
+          <StrategyReturnHeaderChart series={series} />
+        </div>
 
         <button
           type="button"
