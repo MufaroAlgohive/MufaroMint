@@ -4,6 +4,21 @@ import { Area, ComposedChart, Line, XAxis, YAxis } from "recharts";
 
 const TF_ORDER = ["1D", "1W", "1M", "3M", "6M", "YTD"];
 
+const buildDummySeries = (points = 200) => {
+  const base = 4.5;
+  const data = [];
+  for (let i = 0; i < points; i += 1) {
+    const wave = Math.sin(i / 18) * 1.1 + Math.cos(i / 9) * 0.4;
+    const drift = (i / points) * 1.6;
+    const noise = ((i % 7) - 3) * 0.03;
+    data.push({
+      label: `D${i + 1}`,
+      returnPct: Number((base + wave + drift + noise).toFixed(2)),
+    });
+  }
+  return data;
+};
+
 const sliceForTF = (data, tf) => {
   const n = data.length;
   if (tf === "1D") return data.slice(Math.max(0, n - 2));
@@ -18,7 +33,9 @@ const sliceForTF = (data, tf) => {
 
 export function StrategyReturnHeaderChart({ series }) {
   const [tf, setTf] = useState("6M");
-  const filtered = useMemo(() => sliceForTF(series, tf), [series, tf]);
+  const fallbackSeries = useMemo(() => buildDummySeries(), []);
+  const resolvedSeries = series?.length ? series : fallbackSeries;
+  const filtered = useMemo(() => sliceForTF(resolvedSeries, tf), [resolvedSeries, tf]);
   const chartConfig = {
     returnPct: {
       label: "Return",
