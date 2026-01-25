@@ -8,6 +8,7 @@ import CreditApplyPage from "./pages/CreditApplyPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
+import FactsheetPage from "./pages/FactsheetPage.jsx";
 import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
@@ -217,8 +218,15 @@ const App = () => {
 
   if (currentPage === "openStrategies") {
     return (
-      <OpenStrategiesPage onBack={() => setCurrentPage("invest")} />
+      <OpenStrategiesPage
+        onBack={() => setCurrentPage("invest")}
+        onOpenFactsheet={() => setCurrentPage("factsheet")}
+      />
     );
+  }
+
+  if (currentPage === "factsheet") {
+    return <FactsheetPage onBack={() => setCurrentPage("openStrategies")} />;
   }
 
   if (currentPage === "withdraw") {

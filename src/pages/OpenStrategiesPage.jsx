@@ -184,7 +184,7 @@ const StrategyMiniChart = ({ values }) => {
   );
 };
 
-const OpenStrategiesPage = ({ onBack }) => {
+const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHolding, setSelectedHolding] = useState(null);
   const [activeChips, setActiveChips] = useState([]);
@@ -502,6 +502,7 @@ const OpenStrategiesPage = ({ onBack }) => {
 
         <button
           type="button"
+          onClick={onOpenFactsheet}
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200/70"
         >
           View factsheet
@@ -587,7 +588,15 @@ const OpenStrategiesPage = ({ onBack }) => {
             filteredStrategies.map((strategy) => (
               <div
                 key={strategy.name}
-                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                role="button"
+                tabIndex={0}
+                onClick={onOpenFactsheet}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    onOpenFactsheet?.();
+                  }
+                }}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
