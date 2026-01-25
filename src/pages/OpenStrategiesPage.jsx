@@ -68,11 +68,11 @@ const OpenStrategiesPage = ({ onBack }) => {
         <section className="mt-6 rounded-[28px] border border-slate-100 bg-white p-5 shadow-[0_18px_40px_rgba(79,70,229,0.08)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-slate-100">
+              <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-slate-100">
                 <img
                   src="https://s3-symbol-logo.tradingview.com/country/ZA.svg"
                   alt="South Africa"
-                  className="h-7 w-7"
+                  className="h-full w-full object-cover"
                 />
               </div>
               <div>
