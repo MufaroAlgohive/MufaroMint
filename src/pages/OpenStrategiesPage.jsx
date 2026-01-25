@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import { ArrowLeft, ChevronRight, Search } from "lucide-react";
 import { StrategyReturnHeaderChart } from "../components/StrategyReturnHeaderChart";
+import { ChartContainer } from "../components/ui/line-charts-2";
+import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer } from "recharts";
 
 const tabOptions = ["Strategies", "Stocks"];
 
@@ -46,21 +48,85 @@ const holdingsSnapshot = [
   },
 ];
 
-const buildSparklinePoints = (values, width, height, padding = 4) => {
-  if (!values.length) {
-    return "";
-  }
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const divisor = values.length > 1 ? values.length - 1 : 1;
-  return values
-    .map((value, index) => {
-      const x = padding + (index / divisor) * (width - padding * 2);
-      const y = padding + (1 - (value - min) / range) * (height - padding * 2);
-      return `${x},${y}`;
-    })
-    .join(" ");
+const StrategyMiniChart = ({ values }) => {
+  const chartConfig = {
+    returnPct: {
+      label: "Return",
+      color: "var(--color-mint-purple, #5b21b6)",
+    },
+  };
+  const data = useMemo(
+    () =>
+      values.map((value, index) => ({
+        label: `P${index + 1}`,
+        returnPct: value,
+      })),
+    [values],
+  );
+  const lastIndex = data.length - 1;
+  const gradientId = useId();
+  const [activeLabel, setActiveLabel] = useState(null);
+  const renderLastDot = ({ cx, cy, index }) => {
+    if (index !== lastIndex) return null;
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={5} fill="#ffffff" opacity={0.95} />
+        <circle cx={cx} cy={cy} r={2.5} fill={chartConfig.returnPct.color} />
+      </g>
+    );
+  };
+
+  return (
+    <ChartContainer config={chartConfig} className="h-12 w-24">
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart
+          data={data}
+          margin={{ top: 4, right: 6, left: 6, bottom: 4 }}
+          onMouseMove={(state) => {
+            if (state?.activeLabel) {
+              setActiveLabel(state.activeLabel);
+            }
+          }}
+          onMouseLeave={() => {
+            setActiveLabel(null);
+          }}
+        >
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#5b21b6" stopOpacity={0.22} />
+              <stop offset="70%" stopColor="#3b1b7a" stopOpacity={0.08} />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+
+          {activeLabel ? (
+            <ReferenceLine
+              x={activeLabel}
+              stroke="#CBD5E1"
+              strokeOpacity={0.7}
+              strokeDasharray="3 3"
+            />
+          ) : null}
+
+          <Area
+            type="monotone"
+            dataKey="returnPct"
+            stroke="transparent"
+            fill={`url(#${gradientId})`}
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="returnPct"
+            stroke={chartConfig.returnPct.color}
+            strokeWidth={2}
+            dot={renderLastDot}
+            activeDot={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartContainer>
+  );
 };
 
 const OpenStrategiesPage = ({ onBack }) => {
@@ -218,91 +284,57 @@ const OpenStrategiesPage = ({ onBack }) => {
 
         <section className="mt-6 space-y-3">
           <h2 className="text-sm font-semibold text-slate-900">Other strategies</h2>
-          {strategyCards.map((strategy) => {
-            const points = buildSparklinePoints(strategy.sparkline, 120, 44);
-            const sparkId = `spark-${strategy.name.replace(/\s+/g, "-").toLowerCase()}`;
-
-            return (
-              <div
-                key={strategy.name}
-                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{strategy.name}</p>
-                      <p className="text-xs text-slate-500">{strategy.risk}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-emerald-500">
-                        +{strategy.returnRate}
-                      </p>
-                      <p className="text-[11px] text-slate-400">{strategy.minimum}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="flex h-12 w-24 items-center justify-center rounded-xl bg-slate-50 px-2">
-                      <svg
-                        aria-hidden="true"
-                        className="h-10 w-full"
-                        viewBox="0 0 120 44"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <defs>
-                          <linearGradient id={sparkId} x1="0" y1="0" x2="0" y2="44">
-                            <stop offset="0%" stopColor="#a855f7" stopOpacity="0.35" />
-                            <stop offset="100%" stopColor="#a855f7" stopOpacity="0" />
-                          </linearGradient>
-                        </defs>
-                        <polyline
-                          points={points}
-                          stroke="#8b5cf6"
-                          strokeWidth="2"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                        <polygon points={`4,40 ${points} 116,40`} fill={`url(#${sparkId})`} />
-                      </svg>
-                    </div>
+          {strategyCards.map((strategy) => (
+            <div
+              key={strategy.name}
+              className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-slate-900">{strategy.name}</p>
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-500">+{strategy.returnRate}</p>
+                    <p className="text-[11px] text-slate-400">{strategy.minimum}</p>
                   </div>
                 </div>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {strategy.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="mt-3 flex items-center gap-3">
-                  <div className="flex -space-x-2">
-                    {holdingsSnapshot.map((company) => (
-                      <div
-                        key={`${strategy.name}-${company.name}`}
-                        className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
-                      >
-                        <img
-                          src={company.src}
-                          alt={company.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                    ))}
-                    <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
-                      +3
-                    </div>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
+                <div className="flex items-center rounded-xl bg-slate-50 px-2">
+                  <StrategyMiniChart values={strategy.sparkline} />
                 </div>
               </div>
-            );
-          })}
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {strategy.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex -space-x-2">
+                  {holdingsSnapshot.map((company) => (
+                    <div
+                      key={`${strategy.name}-${company.name}`}
+                      className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                    >
+                      <img
+                        src={company.src}
+                        alt={company.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  ))}
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
+                    +3
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
+              </div>
+            </div>
+          ))}
         </section>
       </div>
     </div>
