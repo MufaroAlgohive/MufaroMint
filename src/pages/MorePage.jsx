@@ -61,7 +61,7 @@ const MorePage = ({ onNavigate }) => {
 
         const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .select("first_name, last_name, email, avatar_url, kyc_verified, bank_linked")
+          .select("first_name, last_name, email, avatar_url")
           .eq("id", userData.user.id)
           .single();
 
@@ -71,8 +71,8 @@ const MorePage = ({ onNavigate }) => {
 
         if (alive) {
           setProfile(profileData);
-          setKycVerified(profileData?.kyc_verified || false);
-          setBankLinked(profileData?.bank_linked || false);
+          setKycVerified(false);
+          setBankLinked(false);
           setLoading(false);
         }
       } catch (err) {

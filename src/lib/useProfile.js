@@ -55,7 +55,7 @@ export const useProfile = () => {
         const user = userData.user;
         const { data: rowData, error: rowError } = await supabase
           .from("profiles")
-          .select("first_name, last_name, email, avatar_url, phone_number, date_of_birth, gender, country, city")
+          .select("first_name, last_name, email, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
 
