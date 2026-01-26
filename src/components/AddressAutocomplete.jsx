@@ -1,13 +1,57 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MapPin, X, Loader2 } from "lucide-react";
 
+const GOOGLE_API_KEY = import.meta.env.VITE_API_KEY;
+
 const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }) => {
   const [query, setQuery] = useState(value || "");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
   const wrapperRef = useRef(null);
   const debounceRef = useRef(null);
+  const autocompleteService = useRef(null);
+  const placesService = useRef(null);
+  const sessionToken = useRef(null);
+
+  useEffect(() => {
+    if (window.google?.maps?.places) {
+      setScriptLoaded(true);
+      initServices();
+      return;
+    }
+
+    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+      const checkLoaded = setInterval(() => {
+        if (window.google?.maps?.places) {
+          setScriptLoaded(true);
+          initServices();
+          clearInterval(checkLoaded);
+        }
+      }, 100);
+      return () => clearInterval(checkLoaded);
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      setScriptLoaded(true);
+      initServices();
+    };
+    document.head.appendChild(script);
+  }, []);
+
+  const initServices = () => {
+    if (window.google?.maps?.places) {
+      autocompleteService.current = new window.google.maps.places.AutocompleteService();
+      const div = document.createElement("div");
+      placesService.current = new window.google.maps.places.PlacesService(div);
+      sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
+    }
+  };
 
   useEffect(() => {
     setQuery(value || "");
@@ -24,7 +68,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
   }, []);
 
   const searchAddresses = async (searchQuery) => {
-    if (!searchQuery || searchQuery.length < 2) {
+    if (!searchQuery || searchQuery.length < 2 || !autocompleteService.current) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -32,50 +76,32 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
 
     setIsLoading(true);
     try {
-      const response = await fetch(
-        `https://photon.komoot.io/api/?q=${encodeURIComponent(searchQuery)}&limit=8&lat=-28.4793&lon=24.6727`,
-        {
-          headers: {
-            "Accept-Language": "en",
-          },
+      const request = {
+        input: searchQuery,
+        componentRestrictions: { country: "za" },
+        sessionToken: sessionToken.current,
+        types: ["address"],
+      };
+
+      autocompleteService.current.getPlacePredictions(request, (predictions, status) => {
+        setIsLoading(false);
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+          const addresses = predictions.map((prediction) => ({
+            placeId: prediction.place_id,
+            displayName: prediction.description,
+            mainText: prediction.structured_formatting?.main_text,
+            secondaryText: prediction.structured_formatting?.secondary_text,
+          }));
+          setSuggestions(addresses);
+          setShowSuggestions(true);
+        } else {
+          setSuggestions([]);
+          setShowSuggestions(true);
         }
-      );
-
-      if (!response.ok) throw new Error("Search failed");
-
-      const data = await response.json();
-      const addresses = data.features.map((item) => {
-        const props = item.properties;
-        const parts = [];
-        if (props.housenumber) parts.push(props.housenumber);
-        if (props.street) parts.push(props.street);
-        if (props.district) parts.push(props.district);
-        if (props.city) parts.push(props.city);
-        if (props.state) parts.push(props.state);
-        if (props.country) parts.push(props.country);
-        
-        return {
-          displayName: parts.length > 0 ? parts.join(", ") : props.name,
-          country: props.country,
-          lat: item.geometry?.coordinates?.[1],
-          lon: item.geometry?.coordinates?.[0],
-        };
       });
-
-      const sorted = addresses.sort((a, b) => {
-        const aIsSA = a.country?.toLowerCase() === "south africa";
-        const bIsSA = b.country?.toLowerCase() === "south africa";
-        if (aIsSA && !bIsSA) return -1;
-        if (!aIsSA && bIsSA) return 1;
-        return 0;
-      });
-
-      setSuggestions(sorted.slice(0, 6));
-      setShowSuggestions(true);
     } catch (error) {
       console.error("Address search error:", error);
       setSuggestions([]);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -98,6 +124,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
     onChange(address.displayName);
     setShowSuggestions(false);
     setSuggestions([]);
+    sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
   };
 
   const handleClear = () => {
@@ -138,13 +165,16 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
         <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
           {suggestions.map((address, index) => (
             <button
-              key={index}
+              key={address.placeId || index}
               type="button"
               onClick={() => handleSelect(address)}
               className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
             >
               <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-400" />
-              <span className="text-sm text-slate-700">{address.displayName}</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-slate-900">{address.mainText}</span>
+                <span className="text-xs text-slate-500">{address.secondaryText}</span>
+              </div>
             </button>
           ))}
         </div>
