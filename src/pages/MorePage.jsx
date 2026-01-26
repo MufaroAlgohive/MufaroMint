@@ -130,6 +130,8 @@ const MorePage = ({ onNavigate }) => {
 
   const nameLabel = displayName || "Not set";
   const usernameLabel = displayUsername || "Not set";
+  const iconGradientClasses =
+    "bg-gradient-to-br from-[#3b1b7a] via-[#5b21b6] to-[#8b5cf6] text-white shadow-sm";
 
   return (
     <div className="min-h-screen bg-white px-6 pt-16 pb-24">
@@ -204,7 +206,9 @@ const MorePage = ({ onNavigate }) => {
               className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-left transition hover:bg-slate-100"
             >
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-slate-600" />
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full ${iconGradientClasses}`}>
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                </span>
                 <span className="text-sm font-medium text-slate-700">KYC Verification</span>
               </div>
               <span
@@ -223,7 +227,9 @@ const MorePage = ({ onNavigate }) => {
               className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-left transition hover:bg-slate-100"
             >
               <div className="flex items-center gap-2">
-                <Landmark className="h-4 w-4 text-slate-600" />
+                <span className={`flex h-6 w-6 items-center justify-center rounded-full ${iconGradientClasses}`}>
+                  <Landmark className="h-3.5 w-3.5" />
+                </span>
                 <span className="text-sm font-medium text-slate-700">Bank Account</span>
               </div>
               <span
@@ -261,7 +267,7 @@ const MorePage = ({ onNavigate }) => {
                     className="flex w-full items-center justify-between rounded-2xl px-2 py-3 text-left text-slate-700 transition hover:bg-slate-50 active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                      <span className={`flex h-10 w-10 items-center justify-center rounded-full ${iconGradientClasses}`}>
                         <Icon className="h-5 w-5" />
                       </span>
                       <span className="text-base font-medium text-slate-800">{item.label}</span>
