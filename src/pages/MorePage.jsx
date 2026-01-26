@@ -15,13 +15,13 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import ProfileSkeleton from "../components/ProfileSkeleton";
+import { useRequiredActions } from "../lib/useRequiredActions";
 
 const MorePage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
-  const [kycVerified, setKycVerified] = useState(false);
-  const [bankLinked, setBankLinked] = useState(false);
+  const { kycVerified, bankLinked } = useRequiredActions();
 
   const displayName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)
@@ -71,8 +71,6 @@ const MorePage = ({ onNavigate }) => {
 
         if (alive) {
           setProfile(profileData);
-          setKycVerified(false);
-          setBankLinked(false);
           setLoading(false);
         }
       } catch (err) {

@@ -9,8 +9,10 @@ import {
   Info,
   UserPlus,
   TrendingUp,
+  ShieldCheck,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
+import { useRequiredActions } from "../lib/useRequiredActions";
 import HomeSkeleton from "../components/HomeSkeleton";
 import MintBalanceCard from "../components/MintBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
@@ -30,6 +32,7 @@ const HomePage = ({
   onOpenSettings,
 }) => {
   const { profile, loading } = useProfile();
+  const { kycVerified, bankLinked, loading: actionsLoading } = useRequiredActions();
   const [failedLogos, setFailedLogos] = useState({});
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -53,63 +56,27 @@ const HomePage = ({
   const actionsData = [
     {
       id: "identity",
-      title: "Complete identity check",
-      description: "Needed to unlock higher limits",
+      title: "Complete KYC verification",
+      description: "Verify your identity to unlock all features",
       priority: 1,
-      status: "Required",
-      icon: BadgeCheck,
-      routeName: "settings",
-      isComplete: false,
+      status: kycVerified ? "Verified" : "Not Verified",
+      icon: ShieldCheck,
+      routeName: "actions",
+      isComplete: kycVerified,
       dueAt: "2025-01-20T12:00:00Z",
       createdAt: "2025-01-18T09:00:00Z",
     },
     {
       id: "bank-link",
-      title: "Link your primary bank",
+      title: "Link your bank account",
       description: "Connect to enable instant transfers",
       priority: 2,
-      status: "In review",
+      status: bankLinked ? "Linked" : "Not Linked",
       icon: Landmark,
-      routeName: "settings",
-      isComplete: false,
+      routeName: "actions",
+      isComplete: bankLinked,
       dueAt: "2025-01-22T12:00:00Z",
       createdAt: "2025-01-19T09:00:00Z",
-    },
-    {
-      id: "investments",
-      title: "Review investment allocation",
-      description: "Confirm your latest risk profile",
-      priority: 3,
-      status: "Optional",
-      icon: TrendingUp,
-      routeName: "investments",
-      isComplete: false,
-      dueAt: "2025-01-28T12:00:00Z",
-      createdAt: "2025-01-21T09:00:00Z",
-    },
-    {
-      id: "credit",
-      title: "Confirm credit preferences",
-      description: "Set your preferred repayment day",
-      priority: 4,
-      status: "Required",
-      icon: HandCoins,
-      routeName: "credit",
-      isComplete: false,
-      dueAt: "2025-02-01T12:00:00Z",
-      createdAt: "2025-01-22T09:00:00Z",
-    },
-    {
-      id: "invite",
-      title: "Invite a friend",
-      description: "Share Mint and earn bonus rewards",
-      priority: 5,
-      status: "Optional",
-      icon: UserPlus,
-      routeName: "actions",
-      isComplete: false,
-      dueAt: "2025-02-05T12:00:00Z",
-      createdAt: "2025-01-23T09:00:00Z",
     },
   ];
 
