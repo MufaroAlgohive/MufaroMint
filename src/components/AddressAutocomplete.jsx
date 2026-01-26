@@ -8,50 +8,8 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
   const wrapperRef = useRef(null);
   const debounceRef = useRef(null);
-  const autocompleteService = useRef(null);
-  const placesService = useRef(null);
-  const sessionToken = useRef(null);
-
-  useEffect(() => {
-    if (window.google?.maps?.places) {
-      setScriptLoaded(true);
-      initServices();
-      return;
-    }
-
-    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-      const checkLoaded = setInterval(() => {
-        if (window.google?.maps?.places) {
-          setScriptLoaded(true);
-          initServices();
-          clearInterval(checkLoaded);
-        }
-      }, 100);
-      return () => clearInterval(checkLoaded);
-    }
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      setScriptLoaded(true);
-      initServices();
-    };
-    document.head.appendChild(script);
-  }, []);
-
-  const initServices = () => {
-    if (window.google?.maps?.places) {
-      autocompleteService.current = new window.google.maps.places.AutocompleteService();
-      const div = document.createElement("div");
-      placesService.current = new window.google.maps.places.PlacesService(div);
-      sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
-    }
-  };
 
   useEffect(() => {
     setQuery(value || "");
@@ -68,7 +26,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
   }, []);
 
   const searchAddresses = async (searchQuery) => {
-    if (!searchQuery || searchQuery.length < 2 || !autocompleteService.current) {
+    if (!searchQuery || searchQuery.length < 2 || !GOOGLE_API_KEY) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -76,32 +34,49 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
 
     setIsLoading(true);
     try {
-      const request = {
-        input: searchQuery,
-        componentRestrictions: { country: "za" },
-        sessionToken: sessionToken.current,
-        types: ["address"],
-      };
-
-      autocompleteService.current.getPlacePredictions(request, (predictions, status) => {
-        setIsLoading(false);
-        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-          const addresses = predictions.map((prediction) => ({
-            placeId: prediction.place_id,
-            displayName: prediction.description,
-            mainText: prediction.structured_formatting?.main_text,
-            secondaryText: prediction.structured_formatting?.secondary_text,
-          }));
-          setSuggestions(addresses);
-          setShowSuggestions(true);
-        } else {
-          setSuggestions([]);
-          setShowSuggestions(true);
+      const response = await fetch(
+        "https://places.googleapis.com/v1/places:autocomplete",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": GOOGLE_API_KEY,
+          },
+          body: JSON.stringify({
+            input: searchQuery,
+            includedRegionCodes: ["ZA"],
+            includedPrimaryTypes: ["street_address", "subpremise", "premise", "route"],
+          }),
         }
-      });
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Places API error:", errorData);
+        throw new Error("Search failed");
+      }
+
+      const data = await response.json();
+      
+      if (data.suggestions && data.suggestions.length > 0) {
+        const addresses = data.suggestions
+          .filter(s => s.placePrediction)
+          .map((suggestion) => ({
+            placeId: suggestion.placePrediction.placeId,
+            displayName: suggestion.placePrediction.text?.text || "",
+            mainText: suggestion.placePrediction.structuredFormat?.mainText?.text || "",
+            secondaryText: suggestion.placePrediction.structuredFormat?.secondaryText?.text || "",
+          }));
+        setSuggestions(addresses);
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(true);
+      }
     } catch (error) {
       console.error("Address search error:", error);
       setSuggestions([]);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -124,7 +99,6 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
     onChange(address.displayName);
     setShowSuggestions(false);
     setSuggestions([]);
-    sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
   };
 
   const handleClear = () => {
