@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { MapPin, X, Loader2 } from "lucide-react";
 
-const GOOGLE_API_KEY = import.meta.env.VITE_API_KEY;
-
 const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }) => {
   const [query, setQuery] = useState(value || "");
   const [suggestions, setSuggestions] = useState([]);
@@ -26,7 +24,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
   }, []);
 
   const searchAddresses = async (searchQuery) => {
-    if (!searchQuery || searchQuery.length < 2 || !GOOGLE_API_KEY) {
+    if (!searchQuery || searchQuery.length < 3) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -35,38 +33,19 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
     setIsLoading(true);
     try {
       const response = await fetch(
-        "https://places.googleapis.com/v1/places:autocomplete",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": GOOGLE_API_KEY,
-          },
-          body: JSON.stringify({
-            input: searchQuery,
-            includedRegionCodes: ["ZA"],
-            includedPrimaryTypes: ["street_address", "subpremise", "premise", "route"],
-          }),
-        }
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(searchQuery)}&filter=countrycode:za&format=json&apiKey=0c9a7de9c1d74bcfbf2bc47378c995d8`
       );
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Places API error:", errorData);
-        throw new Error("Search failed");
-      }
+      if (!response.ok) throw new Error("Search failed");
 
       const data = await response.json();
       
-      if (data.suggestions && data.suggestions.length > 0) {
-        const addresses = data.suggestions
-          .filter(s => s.placePrediction)
-          .map((suggestion) => ({
-            placeId: suggestion.placePrediction.placeId,
-            displayName: suggestion.placePrediction.text?.text || "",
-            mainText: suggestion.placePrediction.structuredFormat?.mainText?.text || "",
-            secondaryText: suggestion.placePrediction.structuredFormat?.secondaryText?.text || "",
-          }));
+      if (data.results && data.results.length > 0) {
+        const addresses = data.results.map((result) => ({
+          displayName: result.formatted,
+          mainText: result.address_line1 || result.name || "",
+          secondaryText: result.address_line2 || "",
+        }));
         setSuggestions(addresses);
         setShowSuggestions(true);
       } else {
@@ -91,7 +70,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
 
     debounceRef.current = setTimeout(() => {
       searchAddresses(inputValue);
-    }, 150);
+    }, 200);
   };
 
   const handleSelect = (address) => {
@@ -139,7 +118,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
         <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
           {suggestions.map((address, index) => (
             <button
-              key={address.placeId || index}
+              key={index}
               type="button"
               onClick={() => handleSelect(address)}
               className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-slate-50"
@@ -154,7 +133,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
         </div>
       )}
 
-      {showSuggestions && !isLoading && query.length >= 2 && suggestions.length === 0 && (
+      {showSuggestions && !isLoading && query.length >= 3 && suggestions.length === 0 && (
         <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
           <p className="text-sm text-slate-500">No addresses found</p>
         </div>
