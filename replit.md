@@ -23,6 +23,11 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `OnboardingPage.jsx` - Welcome/landing page (before login)
     - `UserOnboardingPage.jsx` - Post-signup onboarding page
     - `HomePage.jsx` - Home page after login
+    - `MorePage.jsx` - Profile and menu page with KYC badge and Required Actions
+    - `EditProfilePage.jsx` - Edit profile with phone, DOB, gender, country, city fields
+    - `ProfileDetailsPage.jsx` - View-only profile details page
+    - `SettingsPage.jsx` - Settings with biometrics toggle and change password
+    - `ChangePasswordPage.jsx` - Dedicated page for changing password
   - `styles/` - CSS styles
     - `auth.css` - iOS-style auth form styling
     - `tailwind.css` - Tailwind configuration
@@ -69,9 +74,28 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - Users can choose to enable or skip biometrics
   - When enabled, login shows "Use Face ID" button as alternative to password
   - Account-bound: biometrics are tied to specific user email for security
-  - Toggle switch in More tab to enable/disable biometrics
+  - Toggle switch in Settings page to enable/disable biometrics
   - Green toggle = Face ID enabled, Grey toggle = Face ID disabled
   - Works like native iOS Face ID behavior
+- **Profile Management**:
+  - KYC verification status badge displayed between profile picture and name
+  - Required Actions section showing KYC and Bank verification status
+  - Edit Profile page with editable: phone number, date of birth, gender, country, city
+  - Non-editable fields: First name, Last name, Email (display only)
+  - Profile Details page for view-only profile information
+  - Toast notifications on profile save
+- **Settings Page**:
+  - Enable Biometrics toggle
+  - Change Password option
+  - Biometrics Debug for testing
+- **Menu Structure**:
+  - Profile Details - View-only profile
+  - Settings - Biometrics and password
+  - Help & FAQs
+  - Legal Documentation
+  - Privacy
+  - Subscriptions (formerly My Orders)
+  - Log out
 
 ## Development
 The development server runs on port 5000 using Vite.
