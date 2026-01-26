@@ -33,19 +33,42 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
     setIsLoading(true);
     try {
       const response = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(searchQuery)}&filter=countrycode:za&format=json&apiKey=0c9a7de9c1d74bcfbf2bc47378c995d8`
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&addressdetails=1&countrycodes=za&limit=6`,
+        {
+          headers: {
+            "Accept-Language": "en",
+            "User-Agent": "MintApp/1.0",
+          },
+        }
       );
 
       if (!response.ok) throw new Error("Search failed");
 
       const data = await response.json();
       
-      if (data.results && data.results.length > 0) {
-        const addresses = data.results.map((result) => ({
-          displayName: result.formatted,
-          mainText: result.address_line1 || result.name || "",
-          secondaryText: result.address_line2 || "",
-        }));
+      if (data && data.length > 0) {
+        const addresses = data.map((item) => {
+          const addr = item.address || {};
+          const parts = [];
+          
+          if (addr.house_number) parts.push(addr.house_number);
+          if (addr.road) parts.push(addr.road);
+          
+          const mainText = parts.join(" ") || item.name || "";
+          
+          const secondaryParts = [];
+          if (addr.suburb) secondaryParts.push(addr.suburb);
+          if (addr.city || addr.town || addr.village) {
+            secondaryParts.push(addr.city || addr.town || addr.village);
+          }
+          if (addr.state) secondaryParts.push(addr.state);
+          
+          return {
+            displayName: item.display_name,
+            mainText: mainText,
+            secondaryText: secondaryParts.join(", "),
+          };
+        });
         setSuggestions(addresses);
         setShowSuggestions(true);
       } else {
@@ -70,7 +93,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
 
     debounceRef.current = setTimeout(() => {
       searchAddresses(inputValue);
-    }, 200);
+    }, 300);
   };
 
   const handleSelect = (address) => {
