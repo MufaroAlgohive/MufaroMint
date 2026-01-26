@@ -7,7 +7,6 @@ const OutstandingActionsSection = ({ actions, onViewAll, onSelectAction }) => {
   }
 
   const visibleActions = actions.slice(0, 3);
-  const hasMore = actions.length > 3;
 
   return (
     <section className="rounded-3xl bg-white px-5 py-5 shadow-md">
@@ -40,16 +39,14 @@ const OutstandingActionsSection = ({ actions, onViewAll, onSelectAction }) => {
           </button>
         ))}
       </div>
-      {hasMore ? (
-        <button
-          type="button"
-          onClick={onViewAll}
-          className="mt-4 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm"
-        >
-          View all actions
-          <ChevronRight className="h-4 w-4 text-slate-400" />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={onViewAll}
+        className="mt-4 flex w-full items-center justify-between rounded-2xl border border-slate-100 bg-white/90 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm"
+      >
+        View all actions
+        <ChevronRight className="h-4 w-4 text-slate-400" />
+      </button>
     </section>
   );
 };
