@@ -1,5 +1,17 @@
 import React, { useState } from "react";
-import { ArrowLeft, Info, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Info, Plus, Minus, Heart } from "lucide-react";
+
+const companyLogos = {
+  AAPL: "https://s3-symbol-logo.tradingview.com/apple--big.svg",
+  MSFT: "https://s3-symbol-logo.tradingview.com/microsoft--big.svg",
+  NVDA: "https://s3-symbol-logo.tradingview.com/nvidia--big.svg",
+  TSLA: "https://s3-symbol-logo.tradingview.com/tesla--big.svg",
+  AMZN: "https://s3-symbol-logo.tradingview.com/amazon--big.svg",
+  KO: "https://s3-symbol-logo.tradingview.com/coca-cola--big.svg",
+  PG: "https://s3-symbol-logo.tradingview.com/procter-gamble--big.svg",
+  V: "https://s3-symbol-logo.tradingview.com/visa--big.svg",
+  JNJ: "https://s3-symbol-logo.tradingview.com/johnson-johnson--big.svg",
+};
 
 const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
   const currentStrategy = strategy || {
@@ -29,16 +41,16 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
     <div className="min-h-screen bg-slate-50 pb-8 text-slate-900">
       <div className="mx-auto flex w-full max-w-sm flex-col px-3 pt-12 md:max-w-md md:px-6">
         {/* Header */}
-        <header className="flex items-center gap-3 mb-6">
+        <header className="flex items-center justify-center gap-3 mb-6 relative">
           <button
             type="button"
             onClick={onBack}
             aria-label="Back"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0"
+            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="flex-1 text-lg font-semibold">Amount</h1>
+          <h1 className="text-lg font-semibold">Amount</h1>
         </header>
 
         {/* Strategy Card - White Background */}
@@ -66,7 +78,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
                   className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-100 overflow-hidden flex-shrink-0"
                 >
                   <img
-                    src={`https://s3-symbol-logo.tradingview.com/${ticker.toLowerCase()}--big.svg`}
+                    src={companyLogos[ticker] || `https://s3-symbol-logo.tradingview.com/${ticker.toLowerCase()}--big.svg`}
                     alt={ticker}
                     className="h-full w-full object-cover"
                     onError={(e) => {

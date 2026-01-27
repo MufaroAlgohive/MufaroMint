@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import { ArrowLeft, X, Info } from "lucide-react";
+import { ArrowLeft, X, Info, Heart } from "lucide-react";
 import {
   Area,
   Line,
@@ -110,6 +110,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
   const [activeLabel, setActiveLabel] = useState(null);
   const [selectedMetricModal, setSelectedMetricModal] = useState(null);
   const [calendarYear, setCalendarYear] = useState(2025);
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
   const marqueeRef = useRef(null);
 
   const currentStrategy = strategy || {
@@ -162,16 +163,24 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex w-full max-w-sm flex-col px-3 pb-32 pt-12 md:max-w-md md:px-6">
-        <header className="flex items-center gap-3">
+        <header className="flex items-center justify-center gap-3 mb-6 relative">
           <button
             type="button"
             onClick={onBack}
             aria-label="Back"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0"
+            className="absolute left-0 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="flex-1 text-lg font-semibold">{currentStrategy.name} Factsheet</h1>
+          <h1 className="text-lg font-semibold">{currentStrategy.name}</h1>
+          <button
+            type="button"
+            onClick={() => setIsInWatchlist(!isInWatchlist)}
+            aria-label="Add to watchlist"
+            className="absolute right-0 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0"
+          >
+            <Heart className={`h-5 w-5 ${isInWatchlist ? "fill-current text-rose-600" : ""}`} />
+          </button>
         </header>
 
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_16px_32px_rgba(15,23,42,0.08)]">
