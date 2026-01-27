@@ -1,5 +1,5 @@
 package com.algohive.mint.app;
 
-import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.BridgeFragmentActivity;
 
-public class MainActivity extends BridgeActivity {}
+public class MainActivity extends BridgeFragmentActivity {}
