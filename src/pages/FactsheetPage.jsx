@@ -39,8 +39,6 @@ const holdings = [
   { name: "PRX", weight: "7%" },
 ];
 
-const holdingsSnapshot = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN"];
-
 const metrics = [
   { label: "Max drawdown", value: "6.2%" },
   { label: "Volatility", value: "Low" },
@@ -180,22 +178,6 @@ const FactsheetPage = ({ onBack }) => {
             </span>
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {holdingsSnapshot.map((holding) => (
-                <div
-                  key={holding}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-white bg-white text-[10px] font-semibold text-slate-500 shadow-sm"
-                >
-                  {holding}
-                </div>
-              ))}
-              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
-                +3
-              </div>
-            </div>
-            <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
-          </div>
         </section>
 
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">

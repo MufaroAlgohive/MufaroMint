@@ -61,6 +61,18 @@ const App = () => {
   const recoveryHandled = useRef(false);
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const appContent = document.querySelector(".app-content");
+      if (appContent) {
+        appContent.scrollTo({ top: 0, left: 0 });
+      }
+      window.scrollTo({ top: 0, left: 0 });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [currentPage]);
+
+  useEffect(() => {
     if (hasError) {
       window.history.replaceState({}, document.title, window.location.pathname);
       setIsCheckingAuth(false);
