@@ -13,7 +13,8 @@ import {
   authenticateWithBiometrics,
   getBiometricsUserEmail,
   getBiometryTypeName,
-  isNativeIOS
+  isNativeIOS,
+  isNativeAndroid
 } from '../lib/biometrics.js';
 
 const OTP_LENGTH = 6;
@@ -102,14 +103,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         const enabled = isBiometricsEnabled();
         const storedEmail = getBiometricsUserEmail();
         const hasLoggedInBefore = storedEmail ? !isFirstLogin(storedEmail) : false;
-        const canUse = isNativeIOS() && available && enabled && hasLoggedInBefore;
+        const canUse = (isNativeIOS() || isNativeAndroid()) && available && enabled && hasLoggedInBefore;
         if (DEBUG_BIOMETRICS) {
           console.debug('[Biometrics] Login availability check', {
             available,
             enabled,
             storedEmail,
             hasLoggedInBefore,
-            canUse
+            canUse,
+            platform: isNativeAndroid() ? 'android' : isNativeIOS() ? 'ios' : 'web'
           });
         }
         setCanUseBiometricLogin(canUse);
@@ -574,7 +576,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       const isFirstTimeLogin = isFirstLogin(loginEmail);
       if (isFirstTimeLogin) {
         const { available } = await isBiometricsAvailable();
-        if (available && isNativeIOS()) {
+        if (available && (isNativeIOS() || isNativeAndroid())) {
           setPendingAuthEmail(loginEmail);
           setPendingAuthCallback(() => onLoginComplete);
           setPendingAuthShouldMarkLogin(true);
