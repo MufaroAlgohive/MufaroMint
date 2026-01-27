@@ -186,11 +186,18 @@ const Navbar = ({ activeTab, setActiveTab }) => {
 
           <div
             style={{
+              position: "fixed",
               left: 0,
+              width: "100vw",
+              display: "flex",
+              justifyContent: "center",
               bottom: "calc(1rem + env(safe-area-inset-bottom) + 29px)",
-              height: 0
+              height: 0,
+              pointerEvents: "none",
+              zIndex: 10001
             }}
           >
+            <div style={{ pointerEvents: "auto" }}>
             <button
               onClick={() => {
                 updateLayout();
@@ -198,7 +205,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
                 setIsOpen(newOpenState);
                 triggerHaptic(newOpenState ? ImpactStyle.Heavy : ImpactStyle.Light);
               }}
-              className={`absolute pointer-events-auto z-[10001] flex h-16 w-16 -translate-y-1/2 items-center justify-center rounded-full shadow-2xl transition-all active:scale-90 ${
+              className={`pointer-events-auto flex h-16 w-16 -translate-y-1/2 items-center justify-center rounded-full shadow-2xl transition-all active:scale-90 ${
                 isOpen ? "bg-white text-[#31005e]" : "bg-black text-white"
               }`}
               style={{ marginTop: "-29px" }}
@@ -229,6 +236,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
                 </AnimatePresence>
               </div>
             </button>
+            </div>
           </div>
         </div>,
         document.body
