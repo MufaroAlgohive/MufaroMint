@@ -185,7 +185,6 @@ const Navbar = ({ activeTab, setActiveTab }) => {
           </AnimatePresence>
 
           <div
-            const Navbar = ({ activeTab, setActiveTab, className = "" }) => {
             style={{
               left: 0,
               bottom: "calc(1rem + env(safe-area-inset-bottom) + 29px)",
