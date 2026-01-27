@@ -1,38 +1,31 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { ArrowLeft, Info } from "lucide-react";
 
 const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
-  const [amount, setAmount] = useState("0");
-
-  const handleNumberPress = (num) => {
-    if (amount === "0") {
-      setAmount(String(num));
-    } else {
-      setAmount(amount + String(num));
-    }
-  };
-
-  const handleDecimal = () => {
-    if (!amount.includes(".")) {
-      setAmount(amount + ".");
-    }
-  };
-
-  const handleBackspace = () => {
-    if (amount.length === 1) {
-      setAmount("0");
-    } else {
-      setAmount(amount.slice(0, -1));
-    }
-  };
+  const [selectedAmount, setSelectedAmount] = useState(null);
 
   const currentStrategy = strategy || {
     name: "Strategy",
-    tags: [],
+    return: "+8.7%",
+    minimum: 2500,
+    holdings: [
+      { ticker: "AAPL", name: "Apple" },
+      { ticker: "MSFT", name: "Microsoft" },
+      { ticker: "V", name: "Visa" },
+    ],
     description: "",
   };
 
-  const numericAmount = parseFloat(amount) || 0;
+  // Preset investment amounts based on minimum
+  const presetAmounts = [
+    currentStrategy.minimum,
+    currentStrategy.minimum * 2,
+    currentStrategy.minimum * 5,
+    currentStrategy.minimum * 10,
+  ];
+
+  const holdingsDisplay = currentStrategy.holdings || [];
+  const extraHoldings = holdingsDisplay.length > 3 ? holdingsDisplay.length - 3 : 0;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-8 text-slate-900">
@@ -50,102 +43,81 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
           <h1 className="flex-1 text-lg font-semibold">Amount</h1>
         </header>
 
-        {/* Strategy Card */}
-        <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-600 truncate">Strategy</p>
-              <p className="mt-1 text-sm font-semibold text-slate-900 truncate">{currentStrategy.name}</p>
+        {/* Strategy Card - Rich Preview */}
+        <section className="mb-6 rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100 p-5 shadow-sm">
+          {/* Header Section */}
+          <div className="mb-4">
+            <h2 className="text-base font-semibold text-slate-900">{currentStrategy.name}</h2>
+            <div className="flex items-baseline gap-1 mt-1">
+              <span className="text-2xl font-semibold text-emerald-600">{currentStrategy.return}</span>
+              <span className="text-xs font-semibold text-slate-600">Min. R{currentStrategy.minimum?.toLocaleString() || "2,500"}</span>
             </div>
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] text-white">
-              <span className="text-xs font-bold">S</span>
+          </div>
+
+          {/* Placeholder for Chart */}
+          <div className="mb-4 h-16 rounded-2xl border border-slate-200 bg-white flex items-center justify-center">
+            <div className="text-center">
+              <p className="text-xs text-slate-500">Chart</p>
             </div>
+          </div>
+
+          {/* Holdings Snapshot */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-200">
+            <div className="flex items-center -space-x-3">
+              {holdingsDisplay.slice(0, 3).map((holding, idx) => (
+                <div
+                  key={holding.ticker}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-100 bg-gradient-to-r from-slate-300 to-slate-400 text-white text-[10px] font-bold"
+                >
+                  {holding.ticker.charAt(0)}
+                </div>
+              ))}
+              {extraHoldings > 0 && (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-100 bg-slate-400 text-white text-[10px] font-bold">
+                  +{extraHoldings}
+                </div>
+              )}
+            </div>
+            <span className="text-xs font-semibold text-slate-600">Holdings snapshot</span>
           </div>
         </section>
 
-        {/* Amount Display */}
-        <section className="mb-6 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-          <div className="text-center">
-            <p className="text-5xl font-semibold text-slate-900">
-              R{amount}
-            </p>
-          </div>
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 p-3">
-            <Info className="h-4 w-4 flex-shrink-0 text-slate-600" />
-            <p className="text-xs text-slate-600">
-              You'll be redirected to complete payment on Paystack
-            </p>
+        {/* Amount Selection */}
+        <section className="mb-6">
+          <p className="text-xs font-semibold text-slate-600 mb-3">Select investment amount</p>
+          <div className="grid grid-cols-2 gap-3">
+            {presetAmounts.map((amount) => (
+              <button
+                key={amount}
+                type="button"
+                onClick={() => setSelectedAmount(amount)}
+                className={`rounded-2xl border-2 py-4 px-3 text-center transition ${
+                  selectedAmount === amount
+                    ? "border-violet-600 bg-violet-50"
+                    : "border-slate-200 bg-white hover:border-slate-300"
+                }`}
+              >
+                <p className={`text-sm font-semibold ${selectedAmount === amount ? "text-violet-700" : "text-slate-900"}`}>
+                  R{amount?.toLocaleString() || "0"}
+                </p>
+              </button>
+            ))}
           </div>
         </section>
 
-        {/* Number Keypad */}
-        <section className="mb-6 space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map((num) => (
-              <button
-                key={num}
-                type="button"
-                onClick={() => handleNumberPress(num)}
-                className="rounded-2xl border border-slate-200 bg-white py-4 text-lg font-semibold text-slate-900 shadow-sm hover:bg-slate-50 active:bg-slate-100"
-              >
-                {num}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[4, 5, 6].map((num) => (
-              <button
-                key={num}
-                type="button"
-                onClick={() => handleNumberPress(num)}
-                className="rounded-2xl border border-slate-200 bg-white py-4 text-lg font-semibold text-slate-900 shadow-sm hover:bg-slate-50 active:bg-slate-100"
-              >
-                {num}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            {[7, 8, 9].map((num) => (
-              <button
-                key={num}
-                type="button"
-                onClick={() => handleNumberPress(num)}
-                className="rounded-2xl border border-slate-200 bg-white py-4 text-lg font-semibold text-slate-900 shadow-sm hover:bg-slate-50 active:bg-slate-100"
-              >
-                {num}
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={handleDecimal}
-              className="rounded-2xl border border-slate-200 bg-white py-4 text-lg font-semibold text-slate-900 shadow-sm hover:bg-slate-50 active:bg-slate-100"
-            >
-              •
-            </button>
-            <button
-              type="button"
-              onClick={() => handleNumberPress(0)}
-              className="rounded-2xl border border-slate-200 bg-white py-4 text-lg font-semibold text-slate-900 shadow-sm hover:bg-slate-50 active:bg-slate-100"
-            >
-              0
-            </button>
-            <button
-              type="button"
-              onClick={handleBackspace}
-              className="rounded-2xl border border-slate-200 bg-slate-900 py-4 text-lg font-semibold text-white shadow-sm hover:bg-slate-800 active:bg-slate-950"
-            >
-              ✕
-            </button>
-          </div>
-        </section>
+        {/* Info */}
+        <div className="mb-6 flex items-start gap-2 rounded-lg bg-blue-50 p-3">
+          <Info className="h-4 w-4 flex-shrink-0 text-blue-600 mt-0.5" />
+          <p className="text-xs text-blue-700">
+            You'll be redirected to complete payment on Paystack
+          </p>
+        </div>
 
         {/* Continue Button */}
         <button
           type="button"
-          onClick={() => onContinue?.(numericAmount)}
-          disabled={numericAmount <= 0}
+          onClick={() => onContinue?.(selectedAmount)}
+          disabled={!selectedAmount}
           className="w-full rounded-2xl bg-gradient-to-r from-emerald-400 to-emerald-500 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-200/60 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:-translate-y-0.5 transition"
         >
           Continue
