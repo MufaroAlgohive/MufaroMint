@@ -57,8 +57,12 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
         <section className="mb-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           {/* Header Section with Flag Logo */}
           <div className="mb-4 flex items-start gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100">
-              <span className="text-lg">🇿🇦</span>
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 overflow-hidden">
+              <img
+                src="https://s3-symbol-logo.tradingview.com/country/ZA--big.svg"
+                alt="South Africa"
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="flex-1">
               <h2 className="text-base font-semibold text-slate-900">{currentStrategy.name}</h2>
@@ -95,6 +99,25 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
               )}
             </div>
             <span className="text-xs font-semibold text-slate-600">Holdings snapshot</span>
+          </div>
+        </section>
+
+        {/* Fee Breakdown */}
+        <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <h3 className="text-xs font-semibold text-slate-600 mb-3">Fee Breakdown</h3>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-600">Brokerage Fee</p>
+              <p className="text-xs font-semibold text-slate-900">0.255%</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-600">Custody Fee</p>
+              <p className="text-xs font-semibold text-slate-900">0.005%</p>
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-100 pt-2">
+              <p className="text-xs text-slate-600">Transaction Fee</p>
+              <p className="text-xs font-semibold text-slate-900">2.9%</p>
+            </div>
           </div>
         </section>
 
