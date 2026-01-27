@@ -138,7 +138,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-600">Brokerage Fee</p>
-              <p className="text-xs font-semibold text-slate-900">0.255%</p>
+              <p className="text-xs font-semibold text-slate-900">0.25%</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-600">Custody Fee</p>
