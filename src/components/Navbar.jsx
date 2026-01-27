@@ -74,19 +74,41 @@ const Navbar = ({ activeTab, setActiveTab }) => {
   };
 
   useLayoutEffect(() => {
+    // Update immediately on mount
     updateLayout();
     updateNavbarHeight();
+    
+    // Ensure navbar height is set before any painting
+    if (navRef.current) {
+      const height = navRef.current.offsetHeight;
+      document.documentElement.style.setProperty("--navbar-height", `${height}px`);
+    }
+    
     window.addEventListener("resize", updateLayout);
     window.addEventListener("resize", updateNavbarHeight);
+    window.addEventListener("orientationchange", updateNavbarHeight);
+    
     return () => {
       window.removeEventListener("resize", updateLayout);
       window.removeEventListener("resize", updateNavbarHeight);
+      window.removeEventListener("orientationchange", updateNavbarHeight);
     };
   }, []);
 
   useLayoutEffect(() => {
     updateNavbarHeight();
   }, [isOpen]);
+  
+  // Ensure navbar height persists after app reopen
+  useLayoutEffect(() => {
+    const interval = setTimeout(() => {
+      if (navRef.current) {
+        const height = navRef.current.offsetHeight;
+        document.documentElement.style.setProperty("--navbar-height", `${height}px`);
+      }
+    }, 100);
+    return () => clearTimeout(interval);
+  }, []);
  
   return (
     <>
