@@ -17,9 +17,7 @@ const creditOverview = {
 };
 
 const CreditPage = ({ onOpenNotifications }) => {
-  const [view, setView] = useState(() =>
-    window.location.pathname === "/credit/score" ? "score" : "overview"
-  );
+  const [view, setView] = useState("overview");
   const { profile, loading } = useProfile();
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -32,19 +30,18 @@ const CreditPage = ({ onOpenNotifications }) => {
 
   useEffect(() => {
     const handlePopState = () => {
-      setView(window.location.pathname === "/credit/score" ? "score" : "overview");
+      setView("overview");
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  const navigate = (path) => {
-    window.history.pushState({}, "", path);
-    setView(path === "/credit/score" ? "score" : "overview");
+  const navigate = (viewName) => {
+    setView(viewName);
   };
 
   if (view === "score") {
-    return <CreditScorePage onBack={() => navigate("/credit")} />;
+    return <CreditScorePage onBack={() => navigate("overview")} />;
   }
 
   if (loading) {
@@ -101,7 +98,7 @@ const CreditPage = ({ onOpenNotifications }) => {
             </div>
             <button
               type="button"
-              onClick={() => navigate("/credit/score")}
+              onClick={() => navigate("score")}
               className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
             >
               View score
