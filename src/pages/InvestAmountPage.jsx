@@ -8,11 +8,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
     name: "Strategy",
     return: "+8.7%",
     minimum: 2500,
-    holdings: [
-      { ticker: "AAPL", name: "Apple" },
-      { ticker: "MSFT", name: "Microsoft" },
-      { ticker: "V", name: "Visa" },
-    ],
+    tickers: [],
     description: "",
   };
 
@@ -24,8 +20,8 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
     currentStrategy.minimum * 10,
   ];
 
-  const holdingsDisplay = currentStrategy.holdings || [];
-  const extraHoldings = holdingsDisplay.length > 3 ? holdingsDisplay.length - 3 : 0;
+  const tickers = currentStrategy.tickers || [];
+  const extraHoldings = tickers.length > 3 ? tickers.length - 3 : 0;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-8 text-slate-900">
@@ -64,12 +60,12 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
           {/* Holdings Snapshot */}
           <div className="flex items-center justify-between pt-3 border-t border-slate-200">
             <div className="flex items-center -space-x-3">
-              {holdingsDisplay.slice(0, 3).map((holding, idx) => (
+              {tickers.slice(0, 3).map((ticker, idx) => (
                 <div
-                  key={holding.ticker}
+                  key={ticker}
                   className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-slate-100 bg-gradient-to-r from-slate-300 to-slate-400 text-white text-[10px] font-bold"
                 >
-                  {holding.ticker.charAt(0)}
+                  {ticker.charAt(0)}
                 </div>
               ))}
               {extraHoldings > 0 && (
