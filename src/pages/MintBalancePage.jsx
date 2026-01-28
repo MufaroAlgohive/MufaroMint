@@ -9,7 +9,6 @@ const MintBalancePage = ({
   onOpenInvestments,
   onOpenCredit,
   onOpenActivity,
-  onOpenSettings,
   isLoading = false,
 }) => {
   if (isLoading) {
@@ -129,21 +128,6 @@ const MintBalancePage = ({
           </button>
         </section>
 
-        <section className="rounded-2xl bg-slate-100 px-4 py-4 text-xs text-slate-600">
-          <p>
-            Your Mint Balance is a combined view of your investments and available credit.
-            Values update as your portfolio and credit status change.
-          </p>
-          <p className="mt-2 text-[11px] text-slate-500">Powered by partnered financial providers</p>
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="mt-3 flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-[11px] font-semibold text-slate-600"
-          >
-            Manage connections in Settings
-            <ChevronRight className="h-3 w-3 text-slate-400" />
-          </button>
-        </section>
       </div>
     </div>
   );
