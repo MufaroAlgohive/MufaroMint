@@ -207,15 +207,15 @@ const NotificationSettingsPage = ({ onBack }) => {
                 <p className="text-xs text-slate-500">Enable or disable all at once</p>
               </div>
             </div>
-            <label className="relative inline-block w-[50px] h-[26px] cursor-pointer">
+            <label className="relative inline-flex w-[52px] h-[30px] cursor-pointer">
               <input 
                 type="checkbox" 
                 checked={allEnabled}
                 onChange={toggleAll}
                 className="peer sr-only" 
               />
-              <div className={`absolute inset-0 rounded-full transition-all duration-300 ${allEnabled ? 'bg-[#05c46b] shadow-[inset_0_0_0_2px_#04b360]' : 'bg-[#ddd] shadow-[inset_0_0_0_2px_#ccc]'}`}>
-                <div className={`absolute top-[3px] left-[3px] w-[20px] h-[20px] bg-white rounded-full shadow-[0_2px_5px_rgba(0,0,0,0.2)] transition-transform duration-300 ${allEnabled ? 'translate-x-[24px]' : 'translate-x-0'}`} />
+              <div className={`absolute inset-0 rounded-full overflow-hidden transition-colors duration-300 ${allEnabled ? 'bg-[#34c759]' : 'bg-[#e5e5ea]'}`}>
+                <div className={`absolute top-[2px] left-[2px] w-[26px] h-[26px] bg-white rounded-full shadow-md transition-transform duration-300 ${allEnabled ? 'translate-x-[22px]' : 'translate-x-0'}`} />
               </div>
             </label>
           </div>
@@ -242,15 +242,15 @@ const NotificationSettingsPage = ({ onBack }) => {
                     <p className="text-xs text-slate-500">{type.description}</p>
                   </div>
                 </div>
-                <label className="relative inline-block w-[50px] h-[26px] cursor-pointer">
+                <label className="relative inline-flex w-[52px] h-[30px] cursor-pointer">
                   <input 
                     type="checkbox" 
                     checked={isEnabled}
                     onChange={() => togglePreference(type.id)}
                     className="peer sr-only" 
                   />
-                  <div className={`absolute inset-0 rounded-full transition-all duration-300 ${isEnabled ? 'bg-[#05c46b] shadow-[inset_0_0_0_2px_#04b360]' : 'bg-[#ddd] shadow-[inset_0_0_0_2px_#ccc]'}`}>
-                    <div className={`absolute top-[3px] left-[3px] w-[20px] h-[20px] bg-white rounded-full shadow-[0_2px_5px_rgba(0,0,0,0.2)] transition-transform duration-300 ${isEnabled ? 'translate-x-[24px]' : 'translate-x-0'}`} />
+                  <div className={`absolute inset-0 rounded-full overflow-hidden transition-colors duration-300 ${isEnabled ? 'bg-[#34c759]' : 'bg-[#e5e5ea]'}`}>
+                    <div className={`absolute top-[2px] left-[2px] w-[26px] h-[26px] bg-white rounded-full shadow-md transition-transform duration-300 ${isEnabled ? 'translate-x-[22px]' : 'translate-x-0'}`} />
                   </div>
                 </label>
               </div>

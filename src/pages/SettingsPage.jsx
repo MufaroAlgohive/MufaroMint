@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Lock, Fingerprint } from "lucide-react";
+import { ArrowLeft, Lock, Fingerprint, Bell } from "lucide-react";
 import {
   authenticateWithBiometrics,
   disableBiometrics,
@@ -127,6 +127,20 @@ const SettingsPage = ({ onNavigate }) => {
           <div className="flex-1">
             <h2 className="text-base font-semibold text-slate-900">Change Password</h2>
             <p className="text-sm text-slate-500">Update your account password</p>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate?.("notificationSettings")}
+          className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-sm transition active:scale-[0.99]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+            <Bell className="h-5 w-5" />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">Notification Settings</h2>
+            <p className="text-sm text-slate-500">Manage notification preferences</p>
           </div>
         </button>
 
