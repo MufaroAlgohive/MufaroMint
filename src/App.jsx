@@ -22,7 +22,7 @@ import EditProfilePage from "./pages/EditProfilePage.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import NotificationSettingsPage from "./pages/NotificationSettingsPage.jsx";
 import MintBalancePage from "./pages/MintBalancePage.jsx";
-import { NotificationsProvider, createWelcomeNotification } from "./lib/NotificationsContext.jsx";
+import { NotificationsProvider, createWelcomeNotification, useNotificationsContext } from "./lib/NotificationsContext.jsx";
 import ActivityPage from "./pages/ActivityPage.jsx";
 import ActionsPage from "./pages/ActionsPage.jsx";
 import WithdrawPage from "./pages/WithdrawPage.jsx";
@@ -63,6 +63,7 @@ const App = () => {
   const [notificationReturnPage, setNotificationReturnPage] = useState("home");
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const recoveryHandled = useRef(false);
+  const { refetch: refetchNotifications } = useNotificationsContext();
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -374,6 +375,7 @@ const App = () => {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
         await createWelcomeNotification(userData.user.id);
+        await refetchNotifications();
       }
     }
     setCurrentPage("userOnboarding");
@@ -384,6 +386,7 @@ const App = () => {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
         await createWelcomeNotification(userData.user.id);
+        await refetchNotifications();
       }
     }
     setCurrentPage("home");
