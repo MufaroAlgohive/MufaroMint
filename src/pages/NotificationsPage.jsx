@@ -13,9 +13,101 @@ import {
   CreditCard,
   TrendingUp,
   Landmark,
+  X,
 } from "lucide-react";
 import { useNotificationsContext, groupNotificationsByDate, getNotificationIcon } from "../lib/NotificationsContext";
 import NotificationsSkeleton from "../components/NotificationsSkeleton";
+
+const NotificationDetailModal = ({ notification, onClose, onDelete }) => {
+  if (!notification) return null;
+
+  const { icon, color } = getNotificationIcon(notification.type);
+  const iconComponents = {
+    receipt: Receipt,
+    shield: Shield,
+    info: Info,
+    gift: Gift,
+    "user-check": UserCheck,
+    "credit-card": CreditCard,
+    "trending-up": TrendingUp,
+    landmark: Landmark,
+  };
+  const IconComponent = iconComponents[icon] || Info;
+
+  const formatFullDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-ZA", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl">
+        <div className="flex items-start justify-between">
+          <div className={`flex h-14 w-14 items-center justify-center rounded-full ${color}`}>
+            <IconComponent className="h-6 w-6" />
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <h2 className="mt-4 text-lg font-semibold text-slate-800">
+          {notification.title}
+        </h2>
+
+        <p className="mt-1 text-xs text-slate-400">
+          {formatFullDate(notification.created_at)}
+        </p>
+
+        <p className="mt-4 text-sm leading-relaxed text-slate-600">
+          {notification.body}
+        </p>
+
+        {notification.payload && Object.keys(notification.payload).length > 0 && (
+          <div className="mt-4 rounded-xl bg-slate-50 p-3">
+            <p className="text-xs font-medium text-slate-500">Additional Info</p>
+            <p className="mt-1 text-xs text-slate-600">
+              {notification.payload.action === "complete_profile" && "Complete your profile to get started."}
+              {notification.payload.amount && `Amount: ${notification.payload.amount}`}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-6 flex gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              onDelete(notification.id);
+              onClose();
+            }}
+            className="flex-1 rounded-full border border-red-200 bg-red-50 py-3 text-sm font-medium text-red-600"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-full bg-slate-900 py-3 text-sm font-medium text-white"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const iconComponents = {
   receipt: Receipt,
@@ -37,7 +129,7 @@ const formatDate = (dateString) => {
   });
 };
 
-const NotificationItem = ({ notification, onMarkRead, onDelete }) => {
+const NotificationItem = ({ notification, onMarkRead, onDelete, onOpenDetail }) => {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
   const [swiped, setSwiped] = useState(false);
@@ -66,9 +158,11 @@ const NotificationItem = ({ notification, onMarkRead, onDelete }) => {
   };
 
   const handleClick = () => {
-    if (!notification.read_at && !swiped) {
+    if (swiped) return;
+    if (!notification.read_at) {
       onMarkRead(notification.id);
     }
+    onOpenDetail(notification);
   };
 
   const { icon, color } = getNotificationIcon(notification.type);
@@ -123,7 +217,7 @@ const NotificationItem = ({ notification, onMarkRead, onDelete }) => {
   );
 };
 
-const NotificationGroup = ({ title, notifications, onMarkRead, onDelete }) => {
+const NotificationGroup = ({ title, notifications, onMarkRead, onDelete, onOpenDetail }) => {
   if (notifications.length === 0) return null;
 
   return (
@@ -137,6 +231,7 @@ const NotificationGroup = ({ title, notifications, onMarkRead, onDelete }) => {
           notification={notification}
           onMarkRead={onMarkRead}
           onDelete={onDelete}
+          onOpenDetail={onOpenDetail}
         />
       ))}
     </div>
@@ -144,6 +239,7 @@ const NotificationGroup = ({ title, notifications, onMarkRead, onDelete }) => {
 };
 
 const NotificationsPage = ({ onBack, onOpenSettings }) => {
+  const [selectedNotification, setSelectedNotification] = useState(null);
   const {
     notifications,
     unreadCount,
@@ -160,7 +256,21 @@ const NotificationsPage = ({ onBack, onOpenSettings }) => {
   const hasNotifications = notifications.length > 0;
   const groupedNotifications = groupNotificationsByDate(notifications);
 
+  const handleOpenDetail = (notification) => {
+    setSelectedNotification(notification);
+  };
+
+  const handleCloseDetail = () => {
+    setSelectedNotification(null);
+  };
+
   return (
+    <>
+      <NotificationDetailModal
+        notification={selectedNotification}
+        onClose={handleCloseDetail}
+        onDelete={deleteNotification}
+      />
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
       <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
         <header className="flex items-center justify-between">
@@ -203,24 +313,28 @@ const NotificationsPage = ({ onBack, onOpenSettings }) => {
               notifications={groupedNotifications.today}
               onMarkRead={markAsRead}
               onDelete={deleteNotification}
+              onOpenDetail={handleOpenDetail}
             />
             <NotificationGroup
               title="Yesterday"
               notifications={groupedNotifications.yesterday}
               onMarkRead={markAsRead}
               onDelete={deleteNotification}
+              onOpenDetail={handleOpenDetail}
             />
             <NotificationGroup
               title="This Week"
               notifications={groupedNotifications.thisWeek}
               onMarkRead={markAsRead}
               onDelete={deleteNotification}
+              onOpenDetail={handleOpenDetail}
             />
             <NotificationGroup
               title="Older"
               notifications={groupedNotifications.older}
               onMarkRead={markAsRead}
               onDelete={deleteNotification}
+              onOpenDetail={handleOpenDetail}
             />
           </div>
         ) : (
@@ -240,6 +354,7 @@ const NotificationsPage = ({ onBack, onOpenSettings }) => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

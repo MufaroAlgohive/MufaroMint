@@ -207,19 +207,15 @@ const NotificationSettingsPage = ({ onBack }) => {
                 <p className="text-xs text-slate-500">Enable or disable all at once</p>
               </div>
             </div>
-            <label className="switch cursor-pointer relative flex w-[6.7rem] scale-75 overflow-hidden p-2">
+            <label className="relative inline-block w-[50px] h-[26px] cursor-pointer">
               <input 
                 type="checkbox" 
                 checked={allEnabled}
                 onChange={toggleAll}
-                className="peer hidden" 
+                className="peer sr-only" 
               />
-              <div className="absolute -right-[6.5rem] z-[1] flex h-12 w-24 skew-x-12 items-center justify-center text-lg font-semibold text-white duration-500 peer-checked:right-1">
-                <span className="-skew-x-12">ON</span>
-              </div>
-              <div className="z-0 h-12 w-24 -skew-x-12 border border-slate-300 bg-slate-200 duration-500 peer-checked:skew-x-12 peer-checked:border-emerald-500 peer-checked:bg-emerald-500" />
-              <div className="absolute left-[0.3rem] flex h-12 w-24 -skew-x-12 items-center justify-center text-lg font-semibold text-slate-500 duration-500 peer-checked:-left-[6.5rem]">
-                <span className="skew-x-12">OFF</span>
+              <div className={`absolute inset-0 rounded-full transition-all duration-300 ${allEnabled ? 'bg-[#05c46b] shadow-[inset_0_0_0_2px_#04b360]' : 'bg-[#ddd] shadow-[inset_0_0_0_2px_#ccc]'}`}>
+                <div className={`absolute top-[3px] left-[3px] w-[20px] h-[20px] bg-white rounded-full shadow-[0_2px_5px_rgba(0,0,0,0.2)] transition-transform duration-300 ${allEnabled ? 'translate-x-[24px]' : 'translate-x-0'}`} />
               </div>
             </label>
           </div>
@@ -246,19 +242,15 @@ const NotificationSettingsPage = ({ onBack }) => {
                     <p className="text-xs text-slate-500">{type.description}</p>
                   </div>
                 </div>
-                <label className="switch cursor-pointer relative flex w-[6.7rem] scale-75 overflow-hidden p-2">
+                <label className="relative inline-block w-[50px] h-[26px] cursor-pointer">
                   <input 
                     type="checkbox" 
                     checked={isEnabled}
                     onChange={() => togglePreference(type.id)}
-                    className="peer hidden" 
+                    className="peer sr-only" 
                   />
-                  <div className="absolute -right-[6.5rem] z-[1] flex h-12 w-24 skew-x-12 items-center justify-center text-lg font-semibold text-white duration-500 peer-checked:right-1">
-                    <span className="-skew-x-12">ON</span>
-                  </div>
-                  <div className="z-0 h-12 w-24 -skew-x-12 border border-slate-300 bg-slate-200 duration-500 peer-checked:skew-x-12 peer-checked:border-emerald-500 peer-checked:bg-emerald-500" />
-                  <div className="absolute left-[0.3rem] flex h-12 w-24 -skew-x-12 items-center justify-center text-lg font-semibold text-slate-500 duration-500 peer-checked:-left-[6.5rem]">
-                    <span className="skew-x-12">OFF</span>
+                  <div className={`absolute inset-0 rounded-full transition-all duration-300 ${isEnabled ? 'bg-[#05c46b] shadow-[inset_0_0_0_2px_#04b360]' : 'bg-[#ddd] shadow-[inset_0_0_0_2px_#ccc]'}`}>
+                    <div className={`absolute top-[3px] left-[3px] w-[20px] h-[20px] bg-white rounded-full shadow-[0_2px_5px_rgba(0,0,0,0.2)] transition-transform duration-300 ${isEnabled ? 'translate-x-[24px]' : 'translate-x-0'}`} />
                   </div>
                 </label>
               </div>
