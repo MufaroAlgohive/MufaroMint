@@ -1,0 +1,267 @@
+the app has a lot of mock information right now, but now i want to make it real and populate it with real data, but we not populating it right now, based on the existing tables from the database, what could be potentially missing and what could be improved from the database and also from the following tables that i want to create what could be added or edited 
+
+\n- transactions table: \n	amount -/+\n	store uid as a refrence field\n	name of transaction\n	description\n	category, investments or loans\n\n-  MintBalance:\n	uid\n	currency symbol (default to R rands)\n	Investment Balance as a number\n	Credit limit as a number	\n	DailyChange (Today balance (investment balance+credit limit) - Previous Day balance)\n\n- Notifications Table\n	- uid\n	- title\n	-body text\n	-read receipt\n	\n- News\n	import\n\n- Allocations\n- Strategy\n- Strategy metrics\n- Allocations metrics\n- Security universe\n-  stock holdings\n- profiles (+store biometrics+notifications enabled or not)\n- rewards\n- linked bank accounts (payouts)/ to ask which bank to use to withdraw\n	bank name\n	bank acc number\n	branch code\n	account holder\n	veridications status(trueid)\n\n- FAQs\n	questions\n	answers\n\n- subscriptions\n	plan\n	next due\n	status (active, inactive)\n	amount	haystack customer ID\n\n- Paystack transactions (for allocations + self investments) 
+	\n
+Copy
+Below is a detailed, database-focused review based on what the app actually reads/writes today and your proposed tables, plus improvements I’d recommend before wiring real data. I only see two Supabase tables being accessed directly in the app (profiles, required_actions) and a profile-images storage bucket, so the rest below is guidance on what’s missing and how to shape the new tables. 
+
+What the app already expects (existing tables/buckets)
+Observed tables and fields used by the app:
+
+profiles table with id, first_name, last_name, email, avatar_url, phone_number, date_of_birth, gender, address. These fields are read/written in profile-related screens. 
+
+required_actions table with user_id, kyc_verified, bank_linked which is created if missing and read for gating UI. 
+
+profile-images storage bucket for avatar uploads. 
+
+Implication: any additional tables you add should be keyed to the same auth.users.id / profiles.id style user_id to stay consistent with current reads/writes.
+
+Cross-cutting improvements to add across new tables
+These should apply to most of the new tables you listed:
+
+Primary keys + ownership
+
+Use id (UUID) as PK and user_id (UUID, FK to auth.users) for tenant scoping.
+
+This matches how profiles is keyed today (id = user id). 
+
+Timestamps and audit fields
+
+created_at, updated_at, and optionally deleted_at for soft deletes.
+
+Enables timeline views and tracking for transactions, notifications, etc.
+
+Status + lifecycle fields
+
+Include status fields with enums (pending, posted, failed, canceled, etc.) instead of only booleans.
+
+Especially for payments, withdrawals, Paystack, rewards.
+
+Indexes
+
+Index on user_id for every user-scoped table.
+
+For time-series tables (transactions, balances, notifications), index created_at or posted_at.
+
+Currency support
+
+Store currency consistently as ISO 4217 (e.g., ZAR), and handle currency symbol in UI rather than DB.
+
+You can still default ZAR for South Africa, but don’t store symbol as the “truth.”
+
+RLS policies
+
+Ensure Supabase RLS is enabled and policies scoped by user_id, consistent with how you read/write profiles today. 
+
+Table-by-table recommendations (edits + additions)
+1) Transactions
+Suggested fields beyond your list:
+
+id (UUID, PK)
+
+user_id (UUID, FK)
+
+account_id / linked_bank_account_id (FK)
+
+amount (numeric), plus direction enum (credit/debit) instead of +/- sign
+
+currency (ISO code)
+
+transaction_date (timestamp, actual posted date)
+
+status (pending, posted, failed, reversed)
+
+category (FK to a categories table; do not hardcode “investments or loans”)
+
+merchant_name/counterparty
+
+external_reference / bank_reference
+
+metadata (JSONB for enrichment)
+
+Why: better reconciliation, analytics, and supports bank sync + internal transfers.
+
+2) MintBalance (daily snapshots)
+Instead of a mutable table, treat this as a daily snapshot table:
+
+Suggested structure:
+
+id (UUID)
+
+user_id
+
+currency
+
+investment_balance
+
+credit_limit
+
+total_balance (can be generated)
+
+snapshot_date (date)
+
+daily_change (computed from previous snapshot or stored)
+
+source (system / provider)
+
+Why: “daily change” is derived from snapshots, not stored alone. This supports charts and avoids recalculation issues.
+
+3) Notifications
+Suggested fields:
+
+id, user_id
+
+title, body
+
+type (enum: system, transaction, security, etc.)
+
+read_at (timestamp instead of boolean)
+
+created_at
+
+payload (JSONB, so you can deep-link to data)
+
+4) News
+If it’s from an external feed, store:
+
+id
+
+source (publisher)
+
+headline, summary, url, image_url
+
+published_at
+
+tags (array)
+
+related_security_ids (join table if needed)
+
+5) Allocations
+Separate targets from actuals:
+
+allocation_targets (strategy-driven)
+
+allocation_actuals (portfolio-driven)
+
+Fields:
+
+id, user_id, strategy_id
+
+asset_class or security_id
+
+target_weight / actual_weight
+
+effective_from, effective_to
+
+6) Strategy + Strategy Metrics
+Strategy:
+
+id, name, description, risk_level, time_horizon
+
+is_active, created_at
+
+Strategy metrics:
+
+strategy_id
+
+as_of_date
+
+return_1m, return_1y, volatility, sharpe, max_drawdown
+
+7) Allocations Metrics
+allocation_id
+
+as_of_date
+
+current_weight, drift, contribution_to_return
+
+8) Security Universe
+A security master table:
+
+id, ticker, isin, cusip, name, exchange, currency, type, sector
+
+9) Stock Holdings
+id, user_id, security_id
+
+quantity, avg_cost, market_value, as_of_date
+
+unrealized_pnl
+
+custodian_account_id
+
+10) Profiles (extend existing)
+You already use profiles for user identity. Add fields if needed:
+
+biometrics_enabled (bool)
+
+notifications_enabled (bool)
+
+kyc_status, kyc_provider_reference
+
+timezone, preferred_currency
+
+Existing profile fields in the app: first_name, last_name, email, avatar_url, phone_number, date_of_birth, gender, address. 
+
+11) Rewards
+id, user_id, points_balance
+
+transaction_type (earned/redeemed)
+
+points, source, created_at
+
+status (pending/confirmed)
+
+12) Linked Bank Accounts
+Add:
+
+id, user_id
+
+bank_name, account_number, branch_code, account_holder
+
+verification_status, verification_provider, verified_at
+
+is_default_payout (bool)
+
+13) FAQs
+id, question, answer
+
+category, order, is_active, updated_at
+
+14) Subscriptions
+Add provider data + period dates:
+
+id, user_id
+
+plan, amount, currency
+
+status (active, inactive, canceled, past_due)
+
+current_period_start, current_period_end
+
+provider_customer_id (Paystack customer), provider_subscription_id
+
+15) Paystack Transactions
+id, user_id
+
+reference, amount, currency, status
+
+paid_at, channel, fees, authorization_code
+
+payload (JSONB raw webhook)
+
+related_allocation_id or investment_id
+
+Potential missing core tables
+Given the UI uses “KYC verified” + “bank linked” checks, I’d recommend:
+
+KYC table
+
+kyc_requests: user_id, provider, status, submitted_at, approved_at, provider_reference
+
+Bank account verification logs
+
+bank_verifications: linked_account_id, status, provider_reference, attempted_at
+
+Categories (transactions)
+
+transaction_categories: id, name, group, icon, color
