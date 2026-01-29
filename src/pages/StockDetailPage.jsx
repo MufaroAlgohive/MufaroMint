@@ -9,6 +9,13 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
   const [loading, setLoading] = useState(true);
   const periods = ["1W", "1M", "3M", "6M", "YTD", "1Y"];
 
+  console.log("🔍 Initial security prop:", {
+    symbol: initialSecurity?.symbol,
+    currentPrice: initialSecurity?.currentPrice,
+    changeAbs: initialSecurity?.changeAbs,
+    changePct: initialSecurity?.changePct
+  });
+
   // Fetch updated security data with metrics
   useEffect(() => {
     const fetchSecurityData = async () => {
@@ -51,17 +58,25 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
     fetchPriceHistory();
   }, [security?.id, selectedPeriod]);
 
-  // Use initialSecurity as fallback if security hasn't loaded yet
-  const displaySecurity = security?.currentPrice != null ? security : initialSecurity;
+  // Always prefer fetched security data, fallback to initialSecurity for display
+  const displaySecurity = security?.id ? security : initialSecurity;
+  
+  console.log("💰 Display data:", {
+    currentPrice: displaySecurity?.currentPrice,
+    changeAbs: displaySecurity?.changeAbs,
+    changePct: displaySecurity?.changePct,
+    hasCurrentPrice: displaySecurity?.currentPrice != null,
+    hasChangeAbs: displaySecurity?.changeAbs != null
+  });
   
   const currentPrice = displaySecurity?.currentPrice != null 
-    ? displaySecurity.currentPrice.toFixed(2) 
+    ? Number(displaySecurity.currentPrice).toFixed(2)
     : "—";
   const priceChange = displaySecurity?.changeAbs != null 
-    ? (displaySecurity.changeAbs >= 0 ? '+' : '') + displaySecurity.changeAbs.toFixed(2)
+    ? (displaySecurity.changeAbs >= 0 ? '+' : '') + Number(displaySecurity.changeAbs).toFixed(2)
     : "—";
   const percentChange = displaySecurity?.changePct != null 
-    ? (displaySecurity.changePct >= 0 ? '+' : '') + displaySecurity.changePct.toFixed(2) + '%'
+    ? (displaySecurity.changePct >= 0 ? '+' : '') + Number(displaySecurity.changePct).toFixed(2) + '%'
     : "—";
   const isPositive = displaySecurity?.changePct != null && displaySecurity.changePct >= 0;
 
