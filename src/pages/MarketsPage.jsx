@@ -62,6 +62,21 @@ const strategyCards = [
 
 const sortOptions = ["Market Cap", "Dividend Yield", "P/E Ratio", "Beta"];
 
+const strategySortOptions = [
+  "Recommended",
+  "Best performance",
+  "Lowest max drawdown",
+  "Lowest volatility",
+  "Lowest minimum",
+  "Most popular",
+];
+
+const riskOptions = ["Low risk", "Balanced", "Growth", "High risk"];
+const minInvestmentOptions = ["R500+", "R2,500+", "R10,000+"];
+const exposureOptions = ["Local", "Global", "Mixed", "Equities", "ETFs"];
+const timeHorizonOptions = ["Short", "Medium", "Long"];
+const strategySectorOptions = ["Technology", "Consumer", "Healthcare", "Energy", "Financials"];
+
 // Mini chart component for strategy cards
 const StrategyMiniChart = ({ values }) => {
   const chartConfig = {
@@ -160,7 +175,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const dragStartY = useRef(null);
   const isDragging = useRef(false);
   
-  // Filter states
+  // Filter states for Invest view
   const [selectedSort, setSelectedSort] = useState("Market Cap");
   const [selectedSectors, setSelectedSectors] = useState(new Set());
   const [selectedExchanges, setSelectedExchanges] = useState(new Set());
@@ -168,6 +183,24 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [draftSectors, setDraftSectors] = useState(new Set());
   const [draftExchanges, setDraftExchanges] = useState(new Set());
   const [activeChips, setActiveChips] = useState([]);
+  
+  // Filter states for OpenStrategies view
+  const [strategySort, setStrategySort] = useState("Recommended");
+  const [selectedRisks, setSelectedRisks] = useState(new Set());
+  const [selectedMinInvestment, setSelectedMinInvestment] = useState(null);
+  const [selectedExposure, setSelectedExposure] = useState(new Set());
+  const [selectedTimeHorizon, setSelectedTimeHorizon] = useState(new Set());
+  const [selectedStrategySectors, setSelectedStrategySectors] = useState(new Set());
+  const [draftStrategySort, setDraftStrategySort] = useState("Recommended");
+  const [draftRisks, setDraftRisks] = useState(new Set());
+  const [draftMinInvestment, setDraftMinInvestment] = useState(null);
+  const [draftExposure, setDraftExposure] = useState(new Set());
+  const [draftTimeHorizon, setDraftTimeHorizon] = useState(new Set());
+  const [draftStrategySectors, setDraftStrategySectors] = useState(new Set());
+  
+  // News pagination
+  const [newsPage, setNewsPage] = useState(1);
+  const newsPerPage = 20;
 
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -297,6 +330,11 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     fetchNewsArticles();
   }, []);
 
+  // Reset news page when search query changes
+  useEffect(() => {
+    setNewsPage(1);
+  }, [newsSearchQuery]);
+
   const sectors = useMemo(() => {
     return [...new Set(securities.map((s) => s.sector).filter(Boolean))];
   }, [securities]);
@@ -346,6 +384,67 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       .slice(0, 10);
   }, [filteredSecurities]);
 
+  const filteredStrategies = useMemo(() => {
+    const results = strategyCards.filter((strategy) => {
+      const matchesName =
+        strategiesSearchQuery.length === 0
+          ? true
+          : strategy.name.toLowerCase().includes(strategiesSearchQuery.toLowerCase()) ||
+            strategy.tags.some(tag => tag.toLowerCase().includes(strategiesSearchQuery.toLowerCase()));
+      const matchesRisk = selectedRisks.size
+        ? selectedRisks.has(strategy.risk)
+        : true;
+      const matchesMinInvestment = selectedMinInvestment
+        ? strategy.minInvestment === selectedMinInvestment
+        : true;
+      const matchesExposure = selectedExposure.size
+        ? selectedExposure.has(strategy.exposure)
+        : true;
+      const matchesTimeHorizon = selectedTimeHorizon.size
+        ? selectedTimeHorizon.has(strategy.timeHorizon)
+        : true;
+      const matchesSector = selectedStrategySectors.size
+        ? strategy.sectors.some((sector) => selectedStrategySectors.has(sector))
+        : true;
+
+      return (
+        matchesName &&
+        matchesRisk &&
+        matchesMinInvestment &&
+        matchesExposure &&
+        matchesTimeHorizon &&
+        matchesSector
+      );
+    });
+
+    const sorted = [...results];
+    if (strategySort === "Best performance") {
+      sorted.sort((a, b) => b.returnScore - a.returnScore);
+    }
+    if (strategySort === "Lowest max drawdown") {
+      sorted.sort((a, b) => a.maxDrawdownScore - b.maxDrawdownScore);
+    }
+    if (strategySort === "Lowest volatility") {
+      sorted.sort((a, b) => a.volatilityScore - b.volatilityScore);
+    }
+    if (strategySort === "Lowest minimum") {
+      sorted.sort((a, b) => a.minInvestmentValue - b.minInvestmentValue);
+    }
+    if (strategySort === "Most popular") {
+      sorted.sort((a, b) => b.popularityScore - a.popularityScore);
+    }
+
+    return sorted;
+  }, [
+    strategiesSearchQuery,
+    selectedRisks,
+    selectedMinInvestment,
+    selectedExposure,
+    selectedTimeHorizon,
+    selectedStrategySectors,
+    strategySort,
+  ]);
+
   const gainers = useMemo(() => {
     // Generate mock percentage gains for now (will be replaced with real data)
     return filteredSecurities
@@ -358,6 +457,22 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       .sort((a, b) => b.percentGain - a.percentGain)
       .slice(0, 10);
   }, [filteredSecurities]);
+
+  const filteredNews = useMemo(() => {
+    return newsArticles.filter(article => 
+      newsSearchQuery.length === 0 ||
+      article.title?.toLowerCase().includes(newsSearchQuery.toLowerCase()) ||
+      article.source?.toLowerCase().includes(newsSearchQuery.toLowerCase())
+    );
+  }, [newsArticles, newsSearchQuery]);
+
+  const paginatedNews = useMemo(() => {
+    const startIndex = (newsPage - 1) * newsPerPage;
+    const endIndex = startIndex + newsPerPage;
+    return filteredNews.slice(startIndex, endIndex);
+  }, [filteredNews, newsPage, newsPerPage]);
+
+  const totalNewsPages = Math.ceil(filteredNews.length / newsPerPage);
 
   const formatMarketCap = (value) => {
     if (!value) return "—";
@@ -433,6 +548,40 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       setSelectedExchanges(next);
     }
     setActiveChips((prev) => prev.filter((item) => item !== chip));
+  };
+
+  const applyStrategyFilters = () => {
+    setStrategySort(draftStrategySort);
+    setSelectedRisks(new Set(draftRisks));
+    setSelectedMinInvestment(draftMinInvestment);
+    setSelectedExposure(new Set(draftExposure));
+    setSelectedTimeHorizon(new Set(draftTimeHorizon));
+    setSelectedStrategySectors(new Set(draftStrategySectors));
+    
+    const chips = [];
+    if (draftRisks.size) chips.push(...Array.from(draftRisks));
+    if (draftExposure.size) chips.push(...Array.from(draftExposure));
+    if (draftMinInvestment) chips.push(draftMinInvestment);
+    if (draftTimeHorizon.size) chips.push(...Array.from(draftTimeHorizon));
+    if (draftStrategySectors.size) chips.push(...Array.from(draftStrategySectors));
+    setActiveChips(chips);
+    setIsFilterOpen(false);
+  };
+
+  const clearAllStrategyFilters = () => {
+    setStrategySort("Recommended");
+    setSelectedRisks(new Set());
+    setSelectedMinInvestment(null);
+    setSelectedExposure(new Set());
+    setSelectedTimeHorizon(new Set());
+    setSelectedStrategySectors(new Set());
+    setDraftStrategySort("Recommended");
+    setDraftRisks(new Set());
+    setDraftMinInvestment(null);
+    setDraftExposure(new Set());
+    setDraftTimeHorizon(new Set());
+    setDraftStrategySectors(new Set());
+    setActiveChips([]);
   };
 
   if (profileLoading || loading) {
@@ -560,23 +709,93 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       {/* Content */}
       <div className="mx-auto -mt-2 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
         {viewMode === "openstrategies" && (
-          <div className="flex items-center justify-between gap-3">
-            <button
-              onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters
-            </button>
-            {activeChips.length > 0 && (
+          <>
+            <div className="flex items-center justify-between gap-3">
               <button
-                onClick={clearAllFilters}
-                className="text-sm font-semibold text-slate-500 hover:text-slate-700"
+                onClick={() => {
+                  setIsFilterOpen(true);
+                  setDraftStrategySort(strategySort);
+                  setDraftRisks(new Set(selectedRisks));
+                  setDraftMinInvestment(selectedMinInvestment);
+                  setDraftExposure(new Set(selectedExposure));
+                  setDraftTimeHorizon(new Set(selectedTimeHorizon));
+                  setDraftStrategySectors(new Set(selectedStrategySectors));
+                }}
+                className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
               >
-                Clear filters
+                <SlidersHorizontal className="h-4 w-4" />
+                Filters
               </button>
+              <span className="text-sm font-medium text-slate-500">
+                {filteredStrategies.length} {filteredStrategies.length === 1 ? 'strategy' : 'strategies'}
+              </span>
+            </div>
+
+            {/* Active Filter Chips for OpenStrategies */}
+            {(selectedRisks.length > 0 || 
+              selectedMinInvestment !== "Any" || 
+              selectedExposure.length > 0 || 
+              selectedTimeHorizon.length > 0 || 
+              selectedStrategySectors.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {selectedRisks.map((risk) => (
+                  <button
+                    key={risk}
+                    onClick={() => setSelectedRisks(selectedRisks.filter(r => r !== risk))}
+                    className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1.5 text-xs font-semibold text-purple-700 transition-all active:scale-95"
+                  >
+                    {risk}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+                {selectedMinInvestment !== "Any" && (
+                  <button
+                    onClick={() => setSelectedMinInvestment("Any")}
+                    className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1.5 text-xs font-semibold text-purple-700 transition-all active:scale-95"
+                  >
+                    {selectedMinInvestment}
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+                {selectedExposure.map((exp) => (
+                  <button
+                    key={exp}
+                    onClick={() => setSelectedExposure(selectedExposure.filter(e => e !== exp))}
+                    className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1.5 text-xs font-semibold text-purple-700 transition-all active:scale-95"
+                  >
+                    {exp}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+                {selectedTimeHorizon.map((th) => (
+                  <button
+                    key={th}
+                    onClick={() => setSelectedTimeHorizon(selectedTimeHorizon.filter(t => t !== th))}
+                    className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1.5 text-xs font-semibold text-purple-700 transition-all active:scale-95"
+                  >
+                    {th}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+                {selectedStrategySectors.map((sector) => (
+                  <button
+                    key={sector}
+                    onClick={() => setSelectedStrategySectors(selectedStrategySectors.filter(s => s !== sector))}
+                    className="flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1.5 text-xs font-semibold text-purple-700 transition-all active:scale-95"
+                  >
+                    {sector}
+                    <X className="h-3 w-3" />
+                  </button>
+                ))}
+                <button
+                  onClick={clearAllStrategyFilters}
+                  className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-all active:scale-95"
+                >
+                  Clear all
+                </button>
+              </div>
             )}
-          </div>
+          </>
         )}
 
         {viewMode === "invest" ? (
@@ -930,17 +1149,20 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         ) : viewMode === "openstrategies" ? (
           /* OpenStrategies View */
           <>
-            {/* Strategies grouped by sector */}
-            {[...new Set(strategyCards.flatMap(s => s.sectors))].map((sector) => {
-              const sectorStrategies = strategyCards
-                .filter(s => s.sectors.includes(sector))
-                .filter(s => 
-                  strategiesSearchQuery.length === 0 || 
-                  s.name.toLowerCase().includes(strategiesSearchQuery.toLowerCase()) ||
-                  s.tags.some(tag => tag.toLowerCase().includes(strategiesSearchQuery.toLowerCase()))
-                );
-              
-              if (sectorStrategies.length === 0) return null;
+            {filteredStrategies.length === 0 ? (
+              <div className="rounded-3xl bg-white px-6 py-12 text-center shadow-md">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+                  <Search className="h-8 w-8 text-slate-400" />
+                </div>
+                <p className="text-sm font-semibold text-slate-700">No strategies found</p>
+                <p className="mt-1 text-xs text-slate-400">Try adjusting your search or filters</p>
+              </div>
+            ) : (
+              /* Strategies grouped by sector */
+              [...new Set(filteredStrategies.flatMap(s => s.sectors))].map((sector) => {
+                const sectorStrategies = filteredStrategies.filter(s => s.sectors.includes(sector));
+                
+                if (sectorStrategies.length === 0) return null;
               
               return (
                 <section key={sector}>
@@ -1022,16 +1244,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                   </div>
                 </section>
               );
-            })}
+            })
+            )}
           </>
         ) : (
           /* News View */
           <div className="space-y-3">
-            {newsArticles.filter(article => 
-              newsSearchQuery.length === 0 ||
-              article.title?.toLowerCase().includes(newsSearchQuery.toLowerCase()) ||
-              article.source?.toLowerCase().includes(newsSearchQuery.toLowerCase())
-            ).length === 0 ? (
+            {filteredNews.length === 0 ? (
               <div className="rounded-3xl bg-white px-6 py-16 text-center shadow-md">
                 <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-slate-100">
                   <TrendingUp className="h-10 w-10 text-slate-400" />
@@ -1042,49 +1261,68 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 </p>
               </div>
             ) : (
-              newsArticles
-                .filter(article => 
-                  newsSearchQuery.length === 0 ||
-                  article.title?.toLowerCase().includes(newsSearchQuery.toLowerCase()) ||
-                  article.source?.toLowerCase().includes(newsSearchQuery.toLowerCase())
-                )
-                .map((article) => {
-                const publishedDate = new Date(article.published_at);
-                const now = new Date();
-                const diffInHours = Math.floor((now - publishedDate) / (1000 * 60 * 60));
-                let timeText;
-                
-                if (diffInHours < 1) {
-                  const diffInMinutes = Math.floor((now - publishedDate) / (1000 * 60));
-                  timeText = diffInMinutes <= 1 ? "Just now" : `${diffInMinutes}m ago`;
-                } else if (diffInHours < 24) {
-                  timeText = `${diffInHours}h ago`;
-                } else {
-                  const diffInDays = Math.floor(diffInHours / 24);
-                  timeText = diffInDays === 1 ? "Yesterday" : `${diffInDays}d ago`;
-                }
+              <>
+                {paginatedNews.map((article) => {
+                  const publishedDate = new Date(article.published_at);
+                  const now = new Date();
+                  const diffInHours = Math.floor((now - publishedDate) / (1000 * 60 * 60));
+                  let timeText;
+                  
+                  if (diffInHours < 1) {
+                    const diffInMinutes = Math.floor((now - publishedDate) / (1000 * 60));
+                    timeText = diffInMinutes <= 1 ? "Just now" : `${diffInMinutes}m ago`;
+                  } else if (diffInHours < 24) {
+                    timeText = `${diffInHours}h ago`;
+                  } else {
+                    const diffInDays = Math.floor(diffInHours / 24);
+                    timeText = diffInDays === 1 ? "Yesterday" : `${diffInDays}d ago`;
+                  }
 
-                return (
-                  <button
-                    key={article.id}
-                    onClick={() => onOpenNewsArticle(article.id)}
-                    className="w-full rounded-3xl bg-white p-5 shadow-md transition-all active:scale-[0.98] text-left"
-                  >
-                    <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">
-                      {article.title}
-                    </h3>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
-                      {article.source && (
-                        <>
-                          <span className="font-medium">{article.source}</span>
-                          <span>•</span>
-                        </>
-                      )}
-                      <span>{timeText}</span>
-                    </div>
-                  </button>
-                );
-              })
+                  return (
+                    <button
+                      key={article.id}
+                      onClick={() => onOpenNewsArticle(article.id)}
+                      className="w-full rounded-3xl bg-white p-5 shadow-md transition-all active:scale-[0.98] text-left"
+                    >
+                      <h3 className="text-sm font-semibold text-slate-900 line-clamp-2">
+                        {article.title}
+                      </h3>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                        {article.source && (
+                          <>
+                            <span className="font-medium">{article.source}</span>
+                            <span>•</span>
+                          </>
+                        )}
+                        <span>{timeText}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+                
+                {/* Pagination Controls */}
+                {totalNewsPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-4">
+                    <button
+                      onClick={() => setNewsPage(p => Math.max(1, p - 1))}
+                      disabled={newsPage === 1}
+                      className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-slate-600">
+                      Page {newsPage} of {totalNewsPages}
+                    </span>
+                    <button
+                      onClick={() => setNewsPage(p => Math.min(totalNewsPages, p + 1))}
+                      disabled={newsPage === totalNewsPages}
+                      className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1209,10 +1447,12 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
             {/* Header */}
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 pb-4 pt-3">
-              <h3 className="text-lg font-semibold text-slate-900">Filter & Sort</h3>
+              <h3 className="text-lg font-semibold text-slate-900">
+                {viewMode === "openstrategies" ? "Filters" : "Filter & Sort"}
+              </h3>
               <button
                 type="button"
-                onClick={clearAllFilters}
+                onClick={viewMode === "openstrategies" ? clearAllStrategyFilters : clearAllFilters}
                 className="text-sm font-semibold text-slate-500"
               >
                 Clear all
@@ -1221,91 +1461,259 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto px-5 py-4">
-              {/* Sort Options */}
-              <section className="mb-6">
-                <h4 className="mb-3 text-sm font-semibold text-slate-700">Sort by</h4>
-                <div className="space-y-2">
-                  {sortOptions.map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => setDraftSort(option)}
-                      className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition-all ${
-                        draftSort === option
-                          ? "bg-purple-50 text-purple-700 ring-2 ring-purple-200"
-                          : "bg-slate-50 text-slate-700 hover:bg-slate-100"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </section>
+              {viewMode === "openstrategies" ? (
+                /* OpenStrategies Filters */
+                <>
+                  <div className="space-y-5">
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-slate-800">Sort</p>
+                      <div className="flex flex-wrap gap-2">
+                        {strategySortOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setDraftStrategySort(option)}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              draftStrategySort === option
+                                ? "border-transparent bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] text-white"
+                                : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-              {/* Sector Filter */}
-              <section className="mb-6">
-                <h4 className="mb-3 text-sm font-semibold text-slate-700">Sector</h4>
-                <div className="flex flex-wrap gap-2">
-                  {sectors.map((sector) => (
-                    <button
-                      key={sector}
-                      onClick={() => {
-                        const next = new Set(draftSectors);
-                        if (next.has(sector)) {
-                          next.delete(sector);
-                        } else {
-                          next.add(sector);
-                        }
-                        setDraftSectors(next);
-                      }}
-                      className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-                        draftSectors.has(sector)
-                          ? "bg-purple-600 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {sector}
-                    </button>
-                  ))}
-                </div>
-              </section>
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-slate-800">Risk level</p>
+                      <div className="flex flex-wrap gap-2">
+                        {riskOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => {
+                              setDraftRisks((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(option)) {
+                                  next.delete(option);
+                                } else {
+                                  next.add(option);
+                                }
+                                return next;
+                              });
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              draftRisks.has(option)
+                                ? "border-transparent bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] text-white"
+                                : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-              {/* Exchange Filter */}
-              <section className="mb-6">
-                <h4 className="mb-3 text-sm font-semibold text-slate-700">Exchange</h4>
-                <div className="flex flex-wrap gap-2">
-                  {exchanges.map((exchange) => (
-                    <button
-                      key={exchange}
-                      onClick={() => {
-                        const next = new Set(draftExchanges);
-                        if (next.has(exchange)) {
-                          next.delete(exchange);
-                        } else {
-                          next.add(exchange);
-                        }
-                        setDraftExchanges(next);
-                      }}
-                      className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-                        draftExchanges.has(exchange)
-                          ? "bg-purple-600 text-white"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {exchange}
-                    </button>
-                  ))}
-                </div>
-              </section>
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-slate-800">Minimum investment</p>
+                      <div className="flex flex-wrap gap-2">
+                        {minInvestmentOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setDraftMinInvestment(option)}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              draftMinInvestment === option
+                                ? "border-transparent bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] text-white"
+                                : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-slate-800">Asset exposure</p>
+                      <div className="flex flex-wrap gap-2">
+                        {exposureOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => {
+                              setDraftExposure((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(option)) {
+                                  next.delete(option);
+                                } else {
+                                  next.add(option);
+                                }
+                                return next;
+                              });
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              draftExposure.has(option)
+                                ? "border-transparent bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] text-white"
+                                : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-slate-800">Time horizon</p>
+                      <div className="flex flex-wrap gap-2">
+                        {timeHorizonOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setDraftTimeHorizon(new Set([option]))}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              draftTimeHorizon.has(option)
+                                ? "border-transparent bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] text-white"
+                                : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <p className="text-sm font-semibold text-slate-800">Sector</p>
+                      <div className="flex flex-wrap gap-2">
+                        {strategySectorOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => {
+                              setDraftStrategySectors((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(option)) {
+                                  next.delete(option);
+                                } else {
+                                  next.add(option);
+                                }
+                                return next;
+                              });
+                            }}
+                            className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                              draftStrategySectors.has(option)
+                                ? "border-transparent bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] text-white"
+                                : "border-slate-200 bg-white text-slate-600"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Invest Filters */
+                <>
+                  {/* Sort Options */}
+                  <section className="mb-6">
+                    <h4 className="mb-3 text-sm font-semibold text-slate-700">Sort by</h4>
+                    <div className="space-y-2">
+                      {sortOptions.map((option) => (
+                        <button
+                          key={option}
+                          onClick={() => setDraftSort(option)}
+                          className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition-all ${
+                            draftSort === option
+                              ? "bg-purple-50 text-purple-700 ring-2 ring-purple-200"
+                              : "bg-slate-50 text-slate-700 hover:bg-slate-100"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Sector Filter */}
+                  <section className="mb-6">
+                    <h4 className="mb-3 text-sm font-semibold text-slate-700">Sector</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {sectors.map((sector) => (
+                        <button
+                          key={sector}
+                          onClick={() => {
+                            const next = new Set(draftSectors);
+                            if (next.has(sector)) {
+                              next.delete(sector);
+                            } else {
+                              next.add(sector);
+                            }
+                            setDraftSectors(next);
+                          }}
+                          className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+                            draftSectors.has(sector)
+                              ? "bg-purple-600 text-white"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {sector}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* Exchange Filter */}
+                  <section className="mb-6">
+                    <h4 className="mb-3 text-sm font-semibold text-slate-700">Exchange</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {exchanges.map((exchange) => (
+                        <button
+                          key={exchange}
+                          onClick={() => {
+                            const next = new Set(draftExchanges);
+                            if (next.has(exchange)) {
+                              next.delete(exchange);
+                            } else {
+                              next.add(exchange);
+                            }
+                            setDraftExchanges(next);
+                          }}
+                          className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+                            draftExchanges.has(exchange)
+                              ? "bg-purple-600 text-white"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {exchange}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                </>
+              )}
             </div>
 
             {/* Apply Button */}
-            <div className="border-t border-slate-100 bg-white p-5">
+            <div className="sticky bottom-0 border-t border-slate-100 bg-white px-5 pb-5 pt-3">
+              <div className="pointer-events-none absolute left-0 right-0 top-0 h-6 bg-gradient-to-b from-white to-transparent" />
               <button
                 type="button"
-                onClick={applyFilters}
-                className="w-full rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 py-4 font-semibold text-white shadow-lg transition-all active:scale-95"
+                onClick={() => {
+                  if (viewMode === "openstrategies") {
+                    applyStrategyFilters();
+                  } else {
+                    applyFilters();
+                  }
+                  resetSheetPosition();
+                }}
+                className="relative w-full rounded-2xl bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200/60"
               >
-                Apply filters
+                Apply
               </button>
             </div>
           </div>
