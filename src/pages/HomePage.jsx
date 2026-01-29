@@ -212,10 +212,10 @@ const HomePage = ({
       </div>
 
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
-        <section classPay", icon: Wallet, onClick: () => setShowPayModal(true) },
-            { label: "Receive", icon: HandCoins, onClick: () => setShowReceiveModal(true)
-            { label: "Apply", icon: FileSignature, onClick: onOpenCreditApply },
-            { label: "Repay", icon: HandCoins, onClick: onOpenCreditRepay },
+        <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
+          {[
+            { label: "Pay", icon: Wallet, onClick: () => setShowPayModal(true) },
+            { label: "Receive", icon: HandCoins, onClick: () => setShowReceiveModal(true) },
             { label: "Invest", icon: TrendingUp, onClick: onOpenInvest },
             { label: "Withdraw", icon: ArrowDownToLine, onClick: onOpenWithdraw },
           ].map((item) => {
