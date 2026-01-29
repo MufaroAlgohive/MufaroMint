@@ -872,7 +872,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         </div>
                       </div>
                     </div>
-                    <div className="mt-3 h-12 w-full rounded-xl bg-slate-50"></div>
                   </button>
                 ))}
               </div>
@@ -937,7 +936,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         </p>
                       </div>
                     </div>
-                    <div className="mt-3 h-12 w-full rounded-xl bg-slate-50"></div>
                   </button>
                 ))}
               </div>
@@ -983,7 +981,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         </p>
                       </div>
                     </div>
-                    <div className="mt-3 h-12 w-full rounded-xl bg-slate-50"></div>
                   </button>
                 ))}
               </div>

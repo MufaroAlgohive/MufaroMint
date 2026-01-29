@@ -61,6 +61,8 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
   const chartData = priceHistory.length > 0 ? priceHistory.map(p => p.close) : [];
   const minValue = chartData.length > 0 ? Math.min(...chartData) : 0;
   const maxValue = chartData.length > 0 ? Math.max(...chartData) : 0;
+  const range = maxValue - minValue;
+  const hasValidRange = range > 0;
 
   const formatTimestamp = () => {
     if (!security.asOfDate) {
@@ -68,6 +70,12 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
     }
     const date = new Date(security.asOfDate);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  // Helper function to safely calculate Y position
+  const getYPosition = (value) => {
+    if (!hasValidRange) return 50; // Center line if all values are the same
+    return ((maxValue - value) / range) * 100;
   };
 
   return (
@@ -223,22 +231,22 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
                 <g>
                   {/* Area path */}
                   <path
-                    d={`M 0,${((maxValue - chartData[0]) / (maxValue - minValue)) * 100}% ${chartData
+                    d={`M 0 ${getYPosition(chartData[0])} ${chartData
                       .map((value, i) => {
-                        const x = (i / (chartData.length - 1)) * 100;
-                        const y = ((maxValue - value) / (maxValue - minValue)) * 100;
-                        return `L ${x}%,${y}%`;
+                        const x = (i / Math.max(1, chartData.length - 1)) * 100;
+                        const y = getYPosition(value);
+                        return `L ${x} ${y}`;
                       })
-                      .join(' ')} L 100%,100% L 0,100% Z`}
+                      .join(' ')} L 100 100 L 0 100 Z`}
                     fill="url(#areaGradient)"
                   />
                   {/* Line path */}
                   <path
-                    d={`M 0,${((maxValue - chartData[0]) / (maxValue - minValue)) * 100}% ${chartData
+                    d={`M 0 ${getYPosition(chartData[0])} ${chartData
                       .map((value, i) => {
-                        const x = (i / (chartData.length - 1)) * 100;
-                        const y = ((maxValue - value) / (maxValue - minValue)) * 100;
-                        return `L ${x}%,${y}%`;
+                        const x = (i / Math.max(1, chartData.length - 1)) * 100;
+                        const y = getYPosition(value);
+                        return `L ${x} ${y}`;
                       })
                       .join(' ')}`}
                     fill="none"
