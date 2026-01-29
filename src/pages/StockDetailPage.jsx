@@ -46,16 +46,19 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
     fetchPriceHistory();
   }, [security?.id, selectedPeriod]);
 
-  const currentPrice = security.currentPrice != null 
-    ? security.currentPrice.toFixed(2) 
+  // Use initialSecurity as fallback if security hasn't loaded yet
+  const displaySecurity = security?.currentPrice != null ? security : initialSecurity;
+  
+  const currentPrice = displaySecurity?.currentPrice != null 
+    ? displaySecurity.currentPrice.toFixed(2) 
     : "—";
-  const priceChange = security.changeAbs != null 
-    ? (security.changeAbs >= 0 ? '+' : '') + security.changeAbs.toFixed(2)
+  const priceChange = displaySecurity?.changeAbs != null 
+    ? (displaySecurity.changeAbs >= 0 ? '+' : '') + displaySecurity.changeAbs.toFixed(2)
     : "—";
-  const percentChange = security.changePct != null 
-    ? (security.changePct >= 0 ? '+' : '') + security.changePct.toFixed(2) + '%'
+  const percentChange = displaySecurity?.changePct != null 
+    ? (displaySecurity.changePct >= 0 ? '+' : '') + displaySecurity.changePct.toFixed(2) + '%'
     : "—";
-  const isPositive = security.changePct != null && security.changePct >= 0;
+  const isPositive = displaySecurity?.changePct != null && displaySecurity.changePct >= 0;
 
   // Generate chart data from price history
   const chartData = priceHistory.length > 0 ? priceHistory.map(p => p.close) : [];
@@ -72,10 +75,18 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
   };
 
-  // Helper function to safely calculate Y position
+  // Helper function to safely calculate Y position (inverted so bottom = 100, top = 0)
   const getYPosition = (value) => {
     if (!hasValidRange) return 50; // Center line if all values are the same
-    return ((maxValue - value) / range) * 100;
+    // Invert: low values at bottom (100), high values at top (0)
+    return 100 - ((value - minValue) / range) * 100;
+  };
+
+  // Format date for X-axis labels
+  const formatXAxisDate = (index, total) => {
+    if (priceHistory.length === 0 || index >= priceHistory.length) return '';
+    const date = new Date(priceHistory[index].ts);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   return (
@@ -271,6 +282,23 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
                       fontSize="10"
                     >
                       {val.toFixed(0)}
+                    </text>
+                  ))}
+                </g>
+
+                {/* X-axis labels */}
+                <g className="text-xs text-slate-400">
+                  {[0, Math.floor(chartData.length / 2), chartData.length - 1].map((idx, i) => (
+                    <text
+                      key={i}
+                      x={`${(idx / Math.max(1, chartData.length - 1)) * 100}%`}
+                      y="100%"
+                      textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}
+                      dy="15"
+                      fill="currentColor"
+                      fontSize="10"
+                    >
+                      {formatXAxisDate(idx, chartData.length)}
                     </text>
                   ))}
                 </g>
