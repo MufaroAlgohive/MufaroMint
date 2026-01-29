@@ -27,27 +27,12 @@ export const getMarketsSecuritiesWithMetrics = async () => {
   try {
     console.log("🔍 Fetching securities with metrics from Supabase...");
     
-    // Fetch securities with nested security_metrics
+    // Fetch securities with nested security_metrics using explicit join
     const { data: securities, error: securitiesError } = await supabase
       .from("securities")
       .select(`
-        id,
-        symbol,
-        name,
-        short_name,
-        logo_url,
-        exchange,
-        currency,
-        sector,
-        industry,
-        market_cap,
-        pe,
-        eps,
-        beta,
-        dividend_yield,
-        description,
-        website,
-        security_metrics(
+        *,
+        security_metrics!security_metrics_security_id_fkey(
           as_of_date,
           last_close,
           prev_close,
@@ -126,23 +111,8 @@ export const getSecurityBySymbol = async (symbol) => {
     const { data, error } = await supabase
       .from("securities")
       .select(`
-        id,
-        symbol,
-        name,
-        short_name,
-        logo_url,
-        exchange,
-        currency,
-        sector,
-        industry,
-        market_cap,
-        pe,
-        eps,
-        beta,
-        dividend_yield,
-        description,
-        website,
-        security_metrics(
+        *,
+        security_metrics!security_metrics_security_id_fkey(
           as_of_date,
           last_close,
           prev_close,
@@ -173,6 +143,9 @@ export const getSecurityBySymbol = async (symbol) => {
 
     // Flatten metrics
     const metrics = data.security_metrics?.[0] || null;
+    
+    console.log(`🔍 Raw security_metrics for ${symbol}:`, data.security_metrics);
+    console.log(`🔍 Flattened metrics:`, metrics);
     
     const processedSecurity = {
       ...data,
