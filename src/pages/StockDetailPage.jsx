@@ -261,10 +261,13 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
               ))}
             </div>
             {selectedPeriodReturn != null && (
-              <div className={`mt-3 text-lg font-semibold ${
-                selectedPeriodReturn >= 0 ? 'text-emerald-600' : 'text-red-600'
-              }`}>
-                {selectedPeriodReturn >= 0 ? '+' : ''}{selectedPeriodReturn.toFixed(2)}%
+              <div className="mt-3">
+                <div className={`text-lg font-semibold ${
+                  selectedPeriodReturn >= 0 ? 'text-emerald-600' : 'text-red-600'
+                }`}>
+                  {selectedPeriodReturn >= 0 ? '+' : ''}{selectedPeriodReturn.toFixed(2)}%
+                </div>
+                <p className="mt-0.5 text-xs text-slate-400">in the last {selectedPeriod}</p>
               </div>
             )}
           </div>
