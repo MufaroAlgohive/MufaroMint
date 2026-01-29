@@ -5,14 +5,68 @@ import { TrendingUp, Search, SlidersHorizontal, X, ChevronRight } from "lucide-r
 import NotificationBell from "../components/NotificationBell";
 import Skeleton from "../components/Skeleton";
 
+// Mock strategies data - will be replaced with real data later
+const strategyCards = [
+  {
+    name: "Balanced Growth",
+    risk: "Balanced",
+    return: "+8.7%",
+    returnRate: "6.7%",
+    minimum: 2500,
+    minimum_display: "Min. R2,500",
+    tags: ["Balanced", "Low risk", "Automated"],
+    holdings: ["AAPL", "MSFT", "NVDA"],
+    exposure: "Global",
+    minInvestment: "R2,500+",
+    timeHorizon: "Long",
+    sectors: ["Technology", "Consumer"],
+    returnScore: 6.7,
+    sparkline: [12, 18, 16, 24, 28, 26, 32, 35, 40, 44],
+  },
+  {
+    name: "Dividend Focus",
+    risk: "Low risk",
+    return: "+5.3%",
+    returnRate: "5.3%",
+    minimum: 1500,
+    minimum_display: "Min. R1,500",
+    tags: ["Income", "Low risk", "Automated"],
+    holdings: ["AAPL", "KO", "PG"],
+    exposure: "Mixed",
+    minInvestment: "R500+",
+    timeHorizon: "Medium",
+    sectors: ["Consumer", "Healthcare"],
+    returnScore: 5.3,
+    sparkline: [10, 12, 15, 14, 18, 20, 22, 24, 26, 28],
+  },
+  {
+    name: "Momentum Select",
+    risk: "Growth",
+    return: "+9.1%",
+    returnRate: "9.1%",
+    minimum: 5000,
+    minimum_display: "Min. R5,000",
+    tags: ["Growth", "Higher risk", "Automated"],
+    holdings: ["TSLA", "NVDA", "AMZN"],
+    exposure: "Equities",
+    minInvestment: "R10,000+",
+    timeHorizon: "Short",
+    sectors: ["Technology", "Energy"],
+    returnScore: 9.1,
+    sparkline: [8, 14, 12, 20, 26, 24, 30, 36, 34, 42],
+  },
+];
+
 const sortOptions = ["Market Cap", "Dividend Yield", "P/E Ratio", "Beta"];
 
 const MarketsPage = ({ onOpenNotifications, onOpenStockDetail }) => {
   const { profile, loading: profileLoading } = useProfile();
   const [securities, setSecurities] = useState([]);
+  const [holdingsSecurities, setHoldingsSecurities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState("stocks"); // "stocks" or "news"
+  const [viewMode, setViewMode] = useState("invest"); // "openstrategies", "invest", "news"
+  const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sheetOffset, setSheetOffset] = useState(0);
   const dragStartY = useRef(null);
@@ -90,6 +144,31 @@ const MarketsPage = ({ onOpenNotifications, onOpenStockDetail }) => {
     };
 
     fetchSecurities();
+  }, []);
+
+  // Fetch holdings securities for strategy cards
+  useEffect(() => {
+    const fetchHoldingsSecurities = async () => {
+      if (!supabase) return;
+
+      try {
+        // Get all unique ticker symbols from strategies
+        const allTickers = [...new Set(strategyCards.flatMap(s => s.holdings))];
+        
+        const { data, error } = await supabase
+          .from("securities")
+          .select("symbol, logo_url, name")
+          .in("symbol", allTickers);
+
+        if (!error && data) {
+          setHoldingsSecurities(data);
+        }
+      } catch (error) {
+        console.error("Error fetching holdings securities:", error);
+      }
+    };
+
+    fetchHoldingsSecurities();
   }, []);
 
   const sectors = useMemo(() => {
@@ -273,21 +352,31 @@ const MarketsPage = ({ onOpenNotifications, onOpenStockDetail }) => {
             <NotificationBell onClick={onOpenNotifications} />
           </header>
 
-          {/* Toggle between Stocks and News */}
+          {/* Toggle between OpenStrategies, Invest, and News */}
           <div className="flex gap-2 rounded-2xl bg-white/10 p-1 backdrop-blur-sm">
             <button
-              onClick={() => setViewMode("stocks")}
-              className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
-                viewMode === "stocks"
+              onClick={() => setViewMode("openstrategies")}
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                viewMode === "openstrategies"
                   ? "bg-white text-slate-900 shadow-md"
                   : "text-white/70"
               }`}
             >
-              Stocks
+              OpenStrategies
+            </button>
+            <button
+              onClick={() => setViewMode("invest")}
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                viewMode === "invest"
+                  ? "bg-white text-slate-900 shadow-md"
+                  : "text-white/70"
+              }`}
+            >
+              Invest
             </button>
             <button
               onClick={() => setViewMode("news")}
-              className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
                 viewMode === "news"
                   ? "bg-white text-slate-900 shadow-md"
                   : "text-white/70"
@@ -297,7 +386,7 @@ const MarketsPage = ({ onOpenNotifications, onOpenStockDetail }) => {
             </button>
           </div>
 
-          {viewMode === "stocks" && (
+          {viewMode === "invest" && (
             <>
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" />
@@ -664,6 +753,93 @@ const MarketsPage = ({ onOpenNotifications, onOpenStockDetail }) => {
               </section>
             )}
           </>
+        ) : viewMode === "openstrategies" ? (
+          /* OpenStrategies View */
+          <>
+            {/* Strategies grouped by sector */}
+            {[...new Set(strategyCards.flatMap(s => s.sectors))].map((sector) => {
+              const sectorStrategies = strategyCards.filter(s => s.sectors.includes(sector));
+              
+              return (
+                <section key={sector}>
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-900">{sector}</h2>
+                    <ChevronRight className="h-5 w-5 text-slate-400" />
+                  </div>
+                  <div className="space-y-3">
+                    {sectorStrategies.map((strategy) => {
+                      const holdingLogos = strategy.holdings
+                        .map(ticker => holdingsSecurities.find(s => s.symbol === ticker))
+                        .filter(Boolean);
+                      
+                      return (
+                        <button
+                          key={strategy.name}
+                          onClick={() => setSelectedStrategy(strategy)}
+                          className="w-full rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 space-y-1">
+                              <p className="text-sm font-semibold text-slate-900">{strategy.name}</p>
+                              <div>
+                                <p className="text-xs font-semibold text-emerald-500">
+                                  {strategy.return}
+                                </p>
+                                <p className="text-[11px] text-slate-400">{strategy.minimum_display}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center rounded-xl bg-slate-50 px-2 py-1">
+                              <div className="h-10 w-20 rounded bg-gradient-to-r from-emerald-500/20 to-emerald-500/5" />
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {strategy.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="flex -space-x-2">
+                              {holdingLogos.slice(0, 3).map((holding, idx) => (
+                                <div
+                                  key={`${strategy.name}-${holding.symbol}-${idx}`}
+                                  className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                                >
+                                  {holding.logo_url ? (
+                                    <img
+                                      src={holding.logo_url}
+                                      alt={holding.symbol}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">
+                                      {holding.symbol?.substring(0, 2)}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {strategy.holdings.length > 3 && (
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
+                                  +{strategy.holdings.length - 3}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </>
         ) : (
           /* News View - Empty for now */
           <div className="rounded-3xl bg-white px-6 py-16 text-center shadow-md">
@@ -677,6 +853,85 @@ const MarketsPage = ({ onOpenNotifications, onOpenStockDetail }) => {
           </div>
         )}
       </div>
+
+      {/* Strategy Preview Modal */}
+      {selectedStrategy && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 px-4 pb-6">
+          <button
+            type="button"
+            className="absolute inset-0 h-full w-full cursor-default"
+            aria-label="Close preview"
+            onClick={() => setSelectedStrategy(null)}
+          />
+          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[32px] bg-white shadow-2xl">
+            <div className="flex items-center justify-center pt-3">
+              <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+            </div>
+            
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-slate-900">{selectedStrategy.name}</h2>
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">Return</p>
+                  <p className="mt-2 text-2xl font-bold text-emerald-600">{selectedStrategy.return}</p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">Min Investment</p>
+                  <p className="mt-2 text-lg font-bold text-slate-900">{selectedStrategy.minimum_display}</p>
+                </div>
+              </div>
+              
+              <div className="mt-4 flex flex-wrap gap-2">
+                {selectedStrategy.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Top Holdings</p>
+                <div className="mt-3 space-y-2">
+                  {selectedStrategy.holdings.slice(0, 5).map((ticker) => {
+                    const holding = holdingsSecurities.find(s => s.symbol === ticker);
+                    return (
+                      <div key={ticker} className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-slate-100 bg-white">
+                          {holding?.logo_url ? (
+                            <img src={holding.logo_url} alt={ticker} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-bold text-slate-600">
+                              {ticker?.substring(0, 2)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-slate-900">{holding?.name || ticker}</p>
+                          <p className="text-xs text-slate-500">{ticker}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  // Will be connected to factsheet navigation
+                  console.log("View factsheet for:", selectedStrategy.name);
+                  setSelectedStrategy(null);
+                }}
+                className="mt-6 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 py-4 font-semibold text-white shadow-lg transition-all active:scale-95"
+              >
+                View Factsheet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter Sheet */}
       {isFilterOpen && (
