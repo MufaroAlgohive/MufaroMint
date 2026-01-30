@@ -182,6 +182,9 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       
       try {
         const data = await getMarketsSecuritiesWithMetrics();
+        console.log("📊 Fetched securities:", data);
+        console.log("📊 Securities with prices:", data.filter(s => s.currentPrice != null).length);
+        console.log("📊 Securities without prices:", data.filter(s => s.currentPrice == null).length);
         setSecurities(data);
       } catch (error) {
         console.error("Error fetching securities:", error);
@@ -886,7 +889,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                               )}
                             </>
                           ) : (
-                            <p className="text-sm text-slate-400">—</p>
+                            <p className="text-xs text-slate-500">No pricing data</p>
                           )}
                         </div>
                       </div>
@@ -1056,7 +1059,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                                 )}
                               </>
                             ) : (
-                              <p className="text-xs text-slate-400">—</p>
+                              <p className="text-xs text-slate-500">No pricing data</p>
                             )}
                           </div>
                         </div>
