@@ -31,18 +31,20 @@ export const useFinancialData = () => {
 
       const [
         balanceResult,
-        transactionsResult,
+        recentTransactionsResult,
+        allTransactionsResult,
         holdingsResult,
         creditResult,
       ] = await Promise.all([
         supabase.from("user_balances").select("*").eq("user_id", userId).maybeSingle(),
         supabase.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+        supabase.from("transactions").select("type, amount").eq("user_id", userId),
         supabase.from("user_holdings").select("*, securities(symbol, name, logo_url)").eq("user_id", userId),
         supabase.from("credit_accounts").select("*").eq("user_id", userId).maybeSingle(),
       ]);
 
-      const balanceData = balanceResult.data || { total_balance: 0, investments: 0, available_credit: 0 };
-      const transactions = transactionsResult.data || [];
+      const transactions = recentTransactionsResult.data || [];
+      const allTransactions = allTransactionsResult.data || [];
       const holdings = holdingsResult.data || [];
       const creditInfo = creditResult.data;
 
@@ -60,13 +62,23 @@ export const useFinancialData = () => {
         logo: h.securities?.logo_url || null,
       }));
 
-      const totalInvestments = holdings.reduce((sum, h) => sum + (h.current_value || 0), 0);
-      const totalBalance = totalInvestments + (creditInfo?.available_credit || 0);
+      const totalInvestments = holdings.reduce((sum, h) => sum + (h.cost_basis || 0), 0);
+      
+      const incomeTypes = ["deposit", "credit", "gain"];
+      const expenseTypes = ["withdrawal", "expense"];
+      const totalIncome = allTransactions
+        .filter((t) => incomeTypes.includes(t.type))
+        .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+      const totalExpenses = allTransactions
+        .filter((t) => expenseTypes.includes(t.type))
+        .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+      const availableCredit = Math.max(0, (totalIncome - totalExpenses) * 0.2);
+      const totalBalance = totalInvestments + availableCredit;
 
       setData({
-        balance: balanceData.total_balance || totalBalance,
-        investments: balanceData.investments || totalInvestments,
-        availableCredit: balanceData.available_credit || creditInfo?.available_credit || 0,
+        balance: totalBalance,
+        investments: totalInvestments,
+        availableCredit,
         transactions,
         holdings,
         creditInfo,
@@ -118,29 +130,41 @@ export const useMintBalance = () => {
 
         const userId = userData.user.id;
 
-        const [balanceResult, holdingsResult, creditResult, transactionsResult] = await Promise.all([
+        const [balanceResult, holdingsResult, allTransactionsResult, recentTransactionsResult] = await Promise.all([
           supabase.from("user_balances").select("*").eq("user_id", userId).maybeSingle(),
           supabase.from("user_holdings").select("current_value, cost_basis, daily_change").eq("user_id", userId),
-          supabase.from("credit_accounts").select("available_credit").eq("user_id", userId).maybeSingle(),
+          supabase.from("transactions").select("type, amount").eq("user_id", userId),
           supabase.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
         ]);
 
         const holdings = holdingsResult.data || [];
-        const totalInvestments = holdings.reduce((sum, h) => sum + (h.current_value || 0), 0);
+        const allTransactions = allTransactionsResult.data || [];
+        const recentTransactions = recentTransactionsResult.data || [];
+        
+        const totalInvestments = holdings.reduce((sum, h) => sum + (h.cost_basis || 0), 0);
         const dailyChange = holdings.reduce((sum, h) => sum + (h.daily_change || 0), 0);
-        const availableCredit = creditResult.data?.available_credit || 0;
+        
+        const incomeTypes = ["deposit", "credit", "gain"];
+        const expenseTypes = ["withdrawal", "expense"];
+        const totalIncome = allTransactions
+          .filter((t) => incomeTypes.includes(t.type))
+          .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+        const totalExpenses = allTransactions
+          .filter((t) => expenseTypes.includes(t.type))
+          .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
+        const availableCredit = Math.max(0, (totalIncome - totalExpenses) * 0.2);
         const totalBalance = totalInvestments + availableCredit;
 
-        const recentChanges = (transactionsResult.data || []).map((t) => ({
+        const recentChanges = recentTransactions.map((t) => ({
           title: t.description || t.type || "Transaction",
           date: formatTransactionDate(t.created_at),
           amount: formatTransactionAmount(t.amount, t.type),
         }));
 
         setData({
-          totalBalance: balanceResult.data?.total_balance || totalBalance,
-          investments: balanceResult.data?.investments || totalInvestments,
-          availableCredit: balanceResult.data?.available_credit || availableCredit,
+          totalBalance,
+          investments: totalInvestments,
+          availableCredit,
           dailyChange,
           recentChanges,
           loading: false,
@@ -185,15 +209,7 @@ export const useTransactions = (limit = 20) => {
 
         if (error) throw error;
 
-        setTransactions(
-          (data || []).map((t) => ({
-            id: t.id,
-            title: t.description || t.type || "Transaction",
-            subtitle: formatTransactionDate(t.created_at),
-            amount: t.amount || 0,
-            type: t.type,
-          }))
-        );
+        setTransactions(data || []);
       } catch (err) {
         console.error("Error fetching transactions:", err);
       } finally {
@@ -319,15 +335,14 @@ export const useInvestments = () => {
         const holdings = holdingsResult.data || [];
         const goals = goalsResult.data || [];
 
-        const totalInvestments = holdings.reduce((sum, h) => sum + (h.current_value || 0), 0);
-        const totalCost = holdings.reduce((sum, h) => sum + (h.cost_basis || 0), 0);
+        const totalInvestments = holdings.reduce((sum, h) => sum + (h.cost_basis || 0), 0);
         const monthlyChange = holdings.reduce((sum, h) => sum + (h.monthly_change || 0), 0);
-        const monthlyChangePercent = totalCost > 0 ? (monthlyChange / totalCost) * 100 : 0;
+        const monthlyChangePercent = totalInvestments > 0 ? (monthlyChange / totalInvestments) * 100 : 0;
 
         const assetClasses = {};
         holdings.forEach((h) => {
           const assetClass = h.securities?.asset_class || h.asset_class || "Other";
-          assetClasses[assetClass] = (assetClasses[assetClass] || 0) + (h.current_value || 0);
+          assetClasses[assetClass] = (assetClasses[assetClass] || 0) + (h.cost_basis || 0);
         });
 
         const portfolioMix = Object.entries(assetClasses).map(([label, value]) => ({
