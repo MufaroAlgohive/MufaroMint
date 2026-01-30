@@ -1,19 +1,20 @@
 import React, { useMemo, useState } from "react";
 import CreditMetricCard from "../components/credit/CreditMetricCard.jsx";
 
-const CreditScorePage = ({ onBack, scoreChanges = [], currentScore = 0 }) => {
+const CreditScorePage = ({ onBack, scoreChangesToday = [], scoreChangesAllTime = [], currentScore = 0 }) => {
   const [view, setView] = useState("today");
 
-  const displayScoreChanges = scoreChanges.length > 0 ? scoreChanges : [];
+  const displayScoreChanges = view === "today" ? scoreChangesToday : scoreChangesAllTime;
 
   const scoreDelta = useMemo(() => {
-    if (displayScoreChanges.length === 0) return "+0 pts";
-    const total = displayScoreChanges.reduce((sum, item) => {
+    const changes = view === "today" ? scoreChangesToday : scoreChangesAllTime;
+    if (changes.length === 0) return "+0 pts";
+    const total = changes.reduce((sum, item) => {
       const val = parseInt(item.value, 10) || 0;
       return sum + val;
     }, 0);
     return `${total >= 0 ? '+' : ''}${total} pts`;
-  }, [displayScoreChanges]);
+  }, [view, scoreChangesToday, scoreChangesAllTime]);
 
   const markerPosition = useMemo(() => {
     const min = 300;

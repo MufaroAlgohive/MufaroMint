@@ -18,7 +18,8 @@ const CreditPage = ({ onOpenNotifications, onOpenCreditApply }) => {
     nextPaymentDate,
     minDue,
     utilisationPercent,
-    scoreChanges,
+    scoreChangesToday,
+    scoreChangesAllTime,
     loading: creditLoading,
     hasCredit,
   } = useCreditInfo();
@@ -45,7 +46,7 @@ const CreditPage = ({ onOpenNotifications, onOpenCreditApply }) => {
   };
 
   if (view === "score") {
-    return <CreditScorePage onBack={() => navigate("overview")} scoreChanges={scoreChanges} currentScore={score} />;
+    return <CreditScorePage onBack={() => navigate("overview")} scoreChangesToday={scoreChangesToday} scoreChangesAllTime={scoreChangesAllTime} currentScore={score} />;
   }
 
   if (loading || creditLoading) {

@@ -215,7 +215,8 @@ export const useCreditInfo = () => {
     nextPaymentDate: null,
     minDue: 0,
     utilisationPercent: 0,
-    scoreChanges: [],
+    scoreChangesToday: [],
+    scoreChangesAllTime: [],
     loading: true,
     hasCredit: false,
   });
@@ -238,15 +239,21 @@ export const useCreditInfo = () => {
 
         const [creditResult, scoreHistoryResult] = await Promise.all([
           supabase.from("credit_accounts").select("*").eq("user_id", userId).maybeSingle(),
-          supabase.from("credit_score_history").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
+          supabase.from("credit_score_history").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
         ]);
 
         const credit = creditResult.data;
-        const scoreChanges = (scoreHistoryResult.data || []).map((s) => ({
+        const allScoreChanges = (scoreHistoryResult.data || []).map((s) => ({
           label: s.reason || "Score update",
           date: formatTransactionDate(s.created_at),
           value: s.change > 0 ? `+${s.change}` : `${s.change}`,
+          rawDate: new Date(s.created_at),
         }));
+
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const scoreChangesToday = allScoreChanges.filter((s) => s.rawDate >= sevenDaysAgo);
+        const scoreChangesAllTime = allScoreChanges;
 
         if (credit) {
           setData({
@@ -256,7 +263,8 @@ export const useCreditInfo = () => {
             nextPaymentDate: credit.next_payment_date ? formatDate(credit.next_payment_date) : null,
             minDue: credit.minimum_due || 0,
             utilisationPercent: credit.utilisation_percent || 0,
-            scoreChanges,
+            scoreChangesToday,
+            scoreChangesAllTime,
             loading: false,
             hasCredit: true,
           });
