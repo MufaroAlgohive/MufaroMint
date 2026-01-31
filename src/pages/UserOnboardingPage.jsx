@@ -241,7 +241,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
         const record = data?.[0];
         if (record?.id) {
           setExistingOnboardingId(record.id);
-          setStep(2);
         }
       } catch (err) {
         // ignore; user can still proceed normally
