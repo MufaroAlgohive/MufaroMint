@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import SumsubConnector from "../components/SumsubConnector";
+import TruidConnector from "../components/TruidConnector";
 import { supabase } from "../lib/supabase";
 import "../styles/onboarding-process.css";
 
@@ -175,9 +175,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }
   };
 
-  const sumsubApiBase =
-    import.meta.env.VITE_SUMSUB_API_BASE ||
-    (import.meta.env.DEV ? "http://localhost:3000" : "");
+  const truidApiBase = "";
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -633,32 +631,30 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               <div className="text-center mb-8 animate-fade-in delay-1">
                 <p
                   className="text-xs uppercase tracking-[0.2em] mb-2"
-                  style={{ color: "hsl(270 20% 55%)" }}
+                  style={{ color: "#6b7280" }}
                 >
                   Step 2 of 3
                 </p>
                 <h2
                   className="text-3xl font-light tracking-tight mb-2"
-                  style={{ color: "hsl(270 30% 25%)" }}
+                  style={{ color: "#1f2937" }}
                 >
-                  Identification
+                  Identity Verification
                 </h2>
-                <p className="text-sm" style={{ color: "hsl(270 20% 50%)" }}>
-                  Verify your identity securely with Sumsub.
+                <p className="text-sm" style={{ color: "#6b7280" }}>
+                  Verify your identity securely with TruID
                 </p>
               </div>
-              <SumsubConnector apiBase={sumsubApiBase} onVerified={() => setShowProceed(true)} />
-              {showProceed ? (
-                <div className="text-center mt-8 animate-fade-in delay-2">
-                  <button
-                    type="button"
-                    className="continue-button proceed-button"
-                    onClick={() => goToStep(3)}
-                  >
-                    Proceed to next step
-                  </button>
-                </div>
-              ) : null}
+              <TruidConnector apiBase={truidApiBase} onVerified={() => setShowProceed(true)} />
+              <div className="text-center mt-8 animate-fade-in delay-2">
+                <button
+                  type="button"
+                  className="continue-button proceed-button"
+                  onClick={() => goToStep(3)}
+                >
+                  Continue to Agreements
+                </button>
+              </div>
             </div>
           ) : (
             <div className="w-full max-w-3xl mx-auto">

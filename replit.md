@@ -16,7 +16,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `Preloader.jsx` - Loading animation component
     - `AuthLayout.jsx` - Auth page layout
     - `NotificationBell.jsx` - Bell icon with unread count badge
-    - `SumsubConnector.jsx` - Sumsub SDK integration for identity verification
+    - `TruidConnector.jsx` - TruID Connect integration for identity verification
   - `lib/` - Utility libraries
     - `supabase.js` - Supabase client initialization
     - `biometrics.js` - Biometric authentication utilities (Face ID/Touch ID)
@@ -39,6 +39,9 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `tailwind.css` - Tailwind configuration
     - `onboarding-process.css` - Onboarding flow glassmorphism styling
 - `public/` - Static assets
+- `server/` - Backend API server
+  - `index.cjs` - Express server with TruID API routes
+  - `truidClient.cjs` - TruID API client with authentication
 - `index.html` - HTML entry point
 
 ## Features
@@ -106,11 +109,18 @@ A React authentication application using Vite as the build tool with Tailwind CS
 - **User Identification Onboarding Flow**:
   - 3-step verification process triggered from Actions page
   - Step 1: Employment details (status, employer, income)
-  - Step 2: Identity verification via Sumsub SDK
+  - Step 2: Identity verification via TruID Connect
   - Step 3: Terms & Conditions and Privacy Policy agreements
   - Saves onboarding data to Supabase `user_onboarding` table
-  - Sumsub integration for KYC verification with status checking
+  - TruID integration for KYC verification with status checking
+  - Backend API server on port 3001 for TruID API calls
   - Glassmorphism UI with smooth animations
+- **TruID Integration**:
+  - Backend: `server/index.cjs` - Express server with TruID API endpoints
+  - Client: `server/truidClient.cjs` - TruID API client with authentication
+  - Frontend: `src/components/TruidConnector.jsx` - Verification UI component
+  - Endpoints: POST `/api/truid/initiate`, GET `/api/truid/status`
+  - Environment variables: TRUID_API_KEY, BRAND_ID, COMPANY_ID, TRUID_API_BASE, TRUID_DOMAIN, REDIRECT_URL, WEBHOOK_URL
 - **Notifications System**:
   - Centralized state management via NotificationsProvider context
   - Real-time updates via Supabase subscription (filtered by user preferences)
@@ -145,3 +155,6 @@ This project is configured for static deployment. The build output goes to the `
 - PostCSS with Autoprefixer
 - Capacitor (for native mobile features)
 - capacitor-face-id (biometric authentication)
+- Express.js (backend API server)
+- Axios (HTTP client for TruID API)
+- TruID Connect (identity verification)

@@ -31,6 +31,10 @@ waitForPort = 5000
 outputType = "webview"
 
 [[ports]]
+localPort = 3001
+externalPort = 3001
+
+[[ports]]
 localPort = 5000
 externalPort = 80
 
@@ -47,3 +51,9 @@ publicDir = "dist"
 
 [userenv.shared]
 VITE_API_KEY = "${API_KEY}"
+TRUID_DOMAIN = "truidconnect.io"
+TRUID_API_BASE = "https://api.truidconnect.io"
+TRUID_SCHEME = "https"
+COMPANY_ID = "AlgoLend"
+REDIRECT_URL = "https://98c53c65-2d21-45be-85d9-9955243bdc05-00-345u4hugvanos.spock.replit.dev/onboarding?step=3"
+WEBHOOK_URL = "https://98c53c65-2d21-45be-85d9-9955243bdc05-00-345u4hugvanos.spock.replit.dev/api/truid/webhook"
