@@ -467,9 +467,18 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     return `R${num.toFixed(2)}`;
   };
 
+  const getDisplayCurrency = (security) => {
+    const currency = security.currency || "R";
+    return currency.toUpperCase() === "ZAC" ? "R" : currency;
+  };
+
   const formatPrice = (security) => {
     if (security.currentPrice != null) {
-      return security.currentPrice.toFixed(2);
+      const currency = security.currency || "R";
+      const priceValue = currency.toUpperCase() === "ZAC"
+        ? Number(security.currentPrice) / 100
+        : Number(security.currentPrice);
+      return priceValue.toFixed(2);
     }
     return "—";
   };
@@ -878,7 +887,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           {security.currentPrice != null ? (
                             <>
                               <p className="text-lg font-bold text-slate-900">
-                                <span className="text-xs text-slate-400 font-normal">{security.currency || 'R'}</span>{' '}
+                                <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
                                 {formatPrice(security)}
                               </p>
                               {security.changePct != null && (
@@ -934,7 +943,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           {security.currentPrice != null ? (
                             <>
                               <p className="text-lg font-bold text-slate-900">
-                                <span className="text-xs text-slate-400 font-normal">{security.currency || 'R'}</span>{' '}
+                                <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
                                 {formatPrice(security)}
                               </p>
                               {security.changePct != null && (
@@ -1050,7 +1059,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                             {security.currentPrice != null ? (
                               <>
                                 <p className="text-sm font-semibold text-slate-900">
-                                  <span className="text-xs text-slate-400 font-normal">{security.currency || 'R'}</span>{' '}
+                                  <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
                                   {formatPrice(security)}
                                 </p>
                                 {security.changePct != null && (
@@ -1146,7 +1155,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                                 {security.currentPrice != null ? (
                                   <>
                                     <p className="text-sm font-semibold text-slate-900">
-                                      <span className="text-xs text-slate-400 font-normal">{security.currency || 'R'}</span>{' '}
+                                      <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
                                       {formatPrice(security)}
                                     </p>
                                     {security.changePct != null && (

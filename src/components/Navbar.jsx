@@ -15,7 +15,7 @@ import {
   X
 } from "lucide-react";
  
-const Navbar = ({ activeTab, setActiveTab, onWithdraw }) => {
+const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [wheelCenter, setWheelCenter] = useState({ x: 0, y: 0 });
   const [dynamicRadius, setDynamicRadius] = useState(145);
@@ -37,9 +37,9 @@ const Navbar = ({ activeTab, setActiveTab, onWithdraw }) => {
   const transactActions = [
     { id: "withdraw", label: "Withdraw", icon: ArrowUpCircle, angle: -180 },
     { id: "payLoan", label: "Pay", icon: Wallet, angle: -135 },
-    { id: "markets", label: "Invest", icon: TrendingUp, angle: -90 },
+    { id: "markets", label: "Markets", icon: TrendingUp, angle: -90 },
     { id: "credit", label: "Borrow", icon: HandCoins, angle: -45 },
-    { id: "rewards", label: "Coming soon", icon: Gift, angle: 0 },
+    { id: "rewards", label: "Rewards", icon: Gift, angle: 0 },
   ];
  
   const triggerHaptic = async (style) => {
@@ -157,8 +157,10 @@ const Navbar = ({ activeTab, setActiveTab, onWithdraw }) => {
                       if (action.id === "withdraw") {
                         if (onWithdraw) {
                           onWithdraw();
-                        } else {
-                          window.alert("You don't have any allocations to withdraw from.");
+                        }
+                      } else if (action.id === "payLoan" || action.id === "rewards") {
+                        if (onShowComingSoon) {
+                          onShowComingSoon(action.label);
                         }
                       } else {
                         setActiveTab(action.id);

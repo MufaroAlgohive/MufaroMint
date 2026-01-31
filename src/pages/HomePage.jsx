@@ -332,33 +332,29 @@ const HomePage = ({
               <div className="space-y-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowPayModal(false);
-                  }}
-                  className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98]"
+                  disabled
+                  className="flex w-full cursor-not-allowed items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left opacity-60"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-purple-600 text-white">
                     <Send className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">Pay via EFT</p>
-                    <p className="text-xs text-slate-500">Transfer to any bank account</p>
+                    <p className="text-sm font-semibold text-slate-900">Coming soon</p>
+                    <p className="text-xs text-slate-500">Transfers are not available yet</p>
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowPayModal(false);
-                  }}
-                  className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98]"
+                  disabled
+                  className="flex w-full cursor-not-allowed items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left opacity-60"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 text-white">
                     <MapPin className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">GeoPay</p>
-                    <p className="text-xs text-slate-500">Pay nearby with location</p>
+                    <p className="text-sm font-semibold text-slate-900">Coming soon</p>
+                    <p className="text-xs text-slate-500">GeoPay is not available yet</p>
                   </div>
                 </button>
               </div>
@@ -396,33 +392,29 @@ const HomePage = ({
               <div className="space-y-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowReceiveModal(false);
-                  }}
-                  className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98]"
+                  disabled
+                  className="flex w-full cursor-not-allowed items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left opacity-60"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
                     <Receipt className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">Pay Request</p>
-                    <p className="text-xs text-slate-500">Request payment from someone</p>
+                    <p className="text-sm font-semibold text-slate-900">Coming soon</p>
+                    <p className="text-xs text-slate-500">Requests are not available yet</p>
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowReceiveModal(false);
-                  }}
-                  className="flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-[0.98]"
+                  disabled
+                  className="flex w-full cursor-not-allowed items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left opacity-60"
                 >
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-orange-600 text-white">
                     <Users className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">Bill Split</p>
-                    <p className="text-xs text-slate-500">Split expenses with friends</p>
+                    <p className="text-sm font-semibold text-slate-900">Coming soon</p>
+                    <p className="text-xs text-slate-500">Bill split is not available yet</p>
                   </div>
                 </button>
               </div>

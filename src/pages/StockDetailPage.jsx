@@ -146,23 +146,23 @@ const StockDetailPage = ({ security: initialSecurity, onBack }) => {
 
   return (
     <div className="min-h-screen bg-white pb-[env(safe-area-inset-bottom)] text-slate-900">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 pb-4 pt-12">
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="Back"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 active:scale-95"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-
-        <div className="mt-6 flex items-start gap-3">
-          {security.logo_url ? (
-            <img
-              src={security.logo_url}
-              alt={security.symbol}
-              className="h-16 w-16 rounded-full border border-slate-200 object-cover"
+      {/* Tabs */}
+      <div className="border-b border-slate-200 px-4">
+        <div className="flex gap-6">
+          {["Overview"].map((tab, idx) => (
+            <button
+              key={tab}
+              className={`pb-3 text-sm font-semibold transition-colors ${
+                idx === 0
+                  ? "border-b-2 border-slate-900 text-slate-900"
+                  : "text-slate-400"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+      </div>
             />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-xl font-bold text-white">
