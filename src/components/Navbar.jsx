@@ -38,7 +38,7 @@ const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon }) => {
     { id: "withdraw", label: "Withdraw", icon: ArrowUpCircle, angle: -180 },
     { id: "payLoan", label: "Pay", icon: Wallet, angle: -135 },
     { id: "markets", label: "Markets", icon: TrendingUp, angle: -90 },
-    { id: "creditApply", label: "Borrow", icon: HandCoins, angle: -45 },
+    { id: "creditScore", label: "Borrow", icon: HandCoins, angle: -45 },
     { id: "rewards", label: "Rewards", icon: Gift, angle: 0 },
   ];
  

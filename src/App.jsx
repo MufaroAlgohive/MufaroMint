@@ -242,7 +242,7 @@ const App = () => {
           onOpenActions={() => setCurrentPage("actions")}
           onOpenInvestments={() => setCurrentPage("investments")}
           onOpenCredit={() => setCurrentPage("credit")}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
+          onOpenCreditApply={() => setCurrentPage("creditScore")}
           onOpenCreditRepay={() => setCurrentPage("creditRepay")}
           onOpenInvest={() => setCurrentPage("markets")}
           onOpenWithdraw={handleWithdrawRequest}
@@ -251,7 +251,7 @@ const App = () => {
       </AppLayout>
     );
   }
-
+                onOpenCreditApply={() => setCurrentPage("creditScore")}
   if (currentPage === "credit") {
     return (
       <AppLayout
@@ -267,7 +267,29 @@ const App = () => {
             setNotificationReturnPage("credit");
             setCurrentPage("notifications");
           }}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
+          onOpenCreditApply={() => setCurrentPage("creditScore")}
+        />
+      </AppLayout>
+    );
+  }
+  
+  if (currentPage === "creditScore") {
+    return (
+      <AppLayout
+        activeTab="credit"
+        onTabChange={setCurrentPage}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <CreditPage
+          initialView="score"
+          onOpenNotifications={() => {
+            setNotificationReturnPage("credit");
+            setCurrentPage("notifications");
+          }}
+          onOpenCreditApply={() => setCurrentPage("creditScore")}
         />
       </AppLayout>
     );
@@ -288,7 +310,7 @@ const App = () => {
     );
   }
 
-  if (currentPage === "investments") {
+              onOpenCreditApply={() => setCurrentPage("creditScore")}
     return (
       <AppLayout
         activeTab="investments"
@@ -549,7 +571,7 @@ const App = () => {
           onOpenActivity={() => setCurrentPage("activity")}
           onOpenSettings={() => setCurrentPage("settings")}
           onOpenInvest={() => setCurrentPage("markets")}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
+          onOpenCreditApply={() => setCurrentPage("creditScore")}
         />
       </AppLayout>
     );

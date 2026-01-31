@@ -8,8 +8,8 @@ import { useCreditInfo } from "../lib/useFinancialData";
 import CreditSkeleton from "../components/CreditSkeleton";
 import NotificationBell from "../components/NotificationBell";
 
-const CreditPage = ({ onOpenNotifications, onOpenCreditApply }) => {
-  const [view, setView] = useState("overview");
+const CreditPage = ({ onOpenNotifications, onOpenCreditApply, initialView = "overview" }) => {
+  const [view, setView] = useState(initialView);
   const { profile, loading } = useProfile();
   const {
     availableCredit,
@@ -40,6 +40,10 @@ const CreditPage = ({ onOpenNotifications, onOpenCreditApply }) => {
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
+
+  useEffect(() => {
+    setView(initialView);
+  }, [initialView]);
 
   const navigate = (viewName) => {
     setView(viewName);
