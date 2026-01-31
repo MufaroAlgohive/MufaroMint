@@ -1508,7 +1508,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                   setSelectedStrategy(null);
                   onOpenFactsheet(selectedStrategy);
                 }}
-                className="mt-6 w-full rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 py-4 font-semibold text-white shadow-lg transition-all active:scale-95"
+                className="mt-6 w-full rounded-2xl bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] py-4 font-semibold text-white shadow-lg transition-all active:scale-95"
               >
                 View Factsheet
               </button>

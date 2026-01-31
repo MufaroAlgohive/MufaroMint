@@ -10,6 +10,7 @@ import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
 import InvestAmountPage from "./pages/InvestAmountPage.jsx";
 import PaymentPage from "./pages/PaymentPage.jsx";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage.jsx";
 import FactsheetPage from "./pages/FactsheetPage.jsx";
 import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
@@ -387,7 +388,7 @@ const App = () => {
         amount={stockCheckout.amount}
         onSuccess={(response) => {
           console.log("Payment successful:", response);
-          setCurrentPage("home");
+          setCurrentPage("paymentSuccess");
         }}
         onCancel={() => {
           setCurrentPage("stockBuy");
@@ -452,13 +453,17 @@ const App = () => {
         onSuccess={(response) => {
           console.log("Payment successful:", response);
           // TODO: Record transaction in database
-          setCurrentPage("home");
+          setCurrentPage("paymentSuccess");
         }}
         onCancel={() => {
           setCurrentPage("investAmount");
         }}
       />
     );
+  }
+
+  if (currentPage === "paymentSuccess") {
+    return <PaymentSuccessPage onDone={() => setCurrentPage("home")} />;
   }
 
   if (currentPage === "more") {
