@@ -410,7 +410,12 @@ const App = () => {
   }
 
   if (currentPage === "identityCheck") {
-    return <IdentityCheckPage onBack={() => setCurrentPage("actions")} />;
+    return (
+      <IdentityCheckPage 
+        onBack={() => setCurrentPage("actions")} 
+        onComplete={() => setCurrentPage("actions")}
+      />
+    );
   }
 
   if (currentPage === "bankLink") {
