@@ -9,7 +9,6 @@ const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
 
   useEffect(() => {
     const initializePaystack = () => {
-      // Check if Paystack script is loaded
       if (!window.PaystackPop) {
         console.error("Paystack SDK not loaded");
         setPaymentStatus("failed");
@@ -17,12 +16,20 @@ const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
         return;
       }
 
+      const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+      if (!publicKey) {
+        console.error("Paystack public key missing");
+        setPaymentStatus("failed");
+        setErrorMessage("Payment system unavailable. Please try again later.");
+        return;
+      }
+
       setPaymentStatus("processing");
 
-      const handler = window.PaystackPop.setup({
-        key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || "pk_test_xxxxxxxxxxxxx", // Replace with your Paystack public key
+      const handler = new window.PaystackPop({
+        key: publicKey,
         email: profile?.email || "user@example.com",
-        amount: amount * 100, // Paystack expects amount in kobo (cents)
+        amount: Math.round((amount || 0) * 100),
         currency: strategy?.currency || "ZAR",
         ref: `MINT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         metadata: {
@@ -31,24 +38,22 @@ const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
           user_id: profile?.id,
           investment_amount: amount,
         },
-        onClose: function() {
+        onClose: function () {
           console.log("Payment window closed");
           setPaymentStatus("failed");
           setErrorMessage("Payment cancelled");
           setTimeout(() => onCancel?.(), 2000);
         },
-        callback: function(response) {
+        callback: function (response) {
           console.log("Payment successful:", response);
           setPaymentStatus("success");
-          
-          // TODO: Verify payment on backend and record transaction
           setTimeout(() => {
             onSuccess?.(response);
           }, 2000);
         },
       });
 
-      handler.openIframe();
+      handler.open();
     };
 
     // Small delay to ensure component is mounted
