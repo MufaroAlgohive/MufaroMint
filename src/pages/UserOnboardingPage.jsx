@@ -268,6 +268,41 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const showStudentSection = employmentStatus === "student";
   const agreementReady = agreedTerms && agreedPrivacy;
 
+  const handleFinalComplete = async () => {
+    if (!supabase) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.id) {
+        const userId = userData.user.id;
+
+        const { data: existingAction } = await supabase
+          .from("required_actions")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (existingAction) {
+          await supabase
+            .from("required_actions")
+            .update({ kyc_verified: true })
+            .eq("user_id", userId);
+        } else {
+          await supabase
+            .from("required_actions")
+            .insert({ user_id: userId, kyc_verified: true });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update KYC status:", err);
+    }
+
+    if (onComplete) onComplete();
+  };
+
   return (
     <div
       className={`onboarding-process ${isFading ? "fade-out" : "fade-in"} ${
@@ -730,7 +765,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${agreementReady ? "enabled" : ""}`}
                   disabled={!agreementReady}
-                  onClick={() => onComplete && onComplete()}
+                  onClick={handleFinalComplete}
                 >
                   Accept and Continue
                 </button>
