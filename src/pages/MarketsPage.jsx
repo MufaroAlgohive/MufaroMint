@@ -239,21 +239,22 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   // Fetch holdings securities for strategy cards (only if we have mock data)
   useEffect(() => {
     const fetchHoldingsSecurities = async () => {
-      if (!supabase || strategies.length === 0) return;
+      const strategySources = [...strategies, ...publicStrategies];
+      if (!supabase || strategySources.length === 0) return;
 
       try {
         // Get all unique ticker symbols from strategies if they have holdings
         const allTickers = [...new Set(
-          strategies
+          strategySources
             .filter(s => s.holdings && Array.isArray(s.holdings))
-            .flatMap(s => s.holdings.map(h => h.ticker || h))
+            .flatMap(s => s.holdings.map(h => h.ticker || h.symbol || h))
         )];
         
         if (allTickers.length === 0) return;
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, logo_url, name")
+          .select("symbol, logo_url, name, currency, security_metrics(last_close)")
           .in("symbol", allTickers);
 
         if (!error && data) {
@@ -265,7 +266,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     };
 
     fetchHoldingsSecurities();
-  }, [strategies]);
+  }, [strategies, publicStrategies]);
 
   // Fetch news articles
   useEffect(() => {
@@ -481,6 +482,27 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       return priceValue.toFixed(2);
     }
     return "—";
+  };
+
+  const getHoldingSymbol = (holding) => holding?.ticker || holding?.symbol || holding;
+
+  const getHoldingsMinInvestment = (strategy) => {
+    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return null;
+    const total = strategy.holdings.reduce((sum, holding) => {
+      const symbol = getHoldingSymbol(holding);
+      const security = holdingsSecurities.find((s) => s.symbol === symbol);
+      const metrics = Array.isArray(security?.security_metrics)
+        ? security.security_metrics[0]
+        : security?.security_metrics;
+      const lastClose = metrics?.last_close;
+      if (lastClose == null) return sum;
+      const currency = security?.currency || strategy?.base_currency || "R";
+      const normalizedPrice = currency.toUpperCase() === "ZAC"
+        ? Number(lastClose) / 100
+        : Number(lastClose);
+      return sum + (Number.isFinite(normalizedPrice) ? normalizedPrice : 0);
+    }, 0);
+    return total > 0 ? total : null;
   };
 
   const resetSheetPosition = () => {
@@ -1246,9 +1268,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         : '';
                       
                       // Format minimum investment
-                      const formattedMinInvestment = strategy.min_investment
-                        ? `Min. ${formatCurrency(strategy.min_investment, strategy.base_currency || 'R')}`
-                        : '';
+                      const holdingsMinInvestment = getHoldingsMinInvestment(strategy);
+                      const formattedMinInvestment = holdingsMinInvestment
+                        ? `Min. ${formatCurrency(holdingsMinInvestment, strategy.base_currency || 'R')}`
+                        : 'Min. Data unavailable';
                       
                       // Generate sparkline (fallback until we have real price history)
                       const sparkline = generateSparkline(0);
@@ -1438,7 +1461,14 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-slate-900">{selectedStrategy.name}</h2>
-                  <p className="text-sm text-slate-500">{selectedStrategy.minimum_display}</p>
+                  <p className="text-sm text-slate-500">
+                    {(() => {
+                      const holdingsMinInvestment = getHoldingsMinInvestment(selectedStrategy);
+                      return holdingsMinInvestment
+                        ? `Min. ${formatCurrency(holdingsMinInvestment, selectedStrategy.base_currency || 'R')}`
+                        : 'Min. Data unavailable';
+                    })()}
+                  </p>
                 </div>
               </div>
 
