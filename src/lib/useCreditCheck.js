@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 import { initLoanStep, updateLoan } from "./loanApplication";
-import employerCsvUrl from "../assets/2025-10-16-jse-listed-companies.csv?url";
+import employerCsvUrl from "@/assets/2025-10-16-jse-listed-companies.csv?url";
 
 const normalizeContractTypeValue = (value) => {
   if (!value) return null;
