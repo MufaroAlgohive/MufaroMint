@@ -637,7 +637,7 @@ const App = () => {
     return (
       <OnboardingPage
         onCreateAccount={() => openAuthFlow("email")}
-        onLogin={() => openAuthFlow("login")}
+        onLogin={() => openAuthFlow("loginEmail")}
       />
     );
   }
