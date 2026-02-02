@@ -614,7 +614,7 @@ const App = () => {
   }
 
   if (currentPage === "creditApply") {
-    return <CreditApplyPage />;
+    return <CreditApplyPage onBack={() => setCurrentPage("credit")} />;
   }
 
   if (currentPage === "creditRepay") {
