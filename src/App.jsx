@@ -633,6 +633,15 @@ const App = () => {
     return <UserOnboardingPage onComplete={() => setCurrentPage("home")} />;
   }
 
+  if (currentPage === "welcome") {
+    return (
+      <OnboardingPage
+        onCreateAccount={() => openAuthFlow("email")}
+        onLogin={() => openAuthFlow("login")}
+      />
+    );
+  }
+
   const handleSignupComplete = async () => {
     if (supabase) {
       const { data: userData } = await supabase.auth.getUser();
