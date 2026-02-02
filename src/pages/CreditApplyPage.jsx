@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, Info } from "lucide-react";
 import { MintGradientLayout } from "../components/credit/ui/MintGradientLayout";
 import { MintCard } from "../components/credit/ui/MintCard";
@@ -649,7 +648,6 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
 // --- ORCHESTRATOR ---
 
 const CreditApplyWizard = ({ onBack, onComplete }) => {
-   const navigate = useNavigate();
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
    const [autoAdvance, setAutoAdvance] = useState(false);
    const [checkedExistingScore, setCheckedExistingScore] = useState(false);
@@ -898,7 +896,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                      <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
                         <header className="w-full flex items-center justify-start pt-10 pb-6">
                            <button
-                              onClick={() => onBack ? onBack() : navigate(-1)}
+                              onClick={() => onBack ? onBack() : window.history.back()}
                               className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
                            >
                               <ArrowLeft className="h-5 w-5" />
