@@ -875,34 +875,92 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               </button>
             </div>
 
-            <div id="step-login-email" className={`step ${currentStep === 'loginEmail' ? 'active' : ''} space-y-8`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${loginEmail ? 'has-value' : ''}`}>
-                <TextInput
-                  type="email"
-                  id="login-email"
-                  placeholder="Email"
-                  required
-                  autoComplete="email"
-                  value={loginEmail}
-                  onChange={(event) => setLoginEmail(event.target.value)}
-                />
-                <PrimaryButton ariaLabel="Continue" onClick={handleLoginContinue}>
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                  </svg>
-                </PrimaryButton>
-              </div>
-              {canUseBiometricLogin && (
-                <button
-                  type="button"
-                  className="text-sm font-semibold text-foreground underline-offset-4 hover:underline transition"
-                  onClick={handleBiometricLogin}
-                >
-                  Use {biometryName}
-                </button>
+            <div id="step-login-email" className={`step ${currentStep === 'loginEmail' ? 'active' : ''} space-y-6`}>
+              {showLoginRateLimitScreen ? (
+                <div className="otp-cooldown animate-on-load delay-4">
+                  <h4>Too many attempts</h4>
+                  <p>
+                    {loginCooldownLevel >= 2 
+                      ? 'Please contact support or try again later.'
+                      : `Please wait ${formatTime(loginCooldown)} before trying again.`
+                    }
+                  </p>
+                  <div className="flex flex-col gap-3 mt-4">
+                    <button
+                      type="button"
+                      className="text-sm text-foreground underline underline-offset-4"
+                      onClick={handleForgotPassword}
+                    >
+                      Reset Password
+                    </button>
+                    {loginCooldownLevel >= 2 && (
+                      <a href="#" className="text-sm text-foreground underline underline-offset-4">
+                        Contact Support
+                      </a>
+                    )}
+                  </div>
+                  <p className="dismiss-countdown">
+                    Time remaining: {formatTime(loginCooldown)}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${loginEmail ? 'has-value' : ''}`}>
+                    <TextInput
+                      type="email"
+                      id="login-email"
+                      placeholder="Email"
+                      required
+                      autoComplete="email"
+                      value={loginEmail}
+                      onChange={(event) => setLoginEmail(event.target.value)}
+                    />
+                  </div>
+                  <div className={`glass glass-input shadow-xl animate-on-load delay-5 ${loginPassword ? 'has-value' : ''}`}>
+                    <PasswordInput
+                      id="login-password"
+                      placeholder="Password"
+                      required
+                      minLength={6}
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      disabled={loginCooldown > 0}
+                    />
+                    <PrimaryButton ariaLabel="Sign in" onClick={handleLoginSubmit} disabled={loginCooldown > 0 || isLoading}>
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </PrimaryButton>
+                  </div>
+                  
+                  {loginAttempts > 0 && loginAttempts < MAX_LOGIN_ATTEMPTS && (
+                    <p className={`otp-attempts ${MAX_LOGIN_ATTEMPTS - loginAttempts <= 3 ? 'otp-error' : ''}`}>
+                      {MAX_LOGIN_ATTEMPTS - loginAttempts} attempts remaining
+                    </p>
+                  )}
+                  
+                  <div className="flex flex-col items-center gap-3">
+                    {canUseBiometricLogin && (
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-foreground underline-offset-4 hover:underline transition"
+                        onClick={handleBiometricLogin}
+                      >
+                        Use {biometryName}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition"
+                      onClick={handleForgotPassword}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                </>
               )}
-              <p className="text-center text-sm text-muted-foreground animate-on-load delay-5">
-                Need an account?
+              <p className="text-center text-sm text-muted-foreground animate-on-load delay-6">
+                Need an account?{' '}
                 <button
                   type="button"
                   id="back-to-signup"
