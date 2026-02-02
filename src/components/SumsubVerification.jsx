@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import SumsubWebSdk from "@sumsub/websdk-react";
 import { supabase } from "../lib/supabase";
+import { isNativePlatform } from "../lib/biometrics";
+
+const getApiBaseUrl = () => {
+  if (isNativePlatform()) {
+    return import.meta.env.VITE_API_BASE_URL || "";
+  }
+  return "";
+};
 
 const ShieldCheckIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
@@ -53,7 +61,8 @@ const SumsubVerification = ({ onVerified }) => {
         setUserId(currentUserId);
 
         // Request access token from backend
-        const response = await fetch("/api/sumsub/access-token", {
+        const apiBase = getApiBaseUrl();
+        const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -84,7 +93,8 @@ const SumsubVerification = ({ onVerified }) => {
   // Handler for token expiration - request a new token
   const accessTokenExpirationHandler = useCallback(async () => {
     try {
-      const response = await fetch("/api/sumsub/access-token", {
+      const apiBase = getApiBaseUrl();
+      const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
