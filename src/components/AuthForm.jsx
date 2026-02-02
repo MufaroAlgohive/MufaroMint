@@ -34,6 +34,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [otp, setOtp] = useState(Array.from({ length: OTP_LENGTH }, () => ''));
@@ -95,6 +96,12 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   useEffect(() => {
     setCurrentStep(initialStep);
   }, [initialStep]);
+
+  useEffect(() => {
+    if (currentStep !== 'password') {
+      setShowConfirmPassword(false);
+    }
+  }, [currentStep]);
 
   useEffect(() => {
     const checkBiometricLogin = async () => {
@@ -502,26 +509,22 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         }, 100);
         return;
       }
-      showStep('firstName');
+      showStep('name');
       return;
     }
     showToast('Enter a valid email address to continue.');
   };
 
-  const handleFirstNameContinue = () => {
-    if (firstName.trim().length > 0) {
-      showStep('lastName');
+  const handleNameContinue = () => {
+    if (!firstName.trim()) {
+      showToast('Add your first name to continue.');
       return;
     }
-    showToast('Add your first name to continue.');
-  };
-
-  const handleLastNameContinue = () => {
-    if (lastName.trim().length > 0) {
-      showStep('password');
+    if (!lastName.trim()) {
+      showToast('Add your last name to continue.');
       return;
     }
-    showToast('Add your last name to continue.');
+    showStep('password');
   };
 
   const handleLoginContinue = () => {
@@ -691,7 +694,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       showToast('Your password must meet all requirements to continue.');
       return;
     }
-    showStep('confirm');
+    setShowConfirmPassword(true);
   };
 
   const handleConfirmContinue = async () => {
@@ -759,7 +762,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
 
   const formSubmit = (event) => {
     event.preventDefault();
-    if (currentStep === 'confirm') {
+    if (currentStep === 'password' && showConfirmPassword) {
       handleConfirmContinue();
     }
   };
@@ -823,7 +826,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               </p>
             </div>
 
-            <div id="step-first-name" className={`step ${currentStep === 'firstName' ? 'active' : ''} space-y-8`}>
+            <div id="step-name" className={`step ${currentStep === 'name' ? 'active' : ''} space-y-6`}>
               <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${firstName ? 'has-value' : ''}`}>
                 <TextInput
                   id="first-name"
@@ -833,24 +836,8 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   value={firstName}
                   onChange={(event) => setFirstName(event.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                 />
-                <PrimaryButton ariaLabel="Continue" onClick={handleFirstNameContinue}>
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                  </svg>
-                </PrimaryButton>
               </div>
-              <button
-                type="button"
-                id="back-to-email"
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('email')}
-              >
-                ← Back
-              </button>
-            </div>
-
-            <div id="step-last-name" className={`step ${currentStep === 'lastName' ? 'active' : ''} space-y-8`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${lastName ? 'has-value' : ''}`}>
+              <div className={`glass glass-input shadow-xl animate-on-load delay-5 ${lastName ? 'has-value' : ''}`}>
                 <TextInput
                   id="last-name"
                   placeholder="Last name"
@@ -859,7 +846,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   value={lastName}
                   onChange={(event) => setLastName(event.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                 />
-                <PrimaryButton ariaLabel="Continue" onClick={handleLastNameContinue}>
+                <PrimaryButton ariaLabel="Continue" onClick={handleNameContinue}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
                   </svg>
@@ -867,9 +854,9 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               </div>
               <button
                 type="button"
-                id="back-to-first-name"
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('firstName')}
+                id="back-to-email"
+                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-6"
+                onClick={() => showStep('email')}
               >
                 ← Back
               </button>
@@ -1169,7 +1156,17 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
             </div>
 
             <div id="step-password" className={`step ${currentStep === 'password' ? 'active' : ''} space-y-6`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${password ? 'has-value' : ''}`}>
+              <div 
+                className={`glass glass-input shadow-xl ${password ? 'has-value' : ''} password-field-animate ${showConfirmPassword ? 'fade-out' : 'fade-in'}`}
+                style={{ 
+                  transition: 'opacity 0.3s ease, transform 0.3s ease',
+                  opacity: showConfirmPassword ? 0 : 1,
+                  transform: showConfirmPassword ? 'translateY(-20px)' : 'translateY(0)',
+                  position: showConfirmPassword ? 'absolute' : 'relative',
+                  pointerEvents: showConfirmPassword ? 'none' : 'auto',
+                  width: '100%'
+                }}
+              >
                 <PasswordInput
                   id="password"
                   placeholder="Create password"
@@ -1185,21 +1182,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                 </PrimaryButton>
               </div>
               
-              <PasswordStrengthIndicator password={password} />
-              
-              
-              <button
-                type="button"
-                id="back-to-last-name"
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('lastName')}
+              <div 
+                className={`glass glass-input shadow-xl ${confirmPassword ? 'has-value' : ''} confirm-field-animate`}
+                style={{ 
+                  transition: 'opacity 0.3s ease 0.15s, transform 0.3s ease 0.15s',
+                  opacity: showConfirmPassword ? 1 : 0,
+                  transform: showConfirmPassword ? 'translateY(0)' : 'translateY(20px)',
+                  display: showConfirmPassword ? 'flex' : 'none'
+                }}
               >
-                ← Back
-              </button>
-            </div>
-
-            <div id="step-confirm" className={`step ${currentStep === 'confirm' ? 'active' : ''} space-y-8`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${confirmPassword ? 'has-value' : ''}`}>
                 <PasswordInput
                   id="confirm"
                   placeholder="Confirm password"
@@ -1209,17 +1200,21 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                 />
                 <PrimaryButton ariaLabel="Continue" onClick={handleConfirmContinue}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                   </svg>
                 </PrimaryButton>
               </div>
               
-              {confirmPassword && password !== confirmPassword && (
+              {!showConfirmPassword && (
+                <PasswordStrengthIndicator password={password} />
+              )}
+              
+              {showConfirmPassword && confirmPassword && password !== confirmPassword && (
                 <p className="text-sm text-center" style={{ color: '#FF3B30' }}>
                   Passwords don't match
                 </p>
               )}
-              {confirmPassword && password === confirmPassword && (
+              {showConfirmPassword && confirmPassword && password === confirmPassword && (
                 <p className="text-sm text-center" style={{ color: '#34C759' }}>
                   Passwords match
                 </p>
@@ -1227,9 +1222,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               
               <button
                 type="button"
-                id="back-to-password"
+                id="back-to-name"
                 className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('password')}
+                onClick={() => {
+                  if (showConfirmPassword) {
+                    setShowConfirmPassword(false);
+                  } else {
+                    showStep('name');
+                  }
+                }}
               >
                 ← Back
               </button>
