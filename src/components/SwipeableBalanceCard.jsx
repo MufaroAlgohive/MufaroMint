@@ -182,9 +182,9 @@ const SwipeableBalanceCard = ({
     if (Math.abs(diff) > threshold) {
       setIsAnimating(true);
       if (diff > 0) {
-        setRotation(prev => prev + 180);
-      } else {
         setRotation(prev => prev - 180);
+      } else {
+        setRotation(prev => prev + 180);
       }
       setTimeout(() => setIsAnimating(false), 700);
     }
@@ -196,9 +196,9 @@ const SwipeableBalanceCard = ({
     if (idx !== currentCard) {
       setIsAnimating(true);
       if (idx > currentCard) {
-        setRotation(prev => prev + 180);
-      } else {
         setRotation(prev => prev - 180);
+      } else {
+        setRotation(prev => prev + 180);
       }
       setTimeout(() => setIsAnimating(false), 700);
     }
