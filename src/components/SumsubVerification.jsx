@@ -20,6 +20,18 @@ const AlertCircleIcon = (props) => (
   </svg>
 );
 
+const ClockIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+  </svg>
+);
+
+const XCircleIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+  </svg>
+);
+
 const LoadingSpinner = () => (
   <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" />
 );
@@ -29,9 +41,34 @@ const SumsubVerification = ({ onVerified }) => {
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [rejectionError, setRejectionError] = useState(null);
   const [verificationComplete, setVerificationComplete] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null);
+  const [rejectionDetails, setRejectionDetails] = useState(null);
+  const [completedSteps, setCompletedSteps] = useState([]);
+
+  // Create notification in database
+  const createNotification = useCallback(async (title, body, type = "kyc", payload = {}) => {
+    try {
+      if (!supabase) return;
+      
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData?.user?.id;
+      
+      if (!currentUserId) return;
+      
+      await supabase.from("notifications").insert({
+        user_id: currentUserId,
+        title,
+        body,
+        type,
+        payload,
+      });
+      
+      console.log("Notification created:", title);
+    } catch (err) {
+      console.error("Error creating notification:", err);
+    }
+  }, []);
 
   useEffect(() => {
     const initializeSumsub = async () => {
@@ -47,7 +84,6 @@ const SumsubVerification = ({ onVerified }) => {
         }
         
         if (!currentUserId) {
-          // Generate a temporary ID for demo purposes
           currentUserId = `user_${Date.now()}`;
         }
         
@@ -82,7 +118,7 @@ const SumsubVerification = ({ onVerified }) => {
     initializeSumsub();
   }, []);
 
-  // Handler for token expiration - request a new token
+  // Handler for token expiration
   const accessTokenExpirationHandler = useCallback(async () => {
     try {
       const response = await fetch("/api/sumsub/access-token", {
@@ -106,7 +142,7 @@ const SumsubVerification = ({ onVerified }) => {
     }
   }, [userId]);
 
-  // Function to update KYC status in database
+  // Update KYC status in database
   const updateKycStatus = useCallback(async (verified) => {
     try {
       if (!supabase) return;
@@ -116,7 +152,6 @@ const SumsubVerification = ({ onVerified }) => {
       
       if (!currentUserId) return;
       
-      // Update or insert the required_actions record
       const { error } = await supabase
         .from("required_actions")
         .upsert({
@@ -136,6 +171,29 @@ const SumsubVerification = ({ onVerified }) => {
     }
   }, []);
 
+  // Parse rejection labels to user-friendly messages
+  const parseRejectionLabels = (labels) => {
+    const labelMappings = {
+      UNSATISFACTORY_PHOTOS: "Unsatisfactory photos - please retake with better lighting",
+      DOCUMENT_DAMAGED: "Document appears damaged",
+      DOCUMENT_EXPIRED: "Document has expired",
+      DOCUMENT_MISSING_PART: "Part of the document is missing or cut off",
+      FORGERY: "Document could not be verified",
+      NOT_READABLE: "Document is not readable - please provide clearer photos",
+      GRAPHIC_EDITOR: "Image appears to have been edited",
+      SCREENSHOTS: "Screenshots are not accepted",
+      SELFIE_MISMATCH: "Selfie does not match the document photo",
+      BAD_SELFIE: "Selfie quality is not sufficient",
+      BAD_FACE_MATCHING: "Face matching failed",
+      FRAUDULENT_PATTERNS: "Suspicious patterns detected",
+      BLACKLISTED: "Applicant is on a restricted list",
+    };
+
+    if (!labels || labels.length === 0) return [];
+    
+    return labels.map(label => labelMappings[label] || label.replace(/_/g, ' ').toLowerCase());
+  };
+
   // Handle SDK messages
   const messageHandler = useCallback((type, payload) => {
     console.log("Sumsub SDK message:", type, payload);
@@ -143,50 +201,98 @@ const SumsubVerification = ({ onVerified }) => {
     switch (type) {
       case "idCheck.onApplicantLoaded":
         console.log("Applicant loaded:", payload);
+        // Check if there's already a status from previous attempts
         break;
         
       case "idCheck.onApplicantSubmitted":
         console.log("Applicant submitted for review");
-        setVerificationStatus("submitted");
-        // Update database when applicant is submitted
-        updateKycStatus(true);
+        setVerificationStatus("pending");
+        // Do NOT mark kyc_verified as true here - only when actually approved
+        createNotification(
+          "Documents Submitted",
+          "Your identity documents have been submitted and are being reviewed. We'll notify you once the review is complete.",
+          "kyc",
+          { status: "pending" }
+        );
         break;
         
       case "idCheck.onApplicantResubmitted":
         console.log("Applicant resubmitted");
+        setVerificationStatus("pending");
+        createNotification(
+          "Documents Resubmitted",
+          "Your updated documents have been submitted for review.",
+          "kyc",
+          { status: "pending" }
+        );
         break;
       
       case "idCheck.onApplicantStatusChanged":
       case "idCheck.applicantStatus":
         console.log("Applicant status changed:", payload);
-        // Handle both pending (submitted for review) and completed statuses
+        
         if (payload?.reviewStatus === "completed") {
           if (payload?.reviewResult?.reviewAnswer === "GREEN") {
             setVerificationComplete(true);
             setVerificationStatus("approved");
             updateKycStatus(true);
+            createNotification(
+              "Identity Verified!",
+              "Congratulations! Your identity has been successfully verified. You now have full access to all features.",
+              "kyc",
+              { status: "approved" }
+            );
             if (onVerified) {
               onVerified();
             }
           } else if (payload?.reviewResult?.reviewAnswer === "RED") {
             setVerificationStatus("rejected");
             updateKycStatus(false);
+            
             const rejectType = payload?.reviewResult?.reviewRejectType;
-            if (rejectType === "RETRY") {
-              setRejectionError("Your verification needs additional information. Please try again with clearer documents.");
-            } else {
-              setRejectionError("Verification was not successful. Please contact support for assistance.");
-            }
+            const rejectLabels = payload?.reviewResult?.rejectLabels || [];
+            const clientComment = payload?.reviewResult?.clientComment;
+            
+            const parsedLabels = parseRejectionLabels(rejectLabels);
+            
+            setRejectionDetails({
+              type: rejectType,
+              labels: parsedLabels,
+              comment: clientComment,
+              canRetry: rejectType === "RETRY",
+            });
+            
+            const notificationBody = rejectType === "RETRY"
+              ? `Your verification needs attention: ${parsedLabels.join(", ") || "Please review and resubmit your documents."}`
+              : "Your verification was not successful. Please contact support for assistance.";
+            
+            createNotification(
+              rejectType === "RETRY" ? "Action Required: Resubmission Needed" : "Verification Unsuccessful",
+              notificationBody,
+              "kyc",
+              { status: "rejected", canRetry: rejectType === "RETRY", labels: rejectLabels }
+            );
           }
-        } else if (payload?.reviewStatus === "pending") {
-          // Mark as submitted when review is pending
-          setVerificationStatus("submitted");
-          updateKycStatus(true);
+        } else if (payload?.reviewStatus === "pending" || payload?.reviewStatus === "queued") {
+          // Status is pending review - do NOT mark as verified yet
+          setVerificationStatus("pending");
         }
         break;
 
       case "idCheck.onStepCompleted":
         console.log("Step completed:", payload);
+        setCompletedSteps(prev => {
+          const stepInfo = {
+            type: payload?.idDocSetType || payload?.idDocType || "Step",
+            docType: payload?.idDocType,
+            completedAt: new Date().toISOString(),
+          };
+          // Avoid duplicates
+          if (prev.some(s => s.type === stepInfo.type)) {
+            return prev;
+          }
+          return [...prev, stepInfo];
+        });
         break;
 
       case "idCheck.onError":
@@ -196,7 +302,7 @@ const SumsubVerification = ({ onVerified }) => {
       default:
         break;
     }
-  }, [onVerified, updateKycStatus]);
+  }, [onVerified, updateKycStatus, createNotification]);
 
   // Handle SDK errors
   const errorHandler = useCallback((error) => {
@@ -216,6 +322,19 @@ const SumsubVerification = ({ onVerified }) => {
     adaptIframeHeight: true,
   };
 
+  // Format step name for display
+  const formatStepName = (type) => {
+    const names = {
+      IDENTITY: "ID Document",
+      SELFIE: "Selfie Verification",
+      PROOF_OF_RESIDENCE: "Proof of Address",
+      PHONE_VERIFICATION: "Phone Verification",
+      EMAIL_VERIFICATION: "Email Verification",
+      QUESTIONNAIRE: "Questionnaire",
+    };
+    return names[type] || type?.replace(/_/g, ' ') || "Document";
+  };
+
   if (loading) {
     return (
       <div className="w-full max-w-md mx-auto text-center py-12">
@@ -228,34 +347,81 @@ const SumsubVerification = ({ onVerified }) => {
     );
   }
 
-  if (rejectionError) {
+  // Rejection screen with detailed information
+  if (verificationStatus === "rejected" && rejectionDetails) {
     return (
       <div className="w-full max-w-md mx-auto text-center py-8">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center">
-          <AlertCircleIcon className="w-8 h-8 text-white" />
+          <XCircleIcon className="w-8 h-8 text-white" />
         </div>
-        <h3 className="text-lg font-medium text-slate-800 mb-2">Verification Needs Attention</h3>
-        <p className="text-sm text-slate-500 mb-4">{rejectionError}</p>
-        <div className="bg-slate-50 rounded-xl p-4 text-left mb-4">
-          <p className="text-xs text-slate-600 mb-2">Tips for successful verification:</p>
-          <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
-            <li>Ensure good lighting when taking photos</li>
-            <li>Make sure documents are clear and readable</li>
-            <li>Use a valid, unexpired ID document</li>
-            <li>Follow all on-screen instructions carefully</li>
-          </ul>
-        </div>
+        <h3 className="text-lg font-medium text-slate-800 mb-2">
+          {rejectionDetails.canRetry ? "Resubmission Required" : "Verification Unsuccessful"}
+        </h3>
+        <p className="text-sm text-slate-500 mb-4">
+          {rejectionDetails.canRetry 
+            ? "Some documents need to be resubmitted. Please review the issues below."
+            : "Your verification could not be completed. Please contact support for assistance."}
+        </p>
+        
+        {rejectionDetails.labels && rejectionDetails.labels.length > 0 && (
+          <div className="bg-red-50 rounded-xl p-4 text-left mb-4">
+            <p className="text-xs font-medium text-red-800 mb-2">Issues found:</p>
+            <ul className="space-y-2">
+              {rejectionDetails.labels.map((label, index) => (
+                <li key={index} className="flex items-start gap-2 text-xs text-red-700">
+                  <XCircleIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {rejectionDetails.comment && (
+          <div className="bg-slate-50 rounded-xl p-4 text-left mb-4">
+            <p className="text-xs font-medium text-slate-700 mb-1">Additional notes:</p>
+            <p className="text-xs text-slate-600">{rejectionDetails.comment}</p>
+          </div>
+        )}
+
+        {completedSteps.length > 0 && (
+          <div className="bg-emerald-50 rounded-xl p-4 text-left mb-4">
+            <p className="text-xs font-medium text-emerald-800 mb-2">Completed steps:</p>
+            <ul className="space-y-1">
+              {completedSteps.map((step, index) => (
+                <li key={index} className="flex items-center gap-2 text-xs text-emerald-700">
+                  <CheckCircleIcon className="w-4 h-4" />
+                  <span>{formatStepName(step.type)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {rejectionDetails.canRetry && (
+          <div className="bg-slate-50 rounded-xl p-4 text-left mb-4">
+            <p className="text-xs text-slate-600 mb-2">Tips for successful verification:</p>
+            <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
+              <li>Ensure good lighting when taking photos</li>
+              <li>Make sure all text on documents is clearly readable</li>
+              <li>Avoid glare and shadows on your documents</li>
+              <li>Use original documents, not copies or screenshots</li>
+            </ul>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={() => {
-            setRejectionError(null);
+            setRejectionDetails(null);
             setVerificationStatus(null);
+            setCompletedSteps([]);
             window.location.reload();
           }}
           className="px-6 py-2.5 rounded-xl font-medium text-white transition-all duration-200"
           style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}
         >
-          Try Again
+          {rejectionDetails.canRetry ? "Try Again" : "Contact Support"}
         </button>
       </div>
     );
@@ -305,30 +471,44 @@ const SumsubVerification = ({ onVerified }) => {
     );
   }
 
-  if (verificationStatus === "submitted") {
+  // Pending/Submitted screen - shows actual pending status, does NOT mark as verified
+  if (verificationStatus === "pending") {
     return (
       <div className="w-full max-w-md mx-auto text-center py-8">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center animate-pulse">
-          <ShieldCheckIcon className="w-8 h-8 text-white" />
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+          <ClockIcon className="w-8 h-8 text-white" />
         </div>
-        <h3 className="text-lg font-medium text-slate-800 mb-2">Verification In Progress</h3>
-        <p className="text-sm text-slate-500 mb-4">Your documents have been submitted and are being reviewed</p>
-        <p className="text-xs text-slate-400">This usually takes a few minutes. You can proceed and we'll notify you when complete.</p>
-        <button
-          type="button"
-          onClick={async () => {
-            // Update database to mark KYC as verified
-            await updateKycStatus(true);
-            setVerificationComplete(true);
-            if (onVerified) {
-              onVerified();
-            }
-          }}
-          className="mt-6 px-6 py-2.5 rounded-xl font-medium text-white transition-all duration-200"
-          style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}
-        >
-          Continue
-        </button>
+        <h3 className="text-lg font-medium text-slate-800 mb-2">Under Review</h3>
+        <p className="text-sm text-slate-500 mb-4">Your documents are being reviewed by our team</p>
+        
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-100 text-amber-700 text-sm font-medium mb-4">
+          <ClockIcon className="w-4 h-4" />
+          <span>Pending Review</span>
+        </div>
+
+        {completedSteps.length > 0 && (
+          <div className="bg-slate-50 rounded-xl p-4 text-left mb-4">
+            <p className="text-xs font-medium text-slate-700 mb-2">Submitted documents:</p>
+            <ul className="space-y-1">
+              {completedSteps.map((step, index) => (
+                <li key={index} className="flex items-center gap-2 text-xs text-slate-600">
+                  <CheckCircleIcon className="w-4 h-4 text-emerald-500" />
+                  <span>{formatStepName(step.type)}</span>
+                  <span className="text-slate-400">- Submitted</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p className="text-xs text-slate-400 mb-4">
+          This usually takes a few minutes. We'll notify you when the review is complete.
+        </p>
+        
+        <p className="text-xs text-slate-500 bg-blue-50 rounded-lg p-3 mb-4">
+          Your verification is still in progress. You'll be notified once the review is complete.
+          The KYC action will remain outstanding until verification is approved.
+        </p>
       </div>
     );
   }
