@@ -3,6 +3,8 @@ import { supabase } from "./supabase";
 
 const defaultActions = {
   kycVerified: false,
+  kycNeedsResubmission: false,
+  kycPending: false,
   bankLinked: false,
   bankInReview: false,
   loading: true,
@@ -30,7 +32,7 @@ export const useRequiredActions = () => {
 
       let { data, error } = await supabase
         .from("required_actions")
-        .select("kyc_verified, bank_linked, bank_in_review")
+        .select("kyc_verified, kyc_needs_resubmission, kyc_pending, bank_linked, bank_in_review")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -38,7 +40,7 @@ export const useRequiredActions = () => {
         const { data: newData, error: insertError } = await supabase
           .from("required_actions")
           .insert({ user_id: userId })
-          .select("kyc_verified, bank_linked, bank_in_review")
+          .select("kyc_verified, kyc_needs_resubmission, kyc_pending, bank_linked, bank_in_review")
           .single();
 
         if (!insertError && newData) {
@@ -48,6 +50,8 @@ export const useRequiredActions = () => {
 
       setActions({
         kycVerified: data?.kyc_verified || false,
+        kycNeedsResubmission: data?.kyc_needs_resubmission || false,
+        kycPending: data?.kyc_pending || false,
         bankLinked: data?.bank_linked || false,
         bankInReview: data?.bank_in_review || false,
         loading: false,
@@ -94,6 +98,8 @@ export const useRequiredActions = () => {
             if (payload.new && payload.new.user_id === userIdRef.current) {
               setActions({
                 kycVerified: payload.new.kyc_verified || false,
+                kycNeedsResubmission: payload.new.kyc_needs_resubmission || false,
+                kycPending: payload.new.kyc_pending || false,
                 bankLinked: payload.new.bank_linked || false,
                 bankInReview: payload.new.bank_in_review || false,
                 loading: false,

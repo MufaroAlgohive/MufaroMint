@@ -11,7 +11,7 @@ import ActionsSkeleton from "../components/ActionsSkeleton";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { kycVerified, bankLinked, bankInReview, loading } = useRequiredActions();
+  const { kycVerified, kycNeedsResubmission, kycPending, bankLinked, bankInReview, loading } = useRequiredActions();
 
   if (loading) {
     return <ActionsSkeleton />;
@@ -23,12 +23,27 @@ const ActionsPage = ({ onBack, onNavigate }) => {
     return "Required";
   };
 
+  const getKycStatus = () => {
+    if (kycVerified) return "Verified";
+    if (kycNeedsResubmission) return "Needs Attention";
+    if (kycPending) return "Pending";
+    return "Required";
+  };
+
+  const getKycStatusStyle = () => {
+    if (kycVerified) return "bg-green-100 text-green-600";
+    if (kycNeedsResubmission) return "bg-amber-100 text-amber-700";
+    if (kycPending) return "bg-blue-100 text-blue-600";
+    return "bg-slate-100 text-slate-500";
+  };
+
   const allActions = [
     {
       id: "identity",
       title: "Complete identity check",
-      description: "Needed to unlock higher limits",
-      status: kycVerified ? "Verified" : "Required",
+      description: kycNeedsResubmission ? "Some documents need resubmission" : "Needed to unlock higher limits",
+      status: getKycStatus(),
+      statusStyle: getKycStatusStyle(),
       icon: BadgeCheck,
       completed: kycVerified,
       navigateTo: "identityCheck",
@@ -108,7 +123,7 @@ const ActionsPage = ({ onBack, onNavigate }) => {
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-sm font-semibold text-slate-800">{action.title}</p>
                         <div className="flex items-center gap-2 text-xs text-slate-400">
-                          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">
+                          <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${action.statusStyle || "bg-slate-100 text-slate-500"}`}>
                             {action.status}
                           </span>
                           <ChevronRight className="h-4 w-4 text-slate-400" />

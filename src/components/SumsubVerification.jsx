@@ -36,7 +36,7 @@ const LoadingSpinner = () => (
   <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]" />
 );
 
-const SumsubVerification = ({ onVerified }) => {
+const SumsubVerification = ({ onVerified, onGoHome }) => {
   const [accessToken, setAccessToken] = useState(null);
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -143,7 +143,7 @@ const SumsubVerification = ({ onVerified }) => {
   }, [userId]);
 
   // Update KYC status in database
-  const updateKycStatus = useCallback(async (verified) => {
+  const updateKycStatus = useCallback(async (status) => {
     try {
       if (!supabase) return;
       
@@ -152,19 +152,38 @@ const SumsubVerification = ({ onVerified }) => {
       
       if (!currentUserId) return;
       
+      // Status can be: 'verified', 'pending', 'needs_resubmission', or false (reset)
+      let updateData = { user_id: currentUserId };
+      
+      if (status === 'verified') {
+        updateData.kyc_verified = true;
+        updateData.kyc_pending = false;
+        updateData.kyc_needs_resubmission = false;
+      } else if (status === 'pending') {
+        updateData.kyc_verified = false;
+        updateData.kyc_pending = true;
+        updateData.kyc_needs_resubmission = false;
+      } else if (status === 'needs_resubmission') {
+        updateData.kyc_verified = false;
+        updateData.kyc_pending = false;
+        updateData.kyc_needs_resubmission = true;
+      } else {
+        // Reset or false
+        updateData.kyc_verified = false;
+        updateData.kyc_pending = false;
+        updateData.kyc_needs_resubmission = false;
+      }
+      
       const { error } = await supabase
         .from("required_actions")
-        .upsert({
-          user_id: currentUserId,
-          kyc_verified: verified,
-        }, {
+        .upsert(updateData, {
           onConflict: 'user_id'
         });
       
       if (error) {
         console.error("Failed to update KYC status:", error);
       } else {
-        console.log("KYC status updated successfully");
+        console.log("KYC status updated successfully:", status);
       }
     } catch (err) {
       console.error("Error updating KYC status:", err);
@@ -207,7 +226,8 @@ const SumsubVerification = ({ onVerified }) => {
       case "idCheck.onApplicantSubmitted":
         console.log("Applicant submitted for review");
         setVerificationStatus("pending");
-        // Do NOT mark kyc_verified as true here - only when actually approved
+        // Mark as pending in database - NOT verified
+        updateKycStatus('pending');
         createNotification(
           "Documents Submitted",
           "Your identity documents have been submitted and are being reviewed. We'll notify you once the review is complete.",
@@ -219,6 +239,8 @@ const SumsubVerification = ({ onVerified }) => {
       case "idCheck.onApplicantResubmitted":
         console.log("Applicant resubmitted");
         setVerificationStatus("pending");
+        // Mark as pending in database after resubmission
+        updateKycStatus('pending');
         createNotification(
           "Documents Resubmitted",
           "Your updated documents have been submitted for review.",
@@ -235,7 +257,7 @@ const SumsubVerification = ({ onVerified }) => {
           if (payload?.reviewResult?.reviewAnswer === "GREEN") {
             setVerificationComplete(true);
             setVerificationStatus("approved");
-            updateKycStatus(true);
+            updateKycStatus('verified');
             createNotification(
               "Identity Verified!",
               "Congratulations! Your identity has been successfully verified. You now have full access to all features.",
@@ -247,7 +269,6 @@ const SumsubVerification = ({ onVerified }) => {
             }
           } else if (payload?.reviewResult?.reviewAnswer === "RED") {
             setVerificationStatus("rejected");
-            updateKycStatus(false);
             
             const rejectType = payload?.reviewResult?.reviewRejectType;
             const rejectLabels = payload?.reviewResult?.rejectLabels || [];
@@ -261,6 +282,13 @@ const SumsubVerification = ({ onVerified }) => {
               comment: clientComment,
               canRetry: rejectType === "RETRY",
             });
+            
+            // Set appropriate status based on rejection type
+            if (rejectType === "RETRY") {
+              updateKycStatus('needs_resubmission');
+            } else {
+              updateKycStatus(false);
+            }
             
             const notificationBody = rejectType === "RETRY"
               ? `Your verification needs attention: ${parsedLabels.join(", ") || "Please review and resubmit your documents."}`
@@ -276,6 +304,7 @@ const SumsubVerification = ({ onVerified }) => {
         } else if (payload?.reviewStatus === "pending" || payload?.reviewStatus === "queued") {
           // Status is pending review - do NOT mark as verified yet
           setVerificationStatus("pending");
+          updateKycStatus('pending');
         }
         break;
 
@@ -505,10 +534,21 @@ const SumsubVerification = ({ onVerified }) => {
           This usually takes a few minutes. We'll notify you when the review is complete.
         </p>
         
-        <p className="text-xs text-slate-500 bg-blue-50 rounded-lg p-3 mb-4">
+        <p className="text-xs text-slate-500 bg-blue-50 rounded-lg p-3 mb-6">
           Your verification is still in progress. You'll be notified once the review is complete.
-          The KYC action will remain outstanding until verification is approved.
         </p>
+        
+        <button
+          type="button"
+          onClick={() => {
+            if (onGoHome) {
+              onGoHome();
+            }
+          }}
+          className="w-full px-6 py-3 rounded-xl font-medium text-white transition-all duration-200 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg"
+        >
+          OK
+        </button>
       </div>
     );
   }

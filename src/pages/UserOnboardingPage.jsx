@@ -629,7 +629,12 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   Verify your identity securely with Sumsub
                 </p>
               </div>
-              <SumsubVerification onVerified={() => setShowProceed(true)} />
+              <SumsubVerification 
+                onVerified={() => setShowProceed(true)} 
+                onGoHome={() => {
+                  if (onBack) onBack();
+                }}
+              />
               {showProceed && (
                 <div className="text-center mt-8 animate-fade-in delay-2">
                   <button
