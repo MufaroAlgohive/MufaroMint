@@ -1,7 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Eye, EyeOff, TrendingUp } from "lucide-react";
 import { formatZar } from "../lib/formatCurrency";
-import { motion, AnimatePresence } from "framer-motion";
 import { Area, ComposedChart, Line, ResponsiveContainer } from "recharts";
 
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
@@ -71,12 +70,14 @@ const MintLogoSilver = ({ className = "" }) => (
   </svg>
 );
 
-const CardContent = ({ children }) => (
+const CardContent = ({ children, style }) => (
   <div
     className="absolute inset-0 rounded-[24px] overflow-hidden"
     style={{
       background: "linear-gradient(135deg, #2d1052 0%, #4a1d7a 25%, #6b2fa0 50%, #5a2391 75%, #3d1a6d 100%)",
       boxShadow: "0 25px 50px -12px rgba(91, 33, 182, 0.5)",
+      backfaceVisibility: "hidden",
+      ...style,
     }}
   >
     <div
@@ -129,8 +130,8 @@ const SwipeableBalanceCard = ({
   userName = "",
   onPressMintBalance,
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [direction, setDirection] = useState(0);
+  const [rotation, setRotation] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [isVisible, setIsVisible] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(VISIBILITY_STORAGE_KEY);
@@ -138,7 +139,7 @@ const SwipeableBalanceCard = ({
     }
     return true;
   });
-  const [dragStartX, setDragStartX] = useState(0);
+  const dragStartX = useRef(0);
   
   const chartColor = investmentChange >= 0 ? "#10B981" : "#F43F5E";
   
@@ -163,45 +164,68 @@ const SwipeableBalanceCard = ({
   const bestAsset = bestPerformingAssets.length > 0 ? bestPerformingAssets[0] : null;
   const investmentCount = bestPerformingAssets.length;
 
+  const currentIndex = Math.round(rotation / 180) % 2 === 0 ? 0 : 1;
+  const normalizedIndex = Math.abs(currentIndex);
+
   const handleDragStart = (e) => {
+    if (isAnimating) return;
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    setDragStartX(clientX);
+    dragStartX.current = clientX;
   };
 
   const handleDragEnd = (e) => {
+    if (isAnimating) return;
     const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-    const diff = dragStartX - clientX;
+    const diff = dragStartX.current - clientX;
     const threshold = 50;
     
-    if (diff > threshold && currentIndex < 1) {
-      setDirection(1);
-      setCurrentIndex(1);
-    } else if (diff < -threshold && currentIndex > 0) {
-      setDirection(-1);
-      setCurrentIndex(0);
+    if (Math.abs(diff) > threshold) {
+      setIsAnimating(true);
+      if (diff > 0) {
+        setRotation(prev => prev + 180);
+      } else {
+        setRotation(prev => prev - 180);
+      }
+      setTimeout(() => setIsAnimating(false), 700);
     }
   };
 
-  const slideVariants = {
-    enter: (dir) => ({
-      x: dir > 0 ? "100%" : "-100%",
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (dir) => ({
-      x: dir > 0 ? "-100%" : "100%",
-      opacity: 0,
-    }),
+  const handleDotClick = (idx) => {
+    if (isAnimating) return;
+    const currentCard = normalizedIndex;
+    if (idx !== currentCard) {
+      setIsAnimating(true);
+      if (idx > currentCard) {
+        setRotation(prev => prev + 180);
+      } else {
+        setRotation(prev => prev - 180);
+      }
+      setTimeout(() => setIsAnimating(false), 700);
+    }
   };
 
-  const cards = [
-    {
-      id: "balance",
-      content: (
-        <CardContent>
+  const frontRotation = rotation;
+  const backRotation = rotation + 180;
+
+  return (
+    <div className="relative select-none">
+      <div
+        className="relative w-full touch-pan-y"
+        style={{ 
+          aspectRatio: "1.7 / 1",
+          perspective: "1000px",
+        }}
+        onTouchStart={handleDragStart}
+        onTouchEnd={handleDragEnd}
+        onMouseDown={handleDragStart}
+        onMouseUp={handleDragEnd}
+      >
+        <CardContent 
+          style={{ 
+            transform: `rotateY(${frontRotation}deg)`,
+            transition: "transform 0.7s ease-out",
+          }}
+        >
           <div className="relative h-full p-5 flex flex-col">
             <div className="flex items-start justify-between">
               <MintLogoWhite className="h-8 w-auto" />
@@ -230,12 +254,13 @@ const SwipeableBalanceCard = ({
             </div>
           </div>
         </CardContent>
-      ),
-    },
-    {
-      id: "investments",
-      content: (
-        <CardContent>
+
+        <CardContent 
+          style={{ 
+            transform: `rotateY(${backRotation}deg)`,
+            transition: "transform 0.7s ease-out",
+          }}
+        >
           <div className="relative h-full p-5 flex flex-col">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
@@ -288,37 +313,6 @@ const SwipeableBalanceCard = ({
             </div>
           </div>
         </CardContent>
-      ),
-    },
-  ];
-
-  return (
-    <div className="relative select-none">
-      <div
-        className="relative w-full overflow-hidden touch-pan-y"
-        style={{ aspectRatio: "1.7 / 1" }}
-        onTouchStart={handleDragStart}
-        onTouchEnd={handleDragEnd}
-        onMouseDown={handleDragStart}
-        onMouseUp={handleDragEnd}
-      >
-        <AnimatePresence initial={false} custom={direction} mode="wait">
-          <motion.div
-            key={currentIndex}
-            custom={direction}
-            variants={slideVariants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{
-              x: { type: "spring", stiffness: 300, damping: 30 },
-              opacity: { duration: 0.2 },
-            }}
-            className="absolute inset-0 cursor-grab active:cursor-grabbing"
-          >
-            {cards[currentIndex].content}
-          </motion.div>
-        </AnimatePresence>
 
         <button
           type="button"
@@ -331,20 +325,17 @@ const SwipeableBalanceCard = ({
       </div>
 
       <div className="flex justify-center gap-2 mt-3">
-        {cards.map((card, idx) => (
+        {[0, 1].map((idx) => (
           <button
-            key={card.id}
+            key={idx}
             type="button"
-            onClick={() => {
-              setDirection(idx > currentIndex ? 1 : -1);
-              setCurrentIndex(idx);
-            }}
+            onClick={() => handleDotClick(idx)}
             className={`h-2 rounded-full transition-all duration-300 ${
-              idx === currentIndex
+              normalizedIndex === idx
                 ? "w-6 bg-white"
                 : "w-2 bg-white/40 hover:bg-white/60"
             }`}
-            aria-label={`Go to ${card.id} card`}
+            aria-label={`Go to card ${idx + 1}`}
           />
         ))}
       </div>
