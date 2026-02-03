@@ -80,8 +80,14 @@ export const useRequiredActions = () => {
       }
     };
 
+    // Listen for custom KYC status change events
+    const handleKycStatusChange = () => {
+      loadActions();
+    };
+
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('kycStatusChanged', handleKycStatusChange);
 
     let subscription = null;
     if (supabase) {
@@ -113,6 +119,7 @@ export const useRequiredActions = () => {
     return () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('kycStatusChanged', handleKycStatusChange);
       if (subscription) {
         subscription.unsubscribe();
       }

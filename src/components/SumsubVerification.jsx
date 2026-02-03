@@ -185,6 +185,8 @@ const SumsubVerification = ({ onVerified, onGoHome }) => {
         console.error("Failed to update KYC status:", error);
       } else {
         console.log("KYC status updated successfully:", status);
+        // Dispatch custom event to notify all useRequiredActions hooks to refetch
+        window.dispatchEvent(new CustomEvent('kycStatusChanged', { detail: { status } }));
       }
     } catch (err) {
       console.error("Error updating KYC status:", err);
