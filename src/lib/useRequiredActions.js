@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
 
 const defaultActions = {
@@ -10,6 +10,7 @@ const defaultActions = {
 
 export const useRequiredActions = () => {
   const [actions, setActions] = useState(defaultActions);
+  const userIdRef = useRef(null);
 
   const loadActions = useCallback(async () => {
     try {
@@ -25,6 +26,7 @@ export const useRequiredActions = () => {
       }
 
       const userId = userData.user.id;
+      userIdRef.current = userId;
 
       let { data, error } = await supabase
         .from("required_actions")
@@ -63,6 +65,52 @@ export const useRequiredActions = () => {
 
   useEffect(() => {
     loadActions();
+    
+    const handleFocus = () => {
+      loadActions();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadActions();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    let subscription = null;
+    if (supabase) {
+      subscription = supabase
+        .channel('required_actions_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'required_actions',
+          },
+          (payload) => {
+            if (payload.new && payload.new.user_id === userIdRef.current) {
+              setActions({
+                kycVerified: payload.new.kyc_verified || false,
+                bankLinked: payload.new.bank_linked || false,
+                bankInReview: payload.new.bank_in_review || false,
+                loading: false,
+              });
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (subscription) {
+        subscription.unsubscribe();
+      }
+    };
   }, [loadActions]);
 
   return { ...actions, refetch };

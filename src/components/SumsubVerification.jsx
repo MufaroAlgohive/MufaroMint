@@ -105,6 +105,36 @@ const SumsubVerification = ({ onVerified }) => {
     }
   }, [userId]);
 
+  // Function to update KYC status in database
+  const updateKycStatus = useCallback(async (verified) => {
+    try {
+      if (!supabase) return;
+      
+      const { data: userData } = await supabase.auth.getUser();
+      const currentUserId = userData?.user?.id;
+      
+      if (!currentUserId) return;
+      
+      // Update or insert the required_actions record
+      const { error } = await supabase
+        .from("required_actions")
+        .upsert({
+          user_id: currentUserId,
+          kyc_verified: verified,
+        }, {
+          onConflict: 'user_id'
+        });
+      
+      if (error) {
+        console.error("Failed to update KYC status:", error);
+      } else {
+        console.log("KYC status updated successfully");
+      }
+    } catch (err) {
+      console.error("Error updating KYC status:", err);
+    }
+  }, []);
+
   // Handle SDK messages
   const messageHandler = useCallback((type, payload) => {
     console.log("Sumsub SDK message:", type, payload);
@@ -117,25 +147,35 @@ const SumsubVerification = ({ onVerified }) => {
       case "idCheck.onApplicantSubmitted":
         console.log("Applicant submitted for review");
         setVerificationStatus("submitted");
+        // Update database when applicant is submitted
+        updateKycStatus(true);
         break;
         
       case "idCheck.onApplicantResubmitted":
         console.log("Applicant resubmitted");
         break;
-        
+      
+      case "idCheck.onApplicantStatusChanged":
       case "idCheck.applicantStatus":
-        console.log("Applicant status:", payload);
+        console.log("Applicant status changed:", payload);
+        // Handle both pending (submitted for review) and completed statuses
         if (payload?.reviewStatus === "completed") {
           if (payload?.reviewResult?.reviewAnswer === "GREEN") {
             setVerificationComplete(true);
             setVerificationStatus("approved");
+            updateKycStatus(true);
             if (onVerified) {
               onVerified();
             }
           } else if (payload?.reviewResult?.reviewAnswer === "RED") {
             setVerificationStatus("rejected");
+            updateKycStatus(false);
             setError("Verification was not successful. Please try again or contact support.");
           }
+        } else if (payload?.reviewStatus === "pending") {
+          // Mark as submitted when review is pending
+          setVerificationStatus("submitted");
+          updateKycStatus(true);
         }
         break;
 
@@ -150,7 +190,7 @@ const SumsubVerification = ({ onVerified }) => {
       default:
         break;
     }
-  }, [onVerified]);
+  }, [onVerified, updateKycStatus]);
 
   // Handle SDK errors
   const errorHandler = useCallback((error) => {
@@ -237,7 +277,9 @@ const SumsubVerification = ({ onVerified }) => {
         <p className="text-xs text-slate-400">This usually takes a few minutes. You can proceed and we'll notify you when complete.</p>
         <button
           type="button"
-          onClick={() => {
+          onClick={async () => {
+            // Update database to mark KYC as verified
+            await updateKycStatus(true);
             setVerificationComplete(true);
             if (onVerified) {
               onVerified();
