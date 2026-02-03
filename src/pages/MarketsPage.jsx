@@ -162,6 +162,24 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [draftExposure, setDraftExposure] = useState(new Set());
   const [draftTimeHorizon, setDraftTimeHorizon] = useState(new Set());
   const [draftStrategySectors, setDraftStrategySectors] = useState(new Set());
+
+  const holdingsBySymbol = useMemo(
+    () => new Map(holdingsSecurities.map((security) => [security.symbol, security])),
+    [holdingsSecurities],
+  );
+
+  const getStrategyHoldingsSnapshot = (strategy) => {
+    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return [];
+    return strategy.holdings.map((holding) => {
+      const symbol = holding.ticker || holding.symbol || holding;
+      const security = holdingsBySymbol.get(symbol);
+      return {
+        symbol,
+        name: security?.name || symbol,
+        logo_url: security?.logo_url || null,
+      };
+    });
+  };
   
   // News pagination
   const [newsPage, setNewsPage] = useState(1);
@@ -1276,8 +1294,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                       // Generate sparkline (fallback until we have real price history)
                       const sparkline = generateSparkline(0);
                       
-                      // Icon/image handling
-                      const imageUrl = strategy.icon_url || strategy.image_url || "https://s3-symbol-logo.tradingview.com/country/ZA--big.svg";
+                      const holdingsSnapshot = getStrategyHoldingsSnapshot(strategy);
                       
                       return (
                       <button
@@ -1291,15 +1308,32 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         className="flex-shrink-0 w-80 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-slate-200 p-4 transition-all snap-center"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-slate-100 flex-shrink-0">
-                            <img
-                              src={imageUrl}
-                              alt={displayName}
-                              className="h-full w-full object-cover"
-                              onError={(e) => {
-                                e.target.src = "https://s3-symbol-logo.tradingview.com/country/ZA--big.svg";
-                              }}
-                            />
+                          <div className="flex items-center">
+                            <div className="flex -space-x-2">
+                              {holdingsSnapshot.slice(0, 3).map((holding) => (
+                                <div
+                                  key={`${displayName}-${holding.symbol}`}
+                                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                                >
+                                  {holding.logo_url ? (
+                                    <img
+                                      src={holding.logo_url}
+                                      alt={holding.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">
+                                      {holding.symbol?.substring(0, 2)}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {holdingsSnapshot.length > 3 ? (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
+                                  +{Math.max(0, holdingsSnapshot.length - 3)}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                           <div className="flex-1 flex items-start justify-between gap-4">
                           <div className="text-left space-y-1">
@@ -1334,6 +1368,37 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                             </span>
                           )}
                         </div>
+
+                        {holdingsSnapshot.length > 0 && (
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="flex -space-x-2">
+                              {holdingsSnapshot.slice(0, 3).map((holding) => (
+                                <div
+                                  key={`${displayName}-${holding.symbol}-snapshot`}
+                                  className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                                >
+                                  {holding.logo_url ? (
+                                    <img
+                                      src={holding.logo_url}
+                                      alt={holding.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">
+                                      {holding.symbol?.substring(0, 2)}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {holdingsSnapshot.length > 3 ? (
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
+                                  +{Math.max(0, holdingsSnapshot.length - 3)}
+                                </div>
+                              ) : null}
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
+                          </div>
+                        )}
 
                         {strategy.provider_name && (
                         <div className="mt-3 flex items-center gap-2">
@@ -1452,12 +1517,39 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             
             <div className="p-6">
               <div className="flex items-start gap-3 mb-6">
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-slate-100">
-                  <img
-                    src="https://s3-symbol-logo.tradingview.com/country/ZA--big.svg"
-                    alt="Strategy"
-                    className="h-full w-full object-cover"
-                  />
+                <div className="flex items-center">
+                  {(() => {
+                    const snapshot = getStrategyHoldingsSnapshot(selectedStrategy);
+                    const visibleHoldings = snapshot.slice(0, 3);
+                    const extraCount = Math.max(0, snapshot.length - visibleHoldings.length);
+                    return (
+                      <div className="flex -space-x-2">
+                        {visibleHoldings.map((holding) => (
+                          <div
+                            key={`${selectedStrategy.name}-${holding.symbol}`}
+                            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                          >
+                            {holding.logo_url ? (
+                              <img
+                                src={holding.logo_url}
+                                alt={holding.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">
+                                {holding.symbol?.substring(0, 2)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {extraCount > 0 ? (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
+                            +{extraCount}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-slate-900">{selectedStrategy.name}</h2>
