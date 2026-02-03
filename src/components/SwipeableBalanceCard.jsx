@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Eye, EyeOff, TrendingUp } from "lucide-react";
 import { formatZar } from "../lib/formatCurrency";
+import { motion, AnimatePresence } from "framer-motion";
 import { Area, ComposedChart, Line, ResponsiveContainer } from "recharts";
 
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
@@ -70,26 +71,12 @@ const MintLogoSilver = ({ className = "" }) => (
   </svg>
 );
 
-const CardFace = ({ children, isFront = true, isFlipped = false, flipDirection = 1 }) => {
-  const getFrontTransform = () => {
-    if (!isFlipped) return "rotateY(0deg)";
-    return flipDirection > 0 ? "rotateY(-180deg)" : "rotateY(180deg)";
-  };
-  
-  const getBackTransform = () => {
-    if (isFlipped) return "rotateY(0deg)";
-    return flipDirection > 0 ? "rotateY(180deg)" : "rotateY(-180deg)";
-  };
-
-  return (
+const CardContent = ({ children }) => (
   <div
     className="absolute inset-0 rounded-[24px] overflow-hidden"
     style={{
       background: "linear-gradient(135deg, #2d1052 0%, #4a1d7a 25%, #6b2fa0 50%, #5a2391 75%, #3d1a6d 100%)",
       boxShadow: "0 25px 50px -12px rgba(91, 33, 182, 0.5)",
-      backfaceVisibility: "hidden",
-      transform: isFront ? getFrontTransform() : getBackTransform(),
-      transition: "transform 0.7s ease-out",
     }}
   >
     <div
@@ -132,8 +119,7 @@ const CardFace = ({ children, isFront = true, isFlipped = false, flipDirection =
     </div>
     {children}
   </div>
-  );
-};
+);
 
 const SwipeableBalanceCard = ({
   amount = 0,
@@ -143,8 +129,8 @@ const SwipeableBalanceCard = ({
   userName = "",
   onPressMintBalance,
 }) => {
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [flipDirection, setFlipDirection] = useState(1);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
   const [isVisible, setIsVisible] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(VISIBILITY_STORAGE_KEY);
@@ -187,27 +173,35 @@ const SwipeableBalanceCard = ({
     const diff = dragStartX - clientX;
     const threshold = 50;
     
-    if (Math.abs(diff) > threshold) {
-      setFlipDirection(diff > 0 ? 1 : -1);
-      setIsFlipped(!isFlipped);
+    if (diff > threshold && currentIndex < 1) {
+      setDirection(1);
+      setCurrentIndex(1);
+    } else if (diff < -threshold && currentIndex > 0) {
+      setDirection(-1);
+      setCurrentIndex(0);
     }
   };
 
+  const slideVariants = {
+    enter: (dir) => ({
+      x: dir > 0 ? "100%" : "-100%",
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (dir) => ({
+      x: dir > 0 ? "-100%" : "100%",
+      opacity: 0,
+    }),
+  };
 
-  return (
-    <div className="relative select-none">
-      <div
-        className="relative w-full touch-pan-y"
-        style={{ 
-          aspectRatio: "1.7 / 1",
-          perspective: "800px",
-        }}
-        onTouchStart={handleDragStart}
-        onTouchEnd={handleDragEnd}
-        onMouseDown={handleDragStart}
-        onMouseUp={handleDragEnd}
-      >
-        <CardFace isFront={true} isFlipped={isFlipped} flipDirection={flipDirection}>
+  const cards = [
+    {
+      id: "balance",
+      content: (
+        <CardContent>
           <div className="relative h-full p-5 flex flex-col">
             <div className="flex items-start justify-between">
               <MintLogoWhite className="h-8 w-auto" />
@@ -235,9 +229,13 @@ const SwipeableBalanceCard = ({
               </div>
             </div>
           </div>
-        </CardFace>
-
-        <CardFace isFront={false} isFlipped={isFlipped} flipDirection={flipDirection}>
+        </CardContent>
+      ),
+    },
+    {
+      id: "investments",
+      content: (
+        <CardContent>
           <div className="relative h-full p-5 flex flex-col">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
@@ -289,7 +287,38 @@ const SwipeableBalanceCard = ({
               </div>
             </div>
           </div>
-        </CardFace>
+        </CardContent>
+      ),
+    },
+  ];
+
+  return (
+    <div className="relative select-none">
+      <div
+        className="relative w-full overflow-hidden touch-pan-y"
+        style={{ aspectRatio: "1.7 / 1" }}
+        onTouchStart={handleDragStart}
+        onTouchEnd={handleDragEnd}
+        onMouseDown={handleDragStart}
+        onMouseUp={handleDragEnd}
+      >
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={currentIndex}
+            custom={direction}
+            variants={slideVariants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            transition={{
+              x: { type: "spring", stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+            className="absolute inset-0 cursor-grab active:cursor-grabbing"
+          >
+            {cards[currentIndex].content}
+          </motion.div>
+        </AnimatePresence>
 
         <button
           type="button"
@@ -302,20 +331,20 @@ const SwipeableBalanceCard = ({
       </div>
 
       <div className="flex justify-center gap-2 mt-3">
-        {[0, 1].map((idx) => (
+        {cards.map((card, idx) => (
           <button
-            key={idx}
+            key={card.id}
             type="button"
             onClick={() => {
-              setFlipDirection(idx === 1 ? 1 : -1);
-              setIsFlipped(idx === 1);
+              setDirection(idx > currentIndex ? 1 : -1);
+              setCurrentIndex(idx);
             }}
             className={`h-2 rounded-full transition-all duration-300 ${
-              (isFlipped ? 1 : 0) === idx
+              idx === currentIndex
                 ? "w-6 bg-white"
                 : "w-2 bg-white/40 hover:bg-white/60"
             }`}
-            aria-label={`Go to card ${idx + 1}`}
+            aria-label={`Go to ${card.id} card`}
           />
         ))}
       </div>
