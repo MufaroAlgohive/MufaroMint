@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { ArrowLeft, X, Info, Heart, TrendingUp, TrendingDown } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import { getStrategyById, getStrategyPriceHistory, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
+import { formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
 import { formatCurrency } from "../lib/formatCurrency";
 import {
   Area,
@@ -22,140 +22,134 @@ const timeframeOptions = [
   { key: "YTD", label: "YTD", points: 360 },
 ];
 
-const buildSeries = (points, base = 2.4, timeframe = "6M") => {
-  const now = new Date();
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  
-  return Array.from({ length: points }, (_, index) => {
-    const drift = (index / points) * 3.2;
-    const wave = Math.sin(index / 7) * 0.6 + Math.cos(index / 11) * 0.4;
-    const value = base + drift + wave;
-
-    let dateLabel = "";
-    let showLabel = false;
-
-    // Calculate which indices should show labels (max 3 labels)
-    const labelIndices = [0, Math.floor(points / 2), points - 1];
-
-    if (timeframe === "1W") {
-      const date = new Date(now);
-      date.setDate(date.getDate() - (points - index - 1));
-      if (labelIndices.includes(index)) {
-        dateLabel = `${dayNames[date.getDay()]} ${date.getDate()}`;
-        showLabel = true;
-      }
-    } else if (timeframe === "1M") {
-      const date = new Date(now);
-      date.setDate(date.getDate() - (points - index - 1));
-      if (labelIndices.includes(index)) {
-        dateLabel = `${date.getDate()}`;
-        showLabel = true;
-      }
-    } else {
-      // For 3M, 6M, YTD - show month abbreviations at key points
-      const monthIndex = Math.floor((index / points) * 12);
-      if (labelIndices.includes(index)) {
-        dateLabel = monthNames[monthIndex % 12];
-        showLabel = true;
-      }
-    }
-
-    return {
-      label: index + 1,
-      dateLabel: showLabel ? dateLabel : "",
-      returnPct: Number(value.toFixed(2)),
-    };
-  });
-};
-
-const holdings = [];
-
-const monthlyReturns = {
-  2023: [2.1, 4.8, 5.0, -1.2, 5.9, 1.1, -2.1, -4.7, 2.0, 5.5, 1.3, 26.8],
-  2024: [1.5, 2.3, -1.2, -6.3, 0.3, 2.7, 1.2, 2.8, -2.0, -1.8, 5.1, 1.4, 6.4],
-  2025: [3.2, 6.2, 1.1, 7.6, 1.5, 0.7, 0.1, 0.0, 2.4, -0.8, 2.2, 0.7, 24.8],
-  2026: [0.5],
-};
-
-const performanceMetrics = [
-  {
-    label: "Best Day",
-    value: "+10.19%",
-    description: "The highest daily return this strategy has achieved.",
-  },
-  {
-    label: "Worst Day",
-    value: "-4.49%",
-    description: "The lowest daily return (most negative) this strategy has experienced.",
-  },
-  {
-    label: "Avg Daily Return",
-    value: "+0.07%",
-    description: "The average daily percentage change across all trading days.",
-  },
-  {
-    label: "Positive Days",
-    value: "54%",
-    description: "Percentage of trading days that ended with positive returns.",
-  },
-];
-
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
-  const [timeframe, setTimeframe] = useState("6M");
+  const [timeframe, setTimeframe] = useState("1M");
   const [activeLabel, setActiveLabel] = useState(null);
   const [selectedMetricModal, setSelectedMetricModal] = useState(null);
-  const [calendarYear, setCalendarYear] = useState(2025);
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [holdingsSecurities, setHoldingsSecurities] = useState([]);
   const [strategyData, setStrategyData] = useState(strategy);
-  const [priceHistory, setPriceHistory] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState(null);
   const marqueeRef = useRef(null);
 
-  // Fetch updated strategy data with metrics if we have an ID
+  const strategyId = strategy?.id || strategy?.strategy_id || strategyData?.id || null;
+  const strategySlug = strategy?.slug || strategyData?.slug || null;
+
+  const formatPercent = (value) => {
+    if (value == null || Number.isNaN(value)) return "N/A";
+    return `${(Number(value) * 100).toFixed(2)}%`;
+  };
+
+  const analyticsTimestamp = analytics?.computed_at || analytics?.as_of_date || null;
+  const analyticsUnavailable = !analytics || analytics?.error || analyticsError;
+  const analyticsMessage = analytics?.error || analyticsError
+    ? "Analytics unavailable. Data is being updated."
+    : "Analytics not available yet.";
+  const lastUpdatedLabel = analyticsTimestamp
+    ? new Date(analyticsTimestamp).toLocaleString()
+    : strategyData?.as_of_date
+      ? new Date(strategyData.as_of_date).toLocaleString()
+      : strategy?.as_of_date
+        ? new Date(strategy.as_of_date).toLocaleString()
+        : "";
+
+  // Fetch strategy metadata + analytics
   useEffect(() => {
+    let isMounted = true;
+
     const fetchStrategyData = async () => {
-      if (!strategy?.id) {
-        setLoading(false);
-        return;
-      }
-      
       try {
-        const updatedStrategy = await getStrategyById(strategy.id);
-        if (updatedStrategy) {
-          console.log("📊 Updated strategy data:", updatedStrategy);
-          setStrategyData(updatedStrategy);
+        if (!supabase) {
+          if (isMounted) {
+            setAnalyticsError("Database not connected");
+            setLoading(false);
+            setAnalyticsLoading(false);
+          }
+          return;
+        }
+
+        setLoading(true);
+        setAnalyticsLoading(true);
+        setAnalyticsError(null);
+
+        let resolvedStrategy = strategyData || strategy;
+        let resolvedId = strategyId;
+
+        if (!resolvedId && strategySlug) {
+          const { data, error } = await supabase
+            .from("strategies")
+            .select("id, slug, name, short_name, description, risk_level, sector, tags, base_currency, icon_url, image_url, holdings")
+            .eq("slug", strategySlug)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (data) {
+            resolvedStrategy = data;
+            resolvedId = data.id;
+            if (isMounted) {
+              setStrategyData(data);
+            }
+          }
+        }
+
+        if (resolvedId) {
+          const { data, error } = await supabase
+            .from("strategies")
+            .select("id, slug, name, short_name, description, risk_level, sector, tags, base_currency, icon_url, image_url, holdings")
+            .eq("id", resolvedId)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (data && isMounted) {
+            resolvedStrategy = data;
+            setStrategyData(data);
+          }
+
+          const { data: analyticsRow, error: analyticsFetchError } = await supabase
+            .from("strategy_analytics")
+            .select("strategy_id, as_of_date, base_currency, latest_value, ytd_return, summary, curves, calendar_returns, computed_at, error")
+            .eq("strategy_id", resolvedId)
+            .maybeSingle();
+
+          if (analyticsFetchError) {
+            if (isMounted) {
+              setAnalytics(null);
+              setAnalyticsError(analyticsFetchError.message);
+            }
+          } else if (isMounted) {
+            setAnalytics(analyticsRow || null);
+            if (analyticsRow?.error) {
+              setAnalyticsError(analyticsRow.error);
+            }
+          }
+        } else if (isMounted) {
+          setAnalytics(null);
+          setAnalyticsError("Strategy not found");
         }
       } catch (error) {
         console.error("Error fetching strategy data:", error);
+        if (isMounted) {
+          setAnalyticsError(error.message || "Unable to load analytics");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setAnalyticsLoading(false);
+        }
       }
     };
 
     fetchStrategyData();
-  }, [strategy?.id]);
-
-  // Fetch price history when timeframe changes
-  useEffect(() => {
-    const fetchPriceHistory = async () => {
-      if (!strategy?.id) return;
-      
-      setLoading(true);
-      try {
-        const prices = await getStrategyPriceHistory(strategy.id, timeframe);
-        setPriceHistory(prices);
-      } catch (error) {
-        console.error("Error fetching price history:", error);
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      isMounted = false;
     };
-
-    fetchPriceHistory();
-  }, [strategy?.id, timeframe]);
+  }, [strategyId, strategySlug]);
 
   const currentStrategy = strategyData || strategy || {
     name: "AlgoHive Core",
@@ -163,6 +157,24 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
     description: "AlgoHive Core targets steady, diversified growth using an automated allocation model that adapts to changing market regimes. It aims to smooth volatility while maintaining consistent participation in upside moves, making it suitable for investors seeking a balanced, long-term portfolio anchor.",
     holdings: [],
   };
+
+  const availableTimeframes = useMemo(() => {
+    const curves = analytics?.curves || {};
+    return timeframeOptions
+      .map((option) => option.key)
+      .filter((key) => Array.isArray(curves[key]) && curves[key].length > 0);
+  }, [analytics]);
+
+  useEffect(() => {
+    if (availableTimeframes.length === 0) {
+      return;
+    }
+    setTimeframe((prev) => {
+      if (availableTimeframes.includes(prev)) return prev;
+      if (availableTimeframes.includes("1M")) return "1M";
+      return availableTimeframes[0];
+    });
+  }, [availableTimeframes]);
 
   // Fetch securities for strategy holdings with logos
   useEffect(() => {
@@ -195,57 +207,114 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
     };
   }, [currentStrategy]);
 
-  // Generate chart data from price history
+  // Generate chart data from analytics curves
   const data = useMemo(() => {
-    if (priceHistory.length > 0) {
-      // Convert strategy_prices to chart format
-      return priceHistory.map((p, index) => ({
+    const curves = analytics?.curves || {};
+    const series = Array.isArray(curves[timeframe]) ? curves[timeframe] : [];
+    const labelIndices = series.length ? [0, Math.floor(series.length / 2), series.length - 1] : [];
+
+    return series.map((point, index) => {
+      const date = point?.d ? new Date(point.d) : null;
+      const dateLabel = labelIndices.includes(index) && date
+        ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : "";
+      return {
         label: index + 1,
-        dateLabel: new Date(p.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        returnPct: p.nav || 0,
-      }));
-    }
-    return [];
-  }, [priceHistory, timeframe]);
+        dateLabel,
+        returnPct: point?.v ?? 0,
+      };
+    });
+  }, [analytics, timeframe]);
 
   const lastIndex = data.length - 1;
-  const lastValue = data[lastIndex]?.returnPct ?? 0;
-  const firstValue = data[0]?.returnPct ?? 0;
-  const periodReturn = priceHistory.length > 0 
-    ? ((lastValue - firstValue) / firstValue) * 100 
-    : lastValue;
-  const formattedReturn = priceHistory.length > 0
+  const lastValue = data[lastIndex]?.returnPct ?? null;
+  const firstValue = data[0]?.returnPct ?? null;
+  const periodReturn = data.length > 1 && firstValue
+    ? ((lastValue - firstValue) / firstValue) * 100
+    : null;
+  const formattedReturn = periodReturn != null
     ? `${periodReturn >= 0 ? "+" : ""}${periodReturn.toFixed(2)}%`
     : "Data unavailable";
     
   // Get current metrics
-  const currentPrice = currentStrategy.last_close;
-  const changePct = currentStrategy.change_pct;
-  const changeAbs = currentStrategy.change_abs;
+  const currentPrice = analytics?.latest_value ?? currentStrategy.last_close;
+  const changePct = currentStrategy.change_pct ?? null;
+  const changeAbs = currentStrategy.change_abs ?? null;
   const isPositive = changePct != null && changePct >= 0;
 
   // Calculate cumulative returns for calendar
   const calendarData = useMemo(() => {
-    return [];
-  }, [calendarYear]);
+    const returns = Array.isArray(analytics?.calendar_returns) ? analytics.calendar_returns : [];
+    return returns.reduce((acc, entry) => {
+      if (!entry?.month) return acc;
+      const [year, month] = entry.month.split("-");
+      if (!acc[year]) acc[year] = {};
+      acc[year][month] = entry.return;
+      return acc;
+    }, {});
+  }, [analytics]);
+
+  const availableCalendarYears = useMemo(
+    () => Object.keys(calendarData).sort(),
+    [calendarData],
+  );
+
+  useEffect(() => {
+    if (!availableCalendarYears.length) return;
+    const latestYear = Number(availableCalendarYears[availableCalendarYears.length - 1]);
+    setCalendarYear((prev) => (availableCalendarYears.includes(String(prev)) ? prev : latestYear));
+  }, [availableCalendarYears]);
 
   const holdingsWithMetrics = useMemo(() => {
     if (!currentStrategy.holdings || currentStrategy.holdings.length === 0) return [];
+    const totalWeight = currentStrategy.holdings.reduce(
+      (sum, holding) => sum + (Number(holding.weight) || 0),
+      0,
+    );
     return currentStrategy.holdings.map((holding) => {
       const symbol = holding.ticker || holding.symbol || holding;
       const security = holdingsSecurities.find((s) => s.symbol === symbol);
       const metrics = Array.isArray(security?.security_metrics)
         ? security.security_metrics[0]
         : security?.security_metrics;
+      const rawWeight = Number(holding.weight) || 0;
+      const weightNorm = totalWeight > 0 ? rawWeight / totalWeight : null;
       return {
         symbol,
         name: holding.name || security?.name || symbol,
-        weight: holding.weight ?? 0,
+        weight: rawWeight,
+        weightNorm,
         logoUrl: security?.logo_url,
         dailyChange: metrics?.r_1d ?? null,
       };
     });
   }, [currentStrategy.holdings, holdingsSecurities]);
+
+  const performanceSummary = useMemo(() => {
+    const summary = analytics?.summary || {};
+    return [
+      {
+        label: "Best Day",
+        value: formatPercent(summary.best_day),
+        description: "The highest daily return this strategy has achieved.",
+      },
+      {
+        label: "Worst Day",
+        value: formatPercent(summary.worst_day),
+        description: "The lowest daily return (most negative) this strategy has experienced.",
+      },
+      {
+        label: "Avg Daily Return",
+        value: formatPercent(summary.avg_day),
+        description: "The average daily percentage change across all trading days.",
+      },
+      {
+        label: "YTD Return",
+        value: formatPercent(summary.ytd_return ?? analytics?.ytd_return),
+        description: "Year-to-date return for the strategy.",
+      },
+    ];
+  }, [analytics]);
 
   // Auto-scroll removed to allow manual scrolling.
 
@@ -319,14 +388,21 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
               </div>
             )}
             <p className="text-xs text-slate-500">
-              Last updated {currentStrategy.as_of_date ? new Date(currentStrategy.as_of_date).toLocaleString() : '2h ago'}
+              {lastUpdatedLabel ? `Last updated ${lastUpdatedLabel}` : ""}
             </p>
           </div>
 
           <div className="mt-4 h-48 w-full">
-            {data.length === 0 ? (
+            {analyticsUnavailable || data.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
-                Data unavailable
+                <div className="text-center">
+                  <p className="text-sm text-slate-500">{analyticsMessage}</p>
+                  {analyticsTimestamp ? (
+                    <p className="mt-1 text-xs text-slate-400">
+                      As of {new Date(analyticsTimestamp).toLocaleString()}
+                    </p>
+                  ) : null}
+                </div>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
@@ -398,24 +474,28 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {timeframeOptions.map((option) => (
-              <button
-                key={option.key}
-                type="button"
-                onClick={() => setTimeframe(option.key)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                  timeframe === option.key
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-200 bg-white text-slate-600"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+            {timeframeOptions.map((option) => {
+              const isDisabled = !availableTimeframes.includes(option.key);
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => setTimeframe(option.key)}
+                  disabled={isDisabled}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    timeframe === option.key
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-200 bg-white text-slate-600"
+                  } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="mt-4 flex items-center gap-3 text-[11px] font-semibold text-slate-400">
-            {currentStrategy.tags.map((tag) => (
+            {(currentStrategy.tags || []).map((tag) => (
               <span
                 key={tag}
                 className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600"
@@ -430,7 +510,9 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900">Daily Change</h2>
-            <p className="text-xs text-slate-500">Updated 27 Jan, 02:00 SAST</p>
+            {analyticsTimestamp ? (
+              <p className="text-xs text-slate-500">Updated {new Date(analyticsTimestamp).toLocaleDateString()}</p>
+            ) : null}
           </div>
           <div className="relative mt-4">
             <div
@@ -486,10 +568,34 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
 
         {/* Performance Summary */}
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm">
-          <h2 className="text-sm font-semibold text-slate-900">Performance Summary</h2>
-          <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
-            Data unavailable
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-900">Performance Summary</h2>
+            {analyticsTimestamp ? (
+              <p className="text-xs text-slate-500">As of {new Date(analyticsTimestamp).toLocaleDateString()}</p>
+            ) : null}
           </div>
+          {analyticsUnavailable ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+              {analyticsMessage}
+            </div>
+          ) : (
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {performanceSummary.map((metric) => (
+                <button
+                  key={metric.label}
+                  type="button"
+                  onClick={() => setSelectedMetricModal(metric)}
+                  className="rounded-2xl border border-slate-100 bg-slate-50 p-3 text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-500">{metric.label}</p>
+                    <Info className="h-3 w-3 text-slate-400" />
+                  </div>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">{metric.value}</p>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Period Returns */}
@@ -563,29 +669,29 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
           <h2 className="text-sm font-semibold text-slate-900">Portfolio Holdings</h2>
           <p className="mt-1 text-xs text-slate-500">Top 10 by weight</p>
           <div className="mt-4 space-y-3">
-            {currentStrategy.holdings && currentStrategy.holdings.length > 0 ? (
-              currentStrategy.holdings.map((holding, index) => {
-                const symbol = holding.ticker || holding.symbol || "";
-                const security = holdingsSecurities.find((s) => s.symbol === symbol);
-                const weight = Number(holding.weight || 0);
+            {holdingsWithMetrics.length > 0 ? (
+              holdingsWithMetrics.map((holding, index) => {
+                const displayWeight = holding.weightNorm != null
+                  ? holding.weightNorm * 100
+                  : holding.weight;
                 return (
-                  <div key={symbol || index} className="flex items-center gap-3">
+                  <div key={holding.symbol || index} className="flex items-center gap-3">
                     <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-                      {security?.logo_url ? (
+                      {holding.logoUrl ? (
                         <img
-                          src={security.logo_url}
-                          alt={security.name || symbol}
+                          src={holding.logoUrl}
+                          alt={holding.name || holding.symbol}
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <span className="text-xs font-semibold text-slate-400">{symbol ? symbol.slice(0, 2) : "—"}</span>
+                        <span className="text-xs font-semibold text-slate-400">{holding.symbol ? holding.symbol.slice(0, 2) : "—"}</span>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-slate-900">{symbol || "—"}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{security?.name || holding.name || symbol || "—"}</p>
+                      <p className="text-xs font-semibold text-slate-900">{holding.symbol || "—"}</p>
+                      <p className="text-[11px] text-slate-500 truncate">{holding.name || holding.symbol || "—"}</p>
                     </div>
-                    <p className="text-xs font-semibold text-slate-900">{weight.toFixed(2)}%</p>
+                    <p className="text-xs font-semibold text-slate-900">{Number(displayWeight || 0).toFixed(2)}%</p>
                   </div>
                 );
               })
@@ -601,10 +707,48 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-4">
             <h2 className="text-sm font-semibold text-slate-900">Calendar Returns</h2>
+            {availableCalendarYears.length > 1 ? (
+              <div className="flex flex-wrap gap-2">
+                {availableCalendarYears.map((year) => (
+                  <button
+                    key={year}
+                    type="button"
+                    onClick={() => setCalendarYear(Number(year))}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      Number(year) === Number(calendarYear)
+                        ? "bg-slate-900 text-white"
+                        : "border border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
-            Data unavailable
-          </div>
+          {analyticsUnavailable || !availableCalendarYears.length ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-sm text-slate-500">
+              {analyticsMessage}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {monthNames.map((label, index) => {
+                const monthKey = String(index + 1).padStart(2, "0");
+                const value = calendarData[String(calendarYear)]?.[monthKey];
+                return (
+                  <div
+                    key={`${calendarYear}-${label}`}
+                    className={`rounded-2xl px-3 py-3 text-center text-xs font-semibold ${getReturnColor(value || 0)}`}
+                  >
+                    <p className="text-[11px] font-semibold text-slate-600">{label}</p>
+                    <p className="mt-1 text-sm text-slate-900">
+                      {value == null ? "—" : `${(Number(value) * 100).toFixed(2)}%`}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Fees & Disclaimers */}
