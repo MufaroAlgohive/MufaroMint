@@ -31,7 +31,7 @@ const OutstandingActionsSection = ({ actions, onViewAll, onSelectAction }) => {
               <p className="mt-1 text-xs text-slate-500">{action.description}</p>
             </div>
             <div className="mt-4 flex items-center justify-between">
-              <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">
+              <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${action.statusStyle || "bg-slate-100 text-slate-500"}`}>
                 {action.status}
               </span>
               <ChevronRight className="h-4 w-4 text-slate-400" />
