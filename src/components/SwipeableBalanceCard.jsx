@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Eye, EyeOff, TrendingUp, Trophy } from "lucide-react";
+import { Eye, EyeOff, TrendingUp } from "lucide-react";
 import { formatZar } from "../lib/formatCurrency";
 import { motion, AnimatePresence } from "framer-motion";
 import { Area, ComposedChart, Line, ResponsiveContainer } from "recharts";
@@ -19,7 +19,7 @@ const generateChartData = (baseValue = 100, trend = "up", points = 20) => {
   return data;
 };
 
-const MiniChart = ({ data, color = "#FFD700" }) => {
+const MiniChart = ({ data, color = "#FFFFFF" }) => {
   const gradientId = useMemo(() => `gradient-${Math.random().toString(36).substr(2, 9)}`, []);
   
   if (!data || data.length === 0) {
@@ -53,18 +53,11 @@ const MiniChart = ({ data, color = "#FFD700" }) => {
   );
 };
 
-const MintLogoGold = ({ className = "" }) => (
+const MintLogoWhite = ({ className = "" }) => (
   <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <defs>
-      <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#FFD700" />
-        <stop offset="50%" stopColor="#FFC000" />
-        <stop offset="100%" stopColor="#DAA520" />
-      </linearGradient>
-    </defs>
     <g>
-      <path fill="url(#gold-gradient)" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="url(#gold-gradient)" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
+      <path fill="#FFFFFF" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
+      <path fill="#FFFFFF" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
     </g>
   </svg>
 );
@@ -75,13 +68,6 @@ const MintLogoSilver = ({ className = "" }) => (
       <path fill="#C0C0C0" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
       <path fill="#C0C0C0" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
     </g>
-  </svg>
-);
-
-const MastercardCircles = ({ className = "" }) => (
-  <svg viewBox="0 0 48 32" className={className}>
-    <circle cx="16" cy="16" r="14" fill="rgba(255,255,255,0.25)" />
-    <circle cx="32" cy="16" r="14" fill="rgba(255,255,255,0.4)" />
   </svg>
 );
 
@@ -156,16 +142,12 @@ const SwipeableBalanceCard = ({
   });
   const [dragStartX, setDragStartX] = useState(0);
   
+  const chartColor = investmentChange >= 0 ? "#10B981" : "#F43F5E";
+  
   const investmentChartData = useMemo(() => 
     generateChartData(totalInvestments > 0 ? 100 : 50, investmentChange >= 0 ? "up" : "down"), 
     [totalInvestments, investmentChange]
   );
-  
-  const bestPerformingChartData = useMemo(() => {
-    if (bestPerformingAssets.length === 0) return [];
-    const avgChange = bestPerformingAssets.reduce((sum, a) => sum + (a.change || 0), 0) / bestPerformingAssets.length;
-    return generateChartData(100, avgChange >= 0 ? "up" : "down");
-  }, [bestPerformingAssets]);
 
   const toggleVisibility = (e) => {
     e.stopPropagation();
@@ -180,10 +162,8 @@ const SwipeableBalanceCard = ({
   const formattedInvestments = useMemo(() => formatZar(totalInvestments), [totalInvestments]);
   const maskedAmount = "••••••••";
 
-  const topAssets = bestPerformingAssets.slice(0, 3);
-  const avgPerformance = topAssets.length > 0 
-    ? topAssets.reduce((sum, a) => sum + (a.change || 0), 0) / topAssets.length 
-    : 0;
+  const bestAsset = bestPerformingAssets.length > 0 ? bestPerformingAssets[0] : null;
+  const investmentCount = bestPerformingAssets.length;
 
   const handleDragStart = (e) => {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -195,10 +175,10 @@ const SwipeableBalanceCard = ({
     const diff = dragStartX - clientX;
     const threshold = 50;
     
-    if (diff > threshold && currentIndex < 2) {
-      setCurrentIndex(currentIndex + 1);
+    if (diff > threshold && currentIndex < 1) {
+      setCurrentIndex(1);
     } else if (diff < -threshold && currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      setCurrentIndex(0);
     }
   };
 
@@ -215,27 +195,28 @@ const SwipeableBalanceCard = ({
         <CardFace showCenterLogo={true}>
           <div className="relative h-full p-5 flex flex-col">
             <div className="flex items-start justify-between">
-              <MintLogoGold className="h-7 w-auto" />
-              <MastercardCircles className="h-8 w-auto" />
+              <MintLogoWhite className="h-8 w-auto" />
             </div>
 
             <div className="flex-1 flex items-center justify-center">
-              <p className="text-3xl md:text-4xl font-bold text-[#FFD700] tracking-wider font-mono">
+              <p className="text-3xl md:text-4xl font-bold text-white tracking-wider" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
                 {isVisible ? formattedAmount : maskedAmount}
               </p>
             </div>
 
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.15em] text-[#C9A227] font-medium">
+                <p className="text-base md:text-lg uppercase tracking-[0.2em] text-white font-semibold" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", letterSpacing: "0.15em" }}>
                   {userName || "MINT MEMBER"}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xl font-bold text-[#FFD700] tracking-wider italic" style={{ fontFamily: "Arial, sans-serif" }}>
+                <p className="text-2xl md:text-3xl font-bold text-white tracking-wider" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontStyle: "italic" }}>
                   VISA
                 </p>
-                <p className="text-[10px] text-[#C9A227] tracking-wide">Mint</p>
+                <p className="text-sm md:text-base text-white/90 tracking-widest font-medium" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+                  Mint
+                </p>
               </div>
             </div>
           </div>
@@ -249,78 +230,51 @@ const SwipeableBalanceCard = ({
           <div className="relative h-full p-5 flex flex-col">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-[#FFD700]" />
-                <span className="text-[10px] uppercase tracking-[0.15em] text-white/60">Total Investments</span>
+                <TrendingUp className="h-5 w-5 text-white" />
+                <span className="text-xs uppercase tracking-[0.15em] text-white/80 font-medium" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+                  Total Investments
+                </span>
               </div>
-              <MastercardCircles className="h-7 w-auto" />
             </div>
 
             <div className="mt-2">
-              <p className="text-2xl md:text-3xl font-bold text-[#FFD700] tracking-wider">
+              <p className="text-2xl md:text-3xl font-bold text-white tracking-wider" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
                 {isVisible ? formattedInvestments : maskedAmount}
               </p>
-              <p className={`text-xs font-semibold mt-0.5 ${investmentChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              <p className="text-sm font-semibold mt-0.5" style={{ color: chartColor, fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
                 {investmentChange >= 0 ? "+" : ""}{investmentChange.toFixed(2)}% this month
               </p>
             </div>
 
             <div className="flex-1 mt-2 min-h-[60px]">
-              <MiniChart data={investmentChartData} color="#FFD700" />
+              <MiniChart data={investmentChartData} color={chartColor} />
             </div>
 
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] text-white/50">Swipe for more</span>
-              <div className="text-right">
-                <p className="text-lg font-bold text-[#FFD700] tracking-wider italic">VISA</p>
-                <p className="text-[9px] text-[#C9A227]">Mint</p>
+            <div className="flex items-end justify-between mt-1">
+              <div>
+                <p className="text-[10px] uppercase tracking-wider text-white/60 font-medium" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+                  Total Investments
+                </p>
+                <p className="text-lg font-bold text-white" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+                  {investmentCount}
+                </p>
               </div>
-            </div>
-          </div>
-        </CardFace>
-      ),
-    },
-    {
-      id: "best-performing",
-      content: (
-        <CardFace showCenterLogo={false}>
-          <div className="relative h-full p-5 flex flex-col">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-2">
-                <Trophy className="h-4 w-4 text-[#FFD700]" />
-                <span className="text-[10px] uppercase tracking-[0.15em] text-white/60">Best Performers</span>
-              </div>
-              <MastercardCircles className="h-7 w-auto" />
-            </div>
-
-            <div className="mt-2">
-              {topAssets.length > 0 ? (
-                <div className="flex items-center gap-2">
-                  {topAssets.map((asset, idx) => (
-                    <div key={asset.symbol || idx} className="flex-1 text-center bg-white/5 rounded-lg py-1.5 px-1">
-                      <p className="text-[10px] font-semibold text-white/70 truncate">{asset.symbol}</p>
-                      <p className={`text-xs font-bold ${(asset.change || 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                        {(asset.change || 0) >= 0 ? "+" : ""}{(asset.change || 0).toFixed(1)}%
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-white/50">No investments yet</p>
-              )}
-              <p className={`text-sm font-bold mt-1.5 ${avgPerformance >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                Avg: {avgPerformance >= 0 ? "+" : ""}{avgPerformance.toFixed(2)}%
-              </p>
-            </div>
-
-            <div className="flex-1 mt-1 min-h-[50px]">
-              <MiniChart data={bestPerformingChartData} color="#10B981" />
-            </div>
-
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[9px] text-white/50">Swipe back</span>
               <div className="text-right">
-                <p className="text-lg font-bold text-[#FFD700] tracking-wider italic">VISA</p>
-                <p className="text-[9px] text-[#C9A227]">Mint</p>
+                <p className="text-[10px] uppercase tracking-wider text-white/60 font-medium" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+                  Best Performing
+                </p>
+                {bestAsset ? (
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="text-lg font-bold text-white" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+                      {bestAsset.symbol}
+                    </span>
+                    <span className="text-sm font-semibold" style={{ color: chartColor }}>
+                      +{(bestAsset.change || 0).toFixed(1)}%
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-white/50">—</p>
+                )}
               </div>
             </div>
           </div>
@@ -358,10 +312,10 @@ const SwipeableBalanceCard = ({
         <button
           type="button"
           onClick={toggleVisibility}
-          className="absolute top-4 right-14 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/70 transition hover:bg-white/20"
+          className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white/70 transition hover:bg-white/20"
           aria-label={isVisible ? "Hide values" : "Show values"}
         >
-          {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+          {isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
         </button>
       </div>
 
