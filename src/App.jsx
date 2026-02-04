@@ -125,15 +125,17 @@ const App = () => {
     const handleBackButton = ({ canGoBack }) => {
       console.log('🔙 Global back button pressed');
       console.log('📍 Current page:', currentPage);
-      console.log('📚 Navigation history:', navigationHistory.current);
+      console.log('📚 Navigation history:', [...navigationHistory.current]);
       console.log('🔓 Can swipe back:', canSwipeBack);
 
-      if (canSwipeBack) {
-        const didGoBack = goBack();
-        console.log('✅ goBack called, result:', didGoBack);
+      if (canSwipeBack && navigationHistory.current.length > 0) {
+        const previousPage = navigationHistory.current.pop();
+        console.log('✅ Going back to:', previousPage);
+        setCurrentPage(previousPage);
+      } else if (canSwipeBack) {
+        console.log('⚠️ No history, staying on page');
       } else {
-        console.log('📱 On main tab, allowing app exit');
-        CapacitorApp.exitApp();
+        console.log('📱 On main tab, doing nothing');
       }
     };
 
@@ -292,18 +294,18 @@ const App = () => {
         <HomePage
           onOpenNotifications={() => {
             setNotificationReturnPage("home");
-            setCurrentPage("notifications");
+            navigateTo("notifications");
           }}
-          onOpenMintBalance={() => setCurrentPage("mintBalance")}
-          onOpenActivity={() => setCurrentPage("activity")}
-          onOpenActions={() => setCurrentPage("actions")}
+          onOpenMintBalance={() => navigateTo("mintBalance")}
+          onOpenActivity={() => navigateTo("activity")}
+          onOpenActions={() => navigateTo("actions")}
           onOpenInvestments={() => setCurrentPage("investments")}
           onOpenCredit={() => setCurrentPage("credit")}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
-          onOpenCreditRepay={() => setCurrentPage("creditRepay")}
-          onOpenInvest={() => setCurrentPage("markets")}
+          onOpenCreditApply={() => navigateTo("creditApply")}
+          onOpenCreditRepay={() => navigateTo("creditRepay")}
+          onOpenInvest={() => navigateTo("markets")}
           onOpenWithdraw={handleWithdrawRequest}
-          onOpenSettings={() => setCurrentPage("settings")}
+          onOpenSettings={() => navigateTo("settings")}
         />
       </AppLayout>
     );
@@ -321,9 +323,9 @@ const App = () => {
         <CreditPage
           onOpenNotifications={() => {
             setNotificationReturnPage("credit");
-            setCurrentPage("notifications");
+            navigateTo("notifications");
           }}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
+          onOpenCreditApply={() => navigateTo("creditApply")}
         />
       </AppLayout>
     );
@@ -647,13 +649,13 @@ const App = () => {
         onCloseModal={closeModal}
       >
         <MintBalancePage
-          onBack={() => setCurrentPage("home")}
+          onBack={goBack}
           onOpenInvestments={() => setCurrentPage("investments")}
           onOpenCredit={() => setCurrentPage("credit")}
-          onOpenActivity={() => setCurrentPage("activity")}
-          onOpenSettings={() => setCurrentPage("settings")}
-          onOpenInvest={() => setCurrentPage("markets")}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
+          onOpenActivity={() => navigateTo("activity")}
+          onOpenSettings={() => navigateTo("settings")}
+          onOpenInvest={() => navigateTo("markets")}
+          onOpenCreditApply={() => navigateTo("creditApply")}
         />
       </AppLayout>
     );
