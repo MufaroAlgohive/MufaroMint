@@ -1,10 +1,38 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
+import { createKycNotification } from "./NotificationsContext";
 
 const CACHE_DURATION_MS = 30000;
+const LOCALSTORAGE_KEY = "lastSumsubKycStatus";
 
 let cachedStatus = null;
 let cacheTimestamp = 0;
+
+const getStatusString = (result) => {
+  if (!result.success) return null;
+  if (result.status === "verified") return "verified";
+  if (result.status === "pending") return "pending";
+  if (result.status === "needs_resubmission") return "needs_resubmission";
+  return null;
+};
+
+const shouldNotifyStatusChange = (oldStatus, newStatus) => {
+  if (!newStatus) return false;
+  if (oldStatus === newStatus) return false;
+  
+  const validTransitions = [
+    { from: null, to: "pending" },
+    { from: undefined, to: "pending" },
+    { from: "pending", to: "verified" },
+    { from: "pending", to: "needs_resubmission" },
+    { from: "needs_resubmission", to: "pending" },
+    { from: "needs_resubmission", to: "verified" },
+  ];
+  
+  return validTransitions.some(
+    (t) => t.from === oldStatus && t.to === newStatus
+  );
+};
 
 export const useSumsubStatus = () => {
   const [status, setStatus] = useState({
@@ -20,6 +48,7 @@ export const useSumsubStatus = () => {
   });
 
   const isMountedRef = useRef(true);
+  const hasNotifiedRef = useRef(false);
 
   const fetchStatus = useCallback(async (forceRefresh = false) => {
     const now = Date.now();
@@ -98,6 +127,27 @@ export const useSumsubStatus = () => {
           applicantId: result.applicantId,
         };
         
+        const currentStatusString = getStatusString(result);
+        
+        if (currentStatusString && !hasNotifiedRef.current) {
+          try {
+            const lastStatus = localStorage.getItem(LOCALSTORAGE_KEY);
+            
+            if (shouldNotifyStatusChange(lastStatus, currentStatusString)) {
+              console.log(`KYC status changed: ${lastStatus || 'null'} → ${currentStatusString}`);
+              
+              await createKycNotification(userId, currentStatusString);
+              
+              localStorage.setItem(LOCALSTORAGE_KEY, currentStatusString);
+              hasNotifiedRef.current = true;
+            } else if (lastStatus !== currentStatusString) {
+              localStorage.setItem(LOCALSTORAGE_KEY, currentStatusString);
+            }
+          } catch (storageError) {
+            console.error("Error handling KYC notification:", storageError);
+          }
+        }
+        
         cachedStatus = newStatus;
         cacheTimestamp = now;
         if (isMountedRef.current) setStatus(newStatus);
@@ -137,6 +187,7 @@ export const useSumsubStatus = () => {
   }, []);
 
   const refetch = useCallback(() => {
+    hasNotifiedRef.current = false;
     return fetchStatus(true);
   }, [fetchStatus]);
 
