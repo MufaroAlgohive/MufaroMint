@@ -1,0 +1,146 @@
+chunk-NUMECXU6.js?v=5a0cafb6:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+NotificationsContext.jsx:236 Notifications singleton subscription already exists or setting up
+NotificationsContext.jsx:250 Setting up SINGLETON notifications subscription
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+NotificationsContext.jsx:285 Notifications singleton status: SUBSCRIBED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:178 Subscription already exists, skipping
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:259 Cleaning up SINGLETON subscription
+useRequiredActions.js:247 Singleton subscription status: CLOSED
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+useRequiredActions.js:178 Subscription already exists, skipping
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:259 Cleaning up SINGLETON subscription
+useRequiredActions.js:247 Singleton subscription status: CLOSED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+useRequiredActions.js:178 Subscription already exists, skipping
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:259 Cleaning up SINGLETON subscription
+useRequiredActions.js:247 Singleton subscription status: CLOSED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:178 Subscription already exists, skipping
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:196 Singleton: Real-time UPDATE received: Object
+useRequiredActions.js:117 Creating single notification: kyc_verified
+NotificationsContext.jsx:398 Creating KYC notification: Object
+NotificationsContext.jsx:413 KYC notification created successfully: Array(1)
+NotificationsContext.jsx:263 Singleton: New notification received: 25b0b738-e16b-4c1b-97ce-03b3d3a78eb9
+NotificationsContext.jsx:209 Adding notification to state (singleton), new unread count: 2
+Navbar.jsx:53 Native haptics only
+useRequiredActions.js:259 Cleaning up SINGLETON subscription
+useRequiredActions.js:247 Singleton subscription status: CLOSED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/credit_score_history?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4&order=created_at.desc&limit=20:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/credit_score_history?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4&order=created_at.desc&limit=20:1  Failed to load resource: the server responded with a status of 404 ()
+Navbar.jsx:53 Native haptics only
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:178 Subscription already exists, skipping
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:259 Cleaning up SINGLETON subscription
+useRequiredActions.js:247 Singleton subscription status: CLOSED
+Navbar.jsx:53 Native haptics only
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/credit_score_history?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4&order=created_at.desc&limit=20:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/credit_score_history?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4&order=created_at.desc&limit=20:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:178 Subscription already exists, skipping
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED

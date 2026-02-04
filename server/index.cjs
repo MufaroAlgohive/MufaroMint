@@ -75,6 +75,35 @@ async function getSumsubApplicantStatus(applicantId) {
   return response.json();
 }
 
+// Get applicant by external user ID
+async function getSumsubApplicantByExternalId(externalUserId) {
+  const ts = Math.floor(Date.now() / 1000).toString();
+  const path = `/resources/applicants/-;externalUserId=${encodeURIComponent(externalUserId)}/one`;
+  const method = "GET";
+  
+  const signature = createSumsubSignature(ts, method, path);
+  
+  const response = await fetch(`${SUMSUB_BASE_URL}${path}`, {
+    method,
+    headers: {
+      "Accept": "application/json",
+      "X-App-Token": SUMSUB_APP_TOKEN,
+      "X-App-Access-Ts": ts,
+      "X-App-Access-Sig": signature,
+    },
+  });
+  
+  if (!response.ok) {
+    if (response.status === 404) {
+      return null;
+    }
+    const errorText = await response.text();
+    throw new Error(`Sumsub API error: ${response.status} - ${errorText}`);
+  }
+  
+  return response.json();
+}
+
 const readEnv = (key) => process.env[key] || process.env[`VITE_${key}`];
 
 const SUPABASE_URL = readEnv('SUPABASE_URL') || readEnv('VITE_SUPABASE_URL');
@@ -157,6 +186,53 @@ app.get("/api/sumsub/status/:applicantId", async (req, res) => {
     res.status(500).json({
       success: false,
       error: { message: error.message || "Failed to get applicant status" }
+    });
+  }
+});
+
+app.post("/api/sumsub/check-status", async (req, res) => {
+  try {
+    if (!SUMSUB_APP_TOKEN || !SUMSUB_SECRET_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: { message: "Sumsub credentials not configured" }
+      });
+    }
+
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "userId is required" }
+      });
+    }
+
+    const applicant = await getSumsubApplicantByExternalId(userId);
+    
+    if (!applicant) {
+      return res.json({
+        success: true,
+        status: null,
+        message: "No applicant found for this user"
+      });
+    }
+
+    res.json({
+      success: true,
+      status: {
+        applicantId: applicant.id,
+        reviewStatus: applicant.review?.reviewStatus,
+        reviewResult: applicant.review?.reviewResult,
+        createdAt: applicant.createdAt,
+        inspectionId: applicant.inspectionId
+      }
+    });
+  } catch (error) {
+    console.error("Sumsub check-status error:", error);
+    res.status(500).json({
+      success: false,
+      error: { message: error.message || "Failed to check status" }
     });
   }
 });

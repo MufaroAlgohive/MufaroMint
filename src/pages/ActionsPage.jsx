@@ -11,7 +11,7 @@ import ActionsSkeleton from "../components/ActionsSkeleton";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { kycVerified, kycNeedsResubmission, kycPending, bankLinked, bankInReview, loading } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, bankLinked, bankInReview, loading } = useRequiredActions();
 
   if (loading) {
     return <ActionsSkeleton />;
@@ -24,26 +24,21 @@ const ActionsPage = ({ onBack, onNavigate }) => {
   };
 
   const getKycStatus = () => {
-    if (kycVerified) return "Verified";
-    if (kycNeedsResubmission) return "Needs Attention";
-    if (kycPending) return "Pending";
-    return "Required";
+    if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
+    if (kycNeedsResubmission) return { text: "Needs Attention", style: "bg-amber-100 text-amber-700" };
+    if (kycPending) return { text: "Pending", style: "bg-blue-100 text-blue-600" };
+    return { text: "Required", style: "bg-slate-100 text-slate-500" };
   };
 
-  const getKycStatusStyle = () => {
-    if (kycVerified) return "bg-green-100 text-green-600";
-    if (kycNeedsResubmission) return "bg-amber-100 text-amber-700";
-    if (kycPending) return "bg-blue-100 text-blue-600";
-    return "bg-slate-100 text-slate-500";
-  };
+  const kycStatus = getKycStatus();
 
   const allActions = [
     {
       id: "identity",
       title: "Complete identity check",
       description: kycNeedsResubmission ? "Some documents need resubmission" : "Needed to unlock higher limits",
-      status: getKycStatus(),
-      statusStyle: getKycStatusStyle(),
+      status: kycStatus.text,
+      statusStyle: kycStatus.style,
       icon: BadgeCheck,
       completed: kycVerified,
       navigateTo: "identityCheck",

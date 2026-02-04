@@ -40,7 +40,7 @@ const notificationTypes = [
     color: "bg-amber-100 text-amber-600",
   },
   {
-    id: "kyc",
+    id: "verification",
     label: "Verification",
     description: "KYC status and document updates",
     icon: UserCheck,

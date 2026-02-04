@@ -1,12 +1,49 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Clock, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import UserOnboardingPage from "./UserOnboardingPage";
 import SumsubVerification from "../components/SumsubVerification";
 import { useRequiredActions } from "../lib/useRequiredActions";
+import { supabase } from "../lib/supabase";
 
 const IdentityCheckPage = ({ onBack, onComplete }) => {
   const { kycVerified, kycPending, kycNeedsResubmission, loading, refetch } = useRequiredActions();
   const [showResubmission, setShowResubmission] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [actualStatus, setActualStatus] = useState(null);
+
+  const updateKycStatusInDb = useCallback(async (status) => {
+    if (!supabase) return;
+    
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) return;
+      
+      const userId = userData.user.id;
+      
+      let updateData = {};
+      if (status === 'verified') {
+        updateData = { kyc_verified: true, kyc_pending: false, kyc_needs_resubmission: false };
+      } else if (status === 'pending') {
+        updateData = { kyc_verified: false, kyc_pending: true, kyc_needs_resubmission: false };
+      } else if (status === 'needs_resubmission') {
+        updateData = { kyc_verified: false, kyc_pending: false, kyc_needs_resubmission: true };
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        console.log("Updating KYC status in database:", { status, updateData });
+        
+        await supabase
+          .from("required_actions")
+          .update(updateData)
+          .eq("user_id", userId);
+        
+        console.log("Database updated, real-time listener will trigger notification");
+        refetch();
+      }
+    } catch (err) {
+      console.error("Failed to update KYC status:", err);
+    }
+  }, [refetch]);
 
   useEffect(() => {
     const handleKycStatusChange = () => {
@@ -17,15 +54,67 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
     return () => window.removeEventListener('kycStatusChanged', handleKycStatusChange);
   }, [refetch]);
 
-  if (loading) {
+  useEffect(() => {
+    const checkSumsubStatus = async () => {
+      if (loading || kycVerified) return;
+      if (!kycPending && !kycNeedsResubmission) return;
+      
+      setCheckingStatus(true);
+      
+      try {
+        const { data: userData } = await supabase?.auth.getUser();
+        if (!userData?.user?.id) {
+          setCheckingStatus(false);
+          return;
+        }
+
+        const response = await fetch("/api/sumsub/check-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: userData.user.id }),
+        });
+
+        const data = await response.json();
+        
+        if (data.success && data.status) {
+          const reviewStatus = data.status.reviewStatus;
+          const reviewAnswer = data.status.reviewResult?.reviewAnswer;
+          const rejectType = data.status.reviewResult?.reviewRejectType;
+
+          if ((reviewStatus === "completed" || reviewStatus === "onHold") && reviewAnswer === "GREEN") {
+            setActualStatus('verified');
+            await updateKycStatusInDb('verified');
+          } else if (reviewAnswer === "RED") {
+            if (rejectType === "RETRY") {
+              setActualStatus('needs_resubmission');
+              if (!kycNeedsResubmission) {
+                await updateKycStatusInDb('needs_resubmission');
+              }
+            }
+          } else if (reviewStatus === "pending" || reviewStatus === "queued" || reviewStatus === "onHold") {
+            setActualStatus('pending');
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check Sumsub status:", err);
+      } finally {
+        setCheckingStatus(false);
+      }
+    };
+
+    checkSumsubStatus();
+  }, [loading, kycVerified, kycPending, kycNeedsResubmission, updateKycStatusInDb]);
+
+  if (loading || checkingStatus) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600"></div>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mb-4"></div>
+        <p className="text-sm text-slate-500">Checking verification status...</p>
       </div>
     );
   }
 
-  if (kycVerified) {
+  if (kycVerified || actualStatus === 'verified') {
     return (
       <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
@@ -46,7 +135,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600 mb-6">
               <CheckCircle2 className="h-10 w-10" />
             </div>
-            <h2 className="text-2xl font-semibold text-slate-900 mb-3">Already Verified</h2>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-3">Identity Verified</h2>
             <p className="text-sm text-slate-500 mb-8 max-w-xs">
               Your identity has been successfully verified. You have full access to all features.
             </p>
@@ -63,7 +152,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
     );
   }
 
-  if (kycPending) {
+  if (kycPending && actualStatus !== 'needs_resubmission') {
     return (
       <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
@@ -119,7 +208,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
     );
   }
 
-  if (kycNeedsResubmission) {
+  if (kycNeedsResubmission || actualStatus === 'needs_resubmission') {
     if (showResubmission) {
       return (
         <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
@@ -140,6 +229,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
             <div className="flex-1">
               <SumsubVerification 
                 onVerified={() => {
+                  refetch();
                   if (onComplete) onComplete();
                 }}
               />

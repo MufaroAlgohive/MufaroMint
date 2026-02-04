@@ -157,6 +157,7 @@ const SettingsPage = ({ onNavigate }) => {
             <p className="text-sm text-slate-500">Test Face ID and view diagnostic logs</p>
           </div>
         </button>
+
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "./supabase";
 
 const NotificationsContext = createContext(null);
@@ -9,6 +9,14 @@ const defaultState = {
   loading: true,
   error: null,
   preferences: {},
+};
+
+const globalNotificationsSub = {
+  channel: null,
+  userId: null,
+  listeners: new Set(),
+  seenIds: new Set(),
+  isSettingUp: false,
 };
 
 export const NotificationsProvider = ({ children }) => {
@@ -181,12 +189,68 @@ export const NotificationsProvider = ({ children }) => {
 
     if (!supabase) return;
 
-    const setupRealtime = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user) return null;
+    const handleInsert = (notification) => {
+      if (globalNotificationsSub.seenIds.has(notification.id)) {
+        return;
+      }
+      globalNotificationsSub.seenIds.add(notification.id);
+      
+      setTimeout(() => {
+        globalNotificationsSub.seenIds.delete(notification.id);
+      }, 5000);
 
-      const channel = supabase
-        .channel("notifications-changes-global")
+      setState((prev) => {
+        if (prev.notifications.some(n => n.id === notification.id)) {
+          return prev;
+        }
+        if (prev.preferences[notification.type] === false) {
+          return prev;
+        }
+        console.log("Adding notification to state (singleton), new unread count:", prev.unreadCount + 1);
+        return {
+          ...prev,
+          notifications: [notification, ...prev.notifications],
+          unreadCount: prev.unreadCount + 1,
+        };
+      });
+    };
+
+    const handleDelete = (deletedId) => {
+      setState((prev) => {
+        const deleted = prev.notifications.find((n) => n.id === deletedId);
+        if (!deleted) return prev;
+        const wasUnread = !deleted.read_at;
+        return {
+          ...prev,
+          notifications: prev.notifications.filter((n) => n.id !== deletedId),
+          unreadCount: wasUnread ? Math.max(0, prev.unreadCount - 1) : prev.unreadCount,
+        };
+      });
+    };
+
+    const listener = { handleInsert, handleDelete };
+    globalNotificationsSub.listeners.add(listener);
+
+    const setupSingletonRealtime = async () => {
+      if (globalNotificationsSub.channel || globalNotificationsSub.isSettingUp) {
+        console.log("Notifications singleton subscription already exists or setting up");
+        return;
+      }
+
+      globalNotificationsSub.isSettingUp = true;
+
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
+        globalNotificationsSub.isSettingUp = false;
+        return;
+      }
+
+      globalNotificationsSub.userId = userData.user.id;
+
+      console.log("Setting up SINGLETON notifications subscription");
+
+      globalNotificationsSub.channel = supabase
+        .channel("notifications-singleton")
         .on(
           "postgres_changes",
           {
@@ -196,16 +260,9 @@ export const NotificationsProvider = ({ children }) => {
             filter: `user_id=eq.${userData.user.id}`,
           },
           (payload) => {
-            const newNotification = payload.new;
-            setState((prev) => {
-              if (prev.preferences[newNotification.type] === false) {
-                return prev;
-              }
-              return {
-                ...prev,
-                notifications: [newNotification, ...prev.notifications],
-                unreadCount: prev.unreadCount + 1,
-              };
+            console.log("Singleton: New notification received:", payload.new?.id);
+            globalNotificationsSub.listeners.forEach(listener => {
+              listener.handleInsert(payload.new);
             });
           }
         )
@@ -218,32 +275,24 @@ export const NotificationsProvider = ({ children }) => {
             filter: `user_id=eq.${userData.user.id}`,
           },
           (payload) => {
-            setState((prev) => {
-              const deleted = prev.notifications.find((n) => n.id === payload.old.id);
-              if (!deleted) return prev;
-              const wasUnread = !deleted.read_at;
-              return {
-                ...prev,
-                notifications: prev.notifications.filter((n) => n.id !== payload.old.id),
-                unreadCount: wasUnread ? Math.max(0, prev.unreadCount - 1) : prev.unreadCount,
-              };
+            console.log("Singleton: Notification deleted:", payload.old?.id);
+            globalNotificationsSub.listeners.forEach(listener => {
+              listener.handleDelete(payload.old?.id);
             });
           }
         )
-        .subscribe();
-
-      return channel;
+        .subscribe((status) => {
+          console.log("Notifications singleton status:", status);
+          if (status === 'SUBSCRIBED') {
+            globalNotificationsSub.isSettingUp = false;
+          }
+        });
     };
 
-    let channel = null;
-    setupRealtime().then((ch) => {
-      channel = ch;
-    });
+    setupSingletonRealtime();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      globalNotificationsSub.listeners.delete(listener);
     };
   }, [fetchNotifications]);
 
@@ -310,12 +359,186 @@ export const createWelcomeNotification = async (userId) => {
   }
 };
 
+export const createKycNotification = async (userId, status) => {
+  if (!supabase || !userId) {
+    console.log("createKycNotification: Missing supabase or userId", { supabase: !!supabase, userId });
+    return false;
+  }
+
+  const notifications = {
+    verified: {
+      title: "Identity Verified",
+      body: "Congratulations! Your identity has been successfully verified. You now have full access to all features.",
+      payload: { action: "kyc_verified", status: "verified" },
+    },
+    pending: {
+      title: "Verification Under Review",
+      body: "Your identity documents have been submitted and are being reviewed. This usually takes a few minutes to a few hours.",
+      payload: { action: "kyc_pending", status: "pending" },
+    },
+    needs_resubmission: {
+      title: "Action Required: Resubmit Documents",
+      body: "We couldn't verify your identity with the documents provided. Please resubmit clearer photos of your documents.",
+      payload: { action: "kyc_resubmit", status: "needs_resubmission" },
+    },
+    submitted: {
+      title: "Documents Submitted",
+      body: "Your identity verification documents have been submitted successfully. We'll notify you once the review is complete.",
+      payload: { action: "kyc_submitted", status: "submitted" },
+    },
+  };
+
+  const notificationData = notifications[status];
+  if (!notificationData) {
+    console.log("createKycNotification: Unknown status", status);
+    return false;
+  }
+
+  try {
+    console.log("Creating KYC notification:", { userId, status, title: notificationData.title });
+    
+    const { data, error } = await supabase.from("notifications").insert({
+      user_id: userId,
+      title: notificationData.title,
+      body: notificationData.body,
+      type: "system",
+      payload: notificationData.payload,
+    }).select();
+
+    if (error) {
+      console.error("Error creating KYC notification:", error);
+      return false;
+    }
+
+    console.log("KYC notification created successfully:", data);
+    return true;
+  } catch (err) {
+    console.error("Error creating KYC notification:", err);
+    return false;
+  }
+};
+
+export const createBankNotification = async (userId, status, bankName = "your bank") => {
+  if (!supabase || !userId) {
+    console.log("createBankNotification: Missing supabase or userId");
+    return false;
+  }
+
+  const notifications = {
+    linked: {
+      title: "Bank Account Linked",
+      body: `Your bank account from ${bankName} has been successfully linked. You can now make deposits and withdrawals.`,
+      payload: { action: "bank_linked", status: "linked", bank: bankName },
+    },
+    pending: {
+      title: "Bank Verification In Progress",
+      body: `Your ${bankName} account is being verified. This usually takes 1-2 business days.`,
+      payload: { action: "bank_pending", status: "pending", bank: bankName },
+    },
+    failed: {
+      title: "Bank Linking Failed",
+      body: `We couldn't link your ${bankName} account. Please try again or contact support for assistance.`,
+      payload: { action: "bank_failed", status: "failed", bank: bankName },
+    },
+    removed: {
+      title: "Bank Account Removed",
+      body: `Your ${bankName} account has been unlinked from your Mint account.`,
+      payload: { action: "bank_removed", status: "removed", bank: bankName },
+    },
+  };
+
+  const notificationData = notifications[status];
+  if (!notificationData) {
+    console.log("createBankNotification: Unknown status", status);
+    return false;
+  }
+
+  try {
+    console.log("Creating bank notification:", { userId, status, title: notificationData.title });
+    
+    const { data, error } = await supabase.from("notifications").insert({
+      user_id: userId,
+      title: notificationData.title,
+      body: notificationData.body,
+      type: "system",
+      payload: notificationData.payload,
+    }).select();
+
+    if (error) {
+      console.error("Error creating bank notification:", error);
+      return false;
+    }
+
+    console.log("Bank notification created successfully:", data);
+    return true;
+  } catch (err) {
+    console.error("Error creating bank notification:", err);
+    return false;
+  }
+};
+
+export const createSecurityNotification = async (userId, action, details = {}) => {
+  if (!supabase || !userId) {
+    console.log("createSecurityNotification: Missing supabase or userId");
+    return false;
+  }
+
+  const notifications = {
+    login: {
+      title: "New Login Detected",
+      body: `A new login was detected on your account${details.device ? ` from ${details.device}` : ""}.`,
+      payload: { action: "security_login", ...details },
+    },
+    password_changed: {
+      title: "Password Changed",
+      body: "Your password has been successfully changed. If you didn't make this change, please contact support immediately.",
+      payload: { action: "security_password_changed" },
+    },
+    email_changed: {
+      title: "Email Address Updated",
+      body: `Your email address has been updated${details.newEmail ? ` to ${details.newEmail}` : ""}.`,
+      payload: { action: "security_email_changed", ...details },
+    },
+  };
+
+  const notificationData = notifications[action];
+  if (!notificationData) {
+    console.log("createSecurityNotification: Unknown action", action);
+    return false;
+  }
+
+  try {
+    console.log("Creating security notification:", { userId, action, title: notificationData.title });
+    
+    const { data, error } = await supabase.from("notifications").insert({
+      user_id: userId,
+      title: notificationData.title,
+      body: notificationData.body,
+      type: "system",
+      payload: notificationData.payload,
+    }).select();
+
+    if (error) {
+      console.error("Error creating security notification:", error);
+      return false;
+    }
+
+    console.log("Security notification created successfully:", data);
+    return true;
+  } catch (err) {
+    console.error("Error creating security notification:", err);
+    return false;
+  }
+};
+
 export const getNotificationIcon = (type) => {
   const icons = {
     transaction: { icon: "receipt", color: "bg-emerald-100 text-emerald-600" },
     security: { icon: "shield", color: "bg-red-100 text-red-600" },
     system: { icon: "info", color: "bg-blue-100 text-blue-600" },
     promotion: { icon: "gift", color: "bg-amber-100 text-amber-600" },
+    promo: { icon: "gift", color: "bg-amber-100 text-amber-600" },
+    verification: { icon: "user-check", color: "bg-purple-100 text-purple-600" },
     kyc: { icon: "user-check", color: "bg-purple-100 text-purple-600" },
     credit: { icon: "credit-card", color: "bg-indigo-100 text-indigo-600" },
     investment: { icon: "trending-up", color: "bg-teal-100 text-teal-600" },

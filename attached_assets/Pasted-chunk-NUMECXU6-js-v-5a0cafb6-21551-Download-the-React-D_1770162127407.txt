@@ -1,0 +1,66 @@
+chunk-NUMECXU6.js?v=5a0cafb6:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+NotificationsContext.jsx:243 Setting up SINGLETON notifications subscription
+NotificationsContext.jsx:243 Setting up SINGLETON notifications subscription
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+NotificationsContext.jsx:278 Notifications singleton status: CLOSED
+NotificationsContext.jsx:278 Notifications singleton status: CHANNEL_ERROR
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+user_balances:1  Failed to load resource: the server responded with a status of 404 ()
+user_holdings:1  Failed to load resource: the server responded with a status of 404 ()
+user_holdings:1  Failed to load resource: the server responded with a status of 404 ()
+transactions:1  Failed to load resource: the server responded with a status of 400 ()
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+user_balances:1  Failed to load resource: the server responded with a status of 404 ()
+user_holdings:1  Failed to load resource: the server responded with a status of 404 ()
+user_holdings:1  Failed to load resource: the server responded with a status of 404 ()
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+(anonymous) @ recharts.js?v=5a0cafb6:9333
+renderWithHooks @ chunk-NUMECXU6.js?v=5a0cafb6:11548
+updateForwardRef @ chunk-NUMECXU6.js?v=5a0cafb6:14325
+beginWork @ chunk-NUMECXU6.js?v=5a0cafb6:15946
+beginWork$1 @ chunk-NUMECXU6.js?v=5a0cafb6:19753
+performUnitOfWork @ chunk-NUMECXU6.js?v=5a0cafb6:19198
+workLoopSync @ chunk-NUMECXU6.js?v=5a0cafb6:19137
+renderRootSync @ chunk-NUMECXU6.js?v=5a0cafb6:19116
+performConcurrentWorkOnRoot @ chunk-NUMECXU6.js?v=5a0cafb6:18678
+workLoop @ chunk-NUMECXU6.js?v=5a0cafb6:197
+flushWork @ chunk-NUMECXU6.js?v=5a0cafb6:176
+performWorkUntilDeadline @ chunk-NUMECXU6.js?v=5a0cafb6:384
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+(anonymous) @ recharts.js?v=5a0cafb6:9333
+renderWithHooks @ chunk-NUMECXU6.js?v=5a0cafb6:11548
+updateForwardRef @ chunk-NUMECXU6.js?v=5a0cafb6:14330
+beginWork @ chunk-NUMECXU6.js?v=5a0cafb6:15946
+beginWork$1 @ chunk-NUMECXU6.js?v=5a0cafb6:19753
+performUnitOfWork @ chunk-NUMECXU6.js?v=5a0cafb6:19198
+workLoopSync @ chunk-NUMECXU6.js?v=5a0cafb6:19137
+renderRootSync @ chunk-NUMECXU6.js?v=5a0cafb6:19116
+performConcurrentWorkOnRoot @ chunk-NUMECXU6.js?v=5a0cafb6:18678
+workLoop @ chunk-NUMECXU6.js?v=5a0cafb6:197
+flushWork @ chunk-NUMECXU6.js?v=5a0cafb6:176
+performWorkUntilDeadline @ chunk-NUMECXU6.js?v=5a0cafb6:384
+transactions:1  Failed to load resource: the server responded with a status of 400 ()
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:178 Subscription already exists, skipping
+Navbar.jsx:53 Native haptics only
+useRequiredActions.js:259 Cleaning up SINGLETON subscription
+useRequiredActions.js:247 Singleton subscription status: CLOSED
+@supabase_supabase-js.js?v=5a0cafb6:11480  GET https://mfxnghmuccevsxwcetej.supabase.co/rest/v1/credit_score_history?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4&order=created_at.desc&limit=20 404 (Not Found)
+(anonymous) @ @supabase_supabase-js.js?v=5a0cafb6:11480
+(anonymous) @ @supabase_supabase-js.js?v=5a0cafb6:11494
+await in (anonymous)
+then @ @supabase_supabase-js.js?v=5a0cafb6:309
+@supabase_supabase-js.js?v=5a0cafb6:11480  GET https://mfxnghmuccevsxwcetej.supabase.co/rest/v1/credit_score_history?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4&order=created_at.desc&limit=20 404 (Not Found)
+(anonymous) @ @supabase_supabase-js.js?v=5a0cafb6:11480
+(anonymous) @ @supabase_supabase-js.js?v=5a0cafb6:11494
+await in (anonymous)
+then @ @supabase_supabase-js.js?v=5a0cafb6:309

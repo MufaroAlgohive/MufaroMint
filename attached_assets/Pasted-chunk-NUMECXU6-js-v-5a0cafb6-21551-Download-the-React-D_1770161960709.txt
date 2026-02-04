@@ -1,0 +1,103 @@
+chunk-NUMECXU6.js?v=5a0cafb6:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+NotificationsContext.jsx:190 Setting up notifications real-time subscription: notifications-1770161877183-w6ihvjeqm5s
+NotificationsContext.jsx:190 Setting up notifications real-time subscription: notifications-1770161877184-052ptcgz4g5m
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+NotificationsContext.jsx:242 Notifications subscription status: SUBSCRIBED
+NotificationsContext.jsx:242 Notifications subscription status: SUBSCRIBED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:183 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:178 Subscription already exists, skipping
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+recharts.js?v=5a0cafb6:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=5a0cafb6:9079
+useRequiredActions.js:247 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:196 Singleton: Real-time UPDATE received: Object
+useRequiredActions.js:102 No status change detected requiring notification
+useRequiredActions.js:196 Singleton: Real-time UPDATE received: Object
+useRequiredActions.js:117 Creating single notification: kyc_needs_resubmission
+NotificationsContext.jsx:359 Creating KYC notification: Object
+NotificationsContext.jsx:374 KYC notification created successfully: Array(1)
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 1
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 2
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 3
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 4
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 2
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 3
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 4
+useRequiredActions.js:196 Singleton: Real-time UPDATE received: Object
+useRequiredActions.js:117 Creating single notification: kyc_verified
+NotificationsContext.jsx:359 Creating KYC notification: Object
+NotificationsContext.jsx:374 KYC notification created successfully: Array(1)
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 5
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:203 New notification received via realtime: Object
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 6
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 7
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 8
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 6
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 7
+NotificationsContext.jsx:210 Adding notification to state, new unread count: 8
+chunk-NUMECXU6.js?v=5a0cafb6:521 Warning: Encountered two children with the same key, `40fafa75-3eef-4431-8e98-21828c5e7cf1`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at NotificationGroup (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:352:30)
+    at div
+    at div
+    at div
+    at NotificationsPage (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:386:30)
+    at App (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/App.jsx:78:41)
+    at NotificationsProvider (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/lib/NotificationsContext.jsx:28:41)
+printWarning @ chunk-NUMECXU6.js?v=5a0cafb6:521
+chunk-NUMECXU6.js?v=5a0cafb6:521 Warning: Encountered two children with the same key, `0a938915-a8d4-43d6-bb1a-66f4cd09dc9b`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at NotificationGroup (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:352:30)
+    at div
+    at div
+    at div
+    at NotificationsPage (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:386:30)
+    at App (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/App.jsx:78:41)
+    at NotificationsProvider (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/lib/NotificationsContext.jsx:28:41)
+printWarning @ chunk-NUMECXU6.js?v=5a0cafb6:521
+chunk-NUMECXU6.js?v=5a0cafb6:521 Warning: Encountered two children with the same key, `93c02628-1613-47aa-8b00-a7a123dd6a32`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at NotificationGroup (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:352:30)
+    at div
+    at div
+    at div
+    at NotificationsPage (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:386:30)
+    at App (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/App.jsx:78:41)
+    at NotificationsProvider (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/lib/NotificationsContext.jsx:28:41)
+printWarning @ chunk-NUMECXU6.js?v=5a0cafb6:521
+chunk-NUMECXU6.js?v=5a0cafb6:521 Warning: Encountered two children with the same key, `80dfb94f-8419-4491-b3a8-3fffd4fd56d6`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at NotificationGroup (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:352:30)
+    at div
+    at div
+    at div
+    at NotificationsPage (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/pages/NotificationsPage.jsx:386:30)
+    at App (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/App.jsx:78:41)
+    at NotificationsProvider (https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev/src/lib/NotificationsContext.jsx:28:41)
+printWarning @ chunk-NUMECXU6.js?v=5a0cafb6:521
+useRequiredActions.js:259 Cleaning up SINGLETON subscription
+useRequiredActions.js:247 Singleton subscription status: CLOSED
