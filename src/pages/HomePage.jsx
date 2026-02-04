@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
+import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import HomeSkeleton from "../components/HomeSkeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
@@ -39,7 +40,8 @@ const HomePage = ({
   onOpenSettings,
 }) => {
   const { profile, loading } = useProfile();
-  const { kycVerified, kycPending, kycNeedsResubmission, bankLinked, loading: actionsLoading } = useRequiredActions();
+  const { bankLinked, loading: actionsLoading } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
   const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
   const { monthlyChangePercent } = useInvestments();
   const [failedLogos, setFailedLogos] = useState({});

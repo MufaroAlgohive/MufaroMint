@@ -16,12 +16,14 @@ import {
 import { supabase } from "../lib/supabase";
 import ProfileSkeleton from "../components/ProfileSkeleton";
 import { useRequiredActions } from "../lib/useRequiredActions";
+import { useSumsubStatus } from "../lib/useSumsubStatus";
 
 const MorePage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
-  const { kycVerified, kycPending, kycNeedsResubmission, bankLinked } = useRequiredActions();
+  const { bankLinked } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
 
   const displayName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)

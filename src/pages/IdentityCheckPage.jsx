@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Clock, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import UserOnboardingPage from "./UserOnboardingPage";
 import SumsubVerification from "../components/SumsubVerification";
-import { useRequiredActions } from "../lib/useRequiredActions";
+import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { supabase } from "../lib/supabase";
 
 const IdentityCheckPage = ({ onBack, onComplete }) => {
-  const { kycVerified, kycPending, kycNeedsResubmission, loading, refetch } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, loading, refetch } = useSumsubStatus();
   const [showResubmission, setShowResubmission] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [actualStatus, setActualStatus] = useState(null);

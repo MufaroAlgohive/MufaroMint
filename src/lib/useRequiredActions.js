@@ -1,11 +1,8 @@
-import { useEffect, useState, useCallback, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { supabase } from "./supabase";
-import { createKycNotification, createBankNotification } from "./NotificationsContext";
+import { createBankNotification } from "./NotificationsContext";
 
 const defaultActions = {
-  kycVerified: false,
-  kycPending: false,
-  kycNeedsResubmission: false,
   bankLinked: false,
   bankInReview: false,
   loading: true,
@@ -52,18 +49,6 @@ async function handleStatusChange(oldData, newData) {
   const userId = globalState.userId;
   const now = Date.now();
 
-  const oldKyc = {
-    verified: oldData?.kyc_verified || false,
-    pending: oldData?.kyc_pending || false,
-    needs_resubmission: oldData?.kyc_needs_resubmission || false,
-  };
-  
-  const newKyc = {
-    verified: newData.kyc_verified || false,
-    pending: newData.kyc_pending || false,
-    needs_resubmission: newData.kyc_needs_resubmission || false,
-  };
-
   const oldBank = {
     linked: oldData?.bank_linked || false,
     in_review: oldData?.bank_in_review || false,
@@ -74,32 +59,20 @@ async function handleStatusChange(oldData, newData) {
     in_review: newData.bank_in_review || false,
   };
 
-  let notificationType = null;
   let notificationStatus = null;
 
-  if (!oldKyc.verified && newKyc.verified) {
-    notificationType = 'kyc';
-    notificationStatus = 'verified';
-  } else if (!oldKyc.pending && newKyc.pending && !newKyc.verified) {
-    notificationType = 'kyc';
-    notificationStatus = 'pending';
-  } else if (!oldKyc.needs_resubmission && newKyc.needs_resubmission) {
-    notificationType = 'kyc';
-    notificationStatus = 'needs_resubmission';
-  } else if (!oldBank.linked && newBank.linked) {
-    notificationType = 'bank';
+  if (!oldBank.linked && newBank.linked) {
     notificationStatus = 'linked';
   } else if (!oldBank.in_review && newBank.in_review && !newBank.linked) {
-    notificationType = 'bank';
     notificationStatus = 'pending';
   }
 
-  if (!notificationType) {
-    console.log("No status change detected requiring notification");
+  if (!notificationStatus) {
+    console.log("No bank status change detected requiring notification");
     return;
   }
 
-  const notificationKey = `${notificationType}_${notificationStatus}`;
+  const notificationKey = `bank_${notificationStatus}`;
   
   if (notificationKey === globalState.lastNotificationKey && 
       now - globalState.lastNotificationTime < DEBOUNCE_MS) {
@@ -110,16 +83,12 @@ async function handleStatusChange(oldData, newData) {
   globalState.lastNotificationKey = notificationKey;
   globalState.lastNotificationTime = now;
 
-  console.log(`Creating single notification: ${notificationKey}`);
+  console.log(`Creating bank notification: ${notificationKey}`);
   
   try {
-    if (notificationType === 'kyc') {
-      await createKycNotification(userId, notificationStatus);
-    } else if (notificationType === 'bank') {
-      await createBankNotification(userId, notificationStatus);
-    }
+    await createBankNotification(userId, notificationStatus);
   } catch (err) {
-    console.error("Failed to create notification:", err);
+    console.error("Failed to create bank notification:", err);
   }
 }
 
@@ -143,7 +112,7 @@ async function initializeSubscription() {
 
     let { data, error } = await supabase
       .from("required_actions")
-      .select("kyc_verified, kyc_pending, kyc_needs_resubmission, bank_linked, bank_in_review")
+      .select("bank_linked, bank_in_review")
       .eq("user_id", userId)
       .maybeSingle();
 
@@ -151,7 +120,7 @@ async function initializeSubscription() {
       const { data: newData, error: insertError } = await supabase
         .from("required_actions")
         .insert({ user_id: userId })
-        .select("kyc_verified, kyc_pending, kyc_needs_resubmission, bank_linked, bank_in_review")
+        .select("bank_linked, bank_in_review")
         .single();
 
       if (!insertError && newData) {
@@ -161,9 +130,6 @@ async function initializeSubscription() {
 
     globalState.previousData = data;
     globalState.actions = {
-      kycVerified: data?.kyc_verified || false,
-      kycPending: data?.kyc_pending || false,
-      kycNeedsResubmission: data?.kyc_needs_resubmission || false,
       bankLinked: data?.bank_linked || false,
       bankInReview: data?.bank_in_review || false,
       loading: false,
@@ -197,22 +163,11 @@ async function initializeSubscription() {
 
           globalState.previousData = newData;
           globalState.actions = {
-            kycVerified: newData.kyc_verified || false,
-            kycPending: newData.kyc_pending || false,
-            kycNeedsResubmission: newData.kyc_needs_resubmission || false,
             bankLinked: newData.bank_linked || false,
             bankInReview: newData.bank_in_review || false,
             loading: false,
           };
           notifyListeners();
-
-          window.dispatchEvent(new CustomEvent('kycStatusChanged', { 
-            detail: { 
-              kycVerified: newData.kyc_verified,
-              kycPending: newData.kyc_pending,
-              kycNeedsResubmission: newData.kyc_needs_resubmission,
-            } 
-          }));
         }
       )
       .on(
@@ -229,9 +184,6 @@ async function initializeSubscription() {
 
           globalState.previousData = newData;
           globalState.actions = {
-            kycVerified: newData.kyc_verified || false,
-            kycPending: newData.kyc_pending || false,
-            kycNeedsResubmission: newData.kyc_needs_resubmission || false,
             bankLinked: newData.bank_linked || false,
             bankInReview: newData.bank_in_review || false,
             loading: false,
@@ -250,18 +202,6 @@ async function initializeSubscription() {
   }
 }
 
-function cleanupSubscription() {
-  if (globalState.subscription && supabase) {
-    console.log("Cleaning up SINGLETON subscription");
-    supabase.removeChannel(globalState.subscription);
-    globalState.subscription = null;
-  }
-  globalState.previousData = null;
-  globalState.userId = null;
-  globalState.lastNotificationKey = null;
-  globalState.lastNotificationTime = 0;
-}
-
 export async function refetchRequiredActions() {
   if (!supabase || !globalState.userId) return;
   
@@ -271,16 +211,13 @@ export async function refetchRequiredActions() {
   try {
     const { data } = await supabase
       .from("required_actions")
-      .select("kyc_verified, kyc_pending, kyc_needs_resubmission, bank_linked, bank_in_review")
+      .select("bank_linked, bank_in_review")
       .eq("user_id", globalState.userId)
       .maybeSingle();
 
     if (data) {
       globalState.previousData = data;
       globalState.actions = {
-        kycVerified: data.kyc_verified || false,
-        kycPending: data.kyc_pending || false,
-        kycNeedsResubmission: data.kyc_needs_resubmission || false,
         bankLinked: data.bank_linked || false,
         bankInReview: data.bank_in_review || false,
         loading: false,
@@ -294,36 +231,6 @@ export async function refetchRequiredActions() {
   }
 }
 
-export async function syncKycStatusFromSumsub() {
-  if (!globalState.userId) return;
-  
-  globalState.actions = { ...globalState.actions, loading: true };
-  notifyListeners();
-  
-  try {
-    const apiBase = import.meta.env.VITE_API_URL || window.location.origin;
-    const response = await fetch(`${apiBase}/api/sumsub/sync-status`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: globalState.userId })
-    });
-    
-    const result = await response.json();
-    console.log("Sumsub sync result:", result);
-    
-    if (result.success) {
-      await refetchRequiredActions();
-    } else {
-      globalState.actions = { ...globalState.actions, loading: false };
-      notifyListeners();
-    }
-  } catch (error) {
-    console.error("Failed to sync KYC status from Sumsub:", error);
-    globalState.actions = { ...globalState.actions, loading: false };
-    notifyListeners();
-  }
-}
-
 export const useRequiredActions = () => {
   const actions = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   
@@ -331,9 +238,5 @@ export const useRequiredActions = () => {
     refetchRequiredActions();
   }, []);
 
-  const syncFromSumsub = useCallback(() => {
-    syncKycStatusFromSumsub();
-  }, []);
-
-  return { ...actions, refetch, syncFromSumsub };
+  return { ...actions, refetch };
 };
