@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -11,7 +11,11 @@ import ActionsSkeleton from "../components/ActionsSkeleton";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { kycVerified, kycPending, kycNeedsResubmission, bankLinked, bankInReview, loading } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, bankLinked, bankInReview, loading, syncFromSumsub } = useRequiredActions();
+
+  useEffect(() => {
+    syncFromSumsub();
+  }, [syncFromSumsub]);
 
   if (loading) {
     return <ActionsSkeleton />;

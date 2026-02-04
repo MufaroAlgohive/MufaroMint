@@ -294,6 +294,36 @@ export async function refetchRequiredActions() {
   }
 }
 
+export async function syncKycStatusFromSumsub() {
+  if (!globalState.userId) return;
+  
+  globalState.actions = { ...globalState.actions, loading: true };
+  notifyListeners();
+  
+  try {
+    const apiBase = import.meta.env.VITE_API_URL || window.location.origin;
+    const response = await fetch(`${apiBase}/api/sumsub/sync-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: globalState.userId })
+    });
+    
+    const result = await response.json();
+    console.log("Sumsub sync result:", result);
+    
+    if (result.success) {
+      await refetchRequiredActions();
+    } else {
+      globalState.actions = { ...globalState.actions, loading: false };
+      notifyListeners();
+    }
+  } catch (error) {
+    console.error("Failed to sync KYC status from Sumsub:", error);
+    globalState.actions = { ...globalState.actions, loading: false };
+    notifyListeners();
+  }
+}
+
 export const useRequiredActions = () => {
   const actions = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   
@@ -301,5 +331,9 @@ export const useRequiredActions = () => {
     refetchRequiredActions();
   }, []);
 
-  return { ...actions, refetch };
+  const syncFromSumsub = useCallback(() => {
+    syncKycStatusFromSumsub();
+  }, []);
+
+  return { ...actions, refetch, syncFromSumsub };
 };
