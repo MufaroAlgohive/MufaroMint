@@ -151,6 +151,7 @@ export const useSumsubStatus = () => {
         if (currentStatusString && !hasNotifiedRef.current) {
           try {
             const lastStatus = localStorage.getItem(LOCALSTORAGE_KEY);
+            console.log(`KYC status check: stored="${lastStatus}" current="${currentStatusString}"`);
             
             if (shouldNotifyStatusChange(lastStatus, currentStatusString)) {
               // Check for notification lock to prevent duplicates across multiple hook instances

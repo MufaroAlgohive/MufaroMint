@@ -325,6 +325,18 @@ app.post("/api/sumsub/status", async (req, res) => {
     const reviewStatus = applicant.review?.reviewStatus;
     const reviewAnswer = applicant.review?.reviewResult?.reviewAnswer;
     const rejectLabels = applicant.review?.reviewResult?.rejectLabels || [];
+    const reviewRejectType = applicant.review?.reviewResult?.reviewRejectType;
+    
+    // Log detailed Sumsub status for debugging
+    console.log(`=== Sumsub Status for ${userId} ===`);
+    console.log(`Applicant ID: ${applicant.id}`);
+    console.log(`Review Status: ${reviewStatus}`);
+    console.log(`Review Answer: ${reviewAnswer}`);
+    console.log(`Review Reject Type: ${reviewRejectType}`);
+    console.log(`Reject Labels: ${JSON.stringify(rejectLabels)}`);
+    console.log(`Has Incomplete Steps: ${hasIncompleteSteps}`);
+    console.log(`Has Rejected Steps: ${hasRejectedSteps}`);
+    console.log(`All Steps Green: ${allStepsGreen}`);
     
     let status = "not_verified";
     
@@ -365,10 +377,13 @@ app.post("/api/sumsub/status", async (req, res) => {
       success: true,
       status,
       applicantId: applicant.id,
-      reviewStatus,
+      reviewStatus: reviewStatus || null,
       reviewAnswer: reviewAnswer || null,
+      reviewRejectType: reviewRejectType || null,
       rejectLabels,
       hasIncompleteSteps,
+      hasRejectedSteps,
+      allStepsGreen,
       createdAt: applicant.createdAt || null
     });
   } catch (error) {
