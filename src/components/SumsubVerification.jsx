@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import SumsubWebSdk from "@sumsub/websdk-react";
 import { supabase } from "../lib/supabase";
-import { pauseSumsubPolling, resumeSumsubPolling } from "../lib/useSumsubStatus";
 
 const ShieldCheckIcon = (props) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
@@ -33,16 +32,16 @@ const SumsubVerification = ({ onVerified }) => {
   const [errorType, setErrorType] = useState(null); // 'config' | 'resubmit' | 'rejected' | 'generic'
   const [verificationComplete, setVerificationComplete] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(null);
-
-  // Pause polling while the Sumsub widget is active to prevent refreshes
-  useEffect(() => {
-    pauseSumsubPolling();
-    return () => {
-      resumeSumsubPolling();
-    };
-  }, []);
+  const initializedRef = useRef(false);
+  const sdkKeyRef = useRef(`sumsub-${Date.now()}`);
 
   useEffect(() => {
+    // Prevent double initialization in React StrictMode
+    if (initializedRef.current) {
+      return;
+    }
+    initializedRef.current = true;
+
     const initializeSumsub = async () => {
       try {
         setLoading(true);
@@ -362,6 +361,7 @@ const SumsubVerification = ({ onVerified }) => {
       </div>
       <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white" style={{ minHeight: "500px" }}>
         <SumsubWebSdk
+          key={sdkKeyRef.current}
           accessToken={accessToken}
           expirationHandler={accessTokenExpirationHandler}
           config={config}

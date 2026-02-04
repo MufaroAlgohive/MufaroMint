@@ -232,18 +232,8 @@ export const useSumsubStatus = () => {
     isMountedRef.current = true;
     fetchStatus();
     
-    // Set up polling to detect external status changes
-    const pollInterval = setInterval(() => {
-      if (isMountedRef.current && !pollingPaused) {
-        // Reset notification flag to allow new notifications on status change
-        hasNotifiedRef.current = false;
-        fetchStatus(true); // Force refresh to bypass cache
-      }
-    }, POLL_INTERVAL_MS);
-    
     return () => {
       isMountedRef.current = false;
-      clearInterval(pollInterval);
     };
   }, [fetchStatus]);
 
