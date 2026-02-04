@@ -3,7 +3,10 @@ import { supabase } from "./supabase";
 import { createKycNotification } from "./NotificationsContext";
 
 const CACHE_DURATION_MS = 30000;
+const POLL_INTERVAL_MS = 15000; // Poll every 15 seconds for status changes
 const LOCALSTORAGE_KEY = "lastSumsubKycStatus";
+const NOTIFICATION_LOCK_KEY = "kycNotificationLock";
+const NOTIFICATION_LOCK_DURATION_MS = 5000; // 5 second lock to prevent duplicates
 
 let cachedStatus = null;
 let cacheTimestamp = 0;
@@ -134,6 +137,24 @@ export const useSumsubStatus = () => {
             const lastStatus = localStorage.getItem(LOCALSTORAGE_KEY);
             
             if (shouldNotifyStatusChange(lastStatus, currentStatusString)) {
+              // Check for notification lock to prevent duplicates across multiple hook instances
+              const lockData = localStorage.getItem(NOTIFICATION_LOCK_KEY);
+              const now = Date.now();
+              
+              if (lockData) {
+                const { timestamp, status } = JSON.parse(lockData);
+                if (status === currentStatusString && (now - timestamp) < NOTIFICATION_LOCK_DURATION_MS) {
+                  // Another instance already sent this notification recently
+                  console.log(`KYC notification skipped (locked): ${currentStatusString}`);
+                  hasNotifiedRef.current = true;
+                  localStorage.setItem(LOCALSTORAGE_KEY, currentStatusString);
+                  return;
+                }
+              }
+              
+              // Set lock before sending notification
+              localStorage.setItem(NOTIFICATION_LOCK_KEY, JSON.stringify({ timestamp: now, status: currentStatusString }));
+              
               console.log(`KYC status changed: ${lastStatus || 'null'} → ${currentStatusString}`);
               
               await createKycNotification(userId, currentStatusString);
@@ -194,8 +215,19 @@ export const useSumsubStatus = () => {
   useEffect(() => {
     isMountedRef.current = true;
     fetchStatus();
+    
+    // Set up polling to detect external status changes
+    const pollInterval = setInterval(() => {
+      if (isMountedRef.current) {
+        // Reset notification flag to allow new notifications on status change
+        hasNotifiedRef.current = false;
+        fetchStatus(true); // Force refresh to bypass cache
+      }
+    }, POLL_INTERVAL_MS);
+    
     return () => {
       isMountedRef.current = false;
+      clearInterval(pollInterval);
     };
   }, [fetchStatus]);
 
