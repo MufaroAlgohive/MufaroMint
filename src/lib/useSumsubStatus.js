@@ -3,7 +3,7 @@ import { supabase } from "./supabase";
 import { createKycNotification } from "./NotificationsContext";
 
 const CACHE_DURATION_MS = 30000;
-const POLL_INTERVAL_MS = 15000; // Poll every 15 seconds for status changes
+const POLL_INTERVAL_MS = 30000; // Poll every 30 seconds for status changes (less frequent to avoid widget interference)
 const LOCALSTORAGE_KEY = "lastSumsubKycStatus";
 const NOTIFICATION_LOCK_KEY = "kycNotificationLock";
 const NOTIFICATION_LOCK_DURATION_MS = 5000; // 5 second lock to prevent duplicates

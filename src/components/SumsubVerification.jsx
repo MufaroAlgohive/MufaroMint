@@ -215,10 +215,6 @@ const SumsubVerification = ({ onVerified }) => {
   const options = {
     addViewportTag: false,
     adaptIframeHeight: true,
-    // Enable camera and microphone access for selfie/liveness check
-    iframeParams: {
-      allow: "camera; microphone; geolocation; fullscreen",
-    },
   };
 
   if (loading) {
