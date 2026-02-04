@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "./lib/supabase.js";
+import { App as CapacitorApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import SwipeBackWrapper from "./components/SwipeBackWrapper.jsx";
 
 import AuthPage from "./pages/AuthPage.jsx";
@@ -114,6 +116,33 @@ const App = () => {
   }, [currentPage]);
 
   const canSwipeBack = !mainTabs.includes(currentPage);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+      return;
+    }
+
+    const handleBackButton = ({ canGoBack }) => {
+      console.log('🔙 Global back button pressed');
+      console.log('📍 Current page:', currentPage);
+      console.log('📚 Navigation history:', navigationHistory.current);
+      console.log('🔓 Can swipe back:', canSwipeBack);
+
+      if (canSwipeBack) {
+        const didGoBack = goBack();
+        console.log('✅ goBack called, result:', didGoBack);
+      } else {
+        console.log('📱 On main tab, allowing app exit');
+        CapacitorApp.exitApp();
+      }
+    };
+
+    const listener = CapacitorApp.addListener('backButton', handleBackButton);
+
+    return () => {
+      listener.then(l => l.remove());
+    };
+  }, [currentPage, canSwipeBack, goBack]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {

@@ -1,9 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import { useAndroidBackButton } from '../hooks/useAndroidBackButton';
 
 const SwipeBackWrapper = ({ children, onBack, enabled = true }) => {
-  useAndroidBackButton(onBack, enabled);
-
   const containerRef = useRef(null);
   const [swipeProgress, setSwipeProgress] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
