@@ -11,6 +11,7 @@
     "deploy": "npm run build && gh-pages -d dist"
   },
   "dependencies": {
+    "@capacitor/android": "^8.0.2",
     "@capacitor/core": "^8.0.1",
     "@capacitor/ios": "^8.0.1",
     "@capgo/capacitor-native-biometric": "^8.3.1",

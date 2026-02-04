@@ -1,0 +1,97 @@
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Users\tsiem\StudioProjects\mint> npm install
+npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
+
+added 377 packages, and audited 378 packages in 26s
+
+67 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (2 moderate, 2 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+PS C:\Users\tsiem\StudioProjects\mint> npm run build
+
+> mint@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming (3) src\main.jsx
+../assets/fonts/future-earth.ttf referenced in ../assets/fonts/future-earth.ttf didn't resolve at build time, it will remain unchanged to be resolved at runtime
+✓ 2744 modules transformed.
+dist/index.html                                               0.64 kB │ gzip:   0.39 kB
+dist/assets/2025-10-16-jse-listed-companies-DoVWVwCj.csv     27.92 kB
+dist/assets/index-n7UVlLTH.css                               82.75 kB │ gzip:  15.33 kB
+dist/assets/index-y54MyxdE.js                             1,007.08 kB │ gzip: 277.07 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:                                                                                                                
+- Using dynamic import() to code-split the application                                                                                                                              
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks                                                  
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.                                                                                                         
+✓ built in 14.54s
+PS C:\Users\tsiem\StudioProjects\mint> npx cap sync android
+√ Copying web assets from dist to android\app\src\main\assets\public in 29.02ms
+√ Creating capacitor.config.json in android\app\src\main\assets in 2.68ms
+√ copy android in 78.29ms
+√ Updating Android plugins in 8.23ms
+[info] Found 1 Capacitor plugin for android:
+       @capgo/capacitor-native-biometric@8.3.1
+× update android - failed!
+[error] Unable to find node_modules/@capacitor/android.
+        Are you sure @capacitor/android is installed?
+PS C:\Users\tsiem\StudioProjects\mint> npm install
+
+up to date, audited 378 packages in 4s
+
+67 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (2 moderate, 2 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+PS C:\Users\tsiem\StudioProjects\mint> npm run build
+
+> mint@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming (2) vite\modulepreload-polyfill.js
+../assets/fonts/future-earth.ttf referenced in ../assets/fonts/future-earth.ttf didn't resolve at build time, it will remain unchanged to be resolved at runtime
+✓ 2744 modules transformed.
+dist/index.html                                               0.64 kB │ gzip:   0.39 kB
+dist/assets/2025-10-16-jse-listed-companies-DoVWVwCj.csv     27.92 kB
+dist/assets/index-n7UVlLTH.css                               82.75 kB │ gzip:  15.33 kB
+dist/assets/index-y54MyxdE.js                             1,007.08 kB │ gzip: 277.07 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:                                                                                                                
+- Using dynamic import() to code-split the application                                                                                                                              
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks                                                  
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.                                                                                                         
+✓ built in 9.56s
+PS C:\Users\tsiem\StudioProjects\mint> npx cap sync android
+√ Copying web assets from dist to android\app\src\main\assets\public in 28.84ms
+√ Creating capacitor.config.json in android\app\src\main\assets in 2.02ms
+√ copy android in 62.14ms
+√ Updating Android plugins in 6.95ms
+[info] Found 1 Capacitor plugin for android:
+       @capgo/capacitor-native-biometric@8.3.1
+× update android - failed!
+[error] Unable to find node_modules/@capacitor/android.
+        Are you sure @capacitor/android is installed?
+PS C:\Users\tsiem\StudioProjects\mint> 
