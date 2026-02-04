@@ -1,0 +1,88 @@
+PS C:\Users\tsiem\StudioProjects\mint> git stash
+warning: in the working copy of 'android/app/capacitor.build.gradle', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'android/capacitor.settings.gradle', LF will be replaced by CRLF the next time Git touches it
+Saved working directory and index state WIP on Android.v1: 9812545 Improve how the app responds to the Android back button
+PS C:\Users\tsiem\StudioProjects\mint> git pull origin Android.v1
+remote: Enumerating objects: 20, done.
+remote: Counting objects: 100% (20/20), done.
+remote: Compressing objects: 100% (3/3), done.
+remote: Total 12 (delta 9), reused 12 (delta 9), pack-reused 0 (from 0)
+Unpacking objects: 100% (12/12), 3.11 KiB | 43.00 KiB/s, done.
+From https://github.com/mihle-matimba/mint
+ * branch            Android.v1 -> FETCH_HEAD
+   9812545..0d42b6d  Android.v1 -> origin/Android.v1
+Updating 9812545..0d42b6d
+Fast-forward
+ ...jects-mint-git-stash-warning-_1770204687753.txt | 60 ++++++++++++++++++++++
+ src/App.jsx                                        | 29 +++++++++++
+ src/components/SwipeBackWrapper.jsx                |  3 --
+ src/hooks/useAndroidBackButton.js                  | 11 ++--
+ 4 files changed, 94 insertions(+), 9 deletions(-)
+ create mode 100644 attached_assets/Pasted-PS-C-Users-tsiem-StudioProjects-mint-git-stash-warning-_1770204687753.txt
+PS C:\Users\tsiem\StudioProjects\mint> git status
+On branch Android.v1
+Your branch is up to date with 'origin/Android.v1'.
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        .idea/
+        android/.idea/compiler.xml
+        android/.idea/deploymentTargetSelector.xml
+
+nothing added to commit but untracked files present (use "git add" to track)
+PS C:\Users\tsiem\StudioProjects\mint> git stash pop
+On branch Android.v1
+Your branch is up to date with 'origin/Android.v1'.
+
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+        new file:   .idea/mint.iml
+        new file:   android/.idea/compiler.xml
+        new file:   android/.idea/deploymentTargetSelector.xml
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+        modified:   android/.idea/misc.xml
+        modified:   android/app/capacitor.build.gradle
+        modified:   android/capacitor.settings.gradle
+        modified:   package-lock.json
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        .idea/.gitignore
+        .idea/caches/
+        .idea/deviceManager.xml
+        .idea/markdown.xml
+        .idea/misc.xml
+        .idea/modules.xml
+        .idea/vcs.xml
+
+Dropped refs/stash@{0} (b3c90e43775457f4d4d608e2739798621625c34d)
+PS C:\Users\tsiem\StudioProjects\mint> npm install
+
+up to date, audited 380 packages in 5s
+
+67 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (2 moderate, 2 high, 1 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+PS C:\Users\tsiem\StudioProjects\mint> npx cap sync android
+√ Copying web assets from dist to android\app\src\main\assets\public in 111.28ms
+√ Creating capacitor.config.json in android\app\src\main\assets in 14.75ms
+√ copy android in 490.54ms
+√ Updating Android plugins in 123.40ms
+[info] Found 2 Capacitor plugins for android:
+       @capacitor/app@8.0.0
+       @capgo/capacitor-native-biometric@8.3.1
+√ update android in 1.25s
+[info] Sync finished in 1.951s
+PS C:\Users\tsiem\StudioProjects\mint> 
