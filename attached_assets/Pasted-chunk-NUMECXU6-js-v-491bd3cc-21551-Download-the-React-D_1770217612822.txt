@@ -1,0 +1,45 @@
+chunk-NUMECXU6.js?v=491bd3cc:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+NotificationsContext.jsx:236 Notifications singleton subscription already exists or setting up
+NotificationsContext.jsx:250 Setting up SINGLETON notifications subscription
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.4d0f1b60-698f-40d9-8ca4-16d47e9cc643:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.4d0f1b60-698f-40d9-8ca4-16d47e9cc643:1  Failed to load resource: the server responded with a status of 400 ()
+NotificationsContext.jsx:285 Notifications singleton status: SUBSCRIBED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+useRequiredActions.js:145 Setting up SINGLETON real-time subscription: required-actions-singleton
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Casset_class%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_holdings?select=*%2Csecurities%28symbol%2Cname%2Clogo_url%29&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/transactions?select=type%2Camount&user_id=eq.3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 400 ()
+recharts.js?v=491bd3cc:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=491bd3cc:9079
+recharts.js?v=491bd3cc:9079 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+warn2 @ recharts.js?v=491bd3cc:9079
+useRequiredActions.js:195 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:140 Subscription already exists, skipping
+api.sumsub.com/websdk/websdk.html?_=id_X2FjdC1qd3QtZXlKaGJHY2lPaUp1YjI1bEluMC5leUpxZEdraU9pSmZZV04wTFRRek9ESTBaVE0zTFdGalpqZ3ROR1psWXkxaU1XTTBMVE0yWTJZeE56WTFOR1kxTmkxMk1pSXNJblZ5YkNJNkltaDBkSEJ6T2k4dllYQnBMbk4xYlhOMVlpNWpiMjBpZlEuLXYy&theme=light:323 The `integrity` attribute is currently ignored for preload destinations that do not support subresource integrity. See https://crbug.com/981419 for more information
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onReady {}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 408}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onApplicantLoaded {applicantId: '6980b81cb53958c45c065cf0'}
+SumsubVerification.jsx:119 Applicant loaded: {applicantId: '6980b81cb53958c45c065cf0'}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onInitialized {}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 408}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onStepInitiated {idDocSetType: 'SELFIE', types: Array(1)}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 8}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 238}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 656}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 76}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 480}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 550}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onStepInitiated {idDocSetType: 'PHONE_VERIFICATION'}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 8}
+SumsubVerification.jsx:115 Sumsub SDK message: idCheck.onResize {height: 509}

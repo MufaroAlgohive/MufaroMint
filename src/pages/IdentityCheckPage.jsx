@@ -1,111 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { ArrowLeft, Clock, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import UserOnboardingPage from "./UserOnboardingPage";
 import SumsubVerification from "../components/SumsubVerification";
-import { useRequiredActions } from "../lib/useRequiredActions";
-import { supabase } from "../lib/supabase";
+import { useSumsubStatus } from "../lib/useSumsubStatus";
 
 const IdentityCheckPage = ({ onBack, onComplete }) => {
-  const { kycVerified, kycPending, kycNeedsResubmission, loading, refetch } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, loading, refetch } = useSumsubStatus();
   const [showResubmission, setShowResubmission] = useState(false);
-  const [checkingStatus, setCheckingStatus] = useState(false);
-  const [actualStatus, setActualStatus] = useState(null);
 
-  const updateKycStatusInDb = useCallback(async (status) => {
-    if (!supabase) return;
-    
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData?.user?.id) return;
-      
-      const userId = userData.user.id;
-      
-      let updateData = {};
-      if (status === 'verified') {
-        updateData = { kyc_verified: true, kyc_pending: false, kyc_needs_resubmission: false };
-      } else if (status === 'pending') {
-        updateData = { kyc_verified: false, kyc_pending: true, kyc_needs_resubmission: false };
-      } else if (status === 'needs_resubmission') {
-        updateData = { kyc_verified: false, kyc_pending: false, kyc_needs_resubmission: true };
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        console.log("Updating KYC status in database:", { status, updateData });
-        
-        await supabase
-          .from("required_actions")
-          .update(updateData)
-          .eq("user_id", userId);
-        
-        console.log("Database updated, real-time listener will trigger notification");
-        refetch();
-      }
-    } catch (err) {
-      console.error("Failed to update KYC status:", err);
-    }
-  }, [refetch]);
-
-  useEffect(() => {
-    const handleKycStatusChange = () => {
-      refetch();
-    };
-    
-    window.addEventListener('kycStatusChanged', handleKycStatusChange);
-    return () => window.removeEventListener('kycStatusChanged', handleKycStatusChange);
-  }, [refetch]);
-
-  useEffect(() => {
-    const checkSumsubStatus = async () => {
-      if (loading || kycVerified) return;
-      if (!kycPending && !kycNeedsResubmission) return;
-      
-      setCheckingStatus(true);
-      
-      try {
-        const { data: userData } = await supabase?.auth.getUser();
-        if (!userData?.user?.id) {
-          setCheckingStatus(false);
-          return;
-        }
-
-        const response = await fetch("/api/sumsub/check-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: userData.user.id }),
-        });
-
-        const data = await response.json();
-        
-        if (data.success && data.status) {
-          const reviewStatus = data.status.reviewStatus;
-          const reviewAnswer = data.status.reviewResult?.reviewAnswer;
-          const rejectType = data.status.reviewResult?.reviewRejectType;
-
-          if ((reviewStatus === "completed" || reviewStatus === "onHold") && reviewAnswer === "GREEN") {
-            setActualStatus('verified');
-            await updateKycStatusInDb('verified');
-          } else if (reviewAnswer === "RED") {
-            if (rejectType === "RETRY") {
-              setActualStatus('needs_resubmission');
-              if (!kycNeedsResubmission) {
-                await updateKycStatusInDb('needs_resubmission');
-              }
-            }
-          } else if (reviewStatus === "pending" || reviewStatus === "queued" || reviewStatus === "onHold") {
-            setActualStatus('pending');
-          }
-        }
-      } catch (err) {
-        console.error("Failed to check Sumsub status:", err);
-      } finally {
-        setCheckingStatus(false);
-      }
-    };
-
-    checkSumsubStatus();
-  }, [loading, kycVerified, kycPending, kycNeedsResubmission, updateKycStatusInDb]);
-
-  if (loading || checkingStatus) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mb-4"></div>
@@ -114,7 +17,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
     );
   }
 
-  if (kycVerified || actualStatus === 'verified') {
+  if (kycVerified) {
     return (
       <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
@@ -152,7 +55,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
     );
   }
 
-  if (kycPending && actualStatus !== 'needs_resubmission') {
+  if (kycPending) {
     return (
       <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
@@ -208,7 +111,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
     );
   }
 
-  if (kycNeedsResubmission || actualStatus === 'needs_resubmission') {
+  if (kycNeedsResubmission) {
     if (showResubmission) {
       return (
         <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">

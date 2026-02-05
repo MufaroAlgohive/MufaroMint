@@ -9,9 +9,11 @@ import {
 } from "lucide-react";
 import ActionsSkeleton from "../components/ActionsSkeleton";
 import { useRequiredActions } from "../lib/useRequiredActions";
+import { useSumsubStatus } from "../lib/useSumsubStatus";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { kycVerified, kycPending, kycNeedsResubmission, bankLinked, bankInReview, loading } = useRequiredActions();
+  const { bankLinked, bankInReview } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, loading, rejectLabels } = useSumsubStatus();
 
   if (loading) {
     return <ActionsSkeleton />;
@@ -32,11 +34,30 @@ const ActionsPage = ({ onBack, onNavigate }) => {
 
   const kycStatus = getKycStatus();
 
+  const getKycDescription = () => {
+    if (kycNeedsResubmission) {
+      if (rejectLabels && rejectLabels.length > 0) {
+        const labelMap = {
+          "INCORRECT_SOCIAL_NUMBER": "Phone verification needs attention",
+          "DOCUMENT_PAGE_MISSING": "Missing document page",
+          "INCOMPLETE_DOCUMENT": "Incomplete document",
+          "UNSATISFACTORY_PHOTOS": "Photo quality issue",
+          "DOCUMENT_DAMAGED": "Document appears damaged",
+          "SELFIE_MISMATCH": "Selfie doesn't match",
+        };
+        const firstLabel = rejectLabels[0];
+        return labelMap[firstLabel] || "Some documents need resubmission";
+      }
+      return "Some documents need resubmission";
+    }
+    return "Needed to unlock higher limits";
+  };
+
   const allActions = [
     {
       id: "identity",
       title: "Complete identity check",
-      description: kycNeedsResubmission ? "Some documents need resubmission" : "Needed to unlock higher limits",
+      description: getKycDescription(),
       status: kycStatus.text,
       statusStyle: kycStatus.style,
       icon: BadgeCheck,

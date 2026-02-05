@@ -4,12 +4,14 @@ import { supabase } from "../lib/supabase";
 import { createKycNotification, createBankNotification, createSecurityNotification } from "../lib/NotificationsContext";
 import { useNotificationsContext } from "../lib/NotificationsContext";
 import { useRequiredActions } from "../lib/useRequiredActions";
+import { useSumsubStatus } from "../lib/useSumsubStatus";
 
 const NotificationDebugPanel = ({ onClose }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const { notifications, unreadCount, refetch: refetchNotifications } = useNotificationsContext();
-  const { kycVerified, kycPending, kycNeedsResubmission, bankLinked, bankInReview, refetch: refetchActions } = useRequiredActions();
+  const { bankLinked, bankInReview, refetch: refetchActions } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, refetch: refetchKyc } = useSumsubStatus();
 
   const addLog = (message, type = "info") => {
     const timestamp = new Date().toLocaleTimeString();
@@ -287,6 +289,7 @@ const NotificationDebugPanel = ({ onClose }) => {
             onClick={() => {
               refetchNotifications();
               refetchActions();
+              refetchKyc();
               addLog("Refreshed all data", "info");
             }}
             className="flex-1 rounded-full bg-slate-100 py-3 text-sm font-medium text-slate-700 hover:bg-slate-200"
