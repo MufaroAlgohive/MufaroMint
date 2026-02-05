@@ -133,7 +133,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [searchQuery, setSearchQuery] = useState("");
   const [strategiesSearchQuery, setStrategiesSearchQuery] = useState("");
   const [newsSearchQuery, setNewsSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState("invest"); // "openstrategies", "invest", "news"
+  const viewMode = "invest";
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sheetOffset, setSheetOffset] = useState(0);
@@ -658,84 +658,16 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             <NotificationBell onClick={onOpenNotifications} />
           </header>
 
-          {/* Toggle between OpenStrategies, Invest, and News */}
-          <div className="flex gap-2 rounded-2xl bg-white/10 p-1 backdrop-blur-sm">
-            <button
-              onClick={() => setViewMode("openstrategies")}
-              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-                viewMode === "openstrategies"
-                  ? "bg-white text-slate-900 shadow-md"
-                  : "text-white/70"
-              }`}
-            >
-              OpenStrategies
-            </button>
-            <button
-              onClick={() => setViewMode("invest")}
-              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-                viewMode === "invest"
-                  ? "bg-white text-slate-900 shadow-md"
-                  : "text-white/70"
-              }`}
-            >
-              Invest
-            </button>
-            <button
-              onClick={() => setViewMode("news")}
-              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-                viewMode === "news"
-                  ? "bg-white text-slate-900 shadow-md"
-                  : "text-white/70"
-              }`}
-            >
-              News
-            </button>
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" />
+            <input
+              type="text"
+              placeholder="Search by name, symbol, or sector..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-2xl border border-white/20 bg-white/10 px-12 py-3 text-sm text-white placeholder-white/50 backdrop-blur-sm focus:border-white/40 focus:bg-white/15 focus:outline-none"
+            />
           </div>
-
-          {viewMode === "invest" && (
-            <>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" />
-                <input
-                  type="text"
-                  placeholder="Search by name, symbol, or sector..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-12 py-3 text-sm text-white placeholder-white/50 backdrop-blur-sm focus:border-white/40 focus:bg-white/15 focus:outline-none"
-                />
-              </div>
-            </>
-          )}
-
-          {viewMode === "openstrategies" && (
-            <>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" />
-                <input
-                  type="text"
-                  placeholder="Search strategies..."
-                  value={strategiesSearchQuery}
-                  onChange={(e) => setStrategiesSearchQuery(e.target.value)}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-12 py-3 text-sm text-white placeholder-white/50 backdrop-blur-sm focus:border-white/40 focus:bg-white/15 focus:outline-none"
-                />
-              </div>
-            </>
-          )}
-
-          {viewMode === "news" && (
-            <>
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-white/50" />
-                <input
-                  type="text"
-                  placeholder="Search news..."
-                  value={newsSearchQuery}
-                  onChange={(e) => setNewsSearchQuery(e.target.value)}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-12 py-3 text-sm text-white placeholder-white/50 backdrop-blur-sm focus:border-white/40 focus:bg-white/15 focus:outline-none"
-                />
-              </div>
-            </>
-          )}
         </div>
       </div>
 
