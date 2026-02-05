@@ -1,7 +1,7 @@
 # Mint Auth (React + Vite)
 
 ## Overview
-A React authentication application using Vite as the build tool with Tailwind CSS for styling and Framer Motion for animations. Features a complete signup flow with password validation and OTP email verification.
+A React authentication application using Vite as the build tool with Tailwind CSS for styling and Framer Motion for animations. Features a complete signup flow with password validation and OTP email verification...
 
 ## Project Structure
 - `src/` - Main source code
