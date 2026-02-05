@@ -138,19 +138,35 @@ const App = () => {
 
   const canSwipeBack = !mainTabs.includes(currentPage);
 
+  const lastBackPressRef = useRef(0);
+  
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
       return;
     }
 
-    const handleBackButton = ({ canGoBack }) => {
-      if (canSwipeBack && navigationHistory.current.length > 0) {
+    const handleBackButton = () => {
+      if (navigationHistory.current.length > 0) {
         const prevPage = navigationHistory.current.pop();
         const newPreviousPage = navigationHistory.current.length > 0 
           ? navigationHistory.current[navigationHistory.current.length - 1] 
           : null;
         setPreviousPageName(newPreviousPage);
         setCurrentPage(prevPage);
+        return;
+      }
+      
+      if (!mainTabs.includes(currentPage)) {
+        setPreviousPageName(null);
+        setCurrentPage('home');
+        return;
+      }
+      
+      const now = Date.now();
+      if (now - lastBackPressRef.current < 2000) {
+        CapacitorApp.exitApp();
+      } else {
+        lastBackPressRef.current = now;
       }
     };
 
@@ -159,7 +175,7 @@ const App = () => {
     return () => {
       listener.then(l => l.remove());
     };
-  }, [currentPage, canSwipeBack]);
+  }, [currentPage]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
