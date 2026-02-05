@@ -48,11 +48,29 @@ const HomePage = ({
   onOpenMarkets,
   onOpenNews,
 }) => {
+  // --- 1. HOOKS & STATE (Must come first) ---
   const { profile, loading } = useProfile();
-  const { bankLinked, loading: actionsLoading } = useRequiredActions();
+  
+  // Note: We destructure 'refetch' as fetchFinancialData/fetchRequiredActions
+  // so the real-time listeners actually have a function to call.
+  const { 
+    balance, 
+    investments, 
+    transactions, 
+    bestAssets, 
+    loading: financialLoading, 
+    refetch: fetchFinancialData 
+  } = useFinancialData();
+
+  const { 
+    bankLinked, 
+    loading: actionsLoading, 
+    refetch: fetchRequiredActions 
+  } = useRequiredActions();
+
   const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
-  const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
   const { monthlyChangePercent } = useInvestments();
+
   const [bestStrategies, setBestStrategies] = useState([]);
   const [failedLogos, setFailedLogos] = useState({});
   const [showPayModal, setShowPayModal] = useState(false);
@@ -61,18 +79,16 @@ const HomePage = ({
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loadingNews, setLoadingNews] = useState(false);
   const [localBestAssets, setLocalBestAssets] = useState([]);
-  
-  // Goals State
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [goals, setGoals] = useState([]);
   const [loadingGoals, setLoadingGoals] = useState(false);
   const [isCreatingGoal, setIsCreatingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: "", target_amount: "", target_date: "" });
   const [editingGoalId, setEditingGoalId] = useState(null);
+
+  // Derived Values
   const assetsToDisplay = localBestAssets.length > 0 ? localBestAssets : (bestAssets || []);
-  
-  
-  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
+  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const initials = displayName
     .split(" ")
     .filter(Boolean)
@@ -81,6 +97,135 @@ const HomePage = ({
     .join("")
     .toUpperCase();
 
+  // --- 2. CALLBACKS (Logic definitions) ---
+  const fetchBestAssets = React.useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('allocations')
+        .select(`
+          value,
+          securities!inner ( symbol, name, logo_url ),
+          security_metrics!inner ( change_pct )
+        `)
+        .eq('user_id', profile.id)
+        .order('value', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      const formatted = data.map(item => ({
+        symbol: item.securities.symbol,
+        name: item.securities.name,
+        logo: item.securities.logo_url,
+        value: item.value,
+        change: item.security_metrics?.change_pct || 0
+      }));
+
+      setLocalBestAssets(formatted); 
+    } catch (e) { 
+      console.error("Asset fetch error:", e.message); 
+    }
+  }, [profile?.id]);
+
+  const fetchGoals = React.useCallback(async () => {
+    if (!profile?.id) return;
+    setLoadingGoals(true);
+    try {
+      const { data, error } = await supabase
+        .from('investment_goals')
+        .select('id, name, target_amount, current_amount, progress_percent') 
+        .eq('user_id', profile.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setGoals(data || []);
+    } catch (e) { 
+      console.error("Goal fetch error:", e.message); 
+    } finally { 
+      setLoadingGoals(false); 
+    }
+  }, [profile?.id]);
+
+  // --- 3. EFFECTS (Side effects using the callbacks above) ---
+  
+  // Unified Real-time Subscription
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const homeSubscription = supabase
+      .channel('home_realtime_updates')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'investment_goals', 
+        filter: `user_id=eq.${profile.id}` 
+      }, () => fetchGoals()) 
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'transactions', 
+        filter: `user_id=eq.${profile.id}` 
+      }, () => {
+        fetchBestAssets(); 
+        if (typeof fetchFinancialData === 'function') fetchFinancialData(); 
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'required_actions', 
+        filter: `user_id=eq.${profile.id}` 
+      }, () => {
+        if (typeof fetchRequiredActions === 'function') fetchRequiredActions();
+      })
+      .subscribe();
+
+    // Initial loads
+    fetchBestAssets();
+    fetchGoals();
+
+    return () => {
+      supabase.removeChannel(homeSubscription);
+    };
+  }, [profile?.id, fetchBestAssets, fetchGoals, fetchFinancialData, fetchRequiredActions]);
+
+  // Specific check when Goals Modal opens
+  useEffect(() => {
+    if (showGoalsModal && profile?.id) {
+      fetchGoals();
+    }
+  }, [showGoalsModal, profile?.id, fetchGoals]);
+
+  // Strategies & News
+  useEffect(() => {
+    const fetchStrategies = async () => {
+      try {
+        const data = await getStrategiesWithMetrics();
+        setBestStrategies(data.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0)).slice(0, 5));
+      } catch (e) { console.error("Strategies error:", e); }
+    };
+    fetchStrategies();
+  }, []);
+
+  useEffect(() => {
+    const fetchNews = async () => {
+      setLoadingNews(true);
+      try {
+        const { data, error } = await supabase
+          .from('News_articles') 
+          .select('id, title, source, published_at, body_text')
+          .order('published_at', { ascending: false })
+          .limit(3);
+        if (error) throw error;
+        setNews(data || []);
+      } catch (err) { console.error("News error:", err.message); }
+      finally { setLoadingNews(false); }
+    };
+    fetchNews();
+  }, []);
+
+  // --- 4. ACTION HANDLERS ---
   const handleEditClick = (goal) => {
     setNewGoal({ 
       name: goal.name, 
@@ -92,269 +237,92 @@ const HomePage = ({
   };
 
   const handleUpdateGoal = async (e) => {
-  e.preventDefault();
-  setLoadingGoals(true);
-  try {
-    const { error } = await supabase
-      .from('investment_goals')
-      .update({
-        name: newGoal.name,
-        target_amount: parseFloat(newGoal.target_amount),
-      })
-      .eq('id', editingGoalId);
-
-    if (error) throw error;
-    
-    setEditingGoalId(null);
-    setIsCreatingGoal(false);
-    setNewGoal({ name: "", target_amount: "", target_date: "" });
-    fetchGoals();
-  } catch (error) {
-    console.error("Update error:", error.message);
-  } finally {
-    setLoadingGoals(false);
-  }
-};
-
-const fetchBestAssets = React.useCallback(async () => {
-  if (!profile?.id) return;
-  try {
-    const { data, error } = await supabase
-      .from('allocations')
-      .select(`
-        value,
-        securities!inner ( symbol, name, logo_url ),
-        security_metrics!inner ( change_pct )
-      `)
-      .eq('user_id', profile.id)
-      .order('value', { ascending: false })
-      .limit(5);
-
-    if (error) throw error;
-
-    // Transform the data so the UI can read it easily
-    const formatted = data.map(item => ({
-      symbol: item.securities.symbol,
-      name: item.securities.name,
-      logo: item.securities.logo_url,
-      value: item.value,
-      change: item.security_metrics?.change_pct || 0
-    }));
-
-    setLocalBestAssets(formatted); 
-  } catch (e) { 
-    console.error("Asset fetch error:", e.message); 
-  }
-}, [profile?.id]);
-  
-useEffect(() => {
-  if (!profile?.id) return;
-
-  // 1. Create the real-time channel
-  const homeSubscription = supabase
-    .channel('home_realtime_updates')
-    // Listen for Goal updates
-    .on('postgres_changes', { 
-      event: '*', 
-      schema: 'public', 
-      table: 'investment_goals', 
-      filter: `user_id=eq.${profile.id}` 
-    }, () => fetchGoals()) 
-
-    .on('postgres_changes', { 
-      event: '*', 
-      schema: 'public', 
-      table: 'transactions', 
-      filter: `user_id=eq.${profile.id}` 
-    }, () => {
-      fetchBestAssets(); 
-     
-      if (typeof fetchFinancialData === 'function') fetchFinancialData(); 
-    })
-   
-    .on('postgres_changes', { 
-      event: '*', 
-      schema: 'public', 
-      table: 'required_actions', 
-      filter: `user_id=eq.${profile.id}` 
-    }, () => {
-      if (typeof fetchRequiredActions === 'function') fetchRequiredActions();
-    })
-    .subscribe();
-
-  
-  fetchBestAssets();
-  fetchGoals();
-
-  
-  return () => {
-    supabase.removeChannel(homeSubscription);
-  };
-}, [profile?.id, fetchBestAssets, fetchGoals]);
-
-
-  useEffect(() => {
-    const fetchStrategies = async () => {
-      try {
-        const data = await getStrategiesWithMetrics();
-        const sorted = data
-          .sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
-          .slice(0, 5);
-        setBestStrategies(sorted);
-      } catch (error) {
-        console.error("Failed to load strategies", error);
-      }
-    };
-    fetchStrategies();
-  }, []);
-
-  useEffect(() => {
-  const fetchNews = async () => {
-      setLoadingNews(true);
-      try {
-        // Updated to match your specific table schema
-        const { data, error } = await supabase
-          .from('News_articles') 
-          .select('id, title, source, published_at, body_text')
-          .order('published_at', { ascending: false })
-          .limit(3);
-
-        if (error) throw error;
-        setNews(data || []);
-      } catch (err) {
-        console.error("News load error:", err.message);
-      } finally {
-        setLoadingNews(false);
-      }
-    };
-    fetchNews();
-  }, []);
-
-  // Fetch Goals when modal opens
-  useEffect(() => {
-    if (showGoalsModal && profile?.id) {
+    e.preventDefault();
+    setLoadingGoals(true);
+    try {
+      const { error } = await supabase
+        .from('investment_goals')
+        .update({
+          name: newGoal.name,
+          target_amount: parseFloat(newGoal.target_amount),
+        })
+        .eq('id', editingGoalId);
+      if (error) throw error;
+      setEditingGoalId(null);
+      setIsCreatingGoal(false);
       fetchGoals();
-    }
-  }, [showGoalsModal, profile?.id]);
-
-  const fetchGoals = React.useCallback(async () => {
-  if (!profile?.id) return;
-  setLoadingGoals(true);
-  try {
-    const { data, error } = await supabase
-      .from('investment_goals')
-      .select('id, name, target_amount, current_amount, progress_percent') 
-      .eq('user_id', profile.id)
-      .eq('is_active', true)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    setGoals(data || []);
-  } catch (e) { 
-    console.error("Goal fetch error:", e.message); 
-  } finally { 
-    setLoadingGoals(false); 
-  }
-}, [profile?.id]);
+    } catch (error) { console.error("Update error:", error.message); }
+    finally { setLoadingGoals(false); }
+  };
 
   const handleCreateGoal = async (e) => {
     e.preventDefault();
     if (!newGoal.name || !newGoal.target_amount) return;
-
     setLoadingGoals(true);
     try {
       const { error } = await supabase.from('investment_goals').insert({
         user_id: profile.id,
         name: newGoal.name,
         target_amount: parseFloat(newGoal.target_amount),
-        target_date: newGoal.target_date || null,
         current_amount: 0,
         progress_percent: 0
       });
-
       if (error) throw error;
-      
-      // Reset and reload
       setNewGoal({ name: "", target_amount: "", target_date: "" });
       setIsCreatingGoal(false);
       fetchGoals();
-    } catch (error) {
-      console.error("Error creating goal:", error);
-    } finally {
-      setLoadingGoals(false);
-    }
+    } catch (error) { console.error("Create error:", error); }
+    finally { setLoadingGoals(false); }
   };
 
-  if (loading || financialLoading) {
-    return <HomeSkeleton />;
-  }
   const handleDeleteGoal = async (goalId) => {
-      // Simple confirmation to prevent accidental taps
-      if (!window.confirm("Are you sure you want to delete this goal?")) return;
-      
-      setLoadingGoals(true);
-      try {
-        const { error } = await supabase
-          .from('investment_goals')
-          .delete()
-          .eq('id', goalId);
-
-        if (error) throw error;
-        
-        // Reset UI states
-        setEditingGoalId(null);
-        setIsCreatingGoal(false);
-        setNewGoal({ name: "", target_amount: "", target_date: "" });
-        
-        // Refresh the list from real data
-        fetchGoals();
-      } catch (error) {
-        console.error("Delete error:", error.message);
-      } finally {
-        setLoadingGoals(false);
-      }
-    };
-  const handleMintBalancePress = () => {
-    if (onOpenMintBalance) {
-      onOpenMintBalance();
-    }
+    if (!window.confirm("Are you sure you want to delete this goal?")) return;
+    setLoadingGoals(true);
+    try {
+      const { error } = await supabase.from('investment_goals').delete().eq('id', goalId);
+      if (error) throw error;
+      setEditingGoalId(null);
+      setIsCreatingGoal(false);
+      setNewGoal({ name: "", target_amount: "", target_date: "" });
+      fetchGoals();
+    } catch (error) { console.error("Delete error:", error.message); }
+    finally { setLoadingGoals(false); }
   };
 
-  const getKycStatus = () => {
+  // --- 5. DATA FORMATTING FOR RENDER ---
+  if (loading || financialLoading) return <HomeSkeleton />;
+
+  const kycStatus = (() => {
     if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
     if (kycNeedsResubmission) return { text: "Needs Attention", style: "bg-amber-100 text-amber-700" };
     if (kycPending) return { text: "Pending", style: "bg-blue-100 text-blue-600" };
     return { text: "Not Verified", style: "bg-slate-100 text-slate-500" };
-  };
-
-  const kycStatus = getKycStatus();
+  })();
 
   const actionsData = [
-  {
-    id: "identity",
-    title: "Complete KYC verification",
-    description: kycNeedsResubmission ? "Some documents need resubmission" : "Verify your identity to unlock all features",
-    priority: 1,
-    status: kycStatus.text,
-    statusStyle: kycStatus.style,
-    icon: ShieldCheck,
-    routeName: "actions",
-    isComplete: kycVerified, // The only one that blocks the user
-    dueAt: "2025-01-20T12:00:00Z",
-    createdAt: "2025-01-18T09:00:00Z",
-    isRequired: true, // Custom flag for clarity
-  },
-  {
-    id: "bank-link",
-    title: "Link your bank account",
-    description: "Connect to enable instant transfers",
-    priority: 2,
-    status: bankLinked ? "Linked" : "Not Linked",
-    icon: Landmark,
-    routeName: "actions",
-    isComplete: bankLinked,
-    isRequired: false, // Changed to false
-  },
+    {
+      id: "identity",
+      title: "Complete KYC verification",
+      description: kycNeedsResubmission ? "Some documents need resubmission" : "Verify your identity to unlock all features",
+      priority: 1,
+      status: kycStatus.text,
+      statusStyle: kycStatus.style,
+      icon: ShieldCheck,
+      routeName: "actions",
+      isComplete: kycVerified,
+      isRequired: true,
+    },
+    {
+      id: "bank-link",
+      title: "Link your bank account",
+      description: "Connect to enable instant transfers",
+      priority: 2,
+      status: bankLinked ? "Linked" : "Not Linked",
+      icon: Landmark,
+      routeName: "actions",
+      isComplete: bankLinked,
+      isRequired: false,
+    },
     {
       id: "investments",
       title: "Review investment allocation",
@@ -364,8 +332,6 @@ useEffect(() => {
       icon: TrendingUp,
       routeName: "investments",
       isComplete: false,
-      dueAt: "2025-01-28T12:00:00Z",
-      createdAt: "2025-01-21T09:00:00Z",
     },
     {
       id: "invite",
@@ -376,12 +342,9 @@ useEffect(() => {
       icon: UserPlus,
       routeName: "actions",
       isComplete: false,
-      dueAt: "2025-02-05T12:00:00Z",
-      createdAt: "2025-01-23T09:00:00Z",
     },
   ];
 
-  const isActionsAvailable = true;
   const outstandingActions = actionsData.filter(action => action.id === "identity" && !action.isComplete);
 
   const transactionHistory = transactions.slice(0, 3).map((t) => ({
@@ -397,12 +360,11 @@ useEffect(() => {
       settings: onOpenSettings,
       actions: onOpenActions,
     };
-
     const handler = routes[action.routeName];
-    if (handler) {
-      handler();
-    }
+    if (handler) handler();
   };
+
+  const handleMintBalancePress = () => onOpenMintBalance?.();
 
   const hasInvestments = assetsToDisplay.length > 0;
   const hasStrategies = bestStrategies && bestStrategies.length > 0;
