@@ -34,7 +34,6 @@ import NewsArticlePage from "./pages/NewsArticlePage.jsx";
 import { NotificationsProvider, createWelcomeNotification, useNotificationsContext } from "./lib/NotificationsContext.jsx";
 import ActivityPage from "./pages/ActivityPage.jsx";
 import ActionsPage from "./pages/ActionsPage.jsx";
-import StatementsPage from "./pages/StatementsPage.jsx";
 import ProfileDetailsPage from "./pages/ProfileDetailsPage.jsx";
 import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
 import LegalDocumentationPage from "./pages/LegalDocumentationPage.jsx";
@@ -67,7 +66,7 @@ const getTokensFromHash = (hash) => {
 
 const recoveryTokens = isRecoveryMode ? getTokensFromHash(initialHash) : null;
 
-const mainTabs = ['home', 'portfolio', 'statements', 'more', 'welcome', 'auth'];
+const mainTabs = ['home', 'credit', 'transact', 'investments', 'more', 'welcome', 'auth'];
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState(hasError ? "linkExpired" : (isRecoveryMode ? "auth" : "welcome"));
@@ -109,9 +108,15 @@ const App = () => {
         navigationHistory.current = navigationHistory.current.slice(-20);
       }
       setPreviousPageName(currentPage);
+      if (!Capacitor.isNativePlatform()) {
+        window.history.pushState({ page, index: navigationHistory.current.length }, '', window.location.pathname);
+      }
     } else {
       navigationHistory.current = [];
       setPreviousPageName(null);
+      if (!Capacitor.isNativePlatform()) {
+        window.history.replaceState({ page, index: 0 }, '', window.location.pathname);
+      }
     }
     
     setCurrentPage(page);
@@ -178,6 +183,34 @@ const App = () => {
     };
   }, [currentPage]);
 
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    const handlePopState = (event) => {
+      if (navigationHistory.current.length > 0) {
+        const prevPage = navigationHistory.current.pop();
+        const newPreviousPage = navigationHistory.current.length > 0 
+          ? navigationHistory.current[navigationHistory.current.length - 1] 
+          : null;
+        setPreviousPageName(newPreviousPage);
+        setCurrentPage(prevPage);
+      } else if (!mainTabs.includes(currentPage)) {
+        setPreviousPageName(null);
+        setCurrentPage('home');
+      } else {
+        window.history.pushState({ page: currentPage, index: 0 }, '', window.location.pathname);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [currentPage]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -479,8 +512,6 @@ const App = () => {
             onNavigate={noOp}
           />
         );
-      case 'statements':
-        return <StatementsPage onOpenNotifications={noOp} />;
       case 'editProfile':
         return <EditProfilePage onNavigate={noOp} onBack={noOp} />;
       case 'profileDetails':
@@ -1041,19 +1072,6 @@ const App = () => {
         <ActionsPage
           onBack={goBack}
           onNavigate={navigateTo}
-        />
-      </SwipeBackWrapper>
-    );
-  }
-
-  if (currentPage === "statements") {
-    return (
-      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <StatementsPage
-          onOpenNotifications={() => {
-            setNotificationReturnPage("statements");
-            navigateTo("notifications");
-          }}
         />
       </SwipeBackWrapper>
     );
