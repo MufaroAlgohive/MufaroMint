@@ -1,0 +1,82 @@
+/workspace$ git reset --merge
+git merge origin/Android.v1 -m "Merge Android.v1 into main"
+Auto-merging .replit
+Merge made by the 'ort' strategy.
+ .replit                                       |   2 +-
+ ...20260204-1117-48.9650487_1770203880836.gif | Bin 0 -> 4946807 bytes
+ ...-mint-git-stash-warning-_1770204687753.txt |  60 +++
+ ...-mint-git-stash-warning-_1770205663259.txt |  88 ++++
+ ...Microsoft-Corporation-Al_1770197547012.txt |  97 ++++
+ ...Microsoft-Corporation-Al_1770201966912.txt | 111 ++++
+ ...551-Download-the-React-D_1770152780875.txt |  50 ++
+ ...551-Download-the-React-D_1770161960709.txt | 103 ++++
+ ...551-Download-the-React-D_1770162127407.txt |  66 +++
+ ...551-Download-the-React-D_1770162220346.txt | 261 +++++++++
+ ...551-Download-the-React-D_1770162488226.txt | 146 +++++
+ ...mfxnghmuccevsxwcetej-sup_1770164850113.txt |  55 ++
+ ...mfxnghmuccevsxwcetej-sup_1770164866813.txt |  55 ++
+ ...mfxnghmuccevsxwcetej-sup_1770164868407.txt |  55 ++
+ ...mfxnghmuccevsxwcetej-sup_1770164869336.txt |  55 ++
+ ...mfxnghmuccevsxwcetej-sup_1770164869994.txt |  55 ++
+ ...mfxnghmuccevsxwcetej-sup_1770164882969.txt |  55 ++
+ ...mfxnghmuccevsxwcetej-sup_1770164884078.txt |  55 ++
+ ...mfxnghmuccevsxwcetej-sup_1770164895251.txt |  55 ++
+ ...-This-method-is-forbidde_1770197958806.txt |  80 +++
+ ...-This-method-is-forbidde_1770197965021.txt |  94 ++++
+ attached_assets/image_1770198568847.png       | Bin 0 -> 102019 bytes
+ attached_assets/image_1770201802046.png       | Bin 0 -> 36800 bytes
+ capacitor.config.json                         |   2 +-
+ package-lock.json                             |  20 +
+ package.json                                  |   2 +
+ replit.md                                     |   6 +
+ server/index.cjs                              |  76 +++
+ src/App.jsx                                   | 497 +++++++++++-------
+ src/components/NotificationDebugPanel.jsx     | 308 +++++++++++
+ src/components/OutstandingActionsSection.jsx  |   2 +-
+ src/components/SumsubVerification.jsx         |  95 +++-
+ src/components/SwipeBackWrapper.jsx           | 136 +++++
+ src/hooks/useAndroidBackButton.js             |  26 +
+ src/hooks/useNavigationHistory.js             |  59 +++
+ src/hooks/useSwipeBack.js                     |  77 +++
+ src/lib/NotificationsContext.jsx              | 291 ++++++++--
+ src/lib/useRequiredActions.js                 | 328 ++++++++++--
+ src/pages/ActionsPage.jsx                     |  18 +-
+ src/pages/BiometricsDebugPage.jsx             |   4 +-
+ src/pages/ChangePasswordPage.jsx              |   4 +-
+ src/pages/EditProfilePage.jsx                 |   4 +-
+ src/pages/HomePage.jsx                        |  16 +-
+ src/pages/IdentityCheckPage.jsx               | 302 ++++++++++-
+ src/pages/LegalDocumentationPage.jsx          |   4 +-
+ src/pages/MorePage.jsx                        |  40 +-
+ src/pages/NotificationSettingsPage.jsx        |   2 +-
+ src/pages/ProfileDetailsPage.jsx              |   4 +-
+ src/pages/SettingsPage.jsx                    |   5 +-
+ 49 files changed, 3618 insertions(+), 308 deletions(-)
+ create mode 100644 attached_assets/20260204-1117-48.9650487_1770203880836.gif
+ create mode 100644 attached_assets/Pasted-PS-C-Users-tsiem-StudioProjects-mint-git-stash-warning-_1770204687753.txt
+ create mode 100644 attached_assets/Pasted-PS-C-Users-tsiem-StudioProjects-mint-git-stash-warning-_1770205663259.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1770197547012.txt
+ create mode 100644 attached_assets/Pasted-Windows-PowerShell-Copyright-C-Microsoft-Corporation-Al_1770201966912.txt
+ create mode 100644 attached_assets/Pasted-chunk-NUMECXU6-js-v-5a0cafb6-21551-Download-the-React-D_1770152780875.txt
+ create mode 100644 attached_assets/Pasted-chunk-NUMECXU6-js-v-5a0cafb6-21551-Download-the-React-D_1770161960709.txt
+ create mode 100644 attached_assets/Pasted-chunk-NUMECXU6-js-v-5a0cafb6-21551-Download-the-React-D_1770162127407.txt
+ create mode 100644 attached_assets/Pasted-chunk-NUMECXU6-js-v-5a0cafb6-21551-Download-the-React-D_1770162220346.txt
+ create mode 100644 attached_assets/Pasted-chunk-NUMECXU6-js-v-5a0cafb6-21551-Download-the-React-D_1770162488226.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164850113.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164866813.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164868407.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164869336.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164869994.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164882969.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164884078.txt
+ create mode 100644 attached_assets/Pasted-index-CGKLgcRP-js-82-GET-https-mfxnghmuccevsxwcetej-sup_1770164895251.txt
+ create mode 100644 attached_assets/Pasted-java-lang-IllegalStateException-This-method-is-forbidde_1770197958806.txt
+ create mode 100644 attached_assets/Pasted-java-lang-IllegalStateException-This-method-is-forbidde_1770197965021.txt
+ create mode 100644 attached_assets/image_1770198568847.png
+ create mode 100644 attached_assets/image_1770201802046.png
+ create mode 100644 src/components/NotificationDebugPanel.jsx
+ create mode 100644 src/components/SwipeBackWrapper.jsx
+ create mode 100644 src/hooks/useAndroidBackButton.js
+ create mode 100644 src/hooks/useNavigationHistory.js
+ create mode 100644 src/hooks/useSwipeBack.js
+~/workspace$ 
