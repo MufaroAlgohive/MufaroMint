@@ -1,0 +1,26 @@
+PS C:\Users\tsiem\StudioProjects\mint\android> npm run build
+
+> mint@1.0.0 build
+> vite build
+
+vite v5.4.21 building for production...
+transforming (3) src\main.jsx
+../assets/fonts/future-earth.ttf referenced in ../assets/fonts/future-earth.ttf didn't resolve at build time, it will remain unchanged to be resolved at runtime
+✓ 2753 modules transformed.
+dist/index.html                                               0.64 kB │ gzip:   0.39 kB
+dist/assets/2025-10-16-jse-listed-companies-DoVWVwCj.csv     27.92 kB
+dist/assets/index-CNwCUXU7.css                               85.48 kB │ gzip:  15.67 kB
+dist/assets/index-CgSueBRo.js                                 0.55 kB │ gzip:   0.38 kB
+dist/assets/web-C52Lorl3.js                                   0.76 kB │ gzip:   0.35 kB
+dist/assets/web-BNuDQNNe.js                                   1.00 kB │ gzip:   0.49 kB
+dist/assets/index-DZoAwXwx.js                             1,033.15 kB │ gzip: 282.90 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:                                                                                                                                                                
+- Using dynamic import() to code-split the application                                                                                                                                                                              
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks                                                                                                  
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.                                                                                                                                                         
+✓ built in 9.54s
+PS C:\Users\tsiem\StudioProjects\mint\android> npx cap sync android
+[error] android platform has not been added yet.
+        See the docs for adding the android platform: https://capacitorjs.com/docs/android#adding-the-android-platform
+PS C:\Users\tsiem\St
