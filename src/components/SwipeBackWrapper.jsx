@@ -31,8 +31,9 @@ const SwipeBackWrapper = ({
   enabled = true,
   previousPage = null 
 }) => {
-  // Completely disable swipe on Android web - use browser/hardware back button instead
-  const swipeEnabled = enabled && !isAndroidWeb();
+  // On Android web: swipe works but skip iOS-style visual effects
+  const isAndroid = isAndroidWeb();
+  const showVisualEffects = !isAndroid;
   const containerRef = useRef(null);
   const [swipeProgress, setSwipeProgress] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -55,7 +56,7 @@ const SwipeBackWrapper = ({
   const progressThreshold = 0.5;
 
   const handleTouchStart = useCallback((e) => {
-    if (!swipeEnabled || isAnimating) return;
+    if (!enabled || isAnimating) return;
     
     const touch = e.touches[0];
     touchStartX.current = touch.clientX;
@@ -72,10 +73,10 @@ const SwipeBackWrapper = ({
     if (startedFromEdge.current) {
       setSwipeProgress(0);
     }
-  }, [swipeEnabled, isAnimating]);
+  }, [enabled, isAnimating]);
 
   const handleTouchMove = useCallback((e) => {
-    if (!swipeEnabled || !isSwiping.current || !startedFromEdge.current || isAnimating) return;
+    if (!enabled || !isSwiping.current || !startedFromEdge.current || isAnimating) return;
     
     const touch = e.touches[0];
     const deltaX = touch.clientX - touchStartX.current;
@@ -110,10 +111,10 @@ const SwipeBackWrapper = ({
         triggerHaptic();
       }
     }
-  }, [swipeEnabled, isAnimating, screenWidth]);
+  }, [enabled, isAnimating, screenWidth]);
 
   const handleTouchEnd = useCallback(() => {
-    if (!swipeEnabled || !startedFromEdge.current || isAnimating) {
+    if (!enabled || !startedFromEdge.current || isAnimating) {
       setSwipeProgress(0);
       return;
     }
@@ -148,7 +149,7 @@ const SwipeBackWrapper = ({
     startedFromEdge.current = false;
     velocityRef.current = 0;
     hasPassedThreshold.current = false;
-  }, [swipeEnabled, swipeProgress, onBack, isAnimating]);
+  }, [enabled, swipeProgress, onBack, isAnimating]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -178,8 +179,8 @@ const SwipeBackWrapper = ({
     return 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
   };
 
-  // Only show previous page preview if swipe is enabled (not on Android web)
-  const showPreviousPage = swipeEnabled && (swipeProgress > 0 || isAnimating) && previousPage;
+  // Only show iOS-style visual effects (previous page preview) if not on Android web
+  const showPreviousPage = showVisualEffects && (swipeProgress > 0 || isAnimating) && previousPage;
 
   return (
     <div 
@@ -205,13 +206,13 @@ const SwipeBackWrapper = ({
       <div
         className="relative w-full h-full"
         style={{
-          transform: swipeEnabled && (swipeProgress > 0 || isAnimating) ? `translateX(${translateX}px)` : 'none',
+          transform: showVisualEffects && (swipeProgress > 0 || isAnimating) ? `translateX(${translateX}px)` : 'none',
           transition: getTransition(),
           zIndex: 2,
           backgroundColor: 'inherit',
         }}
       >
-        {swipeEnabled && (swipeProgress > 0 || isAnimating) && (
+        {showVisualEffects && (swipeProgress > 0 || isAnimating) && (
           <div 
             className="absolute left-0 top-0 bottom-0 pointer-events-none"
             style={{
