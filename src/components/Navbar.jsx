@@ -16,11 +16,10 @@ const Navbar = ({ activeTab, setActiveTab }) => {
     Heavy: "HEAVY",
   };
  
-  // Updated tabs to connect to the requested pages
   const tabs = [
     { id: "home", label: "Home", icon: Home },
-    { id: "invest", label: "Portfolio", icon: PieChart }, // Points to InvestPage
-    { id: "statements", label: "Statements", icon: FileText }, // Points to StatementsPage
+    { id: "investments", label: "Portfolio", icon: PieChart },
+    { id: "statements", label: "Statements", icon: FileText },
     { id: "more", label: "More", icon: MoreHorizontal },
   ];
  

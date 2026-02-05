@@ -40,6 +40,7 @@ import LegalDocumentationPage from "./pages/LegalDocumentationPage.jsx";
 import IdentityCheckPage from "./pages/IdentityCheckPage.jsx";
 import BankLinkPage from "./pages/BankLinkPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
+import StatementsPage from "./pages/StatementsPage.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -66,7 +67,7 @@ const getTokensFromHash = (hash) => {
 
 const recoveryTokens = isRecoveryMode ? getTokensFromHash(initialHash) : null;
 
-const mainTabs = ['home', 'credit', 'transact', 'investments', 'more', 'welcome', 'auth'];
+const mainTabs = ['home', 'credit', 'transact', 'investments', 'statements', 'more', 'welcome', 'auth'];
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState(hasError ? "linkExpired" : (isRecoveryMode ? "auth" : "welcome"));
@@ -405,6 +406,19 @@ const App = () => {
             onCloseModal={noOp}
           >
             <MorePage onNavigate={noOp} />
+          </AppLayout>
+        );
+      case 'statements':
+        return (
+          <AppLayout
+            activeTab="statements"
+            onTabChange={noOp}
+            onWithdraw={noOp}
+            onShowComingSoon={noOp}
+            modal={null}
+            onCloseModal={noOp}
+          >
+            <StatementsPage onOpenNotifications={noOp} />
           </AppLayout>
         );
       case 'markets':
@@ -951,6 +965,26 @@ const App = () => {
         onCloseModal={closeModal}
       >
         <MorePage onNavigate={navigateTo} />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "statements") {
+    return (
+      <AppLayout
+        activeTab="statements"
+        onTabChange={setCurrentPage}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <StatementsPage
+          onOpenNotifications={() => {
+            setNotificationReturnPage("statements");
+            navigateTo("notifications");
+          }}
+        />
       </AppLayout>
     );
   }
