@@ -34,6 +34,7 @@ import NewsArticlePage from "./pages/NewsArticlePage.jsx";
 import { NotificationsProvider, createWelcomeNotification, useNotificationsContext } from "./lib/NotificationsContext.jsx";
 import ActivityPage from "./pages/ActivityPage.jsx";
 import ActionsPage from "./pages/ActionsPage.jsx";
+import StatementsPage from "./pages/StatementsPage.jsx";
 import ProfileDetailsPage from "./pages/ProfileDetailsPage.jsx";
 import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
 import LegalDocumentationPage from "./pages/LegalDocumentationPage.jsx";
@@ -66,7 +67,7 @@ const getTokensFromHash = (hash) => {
 
 const recoveryTokens = isRecoveryMode ? getTokensFromHash(initialHash) : null;
 
-const mainTabs = ['home', 'credit', 'transact', 'investments', 'more', 'welcome', 'auth'];
+const mainTabs = ['home', 'portfolio', 'statements', 'more', 'welcome', 'auth'];
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState(hasError ? "linkExpired" : (isRecoveryMode ? "auth" : "welcome"));
@@ -478,6 +479,8 @@ const App = () => {
             onNavigate={noOp}
           />
         );
+      case 'statements':
+        return <StatementsPage onOpenNotifications={noOp} />;
       case 'editProfile':
         return <EditProfilePage onNavigate={noOp} onBack={noOp} />;
       case 'profileDetails':
@@ -1038,6 +1041,19 @@ const App = () => {
         <ActionsPage
           onBack={goBack}
           onNavigate={navigateTo}
+        />
+      </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "statements") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <StatementsPage
+          onOpenNotifications={() => {
+            setNotificationReturnPage("statements");
+            navigateTo("notifications");
+          }}
         />
       </SwipeBackWrapper>
     );

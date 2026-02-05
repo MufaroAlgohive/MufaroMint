@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Settings,
-  BadgeCheck,
   Landmark,
   ReceiptText,
   HelpCircle,
