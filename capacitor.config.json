@@ -1,9 +1,5 @@
 {
   "appId": "com.algohive.mint.app",
   "appName": "Mint",
-  "webDir": "dist",
-  "server": {
-    "url": "https://d376320f-1123-45e9-9cfa-ac3a7687dfb9-00-6pv8s122hgrs.worf.replit.dev",
-    "cleartext": true
-  }
+  "webDir": "dist"
 }
