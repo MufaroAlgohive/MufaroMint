@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { MoreHorizontal, X } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, MoreHorizontal, X } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import NotificationBell from "../components/NotificationBell";
 
@@ -12,6 +12,7 @@ const sampleRows = [
     date: "Jan 15, 2026",
     amount: "$250,000",
     meta: "Allocated",
+    flow: "out",
   },
   {
     type: "Holdings",
@@ -21,6 +22,7 @@ const sampleRows = [
     date: "Feb 01, 2026",
     amount: "$485,200",
     meta: "Market value",
+    flow: "in",
   },
   {
     type: "Reports",
@@ -30,6 +32,7 @@ const sampleRows = [
     date: "Dec 31, 2025",
     amount: "$1.2M",
     meta: "Total assets",
+    flow: "in",
   },
   {
     type: "Strategy",
@@ -39,6 +42,7 @@ const sampleRows = [
     date: "Jan 28, 2026",
     amount: "Medium",
     meta: "Risk level",
+    flow: "out",
   },
   {
     type: "Holdings",
@@ -48,6 +52,7 @@ const sampleRows = [
     date: "Jan 20, 2026",
     amount: "$320,000",
     meta: "Par value",
+    flow: "in",
   },
   {
     type: "Reports",
@@ -57,6 +62,7 @@ const sampleRows = [
     date: "Jan 31, 2026",
     amount: "$12,450",
     meta: "Total dividends",
+    flow: "in",
   },
 ];
 
@@ -154,12 +160,14 @@ const StatementsPage = ({ onOpenNotifications }) => {
           </div>
 
           <div className="mt-4 space-y-2">
-            {pageRows.map((row, idx) => (
-              <div
-                key={idx}
-                onClick={() => setSelectedCard(row)}
-                className="group relative cursor-pointer overflow-hidden rounded-xl bg-white px-3 py-2.5 transition-all hover:bg-slate-50"
-              >
+            {pageRows.map((row, idx) => {
+              const isIncoming = row.flow === "in";
+              return (
+                <div
+                  key={idx}
+                  onClick={() => setSelectedCard(row)}
+                  className="group relative cursor-pointer overflow-hidden rounded-xl bg-white px-3 py-2.5 transition-all hover:bg-slate-50"
+                >
                 <div className="flex items-center gap-3">
                   <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 text-lg">
                     {row.icon}
@@ -171,7 +179,12 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   </div>
 
                   <div className="flex-shrink-0 text-right">
-                    <div className="text-sm text-slate-900">{row.amount}</div>
+                    <div className="flex items-center justify-end gap-1 text-sm text-slate-900">
+                      <span className={isIncoming ? "text-emerald-600" : "text-rose-500"}>
+                        {isIncoming ? <ArrowUpRight className="h-3.5 w-3.5" /> : <ArrowDownRight className="h-3.5 w-3.5" />}
+                      </span>
+                      <span>{row.amount}</span>
+                    </div>
                     <div className="text-[10px] text-slate-400">{row.meta}</div>
                   </div>
 
@@ -184,8 +197,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
                     <MoreHorizontal className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
 
           <div className="mt-6 flex items-center justify-center gap-2">
@@ -275,7 +289,16 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
                     <div className="rounded-2xl bg-slate-50 p-4">
                       <p className="mb-1 text-xs uppercase text-slate-400">Amount</p>
-                      <p className="text-base font-semibold text-slate-900">{selectedCard.amount}</p>
+                      <div className="flex items-center gap-2">
+                        <span className={selectedCard.flow === "in" ? "text-emerald-600" : "text-rose-500"}>
+                          {selectedCard.flow === "in" ? (
+                            <ArrowUpRight className="h-4 w-4" />
+                          ) : (
+                            <ArrowDownRight className="h-4 w-4" />
+                          )}
+                        </span>
+                        <p className="text-base font-semibold text-slate-900">{selectedCard.amount}</p>
+                      </div>
                       <p className="text-[10px] text-slate-400">{selectedCard.meta}</p>
                     </div>
                   </div>
