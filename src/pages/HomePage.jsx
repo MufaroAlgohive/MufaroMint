@@ -316,6 +316,19 @@ const HomePage = ({
   useEffect(() => {
     const fetchStrategies = async () => {
       try {
+        if (!profile?.id) return;
+
+        const { data: userHoldings } = await supabase
+          .from("user_holdings")
+          .select("id")
+          .eq("user_id", profile.id)
+          .limit(1);
+
+        if (!userHoldings || userHoldings.length === 0) {
+          setBestStrategies([]);
+          return;
+        }
+
         const data = await getStrategiesWithMetrics();
         const sorted = data
           .sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
@@ -326,7 +339,7 @@ const HomePage = ({
       }
     };
     fetchStrategies();
-  }, []);
+  }, [profile?.id]);
 
   const holdingsBySymbol = useMemo(() => buildHoldingsBySymbol(holdingsSecurities), [holdingsSecurities]);
 

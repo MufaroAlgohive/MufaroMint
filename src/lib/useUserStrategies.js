@@ -18,7 +18,23 @@ export const useUserStrategies = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const userData = session ? { user: session.user } : { user: null };
+      if (!session?.user) {
+        setData({ strategies: [], selectedStrategy: null, loading: false, error: null });
+        return;
+      }
+
+      const userId = session.user.id;
+
+      const { data: userHoldings, error: holdingsError } = await supabase
+        .from("user_holdings")
+        .select("id")
+        .eq("user_id", userId)
+        .limit(1);
+
+      if (holdingsError || !userHoldings || userHoldings.length === 0) {
+        setData({ strategies: [], selectedStrategy: null, loading: false, error: null });
+        return;
+      }
 
       const { data: strategies, error } = await supabase
         .from("strategies")

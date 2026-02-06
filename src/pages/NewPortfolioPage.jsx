@@ -200,26 +200,6 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
           change: h.change_percent || 0,
         });
       });
-    } else if (strategies && strategies.length > 0) {
-      strategies.forEach(s => {
-        if (Array.isArray(s.holdings)) {
-          s.holdings.forEach(h => {
-            if (h.symbol && !holdingsMap.has(h.symbol)) {
-              const matchedStock = stocksList.find(st => st.ticker === h.symbol);
-              const livePrice = liveQuotes[h.symbol]?.price || matchedStock?.price || 0;
-              const liveChange = liveQuotes[h.symbol]?.changePercent ?? matchedStock?.dailyChange ?? 0;
-              holdingsMap.set(h.symbol, {
-                symbol: h.symbol,
-                name: h.name || matchedStock?.name || h.symbol,
-                weight: h.weight || 0,
-                logo: h.logo_url || matchedStock?.logo || null,
-                currentValue: livePrice * (h.shares || 1),
-                change: liveChange,
-              });
-            }
-          });
-        }
-      });
     }
     return Array.from(holdingsMap.values()).sort((a, b) => b.weight - a.weight);
   }, [rawHoldings, strategies, stocksList, liveQuotes]);
@@ -253,6 +233,52 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
 
   if (strategiesLoading && !strategies.length) {
     return <PortfolioSkeleton />;
+  }
+
+  if (!strategiesLoading && strategies.length === 0) {
+    return (
+      <div className="min-h-screen pb-[env(safe-area-inset-bottom)] text-white relative overflow-x-hidden">
+        <div className="absolute inset-x-0 top-0 -z-10 h-full">
+          <div 
+            className="absolute inset-x-0 top-0"
+            style={{ 
+              height: '100vh',
+              background: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)'
+            }} 
+          />
+        </div>
+        <div className="mx-auto flex w-full max-w-sm flex-col px-4 pt-12 md:max-w-md md:px-6">
+          <header className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-sm font-bold text-white shadow-lg">
+                {initials}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white">{fullName}</p>
+                <p className="text-xs text-white/60">Portfolio</p>
+              </div>
+            </div>
+            <button onClick={onOpenNotifications} className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+              <Bell className="h-5 w-5 text-white" />
+            </button>
+          </header>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/10 backdrop-blur-sm mb-6">
+              <TrendingUp className="h-10 w-10 text-white/60" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">No investments yet</h2>
+            <p className="text-sm text-white/60 mb-8 max-w-xs">Start your investment journey by exploring our curated strategies and building your portfolio.</p>
+            <button
+              onClick={onOpenInvest}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg transition hover:-translate-y-0.5"
+            >
+              <Plus className="h-4 w-4" />
+              Start Investing
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // All Allocations View

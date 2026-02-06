@@ -53,12 +53,27 @@ const StatementsPage = ({ onOpenNotifications }) => {
     let isMounted = true;
 
     const loadStrategies = async () => {
-      if (!supabase) {
+      if (!supabase || !profile?.id) {
         if (isMounted) setStrategiesLoading(false);
         return;
       }
 
       try {
+        const { data: userHoldings } = await supabase
+          .from("user_holdings")
+          .select("id")
+          .eq("user_id", profile.id)
+          .limit(1);
+
+        if (!userHoldings || userHoldings.length === 0) {
+          if (isMounted) {
+            setStrategyRows([]);
+            setRawStrategies([]);
+            setStrategiesLoading(false);
+          }
+          return;
+        }
+
         const { data: strategies, error } = await supabase
           .from("strategies")
           .select("id, name, short_name, description, risk_level, holdings, strategy_metrics(as_of_date, last_close, change_pct, r_1m)")
@@ -132,7 +147,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [profile?.id]);
 
   useEffect(() => {
     if (!supabase || rawStrategies.length === 0) return;
