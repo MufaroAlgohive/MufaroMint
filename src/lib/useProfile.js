@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 const emptyProfile = {
+  id: null,
   email: "",
   firstName: "",
   lastName: "",
@@ -16,6 +17,7 @@ const emptyProfile = {
 const buildProfile = ({ user, row }) => {
   const metadata = user?.user_metadata || {};
   return {
+    id: user?.id,
     email: row?.email || user?.email || "",
     firstName: row?.first_name || metadata.first_name || "",
     lastName: row?.last_name || metadata.last_name || "",
@@ -55,7 +57,6 @@ export const useProfile = () => {
         const user = userData.user;
         const { data: rowData, error: rowError } = await supabase
           .from("profiles")
-
           .select("*") 
           .eq("id", user.id)
           .maybeSingle();

@@ -513,6 +513,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       .slice(0, 10);
   }, [filteredSecurities]);
 
+  const watchedSecurities = useMemo(() => {
+    return securities.filter((s) => watchlist.includes(s.symbol));
+  }, [securities, watchlist]);
+
   const filteredNews = useMemo(() => {
     return newsArticles.filter(article => 
       newsSearchQuery.length === 0 ||
@@ -1066,6 +1070,75 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             {/* Grouped Sections - only show when NOT searching */}
             {!searchQuery && (
               <>
+                
+                {/* Watchlist Section - Only shows if items exist */}
+                {watchedSecurities.length > 0 && (
+                  <section>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-slate-900">My Watchlist</h2>
+                      <ChevronRight className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
+                      {watchedSecurities.map((security) => (
+                        <button
+                          key={security.id}
+                          onClick={() => onOpenStockDetail(security)}
+                          className="relative group flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                        >
+                          {/* Watchlist Star Button */}
+                          <div
+                            onClick={(e) => toggleWatchlist(e, security.symbol)}
+                            className="absolute top-2 right-2 z-10 p-2 rounded-full hover:bg-slate-50 transition-colors"
+                          >
+                            <Star
+                              className="h-5 w-5 fill-yellow-400 text-yellow-400 scale-110"
+                            />
+                          </div>
+
+                          <div className="flex items-start gap-3">
+                            {security.logo_url ? (
+                              <img
+                                src={security.logo_url}
+                                alt={security.symbol}
+                                className="h-12 w-12 rounded-full border border-slate-100 object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-bold text-white">
+                                {security.symbol?.substring(0, 2) || "—"}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate text-sm font-bold text-slate-900">
+                                {security.short_name || security.name}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-500">{security.symbol}</p>
+                              <div className="mt-2">
+                                {security.currentPrice != null ? (
+                                  <>
+                                    <p className="text-lg font-bold text-slate-900">
+                                      <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
+                                      {formatPrice(security)}
+                                    </p>
+                                    {security.changePct != null && (
+                                      <p className={`mt-1 text-xs font-semibold ${
+                                        security.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                      }`}>
+                                        {security.changePct >= 0 ? '+' : ''}{security.changePct.toFixed(2)}%
+                                      </p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-xs text-slate-500">No pricing data</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 {/* Largest Companies Section */}
                 <section>
               <div className="mb-4 flex items-center justify-between">
