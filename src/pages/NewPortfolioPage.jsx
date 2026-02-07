@@ -180,24 +180,31 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
 
   const { holdings: rawHoldings, loading: holdingsLoading, goals: investmentGoals } = useInvestments();
   
-  const displayAccountValue = strategies.length > 0 
-    ? strategies.reduce((sum, s) => sum + (s.currentValue || 0), 0) 
-    : 0;
+  const displayAccountValue = useMemo(() => {
+    const holdingsValue = (rawHoldings || []).reduce((sum, h) => sum + ((h.market_value || 0) / 100), 0);
+    if (holdingsValue > 0) return holdingsValue;
+    return strategies.length > 0 
+      ? strategies.reduce((sum, s) => sum + (s.currentValue || 0), 0) 
+      : 0;
+  }, [rawHoldings, strategies]);
 
   const allStrategyHoldings = useMemo(() => {
     const holdingsMap = new Map();
     if (rawHoldings && rawHoldings.length > 0) {
-      const totalValue = rawHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0);
+      const totalValue = rawHoldings.reduce((sum, h) => sum + ((h.market_value || 0) / 100), 0);
       rawHoldings.forEach(h => {
-        const sym = h.securities?.symbol || h.symbol || "N/A";
-        const weight = totalValue > 0 ? ((h.current_value || 0) / totalValue) * 100 : 0;
+        const sym = h.symbol || "N/A";
+        const currentValue = (h.market_value || 0) / 100;
+        const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
+        const changePct = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
+        const weight = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
         holdingsMap.set(sym, {
           symbol: sym,
-          name: h.securities?.name || h.name || "Unknown",
+          name: h.name || "Unknown",
           weight,
-          logo: h.securities?.logo_url || null,
-          currentValue: h.current_value || 0,
-          change: h.change_percent || 0,
+          logo: h.logo_url || null,
+          currentValue,
+          change: changePct,
         });
       });
     }

@@ -39,14 +39,27 @@ export const useFinancialData = () => {
         supabase.from("user_balances").select("*").eq("user_id", userId).maybeSingle(),
         supabase.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
         supabase.from("transactions").select("type, amount").eq("user_id", userId),
-        supabase.from("stock_holdings").select("*, securities(symbol, name, logo_url)").eq("user_id", userId),
+        supabase.from("stock_holdings").select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status").eq("user_id", userId),
         supabase.from("credit_accounts").select("*").eq("user_id", userId).maybeSingle(),
       ]);
 
       const transactions = recentTransactionsResult.data || [];
       const allTransactions = allTransactionsResult.data || [];
-      const holdings = holdingsResult.data || [];
+      const rawHoldingsData = holdingsResult.data || [];
       const creditInfo = creditResult.data;
+
+      const hSecIds = rawHoldingsData.map(h => h.security_id).filter(Boolean);
+      let hSecMap = {};
+      if (hSecIds.length > 0) {
+        const { data: secData } = await supabase.from("securities").select("id, symbol, name, logo_url").in("id", hSecIds);
+        if (secData) secData.forEach(s => { hSecMap[s.id] = s; });
+      }
+      const holdings = rawHoldingsData.map(h => ({
+        ...h,
+        symbol: hSecMap[h.security_id]?.symbol || "N/A",
+        name: hSecMap[h.security_id]?.name || "Unknown",
+        logo_url: hSecMap[h.security_id]?.logo_url || null,
+      }));
 
       const sortedHoldings = [...holdings].sort((a, b) => {
         const aGain = (a.unrealized_pnl || 0) / 100;
@@ -59,11 +72,11 @@ export const useFinancialData = () => {
         const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
         const changePercent = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
         return {
-          symbol: h.securities?.symbol || h.symbol || "N/A",
-          name: h.securities?.name || h.name || "Unknown",
+          symbol: h.symbol,
+          name: h.name,
           value: currentValue,
           change: changePercent,
-          logo: h.securities?.logo_url || null,
+          logo: h.logo_url,
         };
       });
 
@@ -333,12 +346,32 @@ export const useInvestments = () => {
         const userId = session.user.id;
 
         const [holdingsResult, goalsResult] = await Promise.all([
-          supabase.from("stock_holdings").select("*, securities(symbol, name, asset_class, logo_url)").eq("user_id", userId),
+          supabase.from("stock_holdings").select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status").eq("user_id", userId),
           supabase.from("investment_goals").select("*").eq("user_id", userId),
         ]);
 
-        const holdings = holdingsResult.data || [];
+        const rawHoldings = holdingsResult.data || [];
         const goals = goalsResult.data || [];
+
+        const securityIds = rawHoldings.map(h => h.security_id).filter(Boolean);
+        let securitiesMap = {};
+        if (securityIds.length > 0) {
+          const { data: secData } = await supabase
+            .from("securities")
+            .select("id, symbol, name, asset_class, logo_url")
+            .in("id", securityIds);
+          if (secData) {
+            secData.forEach(s => { securitiesMap[s.id] = s; });
+          }
+        }
+
+        const holdings = rawHoldings.map(h => ({
+          ...h,
+          symbol: securitiesMap[h.security_id]?.symbol || "N/A",
+          name: securitiesMap[h.security_id]?.name || "Unknown",
+          asset_class: securitiesMap[h.security_id]?.asset_class || "Other",
+          logo_url: securitiesMap[h.security_id]?.logo_url || null,
+        }));
 
         const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
         const monthlyChange = holdings.reduce((sum, h) => sum + ((h.unrealized_pnl || 0) / 100), 0);
@@ -346,7 +379,7 @@ export const useInvestments = () => {
 
         const assetClasses = {};
         holdings.forEach((h) => {
-          const assetClass = h.securities?.asset_class || h.asset_class || "Other";
+          const assetClass = h.asset_class || "Other";
           const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
           assetClasses[assetClass] = (assetClasses[assetClass] || 0) + costBasis;
         });

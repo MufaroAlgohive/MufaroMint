@@ -59,13 +59,14 @@ const StatementsPage = ({ onOpenNotifications }) => {
       }
 
       try {
-        const { data: userHoldings } = await supabase
-          .from("stock_holdings")
-          .select("id")
-          .eq("user_id", profile.id)
-          .limit(1);
+        const { data: userStrategyLinks } = await supabase
+          .from("user_strategies")
+          .select("strategy_id")
+          .eq("user_id", profile.id);
 
-        if (!userHoldings || userHoldings.length === 0) {
+        const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
+
+        if (subscribedIds.length === 0) {
           if (isMounted) {
             setStrategyRows([]);
             setRawStrategies([]);
@@ -77,6 +78,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
         const { data: strategies, error } = await supabase
           .from("strategies")
           .select("id, name, short_name, description, risk_level, holdings, strategy_metrics(as_of_date, last_close, change_pct, r_1m)")
+          .in("id", subscribedIds)
           .eq("status", "active");
 
         if (error) throw error;
@@ -244,22 +246,22 @@ const StatementsPage = ({ onOpenNotifications }) => {
             : "—";
           const quantity = Number(holding.quantity);
           const avgFill = Number(holding.avg_fill);
-          const lastPrice = Number(security?.last_price);
-          const marketPriceValue = Number.isFinite(lastPrice) ? lastPrice * 100 : NaN;
+          const lastPriceCents = Number(security?.last_price);
+          const marketPriceValue = Number.isFinite(lastPriceCents) ? lastPriceCents : NaN;
           const marketValue = Number.isFinite(marketPriceValue) && Number.isFinite(quantity)
             ? marketPriceValue * quantity
             : NaN;
           const formattedQty = Number.isFinite(quantity)
             ? quantity.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 6 })
             : "—";
-          const formattedAvg = Number.isFinite(avgFill) ? formatCurrency(avgFill) : "—";
-          const formattedPrice = Number.isFinite(marketPriceValue) ? formatCurrency(marketPriceValue) : "—";
-          const formattedValue = Number.isFinite(marketValue) ? formatCurrency(marketValue) : "—";
+          const formattedAvg = Number.isFinite(avgFill) ? formatCurrency(avgFill / 100) : "—";
+          const formattedPrice = Number.isFinite(marketPriceValue) ? formatCurrency(marketPriceValue / 100) : "—";
+          const formattedValue = Number.isFinite(marketValue) ? formatCurrency(marketValue / 100) : "—";
           const computedUnrealized = Number.isFinite(marketPriceValue) && Number.isFinite(avgFill) && Number.isFinite(quantity)
             ? (marketPriceValue - avgFill) * quantity
             : NaN;
           const formattedPnl = Number.isFinite(computedUnrealized)
-            ? `${computedUnrealized < 0 ? "-" : "+"}${formatCurrency(Math.abs(computedUnrealized))}`
+            ? `${computedUnrealized < 0 ? "-" : "+"}${formatCurrency(Math.abs(computedUnrealized) / 100)}`
             : "—";
 
           return {

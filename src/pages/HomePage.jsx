@@ -202,40 +202,90 @@ const HomePage = ({
   const fetchBestAssets = React.useCallback(async () => {
     if (!profile?.id) return;
     try {
-      const { data, error } = await supabase
+      const { data: holdings, error: holdingsError } = await supabase
+        .from('stock_holdings')
+        .select('id, security_id, quantity, avg_fill, market_value, unrealized_pnl')
+        .eq('user_id', profile.id)
+        .order('market_value', { ascending: false })
+        .limit(5);
+
+      if (holdingsError) throw holdingsError;
+
+      if (holdings && holdings.length > 0) {
+        const securityIds = holdings.map(h => h.security_id).filter(Boolean);
+        let securitiesMap = {};
+        let metricsMap = {};
+        if (securityIds.length > 0) {
+          const [secResult, metResult] = await Promise.all([
+            supabase.from('securities').select('id, symbol, name, logo_url').in('id', securityIds),
+            supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
+          ]);
+          if (secResult.data) {
+            secResult.data.forEach(s => { securitiesMap[s.id] = s; });
+          }
+          if (metResult.data) {
+            metResult.data.forEach(m => { metricsMap[m.security_id] = m.change_pct || 0; });
+          }
+        }
+
+        const formatted = holdings
+          .filter(h => securitiesMap[h.security_id])
+          .map(h => {
+            const sec = securitiesMap[h.security_id];
+            return {
+              symbol: sec.symbol,
+              name: sec.name,
+              logo: sec.logo_url,
+              value: (h.market_value || 0) / 100,
+              change: metricsMap[h.security_id] || 0,
+            };
+          });
+
+        setLocalBestAssets(formatted);
+        return;
+      }
+
+      const { data: allocData, error: allocError } = await supabase
         .from('allocations')
-        .select(`
-          value,
-          security_id,
-          securities!inner ( symbol, name, logo_url )
-        `)
+        .select('value, security_id')
         .eq('user_id', profile.id)
         .order('value', { ascending: false })
         .limit(5);
 
-      if (error) throw error;
+      if (allocError) throw allocError;
 
-      const securityIds = data.map(item => item.security_id).filter(Boolean);
-      let metricsMap = {};
-      if (securityIds.length > 0) {
-        const { data: metricsData } = await supabase
-          .from('security_metrics')
-          .select('security_id, change_pct')
-          .in('security_id', securityIds);
-        if (metricsData) {
-          metricsData.forEach(m => { metricsMap[m.security_id] = m.change_pct || 0; });
+      if (allocData && allocData.length > 0) {
+        const securityIds = allocData.map(item => item.security_id).filter(Boolean);
+        let securitiesMap = {};
+        let metricsMap = {};
+        if (securityIds.length > 0) {
+          const [secResult, metResult] = await Promise.all([
+            supabase.from('securities').select('id, symbol, name, logo_url').in('id', securityIds),
+            supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
+          ]);
+          if (secResult.data) {
+            secResult.data.forEach(s => { securitiesMap[s.id] = s; });
+          }
+          if (metResult.data) {
+            metResult.data.forEach(m => { metricsMap[m.security_id] = m.change_pct || 0; });
+          }
         }
+
+        const formatted = allocData
+          .filter(item => securitiesMap[item.security_id])
+          .map(item => {
+            const sec = securitiesMap[item.security_id];
+            return {
+              symbol: sec.symbol,
+              name: sec.name,
+              logo: sec.logo_url,
+              value: item.value,
+              change: metricsMap[item.security_id] || 0,
+            };
+          });
+
+        setLocalBestAssets(formatted);
       }
-
-      const formatted = data.map(item => ({
-        symbol: item.securities.symbol,
-        name: item.securities.name,
-        logo: item.securities.logo_url,
-        value: item.value,
-        change: metricsMap[item.security_id] || 0
-      }));
-
-      setLocalBestAssets(formatted); 
     } catch (e) { 
       console.error("Asset fetch error:", e.message); 
     }
@@ -318,24 +368,27 @@ const HomePage = ({
       try {
         if (!profile?.id) return;
 
-        const { data: userHoldings } = await supabase
-          .from("stock_holdings")
-          .select("id")
-          .eq("user_id", profile.id)
-          .limit(1);
+        const { data: userStrategyLinks, error: linksError } = await supabase
+          .from("user_strategies")
+          .select("strategy_id")
+          .eq("user_id", profile.id);
 
-        if (!userHoldings || userHoldings.length === 0) {
+        const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
+
+        if (subscribedIds.length === 0) {
           setBestStrategies([]);
           return;
         }
 
         const data = await getStrategiesWithMetrics();
-        const sorted = data
+        const filtered = data
+          .filter(s => subscribedIds.includes(s.id))
           .sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
           .slice(0, 5);
-        setBestStrategies(sorted);
+        setBestStrategies(filtered);
       } catch (error) {
         console.error("Failed to load strategies", error);
+        setBestStrategies([]);
       }
     };
     fetchStrategies();
@@ -1278,8 +1331,9 @@ function formatDate(dateString) {
 
 function formatAmount(amount, type) {
   if (amount === undefined || amount === null) return "R0";
-  const isPositive = type === "deposit" || type === "credit" || type === "gain" || amount > 0;
-  const sign = isPositive ? "+" : "-";
+  const isNegative = type === "withdrawal" || type === "expense" || type === "buy";
+  const isPositive = type === "deposit" || type === "credit" || type === "gain";
+  const sign = isNegative ? "-" : (isPositive ? "+" : (amount >= 0 ? "+" : "-"));
   return `${sign}R${Math.abs(amount).toLocaleString()}`;
 }
 

@@ -55,7 +55,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
       // Fetching specifically from your defined tables
       const { data: holdings } = await supabase
         .from('stock_holdings')
-        .select('*, securities(name, symbol, logo_url)')
+        .select('id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status')
         .eq('user_id', userId);
 
       const { data: snapshots } = await supabase
@@ -69,11 +69,24 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
         .select('*', { count: 'exact', head: true });
 
       if (holdings) {
-        const mValue = holdings.reduce((acc, h) => acc + Number(h.market_value || 0) / 100, 0);
-        const invested = holdings.reduce((acc, h) => acc + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100, 0);
+        const secIds = holdings.map(h => h.security_id).filter(Boolean);
+        let secMap = {};
+        if (secIds.length > 0) {
+          const { data: secData } = await supabase.from('securities').select('id, symbol, name, logo_url').in('id', secIds);
+          if (secData) secData.forEach(s => { secMap[s.id] = s; });
+        }
+        const enrichedHoldings = holdings.map(h => ({
+          ...h,
+          symbol: secMap[h.security_id]?.symbol || "N/A",
+          name: secMap[h.security_id]?.name || "Unknown",
+          logo_url: secMap[h.security_id]?.logo_url || null,
+        }));
+
+        const mValue = enrichedHoldings.reduce((acc, h) => acc + Number(h.market_value || 0) / 100, 0);
+        const invested = enrichedHoldings.reduce((acc, h) => acc + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100, 0);
 
         setDbData({
-          holdings,
+          holdings: enrichedHoldings,
           snapshots: snapshots?.map(s => ({ d: s.snapshot_date, v: Number(s.total_balance) })) || [],
           strategiesCount: sCount || 0,
           totalMarketValue: mValue,
@@ -175,7 +188,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
           <button onClick={() => setIsOpen(!isOpen)} className="mt-2 flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/5">
             <div className="flex items-center gap-2">
               <LayoutGrid size={12} className="text-violet-400" />
-              <span className="text-[10px] font-medium text-white/80">{selectedAsset ? selectedAsset.securities?.symbol : "All Investments"}</span>
+              <span className="text-[10px] font-medium text-white/80">{selectedAsset ? selectedAsset.symbol : "All Investments"}</span>
             </div>
             {isOpen ? <ChevronUp size={14} className="opacity-50" /> : <ChevronDown size={14} className="opacity-50" />}
           </button>
@@ -192,9 +205,9 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
             {dbData.holdings.map((item, idx) => (
               <button key={idx} onClick={() => { setSelectedAsset(item); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset === item ? 'bg-white/10' : 'hover:bg-white/5'}`}>
                 <div className="w-4 h-4 rounded-full overflow-hidden bg-white/10 shrink-0">
-                  {item.securities?.logo_url ? <img src={item.securities.logo_url} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center w-full h-full text-[6px] text-white/60">{item.securities?.symbol?.substring(0, 2)}</span>}
+                  {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center w-full h-full text-[6px] text-white/60">{item.symbol?.substring(0, 2)}</span>}
                 </div>
-                <span className="text-[9px] font-medium text-white/90 truncate">{item.securities?.symbol}</span>
+                <span className="text-[9px] font-medium text-white/90 truncate">{item.symbol}</span>
               </button>
             ))}
           </div>

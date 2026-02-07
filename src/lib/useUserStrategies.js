@@ -25,13 +25,14 @@ export const useUserStrategies = () => {
 
       const userId = session.user.id;
 
-      const { data: userHoldings, error: holdingsError } = await supabase
-        .from("stock_holdings")
-        .select("id")
-        .eq("user_id", userId)
-        .limit(1);
+      const { data: userStrategyLinks } = await supabase
+        .from("user_strategies")
+        .select("strategy_id")
+        .eq("user_id", userId);
 
-      if (holdingsError || !userHoldings || userHoldings.length === 0) {
+      const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
+
+      if (subscribedIds.length === 0) {
         setData({ strategies: [], selectedStrategy: null, loading: false, error: null });
         return;
       }
@@ -59,6 +60,7 @@ export const useUserStrategies = () => {
             r_1y
           )
         `)
+        .in("id", subscribedIds)
         .eq("status", "active")
         .limit(5);
 
