@@ -38,7 +38,8 @@ const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
         key: publicKey,
         email: profile?.email || "user@example.com",
         amount: chargeAmount,
-        currency: strategy?.currency || "ZAR",
+        currency: "ZAR",
+        channels: ["card", "bank", "bank_transfer"],
         ref: `MINT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         metadata: {
           strategy_id: strategy?.id,
