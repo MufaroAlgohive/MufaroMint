@@ -887,14 +887,18 @@ app.get("/api/stocks/chart", async (req, res) => {
 async function authenticateUser(req) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return { user: null, error: "Missing or invalid Authorization header" };
+    return { user: null, error: "Missing or invalid Authorization header", client: null };
   }
   const token = authHeader.replace("Bearer ", "");
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) {
-    return { user: null, error: error?.message || "Invalid token" };
+    return { user: null, error: error?.message || "Invalid token", client: null };
   }
-  return { user: data.user, error: null };
+  const { createClient } = require('@supabase/supabase-js');
+  const authenticatedClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+  return { user: data.user, error: null, client: authenticatedClient };
 }
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
@@ -922,11 +926,12 @@ app.post("/api/record-investment", async (req, res) => {
       return res.status(500).json({ success: false, error: "Database not connected" });
     }
 
-    const { user, error: authError } = await authenticateUser(req);
-    if (authError || !user) {
+    const { user, error: authError, client: authClient } = await authenticateUser(req);
+    if (authError || !user || !authClient) {
       return res.status(401).json({ success: false, error: authError || "Unauthorized" });
     }
     const userId = user.id;
+    const db = authClient;
 
     const { securityId, symbol, name, amount, strategyId, paymentReference } = req.body;
 
@@ -945,7 +950,7 @@ app.post("/api/record-investment", async (req, res) => {
     }
 
     let currentPriceCents = null;
-    const { data: securityData, error: secError } = await supabase
+    const { data: securityData, error: secError } = await db
       .from("securities")
       .select("last_price")
       .eq("id", securityId)
@@ -954,7 +959,7 @@ app.post("/api/record-investment", async (req, res) => {
     if (!secError && securityData?.last_price) {
       currentPriceCents = Number(securityData.last_price);
     } else {
-      const { data: priceData, error: priceError } = await supabase
+      const { data: priceData, error: priceError } = await db
         .from("security_prices")
         .select("close_price")
         .eq("security_id", securityId)
@@ -972,7 +977,7 @@ app.post("/api/record-investment", async (req, res) => {
     const avgFillCents = currentPriceCents || Math.round(amount * 100);
     const marketValueCents = Math.round(quantity * (currentPriceCents || amount * 100));
 
-    const { data: existing, error: fetchError } = await supabase
+    const { data: existing, error: fetchError } = await db
       .from("stock_holdings")
       .select("id, quantity, avg_fill, market_value")
       .eq("user_id", userId)
@@ -991,7 +996,7 @@ app.post("/api/record-investment", async (req, res) => {
       const newQty = oldQty + quantity;
       const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (avgFillCents * quantity)) / newQty : avgFillCents;
       const newMarketValue = Math.round(newQty * (currentPriceCents || newAvgFill));
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("stock_holdings")
         .update({
           quantity: newQty,
@@ -1014,7 +1019,7 @@ app.post("/api/record-investment", async (req, res) => {
         as_of_date: new Date().toISOString().split("T")[0],
         Status: "active",
       };
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("stock_holdings")
         .insert(holdingData)
         .select();
@@ -1027,7 +1032,7 @@ app.post("/api/record-investment", async (req, res) => {
     }
 
     const qtyText = quantity === 1 ? "1 share" : `${quantity.toFixed(4)} shares`;
-    const { error: txError } = await supabase
+    const { error: txError } = await db
       .from("transactions")
       .insert({
         user_id: userId,
