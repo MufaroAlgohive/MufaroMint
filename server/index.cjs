@@ -884,6 +884,167 @@ app.get("/api/stocks/chart", async (req, res) => {
   }
 });
 
+async function authenticateUser(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return { user: null, error: "Missing or invalid Authorization header" };
+  }
+  const token = authHeader.replace("Bearer ", "");
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) {
+    return { user: null, error: error?.message || "Invalid token" };
+  }
+  return { user: data.user, error: null };
+}
+
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+
+async function verifyPaystackPayment(reference) {
+  if (!PAYSTACK_SECRET_KEY) {
+    return { verified: false, error: "Paystack secret key not configured" };
+  }
+  const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+    },
+  });
+  const result = await response.json();
+  if (!result.status || result.data?.status !== "success") {
+    return { verified: false, error: "Payment not successful", data: result.data };
+  }
+  return { verified: true, data: result.data };
+}
+
+app.post("/api/record-investment", async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: "Database not connected" });
+    }
+
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: authError || "Unauthorized" });
+    }
+    const userId = user.id;
+
+    const { securityId, symbol, name, amount, strategyId, paymentReference } = req.body;
+
+    if (!securityId || !amount || !paymentReference) {
+      return res.status(400).json({ success: false, error: "Missing required fields: securityId, amount, paymentReference" });
+    }
+
+    const { verified, error: payError, data: payData } = await verifyPaystackPayment(paymentReference);
+    if (!verified) {
+      return res.status(400).json({ success: false, error: payError || "Payment verification failed" });
+    }
+
+    const paidAmount = payData.amount / 100;
+    if (Math.abs(paidAmount - amount) > 1) {
+      return res.status(400).json({ success: false, error: `Amount mismatch: paid ${paidAmount}, expected ${amount}` });
+    }
+
+    let currentPrice = amount;
+    const { data: securityData, error: secError } = await supabase
+      .from("securities")
+      .select("current_price")
+      .eq("id", securityId)
+      .maybeSingle();
+
+    if (!secError && securityData?.current_price) {
+      currentPrice = securityData.current_price;
+    } else {
+      const { data: priceData, error: priceError } = await supabase
+        .from("security_prices")
+        .select("price")
+        .eq("security_id", securityId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!priceError && priceData?.price) {
+        currentPrice = priceData.price;
+      }
+    }
+
+    const shares = currentPrice > 0 ? amount / currentPrice : 1;
+
+    const { data: existing, error: fetchError } = await supabase
+      .from("user_holdings")
+      .select("id, shares, cost_basis, current_value")
+      .eq("user_id", userId)
+      .eq("security_id", securityId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("Error checking existing holding:", fetchError);
+      return res.status(500).json({ success: false, error: fetchError.message });
+    }
+
+    let holdingResult;
+    if (existing) {
+      const newShares = (existing.shares || 0) + shares;
+      const newCostBasis = (existing.cost_basis || 0) + amount;
+      const newCurrentValue = (existing.current_value || 0) + amount;
+      const { data, error } = await supabase
+        .from("user_holdings")
+        .update({
+          shares: newShares,
+          cost_basis: newCostBasis,
+          current_value: newCurrentValue,
+        })
+        .eq("id", existing.id)
+        .select();
+      holdingResult = { data, error };
+    } else {
+      const holdingData = {
+        user_id: userId,
+        security_id: securityId,
+        shares: shares,
+        cost_basis: amount,
+        current_value: amount,
+        change_percent: 0,
+        daily_change: 0,
+      };
+      if (strategyId) {
+        holdingData.strategy_id = strategyId;
+      }
+      const { data, error } = await supabase
+        .from("user_holdings")
+        .insert(holdingData)
+        .select();
+      holdingResult = { data, error };
+    }
+
+    if (holdingResult.error) {
+      console.error("Error upserting holding:", holdingResult.error);
+      return res.status(500).json({ success: false, error: holdingResult.error.message });
+    }
+
+    const sharesText = shares === 1 ? "1 share" : `${shares.toFixed(4)} shares`;
+    const { error: txError } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: userId,
+        type: "buy",
+        amount: amount,
+        description: `Purchased ${sharesText} of ${name || symbol || "Unknown"}`,
+        reference: paymentReference || null,
+        status: "completed",
+        created_at: new Date().toISOString(),
+      });
+
+    if (txError) {
+      console.error("Error inserting transaction:", txError);
+    }
+
+    res.json({ success: true, holding: holdingResult.data });
+  } catch (error) {
+    console.error("Record investment error:", error);
+    res.status(500).json({ success: false, error: error.message || "Failed to record investment" });
+  }
+});
+
 const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TruID API server running on port ${PORT}`);

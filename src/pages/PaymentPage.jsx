@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
+import { supabase } from "../lib/supabase";
 
 const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
   const { profile } = useProfile();
@@ -53,9 +54,34 @@ const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
           setErrorMessage("Payment cancelled");
           setTimeout(() => onCancel?.(), 2000);
         },
-        onSuccess: function (response) {
+        onSuccess: async function (response) {
           console.log("Payment successful:", response);
           setPaymentStatus("success");
+
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const recordData = {
+              securityId: strategy?.id,
+              symbol: strategy?.symbol || strategy?.short_name || "",
+              name: strategy?.name || "",
+              amount: amount,
+              strategyId: strategy?.strategyId || null,
+              paymentReference: response?.reference || "",
+            };
+            const headers = { "Content-Type": "application/json" };
+            if (token) {
+              headers["Authorization"] = `Bearer ${token}`;
+            }
+            await fetch("/api/record-investment", {
+              method: "POST",
+              headers,
+              body: JSON.stringify(recordData),
+            });
+          } catch (recordError) {
+            console.error("Failed to record investment:", recordError);
+          }
+
           setTimeout(() => {
             onSuccess?.(response);
           }, 2000);
