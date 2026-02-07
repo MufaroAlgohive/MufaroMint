@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Eye, EyeOff, TrendingUp, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
 import { Area, ComposedChart, Line, ResponsiveContainer, YAxis } from "recharts";
-import { supabase } from "../lib/supabase"; // Existing team client
+import { supabase } from "../lib/supabase";
 
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
 
@@ -13,9 +13,11 @@ const formatKMB = (value) => {
   if (absNum >= 1e9) formatted = (absNum / 1e9).toFixed(1) + "b";
   else if (absNum >= 1e6) formatted = (absNum / 1e6).toFixed(1) + "m";
   else if (absNum >= 1e3) formatted = (absNum / 1e3).toFixed(1) + "k";
-  else formatted = absNum.toFixed(0);
+  else formatted = absNum.toFixed(2);
   return `${sign}R${formatted}`;
 };
+
+const TIMEFRAME_DAYS = { "1m": 45, "3m": 110, "6m": 220 };
 
 const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => {
   const [activeTab, setActiveTab] = useState("1m");
@@ -26,27 +28,18 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
   }, [isBackFacing]);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
   
   const [dbData, setDbData] = useState({
     holdings: [],
-    snapshots: [],
-    strategiesCount: 0,
     totalMarketValue: 0, 
     totalInvested: 0,
-    strategyMarketValue: 0,
-    strategyInvested: 0
-  });
-
-  const [localVisible, setLocalVisible] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.localStorage.getItem(VISIBILITY_STORAGE_KEY) !== "false";
-    }
-    return true;
+    holdingsCount: 0,
   });
 
   const isVisible = true;
 
-  // Isolated Fetch Logic: Only affects this component
   useEffect(() => {
     const loadData = async () => {
       if (!userId) return;
@@ -55,35 +48,20 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      const [holdingsRes, snapshotsResult, strategiesCountResult] = await Promise.all([
-        token
-          ? fetch('/api/user/holdings', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : { holdings: [] })
-          : Promise.resolve({ holdings: [] }),
-        supabase
-          .from('mint_balance_snapshots')
-          .select('snapshot_date, total_balance')
-          .eq('user_id', userId)
-          .order('snapshot_date', { ascending: true }),
-        supabase
-          .from('strategies')
-          .select('*', { count: 'exact', head: true }),
-      ]);
+      const holdingsRes = token
+        ? await fetch('/api/user/holdings', { headers: { Authorization: `Bearer ${token}` } }).then(r => r.ok ? r.json() : { holdings: [] })
+        : { holdings: [] };
 
       const enrichedHoldings = holdingsRes.holdings || [];
-      const snapshots = snapshotsResult.data;
-      const sCount = strategiesCountResult.count;
 
       const mValue = enrichedHoldings.reduce((acc, h) => acc + Number(h.market_value || 0) / 100, 0);
       const invested = enrichedHoldings.reduce((acc, h) => acc + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100, 0);
 
       setDbData({
         holdings: enrichedHoldings,
-        snapshots: snapshots?.map(s => ({ d: s.snapshot_date, v: Number(s.total_balance) })) || [],
-        strategiesCount: sCount || 0,
         totalMarketValue: mValue,
         totalInvested: invested,
-        strategyMarketValue: mValue * 0.3, 
-        strategyInvested: invested * 0.35
+        holdingsCount: enrichedHoldings.length,
       });
       setLoading(false);
     };
@@ -91,30 +69,124 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
   }, [userId]);
 
   useEffect(() => {
-    const fetchChartData = async () => {
-      if (!userId) return;
+    const fetchChartPrices = async () => {
+      if (!userId || dbData.holdings.length === 0) {
+        setChartData([]);
+        return;
+      }
+      setChartLoading(true);
 
-      const { data, error } = await supabase.rpc('get_isolated_portfolio_history', {
-        p_user_id: userId,
-        p_security_id: selectedAsset?.security_id || null 
+      const days = TIMEFRAME_DAYS[activeTab] || 45;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffISO = cutoff.toISOString();
+
+      const holdingsToChart = selectedAsset
+        ? [selectedAsset]
+        : dbData.holdings;
+
+      const totalWeight = holdingsToChart.reduce((s, h) => s + Number(h.market_value || 0), 0);
+      if (totalWeight === 0) {
+        setChartData([]);
+        setChartLoading(false);
+        return;
+      }
+
+      const pricePromises = holdingsToChart.map(async (h) => {
+        const secId = h.security_id;
+        if (!secId) return null;
+
+        const { data, error } = await supabase
+          .from("security_prices")
+          .select("ts, close_price")
+          .eq("security_id", secId)
+          .gte("ts", cutoffISO)
+          .order("ts", { ascending: true });
+
+        if (error || !data || data.length === 0) return null;
+
+        return {
+          securityId: secId,
+          weight: Number(h.market_value || 0) / totalWeight,
+          quantity: Number(h.quantity || 1),
+          prices: data.map(p => ({ ts: p.ts.split("T")[0], close: Number(p.close_price) / 100 })),
+        };
       });
 
-      if (!error && data) {
-        setDbData(prev => ({
-          ...prev,
-          snapshots: data.map(point => ({ d: point.d, v: Number(point.v) }))
-        }));
+      const allPrices = (await Promise.all(pricePromises)).filter(Boolean);
+      if (allPrices.length === 0) {
+        setChartData([]);
+        setChartLoading(false);
+        return;
       }
+
+      if (selectedAsset && allPrices.length === 1) {
+        const qty = Number(selectedAsset.quantity || 1);
+        const points = allPrices[0].prices.map(p => ({
+          d: p.ts,
+          v: Number((p.close * qty).toFixed(2)),
+        }));
+        setChartData(points);
+        setChartLoading(false);
+        return;
+      }
+
+      const dateSet = new Set();
+      allPrices.forEach(({ prices }) => prices.forEach(p => dateSet.add(p.ts)));
+      const sortedDates = Array.from(dateSet).sort();
+
+      const basePrices = {};
+      allPrices.forEach(({ securityId, prices }) => {
+        if (prices.length > 0) basePrices[securityId] = prices[0].close;
+      });
+
+      const priceByDate = {};
+      allPrices.forEach(({ securityId, prices }) => {
+        priceByDate[securityId] = {};
+        prices.forEach(p => { priceByDate[securityId][p.ts] = p.close; });
+      });
+
+      const basePortfolioValue = holdingsToChart.reduce((s, h) => s + Number(h.market_value || 0) / 100, 0) || 1;
+
+      const points = [];
+      sortedDates.forEach(dateKey => {
+        let weightedReturn = 0;
+        let usedWeight = 0;
+
+        allPrices.forEach(({ securityId, weight }) => {
+          const current = priceByDate[securityId]?.[dateKey];
+          const base = basePrices[securityId];
+          if (current && base && base !== 0) {
+            const ret = current / base;
+            weightedReturn += ret * weight;
+            usedWeight += weight;
+          }
+        });
+
+        if (usedWeight > 0) {
+          const normalizedReturn = weightedReturn / usedWeight;
+          const portfolioValue = basePortfolioValue * normalizedReturn;
+          points.push({ d: dateKey, v: Number(portfolioValue.toFixed(2)) });
+        }
+      });
+
+      setChartData(points);
+      setChartLoading(false);
     };
 
-    fetchChartData();
-  }, [userId, selectedAsset]);
+    fetchChartPrices();
+  }, [userId, dbData.holdings, activeTab, selectedAsset]);
 
-  const portfolioReturn = dbData.totalMarketValue - dbData.totalInvested;
-  const strategyReturn = dbData.strategyMarketValue - dbData.strategyInvested;
-  const portfolioIsLoss = portfolioReturn < 0;
-  const strategyIsLoss = strategyReturn < 0;
-  const chartColor = portfolioIsLoss ? "#FB7185" : "#10B981"; 
+  const displayMarketValue = selectedAsset
+    ? Number(selectedAsset.market_value || 0) / 100
+    : dbData.totalMarketValue;
+  const displayInvested = selectedAsset
+    ? (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100
+    : dbData.totalInvested;
+  const displayReturn = displayMarketValue - displayInvested;
+  const isLoss = displayReturn < 0;
+  const returnPct = displayInvested > 0 ? ((displayReturn / displayInvested) * 100).toFixed(1) : "0.0";
+  const chartColor = isLoss ? "#FB7185" : "#10B981"; 
 
   const masked = "••••";
 
@@ -126,34 +198,45 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
         <div className="w-[50%] p-4 flex flex-col justify-between border-r border-white/5">
           <div className="space-y-3">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-white/50 font-medium mb-1.5">portfolio value</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/50 font-medium mb-1.5">
+                {selectedAsset ? selectedAsset.symbol : "portfolio value"}
+              </p>
               <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-base font-semibold">{isVisible ? formatKMB(dbData.totalMarketValue) : masked}</span>
+                <span className="text-base font-semibold">{isVisible ? formatKMB(displayMarketValue) : masked}</span>
                 <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-[8px] font-medium uppercase text-white/60">
-                  {isVisible ? formatKMB(dbData.totalInvested) : masked}(inv)
+                  {isVisible ? formatKMB(displayInvested) : masked}(inv)
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-sm font-semibold ${portfolioIsLoss ? 'text-rose-400' : 'text-emerald-400'}`}>{isVisible ? formatKMB(portfolioReturn) : masked}</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-medium uppercase ${portfolioIsLoss ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                  {isVisible ? "return" : masked}
+                <span className={`text-sm font-semibold ${isLoss ? 'text-rose-400' : 'text-emerald-400'}`}>{isVisible ? formatKMB(displayReturn) : masked}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-medium uppercase ${isLoss ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                  {isVisible ? `${returnPct}%` : masked}
                 </span>
               </div>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-white/50 font-medium mb-1.5">strategies ({dbData.strategiesCount})</p>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-sm font-semibold">{isVisible ? formatKMB(dbData.strategyMarketValue) : masked}</span>
-                <span className="px-1.5 py-0.5 rounded-full bg-white/10 text-[8px] font-medium uppercase text-white/60">
-                  {isVisible ? formatKMB(dbData.strategyInvested) : masked}(inv)
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-sm font-semibold ${strategyIsLoss ? 'text-rose-400' : 'text-emerald-400'}`}>{isVisible ? formatKMB(strategyReturn) : masked}</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-medium uppercase ${strategyIsLoss ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                  {isVisible ? "return" : masked}
-                </span>
-              </div>
+              <p className="text-[10px] uppercase tracking-widest text-white/50 font-medium mb-1.5">
+                holdings ({dbData.holdingsCount})
+              </p>
+              {dbData.holdings.length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {dbData.holdings.slice(0, 3).map((h, i) => (
+                    <div key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/10">
+                      {h.logo_url ? (
+                        <img src={h.logo_url} className="w-3 h-3 rounded-full object-cover" />
+                      ) : (
+                        <span className="text-[6px] text-white/60">{h.symbol?.substring(0, 2)}</span>
+                      )}
+                      <span className="text-[8px] font-medium text-white/80">{h.symbol?.replace('.JO', '')}</span>
+                    </div>
+                  ))}
+                  {dbData.holdings.length > 3 && (
+                    <span className="text-[8px] text-white/40 self-center">+{dbData.holdings.length - 3}</span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[9px] text-white/40">No holdings yet</p>
+              )}
             </div>
           </div>
         </div>
@@ -167,13 +250,19 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
             </div>
           </div>
           <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={dbData.snapshots}>
-                <YAxis hide domain={['auto', 'auto']} /> 
-                <Area type="monotone" dataKey="v" stroke="none" fill={chartColor} fillOpacity={0.1} />
-                <Line type="monotone" dataKey="v" stroke={chartColor} strokeWidth={2} dot={false} />
-              </ComposedChart>
-            </ResponsiveContainer>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={chartData}>
+                  <YAxis hide domain={['auto', 'auto']} /> 
+                  <Area type="monotone" dataKey="v" stroke="none" fill={chartColor} fillOpacity={0.1} />
+                  <Line type="monotone" dataKey="v" stroke={chartColor} strokeWidth={2} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-[9px] text-white/30">{chartLoading ? "Loading..." : "No chart data"}</p>
+              </div>
+            )}
           </div>
           <button onClick={() => setIsOpen(!isOpen)} className="mt-2 flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/5">
             <div className="flex items-center gap-2">
@@ -193,7 +282,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
               <span className="text-[9px] font-medium text-white/90 truncate">All Investments</span>
             </button>
             {dbData.holdings.map((item, idx) => (
-              <button key={idx} onClick={() => { setSelectedAsset(item); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset === item ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+              <button key={idx} onClick={() => { setSelectedAsset(item); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.security_id === item.security_id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
                 <div className="w-4 h-4 rounded-full overflow-hidden bg-white/10 shrink-0">
                   {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center w-full h-full text-[6px] text-white/60">{item.symbol?.substring(0, 2)}</span>}
                 </div>
