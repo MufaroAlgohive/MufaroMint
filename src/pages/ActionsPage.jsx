@@ -2,19 +2,16 @@ import React from "react";
 import {
   ArrowLeft,
   BadgeCheck,
-  Landmark,
   ChevronRight,
   CheckCircle2,
 } from "lucide-react";
 import ActionsSkeleton from "../components/ActionsSkeleton";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
-import { useRequiredActions } from "../lib/useRequiredActions";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
   const { kycVerified, kycPending, kycNeedsResubmission, loading: kycLoading, rejectLabels } = useSumsubStatus();
-  const { bankLinked, loading: bankLoading } = useRequiredActions();
 
-  if (kycLoading || bankLoading) {
+  if (kycLoading) {
     return <ActionsSkeleton />;
   }
 
@@ -58,21 +55,11 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       completed: kycVerified,
       navigateTo: "identityCheck",
     },
-    {
-      id: "bank",
-      title: "Link bank account",
-      description: bankLinked ? "Bank account linked" : "Link your bank account for withdrawals",
-      status: bankLinked ? "Linked" : "Not Linked",
-      statusStyle: bankLinked ? "bg-green-100 text-green-600" : "bg-amber-100 text-amber-700",
-      icon: Landmark,
-      completed: bankLinked,
-      navigateTo: "bankLink",
-    },
   ];
 
   const outstandingActions = allActions.filter((a) => !a.completed);
   const completedActions = allActions.filter((a) => a.completed);
-  const allRequiredComplete = kycVerified && bankLinked;
+  const allRequiredComplete = kycVerified;
 
   const handleActionPress = (action) => {
     if (onNavigate && action.navigateTo) {

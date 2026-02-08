@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
-import { ArrowLeft, Landmark, ShieldCheck, CheckCircle2, Shield } from "lucide-react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { ArrowLeft, Landmark, ShieldCheck, CheckCircle2, Shield, X, XCircle } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
@@ -7,11 +7,9 @@ const BankLinkPage = ({ onBack, onComplete }) => {
   const { bankLinked } = useRequiredActions();
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
+  const [consumerUrl, setConsumerUrl] = useState(null);
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
-  const lastStatusRef = useRef(null);
-  const popupRef = useRef(null);
-  const popupCheckRef = useRef(null);
 
   useEffect(() => {
     if (bankLinked) setStatus("already_linked");
@@ -20,7 +18,6 @@ const BankLinkPage = ({ onBack, onComplete }) => {
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
-      if (popupCheckRef.current) clearInterval(popupCheckRef.current);
     };
   }, []);
 
@@ -48,44 +45,26 @@ const BankLinkPage = ({ onBack, onComplete }) => {
       }
 
       collectionIdRef.current = data.collectionId;
-
-      const width = 500;
-      const height = 700;
-      const left = (window.screen.width - width) / 2;
-      const top = (window.screen.height - height) / 2;
-
-      const popup = window.open(
-        data.consumerUrl,
-        "TruID Banking",
-        `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes`
-      );
-
-      if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
-
-      popupRef.current = popup;
-      setMessage("Complete the process in the popup window...");
-      setStatus("polling");
+      setConsumerUrl(data.consumerUrl);
+      setStatus("banking");
+      setMessage("");
       startPolling(data.collectionId);
-
-      popupCheckRef.current = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(popupCheckRef.current);
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current);
-            pollingRef.current = null;
-          }
-          if (status === "polling") {
-            setStatus("idle");
-            setMessage("Bank window was closed. Tap Connect Bank to try again.");
-          }
-        }
-      }, 1000);
     } catch (err) {
       console.error("Banking initiate error:", err);
       setStatus("error");
       setMessage(err.message);
     }
   };
+
+  const handleCancel = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setConsumerUrl(null);
+    setStatus("cancelled");
+    setMessage("Bank linking was cancelled. You can try again when you're ready.");
+  }, []);
 
   const pollCountRef = useRef(0);
   const MAX_POLLS = 120;
@@ -98,6 +77,8 @@ const BankLinkPage = ({ onBack, onComplete }) => {
       pollCountRef.current += 1;
       if (pollCountRef.current > MAX_POLLS) {
         clearInterval(pollingRef.current);
+        pollingRef.current = null;
+        setConsumerUrl(null);
         setStatus("error");
         setMessage("Connection timed out. Please try again.");
         return;
@@ -108,15 +89,10 @@ const BankLinkPage = ({ onBack, onComplete }) => {
         const data = await res.json();
         const outcome = data.outcome;
 
-        const statusSignature = JSON.stringify({ status: data.currentStatus });
-        if (statusSignature !== lastStatusRef.current) {
-          lastStatusRef.current = statusSignature;
-        }
-
         if (outcome === "completed") {
           clearInterval(pollingRef.current);
-          if (popupCheckRef.current) clearInterval(popupCheckRef.current);
-          try { popupRef.current?.close(); } catch (_) {}
+          pollingRef.current = null;
+          setConsumerUrl(null);
           setStatus("capturing");
           setMessage("Verifying banking data...");
 
@@ -145,8 +121,8 @@ const BankLinkPage = ({ onBack, onComplete }) => {
           }
         } else if (outcome === "failed") {
           clearInterval(pollingRef.current);
-          if (popupCheckRef.current) clearInterval(popupCheckRef.current);
-          try { popupRef.current?.close(); } catch (_) {}
+          pollingRef.current = null;
+          setConsumerUrl(null);
           setStatus("error");
           setMessage("Bank connection was cancelled or failed.");
         }
@@ -194,6 +170,42 @@ const BankLinkPage = ({ onBack, onComplete }) => {
     );
   }
 
+  if (status === "banking" && consumerUrl) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-slate-50">
+        <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-sm safe-top">
+          <div className="flex items-center gap-3">
+            <Landmark className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-semibold text-slate-800">Bank Verification</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="flex-1 relative">
+          <iframe
+            src={consumerUrl}
+            title="TruID Bank Verification"
+            className="absolute inset-0 w-full h-full border-0"
+            allow="camera; microphone"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation allow-modals"
+          />
+        </div>
+
+        <div className="px-4 py-2 bg-white border-t border-slate-200 flex items-center justify-center gap-2 text-xs text-slate-400 safe-bottom">
+          <Shield className="h-3 w-3" />
+          <span>Secured by TruID Connect</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
       <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
@@ -214,18 +226,26 @@ const BankLinkPage = ({ onBack, onComplete }) => {
           <div className="flex flex-col items-center gap-6 py-4">
             <div
               className={`h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500 ${
-                status === "polling" || status === "capturing"
+                status === "capturing"
                   ? "bg-amber-100 text-amber-600 animate-pulse"
                   : status === "error"
                   ? "bg-red-100 text-red-500"
+                  : status === "cancelled"
+                  ? "bg-slate-100 text-slate-500"
                   : "bg-blue-100 text-blue-600"
               }`}
             >
-              <Landmark className="h-8 w-8" />
+              {status === "cancelled" ? (
+                <XCircle className="h-8 w-8" />
+              ) : (
+                <Landmark className="h-8 w-8" />
+              )}
             </div>
 
             <div className="text-center max-w-xs">
-              <h2 className="text-lg font-semibold text-slate-900 mb-2">Bank Verification</h2>
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+                {status === "cancelled" ? "Linking Cancelled" : "Bank Verification"}
+              </h2>
               <p className="text-sm text-slate-500">
                 {message || "Securely link your bank account through TruID to enable withdrawals and payouts."}
               </p>
@@ -234,14 +254,14 @@ const BankLinkPage = ({ onBack, onComplete }) => {
               )}
             </div>
 
-            {(status === "idle" || status === "error") && (
+            {(status === "idle" || status === "error" || status === "cancelled") && (
               <button
                 type="button"
                 onClick={startSession}
                 className="w-full py-4 rounded-full bg-slate-900 text-white font-semibold text-sm shadow-lg hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <ShieldCheck className="h-5 w-5" />
-                {status === "error" ? "Try Again" : "Connect Bank"}
+                {status === "error" || status === "cancelled" ? "Try Again" : "Connect Bank"}
               </button>
             )}
 
@@ -249,13 +269,6 @@ const BankLinkPage = ({ onBack, onComplete }) => {
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
                 <span className="w-2 h-2 rounded-full bg-slate-500 animate-ping" />
                 Connecting...
-              </div>
-            )}
-
-            {status === "polling" && (
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600">
-                <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
-                Waiting for bank...
               </div>
             )}
 
