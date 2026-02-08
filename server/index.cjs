@@ -11,7 +11,7 @@ app.use(express.json());
 const SUMSUB_APP_TOKEN = process.env.SUMSUB_APP_TOKEN;
 const SUMSUB_SECRET_KEY = process.env.SUMSUB_SECRET_KEY;
 const SUMSUB_BASE_URL = "https://api.sumsub.com";
-const SUMSUB_LEVEL_NAME = process.env.SUMSUB_LEVEL_NAME || "basic-kyc-level";
+const SUMSUB_LEVEL_NAME = process.env.SUMSUB_LEVEL_NAME || "mint-advanced-kyc";
 
 // Create signature for Sumsub API requests
 function createSumsubSignature(ts, method, path, body = "") {
@@ -22,8 +22,34 @@ function createSumsubSignature(ts, method, path, body = "") {
     .digest("hex");
 }
 
+// Create Sumsub applicant
+async function createSumsubApplicant(externalUserId, levelName = SUMSUB_LEVEL_NAME) {
+  const ts = Math.floor(Date.now() / 1000).toString();
+  const path = `/resources/applicants?levelName=${encodeURIComponent(levelName)}`;
+  const body = JSON.stringify({ externalUserId });
+  const signature = createSumsubSignature(ts, "POST", path, body);
+
+  const response = await fetch(`${SUMSUB_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-App-Access-Ts": ts,
+      "X-App-Access-Sig": signature,
+      "X-App-Token": SUMSUB_APP_TOKEN,
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to create applicant: ${errorText}`);
+  }
+
+  return response.json();
+}
+
 // Generate Sumsub access token
-async function generateSumsubAccessToken(userId, levelName = "basic-kyc-level") {
+async function generateSumsubAccessToken(userId, levelName = SUMSUB_LEVEL_NAME) {
   const ts = Math.floor(Date.now() / 1000).toString();
   const path = `/resources/accessTokens?userId=${encodeURIComponent(userId)}&levelName=${encodeURIComponent(levelName)}`;
   const method = "POST";
@@ -202,6 +228,14 @@ app.post("/api/sumsub/access-token", async (req, res) => {
         success: false,
         error: { message: "userId is required" }
       });
+    }
+
+    try {
+      await createSumsubApplicant(userId, levelName);
+    } catch (err) {
+      if (!err.message.includes("already exists")) {
+        console.error("Create applicant error:", err.message);
+      }
     }
 
     const tokenData = await generateSumsubAccessToken(userId, levelName);

@@ -71,7 +71,8 @@ const SumsubVerification = ({ onVerified }) => {
         
         setUserId(currentUserId);
 
-        const response = await fetch("/api/sumsub/access-token", {
+        const apiBase = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -102,7 +103,8 @@ const SumsubVerification = ({ onVerified }) => {
 
   const accessTokenExpirationHandler = useCallback(async () => {
     try {
-      const response = await fetch("/api/sumsub/access-token", {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -197,7 +199,8 @@ const SumsubVerification = ({ onVerified }) => {
     // Re-initialize Sumsub
     const reinitialize = async () => {
       try {
-        const response = await fetch("/api/sumsub/access-token", {
+        const apiBase = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),

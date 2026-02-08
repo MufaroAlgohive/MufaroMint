@@ -143,7 +143,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - Verification Widget: `src/components/SumsubVerification.jsx` - Sumsub WebSDK integration
   - Main Endpoint: POST `/api/sumsub/status` - Returns normalized KYC status from Sumsub
   - Access Token: POST `/api/sumsub/access-token` - Generates Sumsub SDK access token
-  - Environment variables: SUMSUB_APP_TOKEN, SUMSUB_SECRET_KEY, SUMSUB_BASE_URL, SUMSUB_LEVEL_NAME
+  - Environment variables: SUMSUB_APP_TOKEN, SUMSUB_SECRET_KEY, SUMSUB_BASE_URL, SUMSUB_LEVEL_NAME (default: mint-advanced-kyc)
   - **KYC Status Values**: verified, pending, needs_resubmission, not_verified
   - **Notification Triggers**: Based on Sumsub status changes, stored in localStorage to prevent duplicates
   - **30-second cache**: Prevents excessive API calls while keeping status fresh
