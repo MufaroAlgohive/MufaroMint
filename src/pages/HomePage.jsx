@@ -818,7 +818,7 @@ const HomePage = ({
             </div>
             {hasInvestments && (
               <button 
-                onClick={onOpenInvest} 
+                onClick={onOpenInvestments} 
                 className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
               >
                 View all
@@ -900,7 +900,7 @@ const HomePage = ({
             </div>
             {hasStrategies && (
               <button 
-                onClick={onOpenInvest} 
+                onClick={onOpenStrategies} 
                 className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
               >
                 View all

@@ -741,10 +741,6 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         <section className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-slate-900">Linked Goals</p>
-            <button className="flex items-center gap-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors">
-              View All
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
           </div>
           
           {goal ? (
