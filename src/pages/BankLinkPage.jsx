@@ -69,32 +69,33 @@ const BankLinkPage = ({ onBack, onComplete }) => {
     }
   };
 
+  const pollCountRef = useRef(0);
+  const MAX_POLLS = 120;
+
   const startPolling = (collectionId) => {
     if (pollingRef.current) clearInterval(pollingRef.current);
+    pollCountRef.current = 0;
 
     pollingRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > MAX_POLLS) {
+        clearInterval(pollingRef.current);
+        setStatus("error");
+        setMessage("Connection timed out. Please try again.");
+        return;
+      }
+
       try {
         const res = await fetch(`/api/banking/status?collectionId=${collectionId}`);
         const data = await res.json();
-        const rawStatus = data.currentStatus;
-        const s = String(rawStatus || "").toUpperCase();
-        const numericStatus = Number(rawStatus);
-        const hasNumericStatus = Number.isFinite(numericStatus);
-        const isComplete =
-          s.includes("SUCCESS") ||
-          s.includes("COMPLETED") ||
-          (hasNumericStatus && numericStatus >= 2000 && numericStatus < 3000);
-        const isFailed =
-          s.includes("FAILED") ||
-          s.includes("CANCELLED") ||
-          s.includes("ERROR");
+        const outcome = data.outcome;
 
-        const statusSignature = JSON.stringify({ status: rawStatus });
+        const statusSignature = JSON.stringify({ status: data.currentStatus });
         if (statusSignature !== lastStatusRef.current) {
           lastStatusRef.current = statusSignature;
         }
 
-        if (isComplete) {
+        if (outcome === "completed") {
           clearInterval(pollingRef.current);
           setStatus("capturing");
           setMessage("Verifying banking data...");
@@ -122,7 +123,7 @@ const BankLinkPage = ({ onBack, onComplete }) => {
             setStatus("error");
             setMessage("Failed to verify banking data. Please try again.");
           }
-        } else if (isFailed) {
+        } else if (outcome === "failed") {
           clearInterval(pollingRef.current);
           setStatus("error");
           setMessage("Bank connection was cancelled or failed.");

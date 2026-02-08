@@ -37,11 +37,22 @@ export default async function handler(req, res) {
       extractLatestMilestone(result.data?.milestones) ||
       "UNKNOWN";
 
+    const numericCode = Number(currentStatus);
+    const isNumeric = Number.isFinite(numericCode);
+
     let outcome = "pending";
     const upperStatus = String(currentStatus).toUpperCase();
-    if (upperStatus === "COMPLETED" || upperStatus === "COMPLETE" || upperStatus === "SUCCESS") {
+    if (
+      upperStatus === "COMPLETED" || upperStatus === "COMPLETE" || upperStatus === "SUCCESS" ||
+      (isNumeric && numericCode === 1099) ||
+      (isNumeric && numericCode >= 2000 && numericCode < 3000)
+    ) {
       outcome = "completed";
-    } else if (upperStatus === "FAILED" || upperStatus === "REJECTED" || upperStatus === "ERROR") {
+    } else if (
+      upperStatus === "FAILED" || upperStatus === "REJECTED" || upperStatus === "ERROR" ||
+      upperStatus === "CANCELLED" || upperStatus === "EXPIRED" ||
+      (isNumeric && numericCode >= 4000)
+    ) {
       outcome = "failed";
     }
 
