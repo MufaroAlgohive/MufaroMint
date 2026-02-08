@@ -1433,18 +1433,17 @@ app.get("/api/user/transactions", async (req, res) => {
     const enrichedTx = txList.map(tx => {
       const txName = (tx.name || "").trim();
       let sName = null;
-      let isStrategy = false;
       if (txName.startsWith("Strategy Investment: ")) {
         sName = txName.replace("Strategy Investment: ", "").trim();
-        isStrategy = true;
       } else if (txName.startsWith("Purchased ")) {
         sName = txName.replace("Purchased ", "").trim();
       }
       
-      if (isStrategy && sName) {
+      if (sName) {
         const holdingLogos = strategyHoldingsMap[sName.toLowerCase()] || [];
-        return { ...tx, holding_logos: holdingLogos, logo_url: null };
-      } else if (sName) {
+        if (holdingLogos.length > 0) {
+          return { ...tx, holding_logos: holdingLogos, logo_url: null };
+        }
         const lower = sName.toLowerCase();
         const logo_url = securityLogoMap[lower] || securityLogoMap[lower.split(".")[0]] || null;
         return { ...tx, holding_logos: [], logo_url };
