@@ -373,9 +373,12 @@ const HomePage = ({
           .select("strategy_id")
           .eq("user_id", profile.id);
 
+        console.log("[HomePage] user_strategies query for user:", profile.id, "result:", userStrategyLinks, "error:", linksError);
+
         const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
 
         if (subscribedIds.length === 0) {
+          console.log("[HomePage] No subscribed strategy IDs found");
           setBestStrategies([]);
           return;
         }

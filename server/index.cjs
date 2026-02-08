@@ -152,6 +152,86 @@ try {
   console.warn('Supabase client not available:', e.message);
 }
 
+async function ensureUserStrategiesTable() {
+  if (!supabaseAdmin) return;
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_strategies")
+      .select("user_id")
+      .limit(0);
+    
+    if (error && error.code === 'PGRST205') {
+      console.log("[migration] user_strategies table not found, creating via SQL...");
+      const sqlUrl = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/';
+      
+      const createTableSQL = `
+        CREATE TABLE IF NOT EXISTS public.user_strategies (
+          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+          user_id uuid NOT NULL,
+          strategy_id uuid NOT NULL REFERENCES public.strategies(id),
+          created_at timestamptz DEFAULT now(),
+          updated_at timestamptz DEFAULT now(),
+          UNIQUE(user_id, strategy_id)
+        );
+        
+        ALTER TABLE public.user_strategies ENABLE ROW LEVEL SECURITY;
+        
+        CREATE POLICY "Users can view own strategies" ON public.user_strategies
+          FOR SELECT USING (auth.uid() = user_id);
+        
+        CREATE POLICY "Service role full access to user_strategies" ON public.user_strategies
+          FOR ALL USING (true) WITH CHECK (true);
+      `;
+      
+      const resp = await fetch(SUPABASE_URL.replace(/\/+$/, '') + '/sql', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({ query: createTableSQL }),
+      });
+      
+      if (resp.ok) {
+        console.log("[migration] user_strategies table created successfully!");
+      } else {
+        const errText = await resp.text();
+        console.error("[migration] Failed to create user_strategies via SQL API:", resp.status, errText);
+        console.log("[migration] Trying alternative approach via PostgREST...");
+        
+        const rpcResp = await fetch(SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/exec_sql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({ sql: createTableSQL }),
+        });
+        
+        if (rpcResp.ok) {
+          console.log("[migration] user_strategies table created via RPC!");
+        } else {
+          const rpcErr = await rpcResp.text();
+          console.error("[migration] RPC also failed:", rpcResp.status, rpcErr);
+          console.error("[migration] Please create the user_strategies table manually in the Supabase dashboard SQL editor:");
+          console.error("[migration] SQL:", createTableSQL.trim());
+        }
+      }
+    } else if (!error) {
+      console.log("[migration] user_strategies table already exists");
+    } else {
+      console.error("[migration] Error checking user_strategies:", error);
+    }
+  } catch (e) {
+    console.error("[migration] Error during table check:", e.message);
+  }
+}
+
+ensureUserStrategiesTable();
+
 function parseServices(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (typeof value === 'string') {
@@ -924,27 +1004,39 @@ async function verifyPaystackPayment(reference) {
 
 app.post("/api/record-investment", async (req, res) => {
   try {
+    console.log("[record-investment] === ENDPOINT CALLED ===");
+    console.log("[record-investment] Request body:", JSON.stringify(req.body, null, 2));
+
     if (!supabase) {
+      console.log("[record-investment] ERROR: Database not connected");
       return res.status(500).json({ success: false, error: "Database not connected" });
     }
 
     const { user, error: authError } = await authenticateUser(req);
     if (authError || !user) {
+      console.log("[record-investment] AUTH FAILED:", authError || "No user");
       return res.status(401).json({ success: false, error: authError || "Unauthorized" });
     }
     const userId = user.id;
+    console.log("[record-investment] Authenticated user:", userId);
     const db = supabaseAdmin || supabase;
+    console.log("[record-investment] Using DB client:", supabaseAdmin ? "admin (service role)" : "anon");
 
     const { securityId, symbol, name, amount, strategyId, paymentReference } = req.body;
+    console.log("[record-investment] Parsed fields - securityId:", securityId, "symbol:", symbol, "name:", name, "amount:", amount, "strategyId:", strategyId, "paymentReference:", paymentReference);
 
     if (!securityId || !amount || !paymentReference) {
+      console.log("[record-investment] MISSING FIELDS - securityId:", !!securityId, "amount:", !!amount, "paymentReference:", !!paymentReference);
       return res.status(400).json({ success: false, error: "Missing required fields: securityId, amount, paymentReference" });
     }
 
+    console.log("[record-investment] Verifying Paystack payment:", paymentReference);
     const { verified, error: payError, data: payData } = await verifyPaystackPayment(paymentReference);
     if (!verified) {
+      console.log("[record-investment] PAYSTACK VERIFICATION FAILED:", payError);
       return res.status(400).json({ success: false, error: payError || "Payment verification failed" });
     }
+    console.log("[record-investment] Paystack verified OK. Paid amount (kobo):", payData.amount, "= R", payData.amount / 100);
 
     const { data: existingTx } = await db
       .from("transactions")
@@ -952,36 +1044,47 @@ app.post("/api/record-investment", async (req, res) => {
       .eq("store_reference", paymentReference)
       .maybeSingle();
     if (existingTx) {
+      console.log("[record-investment] DUPLICATE: Transaction already recorded for ref:", paymentReference, "tx id:", existingTx.id);
       return res.json({ success: true, message: "Already recorded", duplicate: true });
     }
 
     const paidAmount = payData.amount / 100;
     if (Math.abs(paidAmount - amount) > 1) {
+      console.log("[record-investment] AMOUNT MISMATCH: paid", paidAmount, "expected", amount);
       return res.status(400).json({ success: false, error: `Amount mismatch: paid ${paidAmount}, expected ${amount}` });
     }
 
     if (strategyId) {
-      const { error: linkError } = await db
+      console.log("[record-investment] Creating strategy link - userId:", userId, "strategyId:", strategyId);
+      const { data: linkData, error: linkError } = await db
         .from("user_strategies")
         .upsert({ 
           user_id: userId, 
           strategy_id: strategyId,
-        }, { onConflict: 'user_id,strategy_id' });
+        }, { onConflict: 'user_id,strategy_id' })
+        .select();
 
       if (linkError) {
-        console.error("Error creating strategy link:", linkError);
+        console.error("[record-investment] STRATEGY LINK ERROR:", JSON.stringify(linkError));
+      } else {
+        console.log("[record-investment] Strategy link created/updated OK:", JSON.stringify(linkData));
       }
+    } else {
+      console.log("[record-investment] No strategyId provided, skipping strategy link");
     }
 
-    const { data: securityCheck } = await db
+    console.log("[record-investment] Checking if securityId exists in securities table:", securityId);
+    const { data: securityCheck, error: secCheckError } = await db
       .from("securities")
       .select("id")
       .eq("id", securityId)
       .maybeSingle();
+    console.log("[record-investment] Security check result:", securityCheck ? "FOUND" : "NOT FOUND", "error:", secCheckError ? JSON.stringify(secCheckError) : "none");
 
     let holdingResult = { data: null, error: null };
 
     if (securityCheck) {
+      console.log("[record-investment] Security exists - will create/update stock_holdings");
       let currentPriceCents = null;
       const { data: securityData, error: secError } = await db
         .from("securities")
@@ -991,7 +1094,9 @@ app.post("/api/record-investment", async (req, res) => {
 
       if (!secError && securityData?.last_price) {
         currentPriceCents = Number(securityData.last_price);
+        console.log("[record-investment] Got last_price from securities:", currentPriceCents, "cents");
       } else {
+        console.log("[record-investment] No last_price in securities, checking security_prices table");
         const { data: priceData, error: priceError } = await db
           .from("security_prices")
           .select("close_price")
@@ -1002,6 +1107,9 @@ app.post("/api/record-investment", async (req, res) => {
 
         if (!priceError && priceData?.close_price) {
           currentPriceCents = Number(priceData.close_price);
+          console.log("[record-investment] Got close_price from security_prices:", currentPriceCents, "cents");
+        } else {
+          console.log("[record-investment] No price found in security_prices either. priceError:", priceError ? JSON.stringify(priceError) : "none");
         }
       }
 
@@ -1009,6 +1117,7 @@ app.post("/api/record-investment", async (req, res) => {
       const quantity = currentPriceRands > 0 ? amount / currentPriceRands : 1;
       const avgFillCents = currentPriceCents || Math.round(amount * 100);
       const marketValueCents = Math.round(quantity * (currentPriceCents || amount * 100));
+      console.log("[record-investment] Calculated - currentPriceRands:", currentPriceRands, "quantity:", quantity, "avgFillCents:", avgFillCents, "marketValueCents:", marketValueCents);
 
       const { data: existing, error: fetchError } = await db
         .from("stock_holdings")
@@ -1018,16 +1127,18 @@ app.post("/api/record-investment", async (req, res) => {
         .maybeSingle();
 
       if (fetchError) {
-        console.error("Error checking existing holding:", fetchError);
+        console.error("[record-investment] Error checking existing holding:", JSON.stringify(fetchError));
         return res.status(500).json({ success: false, error: fetchError.message });
       }
 
       if (existing) {
+        console.log("[record-investment] Existing holding found, updating. Old qty:", existing.quantity, "avg_fill:", existing.avg_fill);
         const oldQty = Number(existing.quantity || 0);
         const oldAvgFill = Number(existing.avg_fill || 0);
         const newQty = oldQty + quantity;
         const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (avgFillCents * quantity)) / newQty : avgFillCents;
         const newMarketValue = Math.round(newQty * (currentPriceCents || newAvgFill));
+        console.log("[record-investment] New values - qty:", newQty, "avgFill:", Math.round(newAvgFill), "marketValue:", newMarketValue);
         const { data, error } = await db
           .from("stock_holdings")
           .update({
@@ -1040,7 +1151,9 @@ app.post("/api/record-investment", async (req, res) => {
           .eq("id", existing.id)
           .select();
         holdingResult = { data, error };
+        console.log("[record-investment] Holding UPDATE result:", error ? "ERROR: " + JSON.stringify(error) : "OK", JSON.stringify(data));
       } else {
+        console.log("[record-investment] No existing holding, inserting new");
         const holdingData = {
           user_id: userId,
           security_id: securityId,
@@ -1051,24 +1164,31 @@ app.post("/api/record-investment", async (req, res) => {
           as_of_date: new Date().toISOString().split("T")[0],
           Status: "active",
         };
+        console.log("[record-investment] Insert data:", JSON.stringify(holdingData));
         const { data, error } = await db
           .from("stock_holdings")
           .insert(holdingData)
           .select();
         holdingResult = { data, error };
+        console.log("[record-investment] Holding INSERT result:", error ? "ERROR: " + JSON.stringify(error) : "OK", JSON.stringify(data));
       }
 
       if (holdingResult.error) {
-        console.error("Error upserting holding:", holdingResult.error);
+        console.error("[record-investment] HOLDING UPSERT FAILED:", JSON.stringify(holdingResult.error));
         return res.status(500).json({ success: false, error: holdingResult.error.message });
       }
+    } else {
+      console.log("[record-investment] Security NOT in securities table (likely strategy-only investment). No stock_holdings will be created.");
     }
 
     const isStrategyInvestment = strategyId && !securityCheck;
+    console.log("[record-investment] isStrategyInvestment:", isStrategyInvestment);
     const descriptionText = isStrategyInvestment
       ? `Invested in strategy ${name || "Strategy"}`
       : `Purchased ${(holdingResult.data ? "shares" : "units")} of ${name || symbol || "Unknown"}`;
-    const { error: txError } = await db
+    
+    console.log("[record-investment] Creating transaction record...");
+    const { data: txData, error: txError } = await db
       .from("transactions")
       .insert({
         user_id: userId,
@@ -1081,15 +1201,19 @@ app.post("/api/record-investment", async (req, res) => {
         status: "posted",
         transaction_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
-      });
+      })
+      .select();
 
     if (txError) {
-      console.error("Error inserting transaction:", txError);
+      console.error("[record-investment] TRANSACTION INSERT ERROR:", JSON.stringify(txError));
+    } else {
+      console.log("[record-investment] Transaction created OK:", JSON.stringify(txData));
     }
 
+    console.log("[record-investment] === SUCCESS === Holding:", JSON.stringify(holdingResult.data));
     res.json({ success: true, holding: holdingResult.data });
   } catch (error) {
-    console.error("Record investment error:", error);
+    console.error("[record-investment] === UNCAUGHT ERROR ===", error);
     res.status(500).json({ success: false, error: error.message || "Failed to record investment" });
   }
 });
@@ -1186,6 +1310,61 @@ app.get("/api/user/transactions", async (req, res) => {
   } catch (error) {
     console.error("User transactions error:", error);
     res.status(500).json({ success: false, error: error.message || "Failed to fetch transactions" });
+  }
+});
+
+app.get("/api/debug/user-investments", async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: "Database not connected" });
+    }
+
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: authError || "Unauthorized" });
+    }
+
+    const db = supabaseAdmin || supabase;
+    const userId = user.id;
+
+    const [strategiesResult, holdingsResult, transactionsResult] = await Promise.all([
+      db.from("user_strategies").select("*").eq("user_id", userId),
+      db.from("stock_holdings").select("*").eq("user_id", userId),
+      db.from("transactions").select("id, direction, name, description, amount, store_reference, status, transaction_date").eq("user_id", userId).order("transaction_date", { ascending: false }).limit(20),
+    ]);
+
+    let strategiesWithDetails = [];
+    const strategyLinks = strategiesResult.data || [];
+    if (strategyLinks.length > 0) {
+      const strategyIds = strategyLinks.map(s => s.strategy_id).filter(Boolean);
+      if (strategyIds.length > 0) {
+        const { data: strategies } = await db
+          .from("strategies")
+          .select("id, name, short_name, status, risk_level")
+          .in("id", strategyIds);
+        strategiesWithDetails = (strategies || []).map(s => ({
+          ...s,
+          userLink: strategyLinks.find(l => l.strategy_id === s.id),
+        }));
+      }
+    }
+
+    res.json({
+      success: true,
+      userId,
+      userStrategyLinks: strategyLinks,
+      strategiesWithDetails,
+      stockHoldings: holdingsResult.data || [],
+      recentTransactions: transactionsResult.data || [],
+      summary: {
+        strategyLinksCount: strategyLinks.length,
+        stockHoldingsCount: (holdingsResult.data || []).length,
+        transactionsCount: (transactionsResult.data || []).length,
+      },
+    });
+  } catch (error) {
+    console.error("Debug user investments error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

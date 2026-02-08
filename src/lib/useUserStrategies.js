@@ -25,14 +25,17 @@ export const useUserStrategies = () => {
 
       const userId = session.user.id;
 
-      const { data: userStrategyLinks } = await supabase
+      const { data: userStrategyLinks, error: linksErr } = await supabase
         .from("user_strategies")
         .select("strategy_id")
         .eq("user_id", userId);
 
+      console.log("[useUserStrategies] user_strategies for", userId, ":", userStrategyLinks, "error:", linksErr);
+
       const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
 
       if (subscribedIds.length === 0) {
+        console.log("[useUserStrategies] No subscribed strategy IDs");
         setData({ strategies: [], selectedStrategy: null, loading: false, error: null });
         return;
       }
