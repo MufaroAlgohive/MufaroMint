@@ -64,9 +64,7 @@ const formatShortDate = (dateString) => {
 const formatAmount = (amount, direction) => {
   if (amount === undefined || amount === null) return "R0.00";
   const val = Math.abs(amount) / 100;
-  const isPositive = direction === "credit";
-  const sign = isPositive ? "+" : "-";
-  return `${sign}R${val.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `R${val.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 const ActivityPage = ({ onBack }) => {
@@ -250,7 +248,7 @@ const ActivityPage = ({ onBack }) => {
               </div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Money In</p>
             </div>
-            <p className="text-lg font-bold text-emerald-600">R{summaryStats.totalIn.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-lg font-bold text-slate-900">R{summaryStats.totalIn.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
           <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100/80">
             <div className="flex items-center gap-2 mb-1.5">
@@ -259,7 +257,7 @@ const ActivityPage = ({ onBack }) => {
               </div>
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Money Out</p>
             </div>
-            <p className="text-lg font-bold text-red-600">R{summaryStats.totalOut.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-lg font-bold text-slate-900">R{summaryStats.totalOut.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
         </div>
 

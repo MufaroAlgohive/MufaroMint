@@ -58,7 +58,12 @@ export const calculateMinInvestment = (strategy, holdingsBySymbol) => {
 export const getStrategyHoldingsSnapshot = (strategy, holdingsBySymbol) => {
   const holdings = getHoldingsArray(strategy);
   if (!holdings.length) return [];
-  return holdings.map((holding) => {
+  const sorted = [...holdings].sort((a, b) => {
+    const weightA = Number(a.weight || a.shares || a.quantity || 0);
+    const weightB = Number(b.weight || b.shares || b.quantity || 0);
+    return weightB - weightA;
+  });
+  return sorted.map((holding) => {
     const rawSymbol = holding.ticker || holding.symbol || holding;
     const normalizedSym = normalizeSymbol(rawSymbol);
     const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSym);

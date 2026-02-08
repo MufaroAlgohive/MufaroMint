@@ -1359,10 +1359,8 @@ function formatDate(dateString) {
 }
 
 function formatAmount(amount, direction) {
-  if (amount === undefined || amount === null) return "R0";
-  const isPositive = direction === "credit";
-  const sign = isPositive ? "+" : "-";
-  return `${sign}R${Math.abs(amount).toLocaleString()}`;
+  if (amount === undefined || amount === null) return "R0.00";
+  return `R${Math.abs(amount).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default HomePage;
