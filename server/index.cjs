@@ -1022,6 +1022,28 @@ app.post("/api/banking/capture", async (req, res) => {
   }
 });
 
+app.post("/api/banking/unlink", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    await db
+      .from("required_actions")
+      .update({ bank_linked: false, bank_in_review: false, bank_linked_at: null })
+      .eq("user_id", user.id);
+
+    res.json({ success: true, message: "Bank account unlinked" });
+  } catch (error) {
+    console.error("Unlink error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 function extractLatestStatus(statuses) {
   if (!Array.isArray(statuses) || !statuses.length) return null;
   const sorted = [...statuses].sort((a, b) => {
