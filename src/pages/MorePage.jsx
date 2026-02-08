@@ -163,39 +163,6 @@ const MorePage = ({ onNavigate }) => {
       </header>
 
       <div className="flex flex-col items-center text-center">
-        <span
-          className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-            kycVerified
-              ? "bg-green-100 text-green-700"
-              : kycNeedsResubmission
-              ? "bg-amber-100 text-amber-700"
-              : kycPending
-              ? "bg-blue-100 text-blue-700"
-              : "bg-slate-100 text-slate-600"
-          }`}
-        >
-          {kycVerified ? (
-            <>
-              <ShieldCheck className="h-3 w-3" />
-              KYC Verified
-            </>
-          ) : kycNeedsResubmission ? (
-            <>
-              <AlertCircle className="h-3 w-3" />
-              KYC Needs Attention
-            </>
-          ) : kycPending ? (
-            <>
-              <ShieldCheck className="h-3 w-3" />
-              KYC Under Review
-            </>
-          ) : (
-            <>
-              <AlertCircle className="h-3 w-3" />
-              KYC Not Verified
-            </>
-          )}
-        </span>
         <h2 className="mt-3 text-xl font-semibold text-slate-900">{nameLabel}</h2>
         <p className="mt-1 text-sm text-slate-500">{usernameLabel}</p>
         <button
