@@ -69,8 +69,26 @@ export const NotificationsProvider = ({ children }) => {
       }
 
       const allNotifications = notificationsResult.data || [];
+
+      const seen = new Map();
+      const duplicateIds = [];
+      for (const n of allNotifications) {
+        const key = `${n.title}__${n.body}`;
+        if (seen.has(key)) {
+          duplicateIds.push(n.id);
+        } else {
+          seen.set(key, n.id);
+        }
+      }
+      if (duplicateIds.length > 0) {
+        supabase.from("notifications").delete().in("id", duplicateIds).then(() => {
+          console.log(`Cleaned up ${duplicateIds.length} duplicate notifications`);
+        });
+      }
+
+      const dedupedNotifications = allNotifications.filter((n) => !duplicateIds.includes(n.id));
       
-      const filteredNotifications = allNotifications.filter((n) => {
+      const filteredNotifications = dedupedNotifications.filter((n) => {
         if (Object.keys(preferences).length === 0) return true;
         return preferences[n.type] !== false;
       });
