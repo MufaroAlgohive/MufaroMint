@@ -13,7 +13,7 @@ const PinDots = ({ filled, shake }) => (
         className={`h-4 w-4 rounded-full border-2 transition-all duration-200 ${
           i < filled
             ? 'border-slate-900 bg-slate-900 scale-110'
-            : 'border-slate-300 bg-transparent'
+            : 'border-slate-200 bg-transparent'
         }`}
       />
     ))}
@@ -49,7 +49,7 @@ const NumberPad = ({ onPress, onDelete }) => {
             key={i}
             type="button"
             onClick={() => onPress(key)}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-2xl font-semibold text-slate-900 transition active:scale-90 active:bg-slate-200 mx-auto"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-2xl font-semibold text-slate-900 shadow-sm transition active:scale-90 active:bg-slate-50 mx-auto"
           >
             {key}
           </button>
@@ -148,7 +148,7 @@ const PinSetupPage = ({ onNavigate, onBack }) => {
         </div>
       )}
 
-      <header className="flex items-center gap-3 px-6 pt-12">
+      <header className="flex items-center justify-between px-6 pt-12 pb-4">
         <button
           type="button"
           onClick={() => (onBack ? onBack() : onNavigate?.('settings'))}
@@ -157,12 +157,17 @@ const PinSetupPage = ({ onNavigate, onBack }) => {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-xl font-semibold text-slate-900">
-          {step === 'enter' ? 'Set PIN' : 'Confirm PIN'}
-        </h1>
+        <div className="flex items-center gap-3">
+          <img src="/assets/mint-logo.svg" alt="Mint" className="h-6 w-auto" />
+          <span className="mint-brand text-lg font-semibold tracking-[0.12em]">MINT</span>
+        </div>
+        <div className="w-10" />
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center px-8">
+        <h1 className="text-xl font-semibold text-slate-900 mb-2">
+          {step === 'enter' ? 'Set PIN' : 'Confirm PIN'}
+        </h1>
         <p className="mb-8 text-center text-sm text-slate-500">
           {step === 'enter'
             ? 'Enter a 4-digit PIN to secure your app'

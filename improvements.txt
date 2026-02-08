@@ -39,3 +39,11 @@ Session timeout (security/trust)
 Performance benchmarking (makes the portfolio page much more useful)
 Watchlist with price alerts (user retention)
 Let me know which ones interest you and I'll get started.
+
+Session Timeout: The inactivity timeout hook tracks user activity and locks the screen after the configured period. The lock screen shows with a dark glassmorphism UI and offers unlock or logout options.
+
+PIN/Passcode: The PIN system uses SHA-256 hashing, triggers on authenticated page loads (with proper detection when auth state changes), and integrates with the inactivity lock screen. When inactivity lock triggers and PIN is enabled, unlocking chains to the PIN entry screen.
+
+Active Sessions: Shows current device/browser info with options to log out of other devices or everywhere.
+
+Settings Page: Now organized into Security, Preferences, and Developer sections with all new options - biometrics toggle, PIN toggle, session timeout selector (1/2/5/10/15 min), change password, and active sessions.

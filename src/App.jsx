@@ -668,6 +668,18 @@ const App = () => {
     return renderPageContent(previousPageName, true);
   }, [previousPageName, currentPage, renderPageContent]);
 
+  const handleLockLogout = useCallback(() => {
+    if (supabase) supabase.auth.signOut();
+    setShowPinLock(false);
+    setCurrentPage("welcome");
+  }, []);
+
+  useEffect(() => {
+    if (isInactivityLocked && isAuthenticated && !isPinEnabled()) {
+      handleLockLogout();
+    }
+  }, [isInactivityLocked, isAuthenticated, handleLockLogout]);
+
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0d0d12]">
@@ -675,12 +687,6 @@ const App = () => {
       </div>
     );
   }
-
-  const handleLockLogout = () => {
-    if (supabase) supabase.auth.signOut();
-    setShowPinLock(false);
-    setCurrentPage("welcome");
-  };
 
   if (currentPage === "linkExpired") {
     return (
@@ -710,13 +716,11 @@ const App = () => {
     );
   }
 
-  if (isInactivityLocked && isAuthenticated) {
+  if (isInactivityLocked && isAuthenticated && isPinEnabled()) {
     return (
       <InactivityLockScreen
         onUnlock={() => {
-          if (isPinEnabled()) {
-            setShowPinLock(true);
-          }
+          setShowPinLock(true);
           unlockInactivity();
         }}
         onLogout={handleLockLogout}

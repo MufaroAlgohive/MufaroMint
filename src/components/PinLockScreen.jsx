@@ -20,8 +20,8 @@ const PinDots = ({ filled, shake }) => (
         key={i}
         className={`h-4 w-4 rounded-full border-2 transition-all duration-200 ${
           i < filled
-            ? 'border-white bg-white scale-110'
-            : 'border-white/40 bg-transparent'
+            ? 'border-slate-900 bg-slate-900 scale-110'
+            : 'border-slate-200 bg-transparent'
         }`}
       />
     ))}
@@ -46,7 +46,7 @@ const NumberPad = ({ onPress, onDelete }) => {
               key={i}
               type="button"
               onClick={onDelete}
-              className="flex h-16 w-16 items-center justify-center rounded-full text-white transition active:scale-90 active:bg-white/10 mx-auto"
+              className="flex h-16 w-16 items-center justify-center rounded-full text-slate-700 transition active:scale-90 active:bg-slate-100 mx-auto"
             >
               <Delete className="h-6 w-6" />
             </button>
@@ -57,7 +57,7 @@ const NumberPad = ({ onPress, onDelete }) => {
             key={i}
             type="button"
             onClick={() => onPress(key)}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-2xl font-semibold text-white backdrop-blur-md transition active:scale-90 active:bg-white/20 mx-auto"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-2xl font-semibold text-slate-900 shadow-sm transition active:scale-90 active:bg-slate-50 mx-auto"
           >
             {key}
           </button>
@@ -151,23 +151,28 @@ const PinLockScreen = ({ onUnlock, onLogout, userEmail, userAvatar, userName }) 
   };
 
   return (
-    <div className="fixed inset-0 z-[9998] flex flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+    <div className="fixed inset-0 z-[9998] flex flex-col bg-slate-50">
       <div className="flex flex-1 flex-col items-center justify-center px-8">
+        <div className="flex items-center gap-3 mb-8">
+          <img src="/assets/mint-logo.svg" alt="Mint" className="h-6 w-auto" />
+          <span className="mint-brand text-lg font-semibold tracking-[0.12em]">MINT</span>
+        </div>
+
         {userAvatar ? (
           <img
             src={userAvatar}
             alt=""
-            className="h-20 w-20 rounded-full border-2 border-white/20 object-cover"
+            className="h-20 w-20 rounded-full border-2 border-slate-200 object-cover"
           />
         ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/20 bg-white/10 text-xl font-bold text-white">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-xl font-bold text-slate-900 shadow-sm">
             {initials || '?'}
           </div>
         )}
 
-        {email && <p className="mt-3 text-sm text-white/60">{email}</p>}
+        {email && <p className="mt-3 text-sm text-slate-500">{email}</p>}
 
-        <p className="mt-6 text-center text-sm text-white/40">
+        <p className="mt-6 text-center text-sm text-slate-400">
           {attempts > 0
             ? `Wrong PIN. ${MAX_ATTEMPTS - attempts} attempt${MAX_ATTEMPTS - attempts !== 1 ? 's' : ''} remaining.`
             : 'Enter your PIN to unlock'}
@@ -186,7 +191,7 @@ const PinLockScreen = ({ onUnlock, onLogout, userEmail, userAvatar, userName }) 
             <button
               type="button"
               onClick={handleBiometricAuth}
-              className="flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-medium text-white backdrop-blur-md transition active:scale-95"
+              className="flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition active:scale-95"
             >
               <Fingerprint className="h-5 w-5" />
               Use {getBiometryTypeName(biometryType)}
@@ -196,21 +201,12 @@ const PinLockScreen = ({ onUnlock, onLogout, userEmail, userAvatar, userName }) 
           <button
             type="button"
             onClick={handleLogout}
-            className="text-sm text-white/40 transition hover:text-white/60"
+            className="text-sm text-slate-400 transition hover:text-slate-600"
           >
             Forgot PIN?
           </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-          20%, 40%, 60%, 80% { transform: translateX(4px); }
-        }
-        .animate-shake { animation: shake 0.5s ease-in-out; }
-      `}</style>
     </div>
   );
 };

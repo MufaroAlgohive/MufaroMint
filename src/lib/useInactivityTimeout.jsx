@@ -60,22 +60,26 @@ export const InactivityLockScreen = ({ onUnlock, onLogout }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-xl" />
-      <div className="relative z-10 flex w-full max-w-sm flex-col items-center px-8">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/10 backdrop-blur-md">
-          <Lock className="h-10 w-10 text-white" />
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50">
+      <div className="flex w-full max-w-sm flex-col items-center px-8">
+        <div className="flex items-center gap-3 mb-10">
+          <img src="/assets/mint-logo.svg" alt="Mint" className="h-6 w-auto" />
+          <span className="mint-brand text-lg font-semibold tracking-[0.12em]">MINT</span>
         </div>
 
-        <h1 className="mt-6 text-2xl font-bold text-white">Session Locked</h1>
-        <p className="mt-2 text-center text-sm text-white/60">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white border-2 border-slate-200 shadow-sm">
+          <Lock className="h-10 w-10 text-slate-900" />
+        </div>
+
+        <h1 className="mt-6 text-2xl font-bold text-slate-900">Session Locked</h1>
+        <p className="mt-2 text-center text-sm text-slate-500">
           Your session was locked due to inactivity
         </p>
 
         <button
           type="button"
           onClick={onUnlock}
-          className="mt-8 w-full rounded-full bg-white py-3.5 text-sm font-semibold text-slate-900 shadow-lg transition active:scale-95"
+          className="mt-8 w-full rounded-full bg-slate-900 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition active:scale-95"
         >
           Unlock
         </button>
@@ -83,7 +87,7 @@ export const InactivityLockScreen = ({ onUnlock, onLogout }) => {
         <button
           type="button"
           onClick={handleLogout}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition active:scale-95"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white py-3.5 text-sm font-semibold text-slate-900 shadow-sm transition active:scale-95"
         >
           <LogOut className="h-4 w-4" />
           Log Out
