@@ -6,6 +6,7 @@ import { MintRadarChart } from "../components/credit/ui/MintRadarChart";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 import { useCreditCheck } from "../lib/useCreditCheck";
+import CreditApplySkeleton from "../components/CreditApplySkeleton";
 
 // --- Subcomponents for Stages ---
 
@@ -858,19 +859,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
      switch(step) {
         case 0:
                   if (loadingProfile) {
-                     return (
-                        <MintCard className="animate-in fade-in zoom-in-95 duration-700">
-                           <div className="flex flex-col items-center gap-4 py-8 text-center">
-                              <div className="h-16 w-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center animate-pulse">
-                                 <Search size={28} />
-                              </div>
-                              <div className="space-y-2">
-                                 <h3 className="text-lg font-bold text-slate-900">Checking status...</h3>
-                                 <p className="text-sm text-slate-500">Retrieving your verification profile</p>
-                              </div>
-                           </div>
-                        </MintCard>
-                     );
+                     return <CreditApplySkeleton />;
                   }
 
                   if (autoAdvance) {
