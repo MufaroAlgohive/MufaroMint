@@ -398,6 +398,7 @@ const App = () => {
               onBack={noOp}
               onOpenNotifications={noOp}
               onOpenInvest={noOp}
+              onOpenStrategies={noOp}
             />
           </AppLayout>
         );
@@ -801,6 +802,7 @@ const App = () => {
             navigateTo("notifications");
           }}
           onOpenInvest={() => navigateTo("markets")}
+          onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
         />
       </AppLayout>
     );

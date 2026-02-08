@@ -507,42 +507,105 @@ export const getMonthlyReturns = async (strategyId) => {
   }
 
   try {
-    const { data: prices, error } = await supabase
-      .from("strategy_prices")
-      .select("ts, nav")
-      .eq("strategy_id", strategyId)
-      .order("ts", { ascending: true });
+    const { data: strategy, error: stratError } = await supabase
+      .from("strategies")
+      .select("holdings")
+      .eq("id", strategyId)
+      .single();
 
-    if (error || !prices || prices.length < 2) return {};
+    if (stratError || !strategy || !Array.isArray(strategy.holdings) || strategy.holdings.length === 0) {
+      console.warn("No holdings for monthly returns computation");
+      return {};
+    }
 
-    const byMonth = {};
-    prices.forEach(p => {
-      const d = new Date(p.ts);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (!byMonth[key]) byMonth[key] = [];
-      byMonth[key].push(p.nav);
+    const holdings = strategy.holdings;
+    const symbols = holdings.map(h => h.symbol);
+
+    const { data: securities, error: secError } = await supabase
+      .from("securities")
+      .select("id, symbol")
+      .in("symbol", symbols);
+
+    if (secError || !securities || securities.length === 0) return {};
+
+    const symbolToId = {};
+    securities.forEach(s => { symbolToId[s.symbol] = s.id; });
+
+    const totalWeight = holdings.reduce((sum, h) => {
+      if (symbolToId[h.symbol]) return sum + (h.weight || 0);
+      return sum;
+    }, 0);
+
+    if (totalWeight === 0) return {};
+
+    const pricePromises = holdings
+      .filter(h => symbolToId[h.symbol])
+      .map(async (h) => {
+        const secId = symbolToId[h.symbol];
+        const priceSeries = await getSecurityPrices(secId, "1Y");
+        return { symbol: h.symbol, weight: h.weight / totalWeight, prices: priceSeries };
+      });
+
+    const allPrices = await Promise.all(pricePromises);
+    const validPrices = allPrices.filter(p => p.prices && p.prices.length > 0);
+
+    if (validPrices.length === 0) return {};
+
+    const basePrices = {};
+    validPrices.forEach(({ symbol, prices }) => {
+      if (prices.length > 0) basePrices[symbol] = prices[0].close;
     });
 
-    const result = {};
-    const sortedKeys = Object.keys(byMonth).sort();
+    const priceByDateSymbol = {};
+    const allDates = new Set();
+    validPrices.forEach(({ symbol, prices }) => {
+      priceByDateSymbol[symbol] = {};
+      prices.forEach(p => {
+        const dateKey = p.ts.split("T")[0];
+        priceByDateSymbol[symbol][dateKey] = p.close;
+        allDates.add(dateKey);
+      });
+    });
 
-    for (let i = 0; i < sortedKeys.length; i++) {
-      const key = sortedKeys[i];
-      const navs = byMonth[key];
-      const endNav = navs[navs.length - 1];
+    const sortedDates = Array.from(allDates).sort();
 
-      let startNav;
-      if (i > 0) {
-        const prevNavs = byMonth[sortedKeys[i - 1]];
-        startNav = prevNavs[prevNavs.length - 1];
-      } else {
-        startNav = navs[0];
+    const navByDate = {};
+    sortedDates.forEach(dateKey => {
+      let weightedIndex = 0;
+      let usedWeight = 0;
+
+      validPrices.forEach(({ symbol, weight }) => {
+        const currentPrice = priceByDateSymbol[symbol]?.[dateKey];
+        const basePrice = basePrices[symbol];
+        if (currentPrice && basePrice && basePrice !== 0) {
+          const normalized = (currentPrice / basePrice) * 100;
+          weightedIndex += normalized * weight;
+          usedWeight += weight;
+        }
+      });
+
+      if (usedWeight > 0) {
+        navByDate[dateKey] = (weightedIndex / usedWeight);
       }
+    });
 
-      if (startNav && startNav > 0) {
-        const [year, month] = key.split("-");
+    const monthlyNav = {};
+    Object.entries(navByDate).forEach(([dateKey, nav]) => {
+      const [year, month] = dateKey.split("-");
+      const key = `${year}-${month}`;
+      monthlyNav[key] = nav;
+    });
+
+    const sortedMonths = Object.keys(monthlyNav).sort();
+    const result = {};
+
+    for (let i = 1; i < sortedMonths.length; i++) {
+      const prevNav = monthlyNav[sortedMonths[i - 1]];
+      const currNav = monthlyNav[sortedMonths[i]];
+      if (prevNav && prevNav > 0) {
+        const [year, month] = sortedMonths[i].split("-");
         if (!result[year]) result[year] = {};
-        result[year][month] = (endNav - startNav) / startNav;
+        result[year][month] = (currNav - prevNav) / prevNav;
       }
     }
 

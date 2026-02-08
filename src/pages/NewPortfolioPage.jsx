@@ -22,7 +22,7 @@ const getReturnColor = (value) => {
 };
 
 
-const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
+const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies, onBack }) => {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("strategy");
   const [timeFilter, setTimeFilter] = useState("W");
@@ -828,7 +828,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
         </section>
 
               <button
-                onClick={() => onOpenInvest && onOpenInvest()}
+                onClick={() => (onOpenStrategies || onOpenInvest) && (onOpenStrategies || onOpenInvest)()}
                 className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl flex items-center justify-center gap-2"
               >
                 <Plus className="h-4 w-4" />
