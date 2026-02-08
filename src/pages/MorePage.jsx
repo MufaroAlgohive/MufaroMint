@@ -211,7 +211,7 @@ const MorePage = ({ onNavigate }) => {
             </button>
             <button
               type="button"
-              onClick={() => onNavigate?.("actions")}
+              onClick={() => onNavigate?.("bankLink")}
               className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-left transition hover:bg-slate-100"
             >
               <div className="flex items-center gap-2">
@@ -232,13 +232,6 @@ const MorePage = ({ onNavigate }) => {
               </span>
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => onNavigate?.("actions")}
-            className="mt-4 w-full py-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-sm font-semibold text-slate-700 active:scale-[0.98] transition-all duration-150 hover:bg-slate-100"
-          >
-            View All Actions
-          </button>
         </div>
       </div>
 
