@@ -960,96 +960,121 @@ app.post("/api/record-investment", async (req, res) => {
       return res.status(400).json({ success: false, error: `Amount mismatch: paid ${paidAmount}, expected ${amount}` });
     }
 
-    let currentPriceCents = null;
-    const { data: securityData, error: secError } = await db
-      .from("securities")
-      .select("last_price")
-      .eq("id", securityId)
-      .maybeSingle();
+    if (strategyId) {
+      const { error: linkError } = await db
+        .from("user_strategies")
+        .upsert({ 
+          user_id: userId, 
+          strategy_id: strategyId,
+        }, { onConflict: 'user_id,strategy_id' });
 
-    if (!secError && securityData?.last_price) {
-      currentPriceCents = Number(securityData.last_price);
-    } else {
-      const { data: priceData, error: priceError } = await db
-        .from("security_prices")
-        .select("close_price")
-        .eq("security_id", securityId)
-        .order("price_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (!priceError && priceData?.close_price) {
-        currentPriceCents = Number(priceData.close_price);
+      if (linkError) {
+        console.error("Error creating strategy link:", linkError);
       }
     }
 
-    const currentPriceRands = currentPriceCents ? currentPriceCents / 100 : amount;
-    const quantity = currentPriceRands > 0 ? amount / currentPriceRands : 1;
-    const avgFillCents = currentPriceCents || Math.round(amount * 100);
-    const marketValueCents = Math.round(quantity * (currentPriceCents || amount * 100));
-
-    const { data: existing, error: fetchError } = await db
-      .from("stock_holdings")
-      .select("id, quantity, avg_fill, market_value")
-      .eq("user_id", userId)
-      .eq("security_id", securityId)
+    const { data: securityCheck } = await db
+      .from("securities")
+      .select("id")
+      .eq("id", securityId)
       .maybeSingle();
 
-    if (fetchError) {
-      console.error("Error checking existing holding:", fetchError);
-      return res.status(500).json({ success: false, error: fetchError.message });
-    }
+    let holdingResult = { data: null, error: null };
 
-    let holdingResult;
-    if (existing) {
-      const oldQty = Number(existing.quantity || 0);
-      const oldAvgFill = Number(existing.avg_fill || 0);
-      const newQty = oldQty + quantity;
-      const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (avgFillCents * quantity)) / newQty : avgFillCents;
-      const newMarketValue = Math.round(newQty * (currentPriceCents || newAvgFill));
-      const { data, error } = await db
+    if (securityCheck) {
+      let currentPriceCents = null;
+      const { data: securityData, error: secError } = await db
+        .from("securities")
+        .select("last_price")
+        .eq("id", securityId)
+        .maybeSingle();
+
+      if (!secError && securityData?.last_price) {
+        currentPriceCents = Number(securityData.last_price);
+      } else {
+        const { data: priceData, error: priceError } = await db
+          .from("security_prices")
+          .select("close_price")
+          .eq("security_id", securityId)
+          .order("price_date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!priceError && priceData?.close_price) {
+          currentPriceCents = Number(priceData.close_price);
+        }
+      }
+
+      const currentPriceRands = currentPriceCents ? currentPriceCents / 100 : amount;
+      const quantity = currentPriceRands > 0 ? amount / currentPriceRands : 1;
+      const avgFillCents = currentPriceCents || Math.round(amount * 100);
+      const marketValueCents = Math.round(quantity * (currentPriceCents || amount * 100));
+
+      const { data: existing, error: fetchError } = await db
         .from("stock_holdings")
-        .update({
-          quantity: newQty,
-          avg_fill: Math.round(newAvgFill),
-          market_value: newMarketValue,
+        .select("id, quantity, avg_fill, market_value")
+        .eq("user_id", userId)
+        .eq("security_id", securityId)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error("Error checking existing holding:", fetchError);
+        return res.status(500).json({ success: false, error: fetchError.message });
+      }
+
+      if (existing) {
+        const oldQty = Number(existing.quantity || 0);
+        const oldAvgFill = Number(existing.avg_fill || 0);
+        const newQty = oldQty + quantity;
+        const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (avgFillCents * quantity)) / newQty : avgFillCents;
+        const newMarketValue = Math.round(newQty * (currentPriceCents || newAvgFill));
+        const { data, error } = await db
+          .from("stock_holdings")
+          .update({
+            quantity: newQty,
+            avg_fill: Math.round(newAvgFill),
+            market_value: newMarketValue,
+            as_of_date: new Date().toISOString().split("T")[0],
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id)
+          .select();
+        holdingResult = { data, error };
+      } else {
+        const holdingData = {
+          user_id: userId,
+          security_id: securityId,
+          quantity: quantity,
+          avg_fill: avgFillCents,
+          market_value: marketValueCents,
+          unrealized_pnl: 0,
           as_of_date: new Date().toISOString().split("T")[0],
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-        .select();
-      holdingResult = { data, error };
-    } else {
-      const holdingData = {
-        user_id: userId,
-        security_id: securityId,
-        quantity: quantity,
-        avg_fill: avgFillCents,
-        market_value: marketValueCents,
-        unrealized_pnl: 0,
-        as_of_date: new Date().toISOString().split("T")[0],
-        Status: "active",
-      };
-      const { data, error } = await db
-        .from("stock_holdings")
-        .insert(holdingData)
-        .select();
-      holdingResult = { data, error };
+          Status: "active",
+        };
+        const { data, error } = await db
+          .from("stock_holdings")
+          .insert(holdingData)
+          .select();
+        holdingResult = { data, error };
+      }
+
+      if (holdingResult.error) {
+        console.error("Error upserting holding:", holdingResult.error);
+        return res.status(500).json({ success: false, error: holdingResult.error.message });
+      }
     }
 
-    if (holdingResult.error) {
-      console.error("Error upserting holding:", holdingResult.error);
-      return res.status(500).json({ success: false, error: holdingResult.error.message });
-    }
-
-    const qtyText = quantity === 1 ? "1 share" : `${quantity.toFixed(4)} shares`;
+    const isStrategyInvestment = strategyId && !securityCheck;
+    const descriptionText = isStrategyInvestment
+      ? `Invested in strategy ${name || "Strategy"}`
+      : `Purchased ${(holdingResult.data ? "shares" : "units")} of ${name || symbol || "Unknown"}`;
     const { error: txError } = await db
       .from("transactions")
       .insert({
         user_id: userId,
         direction: "debit",
-        name: `Purchased ${name || symbol || "Stock"}`,
-        description: `Purchased ${qtyText} of ${name || symbol || "Unknown"}`,
+        name: isStrategyInvestment ? `Strategy Investment: ${name || symbol || "Strategy"}` : `Purchased ${name || symbol || "Stock"}`,
+        description: descriptionText,
         amount: Math.round(amount * 100),
         store_reference: paymentReference || null,
         currency: "ZAR",
@@ -1111,15 +1136,17 @@ app.get("/api/user/holdings", async (req, res) => {
       }
     }
 
-    const enrichedHoldings = rawHoldings.map(h => ({
-      ...h,
-      symbol: securitiesMap[h.security_id]?.symbol || "N/A",
-      name: securitiesMap[h.security_id]?.name || "Unknown",
-      asset_class: securitiesMap[h.security_id]?.sector || "Other",
-      logo_url: securitiesMap[h.security_id]?.logo_url || null,
-      last_price: securitiesMap[h.security_id]?.last_price || null,
-      exchange: securitiesMap[h.security_id]?.exchange || null,
-    }));
+    const enrichedHoldings = rawHoldings
+      .filter(h => securitiesMap[h.security_id])
+      .map(h => ({
+        ...h,
+        symbol: securitiesMap[h.security_id]?.symbol || "N/A",
+        name: securitiesMap[h.security_id]?.name || "Unknown",
+        asset_class: securitiesMap[h.security_id]?.sector || "Other",
+        logo_url: securitiesMap[h.security_id]?.logo_url || null,
+        last_price: securitiesMap[h.security_id]?.last_price || null,
+        exchange: securitiesMap[h.security_id]?.exchange || null,
+      }));
 
     res.json({ success: true, holdings: enrichedHoldings });
   } catch (error) {

@@ -60,12 +60,14 @@ const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token;
+          const isStrategy = !!(strategy?.holdings || strategy?.risk_level || strategy?.slug);
+          const stratId = strategy?.strategyId || (isStrategy ? strategy?.id : null);
           const recordData = {
             securityId: strategy?.id,
             symbol: strategy?.symbol || strategy?.short_name || "",
             name: strategy?.name || "",
             amount: amount,
-            strategyId: strategy?.strategyId || null,
+            strategyId: stratId,
             paymentReference: response?.reference || "",
           };
           const headers = { "Content-Type": "application/json" };
