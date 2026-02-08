@@ -828,7 +828,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
               <div className="relative" ref={calendarFilterRef}>
                 <button
                   onClick={() => setShowCalendarFilterDropdown(!showCalendarFilterDropdown)}
-                  className="flex items-center gap-1 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 max-w-[140px]"
+                  className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 max-w-[140px]"
                 >
                   <span className="truncate">{calendarFilterOptions.find(o => o.id === calendarFilter)?.label || "Overall Portfolio"}</span>
                   <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${showCalendarFilterDropdown ? 'rotate-180' : ''}`} />
