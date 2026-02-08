@@ -54,9 +54,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
     const loadStrategies = async () => {
       if (!supabase || !profile?.id) {
-        if (isMounted) setStrategiesLoading(false);
         return;
       }
+      if (isMounted) setStrategiesLoading(true);
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -210,9 +210,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
     const loadHoldings = async () => {
       if (!supabase || !profile?.id) {
-        if (isMounted) setHoldingsLoading(false);
         return;
       }
+      if (isMounted) setHoldingsLoading(true);
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -326,9 +326,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
     const loadFinancials = async () => {
       if (!supabase || !profile?.id) {
-        if (isMounted) setFinancialsLoading(false);
         return;
       }
+      if (isMounted) setFinancialsLoading(true);
 
       try {
         const { data: allocations, error } = await supabase
