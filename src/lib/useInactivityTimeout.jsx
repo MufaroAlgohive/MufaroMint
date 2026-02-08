@@ -2,17 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Lock, LogOut } from 'lucide-react';
 import { supabase } from './supabase';
 
-const TIMEOUT_KEY = 'mint_session_timeout_minutes';
-const DEFAULT_TIMEOUT = 5;
-
-const getTimeoutMinutes = () => {
-  const stored = localStorage.getItem(TIMEOUT_KEY);
-  if (stored) {
-    const parsed = parseInt(stored, 10);
-    if (!isNaN(parsed) && parsed > 0) return parsed;
-  }
-  return DEFAULT_TIMEOUT;
-};
+const TIMEOUT_MINUTES = 5;
 
 export const useInactivityTimeout = ({ onLogout, enabled = true } = {}) => {
   const [isLocked, setIsLocked] = useState(false);
@@ -21,7 +11,7 @@ export const useInactivityTimeout = ({ onLogout, enabled = true } = {}) => {
   const resetTimer = useCallback(() => {
     if (isLocked || !enabled) return;
     if (timerRef.current) clearTimeout(timerRef.current);
-    const minutes = getTimeoutMinutes();
+    const minutes = TIMEOUT_MINUTES;
     timerRef.current = setTimeout(() => {
       setIsLocked(true);
     }, minutes * 60 * 1000);

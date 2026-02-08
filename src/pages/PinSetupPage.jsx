@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { ArrowLeft, Delete } from 'lucide-react';
 import { setPin, setPinEmail } from '../lib/usePin';
 import { supabase } from '../lib/supabase';
@@ -12,8 +12,8 @@ const PinDots = ({ filled, shake }) => (
         key={i}
         className={`h-4 w-4 rounded-full border-2 transition-all duration-200 ${
           i < filled
-            ? 'border-white bg-white scale-110'
-            : 'border-white/40 bg-transparent'
+            ? 'border-slate-900 bg-slate-900 scale-110'
+            : 'border-slate-300 bg-transparent'
         }`}
       />
     ))}
@@ -38,7 +38,7 @@ const NumberPad = ({ onPress, onDelete }) => {
               key={i}
               type="button"
               onClick={onDelete}
-              className="flex h-16 w-16 items-center justify-center rounded-full text-white transition active:scale-90 active:bg-white/10 mx-auto"
+              className="flex h-16 w-16 items-center justify-center rounded-full text-slate-700 transition active:scale-90 active:bg-slate-100 mx-auto"
             >
               <Delete className="h-6 w-6" />
             </button>
@@ -49,7 +49,7 @@ const NumberPad = ({ onPress, onDelete }) => {
             key={i}
             type="button"
             onClick={() => onPress(key)}
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 text-2xl font-semibold text-white backdrop-blur-md transition active:scale-90 active:bg-white/20 mx-auto"
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-2xl font-semibold text-slate-900 transition active:scale-90 active:bg-slate-200 mx-auto"
           >
             {key}
           </button>
@@ -137,7 +137,7 @@ const PinSetupPage = ({ onNavigate, onBack }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {toast.show && (
         <div
           className={`fixed left-1/2 top-4 z-50 -translate-x-1/2 transform rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
@@ -152,18 +152,18 @@ const PinSetupPage = ({ onNavigate, onBack }) => {
         <button
           type="button"
           onClick={() => (onBack ? onBack() : onNavigate?.('settings'))}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition active:scale-95"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm transition active:scale-95"
           aria-label="Back"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-xl font-semibold text-white">
+        <h1 className="text-xl font-semibold text-slate-900">
           {step === 'enter' ? 'Set PIN' : 'Confirm PIN'}
         </h1>
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center px-8">
-        <p className="mb-8 text-center text-sm text-white/60">
+        <p className="mb-8 text-center text-sm text-slate-500">
           {step === 'enter'
             ? 'Enter a 4-digit PIN to secure your app'
             : 'Re-enter your PIN to confirm'}
@@ -175,15 +175,6 @@ const PinSetupPage = ({ onNavigate, onBack }) => {
           <NumberPad onPress={handlePress} onDelete={handleDelete} />
         </div>
       </div>
-
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-          20%, 40%, 60%, 80% { transform: translateX(4px); }
-        }
-        .animate-shake { animation: shake 0.5s ease-in-out; }
-      `}</style>
     </div>
   );
 };

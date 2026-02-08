@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Lock, Fingerprint, Bell, KeyRound, Smartphone, Timer } from "lucide-react";
+import { ArrowLeft, Lock, Fingerprint, Bell, KeyRound, Smartphone } from "lucide-react";
 import {
   authenticateWithBiometrics,
   disableBiometrics,
@@ -19,10 +19,6 @@ const SettingsPage = ({ onNavigate, onBack }) => {
   const [isToggling, setIsToggling] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [pinOn, setPinOn] = useState(false);
-  const [timeoutMinutes, setTimeoutMinutes] = useState(() => {
-    const stored = localStorage.getItem("mint_session_timeout_minutes");
-    return stored ? parseInt(stored, 10) : 5;
-  });
 
   useEffect(() => {
     const init = async () => {
@@ -83,19 +79,6 @@ const SettingsPage = ({ onNavigate, onBack }) => {
       onNavigate?.("pinSetup");
     }
   };
-
-  const handleTimeoutChange = (minutes) => {
-    setTimeoutMinutes(minutes);
-    localStorage.setItem("mint_session_timeout_minutes", String(minutes));
-  };
-
-  const timeoutOptions = [
-    { label: "1 min", value: 1 },
-    { label: "2 min", value: 2 },
-    { label: "5 min", value: 5 },
-    { label: "10 min", value: 10 },
-    { label: "15 min", value: 15 },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 pt-12 pb-24">
@@ -176,33 +159,6 @@ const SettingsPage = ({ onNavigate, onBack }) => {
                 }`}
               />
             </button>
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 text-amber-600">
-              <Timer className="h-5 w-5" />
-            </span>
-            <div className="flex-1">
-              <h2 className="text-base font-semibold text-slate-900">Session Timeout</h2>
-              <p className="text-sm text-slate-500">Lock after inactivity</p>
-            </div>
-          </div>
-          <div className="flex gap-2 pl-[52px]">
-            {timeoutOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => handleTimeoutChange(opt.value)}
-                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                  timeoutMinutes === opt.value
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
           </div>
         </div>
 
