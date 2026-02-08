@@ -1044,6 +1044,51 @@ app.post("/api/banking/unlink", async (req, res) => {
   }
 });
 
+app.post("/api/account/reset", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const uid = user.id;
+    const results = {};
+
+    const tables = [
+      { name: "required_actions", action: "update", data: { bank_linked: false, bank_in_review: false, bank_linked_at: null, kyc_verified: false } },
+      { name: "user_onboarding", action: "delete" },
+      { name: "transactions", action: "delete" },
+      { name: "loan_engine_score", action: "delete" },
+      { name: "loan_application", action: "delete" },
+      { name: "investment_goals", action: "delete" },
+      { name: "notifications", action: "delete" },
+    ];
+
+    for (const t of tables) {
+      try {
+        if (t.action === "delete") {
+          const { error } = await db.from(t.name).delete().eq("user_id", uid);
+          results[t.name] = error ? `error: ${error.message}` : "cleared";
+        } else if (t.action === "update") {
+          const { error } = await db.from(t.name).update(t.data).eq("user_id", uid);
+          results[t.name] = error ? `error: ${error.message}` : "reset";
+        }
+      } catch (e) {
+        results[t.name] = `skipped: ${e.message}`;
+      }
+    }
+
+    console.log("Account reset results for", uid, results);
+    res.json({ success: true, message: "Account reset complete", results });
+  } catch (error) {
+    console.error("Account reset error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 function extractLatestStatus(statuses) {
   if (!Array.isArray(statuses) || !statuses.length) return null;
   const sorted = [...statuses].sort((a, b) => {
