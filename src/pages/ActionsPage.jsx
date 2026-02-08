@@ -3,27 +3,17 @@ import {
   ArrowLeft,
   BadgeCheck,
   ChevronRight,
-  Landmark,
-  UserPlus,
   CheckCircle2,
 } from "lucide-react";
 import ActionsSkeleton from "../components/ActionsSkeleton";
-import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { bankLinked, bankInReview } = useRequiredActions();
   const { kycVerified, kycPending, kycNeedsResubmission, loading, rejectLabels } = useSumsubStatus();
 
   if (loading) {
     return <ActionsSkeleton />;
   }
-
-  const getBankStatus = () => {
-    if (bankLinked) return "Verified";
-    if (bankInReview) return "In review";
-    return "Required";
-  };
 
   const getKycStatus = () => {
     if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
@@ -64,29 +54,11 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       completed: kycVerified,
       navigateTo: "identityCheck",
     },
-    {
-      id: "bank-link",
-      title: "Link your primary bank",
-      description: "Connect to enable instant transfers",
-      status: getBankStatus(),
-      icon: Landmark,
-      completed: bankLinked,
-      navigateTo: "creditApply",
-    },
-    {
-      id: "invite",
-      title: "Invite a friend",
-      description: "Share Mint and earn bonus rewards",
-      status: "Optional",
-      icon: UserPlus,
-      completed: false,
-      navigateTo: "invite",
-    },
   ];
 
   const outstandingActions = allActions.filter((a) => !a.completed);
   const completedActions = allActions.filter((a) => a.completed);
-  const allRequiredComplete = kycVerified && bankLinked;
+  const allRequiredComplete = kycVerified;
 
   const handleActionPress = (action) => {
     if (onNavigate && action.navigateTo) {
