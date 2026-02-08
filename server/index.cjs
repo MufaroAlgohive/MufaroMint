@@ -1366,7 +1366,7 @@ app.get("/api/user/transactions", async (req, res) => {
 
     const txList = transactions || [];
 
-    const strategyNames = new Set();
+    const extractedNames = [];
     for (const tx of txList) {
       const txName = (tx.name || "").trim();
       let sName = null;
@@ -1375,22 +1375,67 @@ app.get("/api/user/transactions", async (req, res) => {
       } else if (txName.startsWith("Purchased ")) {
         sName = txName.replace("Purchased ", "").trim();
       }
-      if (sName) strategyNames.add(sName);
+      if (sName) extractedNames.push(sName);
     }
 
     let logoMap = {};
-    if (strategyNames.size > 0) {
+    if (extractedNames.length > 0) {
       const { data: strategies } = await db
         .from("strategies")
-        .select("name, short_name, icon_url, image_url")
+        .select("name, short_name, icon_url, image_url, holdings")
         .eq("status", "active");
 
       if (strategies) {
+        const holdingSymbols = new Set();
         for (const s of strategies) {
-          const logo = s.icon_url || s.image_url || null;
-          if (logo) {
+          if (s.icon_url || s.image_url) {
+            const logo = s.icon_url || s.image_url;
             if (s.name) logoMap[s.name.toLowerCase()] = logo;
             if (s.short_name) logoMap[s.short_name.toLowerCase()] = logo;
+          }
+          const h = s.holdings || [];
+          if (Array.isArray(h)) {
+            h.forEach(item => { if (item.symbol) holdingSymbols.add(item.symbol); });
+          }
+        }
+
+        if (holdingSymbols.size > 0) {
+          const { data: secs } = await db
+            .from("securities")
+            .select("symbol, name, logo_url")
+            .in("symbol", Array.from(holdingSymbols));
+          if (secs) {
+            for (const sec of secs) {
+              if (sec.logo_url) {
+                if (sec.name) logoMap[sec.name.toLowerCase()] = sec.logo_url;
+                if (sec.symbol) logoMap[sec.symbol.toLowerCase()] = sec.logo_url;
+              }
+            }
+          }
+        }
+      }
+
+      const { data: directSecs } = await db
+        .from("securities")
+        .select("name, symbol, logo_url");
+      if (directSecs) {
+        for (const sec of directSecs) {
+          if (sec.logo_url) {
+            if (sec.name) logoMap[sec.name.toLowerCase()] = sec.logo_url;
+            if (sec.symbol) logoMap[sec.symbol.toLowerCase()] = sec.logo_url;
+          }
+        }
+      }
+
+      for (const s of (strategies || [])) {
+        if (!logoMap[s.name?.toLowerCase()] && !logoMap[s.short_name?.toLowerCase()]) {
+          const h = s.holdings || [];
+          if (Array.isArray(h) && h.length > 0) {
+            const firstSymbol = h[0].symbol;
+            if (firstSymbol && logoMap[firstSymbol.toLowerCase()]) {
+              if (s.name) logoMap[s.name.toLowerCase()] = logoMap[firstSymbol.toLowerCase()];
+              if (s.short_name) logoMap[s.short_name.toLowerCase()] = logoMap[firstSymbol.toLowerCase()];
+            }
           }
         }
       }

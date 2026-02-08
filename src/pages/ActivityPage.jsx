@@ -101,8 +101,15 @@ const ActivityPage = ({ onBack }) => {
   }, [transactions]);
 
   const summaryStats = useMemo(() => {
-    const totalIn = activityItems.filter(i => i.isPositive).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
-    const totalOut = activityItems.filter(i => !i.isPositive).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
+    const totalIn = activityItems.filter(i => {
+      const lower = (i.title || "").toLowerCase();
+      const isWithdrawal = lower.includes("withdraw") || lower.includes("repay");
+      return !isWithdrawal;
+    }).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
+    const totalOut = activityItems.filter(i => {
+      const lower = (i.title || "").toLowerCase();
+      return lower.includes("withdraw") || lower.includes("repay");
+    }).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
     return { totalIn, totalOut, count: activityItems.length };
   }, [activityItems]);
 
@@ -346,9 +353,7 @@ const ActivityPage = ({ onBack }) => {
                             )}
                           </div>
                         </div>
-                        <p className={`text-sm font-bold tabular-nums flex-shrink-0 ${
-                          item.isPositive ? "text-emerald-600" : "text-red-600"
-                        }`}>
+                        <p className="text-sm font-bold tabular-nums flex-shrink-0 text-slate-900">
                           {item.amount}
                         </p>
                       </div>

@@ -74,9 +74,7 @@ const TransactionHistorySection = ({ items, onViewAll }) => {
                     )}
                   </div>
                 </div>
-                <p className={`text-sm font-bold tabular-nums flex-shrink-0 ${
-                  isCredit ? "text-emerald-600" : "text-red-600"
-                }`}>
+                <p className="text-sm font-bold tabular-nums flex-shrink-0 text-slate-900">
                   {item.amount}
                 </p>
               </div>
