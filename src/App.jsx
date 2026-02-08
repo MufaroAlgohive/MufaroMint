@@ -102,12 +102,16 @@ const App = () => {
     },
   });
 
+  const justLoggedInRef = useRef(false);
   const prevAuthRef = useRef(false);
   useEffect(() => {
-    if (isAuthenticated && !prevAuthRef.current && isPinEnabled()) {
+    if (isAuthenticated && !prevAuthRef.current && isPinEnabled() && !justLoggedInRef.current) {
       setShowPinLock(true);
     }
     prevAuthRef.current = isAuthenticated;
+    if (justLoggedInRef.current) {
+      justLoggedInRef.current = false;
+    }
   }, [isAuthenticated]);
   
   const navigationHistory = useRef([]);
@@ -1270,6 +1274,7 @@ const App = () => {
   }
 
   const handleSignupComplete = async () => {
+    justLoggedInRef.current = true;
     if (supabase) {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
@@ -1281,10 +1286,10 @@ const App = () => {
   };
 
   const handleLoginComplete = async () => {
+    justLoggedInRef.current = true;
     if (supabase) {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
-        await createWelcomeNotification(userData.user.id);
         await refetchNotifications();
       }
     }
