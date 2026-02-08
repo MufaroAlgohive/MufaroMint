@@ -806,6 +806,184 @@ app.post("/api/truid/webhook", async (req, res) => {
   res.status(200).json({ received: true });
 });
 
+// ============ BANKING API ENDPOINTS ============
+
+app.post("/api/banking/initiate", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        error: { message: "Missing or invalid Authorization header" }
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const db = supabaseAdmin || supabase;
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        error: { message: "Database not configured" }
+      });
+    }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({
+        success: false,
+        error: { message: "Invalid or expired token" }
+      });
+    }
+
+    const { data: profile, error: profileError } = await db
+      .from("profiles")
+      .select("name, idNumber")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError || !profile) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "User profile not found or missing required fields" }
+      });
+    }
+
+    if (!profile.name || !profile.idNumber) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Profile is missing name or ID number" }
+      });
+    }
+
+    const collection = await truIDClient.createCollection({
+      name: profile.name,
+      idNumber: profile.idNumber,
+      email: user.email
+    });
+
+    res.status(201).json({
+      success: true,
+      collectionId: collection.collectionId,
+      consumerUrl: collection.consumerUrl
+    });
+  } catch (error) {
+    console.error("Banking initiate error:", error);
+    res.status(error.status || 500).json({
+      success: false,
+      error: { message: error.message || "Internal server error" }
+    });
+  }
+});
+
+app.get("/api/banking/status", async (req, res) => {
+  try {
+    const { collectionId } = req.query;
+    if (!collectionId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "Missing collectionId" }
+      });
+    }
+
+    const result = await truIDClient.getCollection(collectionId);
+    const statusNode = result.data?.status || result.data?.current_status;
+    const fallbackStatus = statusNode?.code || statusNode || result.data?.state;
+    const currentStatus =
+      fallbackStatus ||
+      extractLatestStatus(result.data?.statuses) ||
+      extractLatestMilestone(result.data?.milestones) ||
+      "UNKNOWN";
+
+    let outcome = "pending";
+    const upperStatus = String(currentStatus).toUpperCase();
+    if (upperStatus === "COMPLETED" || upperStatus === "COMPLETE" || upperStatus === "SUCCESS") {
+      outcome = "completed";
+    } else if (upperStatus === "FAILED" || upperStatus === "REJECTED" || upperStatus === "ERROR") {
+      outcome = "failed";
+    }
+
+    res.json({
+      success: true,
+      collectionId,
+      currentStatus,
+      outcome
+    });
+  } catch (error) {
+    console.error("Banking status error:", error);
+    res.status(error.status || 500).json({
+      success: false,
+      error: { message: error.message || "Internal server error" }
+    });
+  }
+});
+
+app.post("/api/banking/capture", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        success: false,
+        error: { message: "Missing or invalid Authorization header" }
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const db = supabaseAdmin || supabase;
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        error: { message: "Database not configured" }
+      });
+    }
+
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({
+        success: false,
+        error: { message: "Invalid or expired token" }
+      });
+    }
+
+    const { collectionId } = req.body;
+    if (!collectionId) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "collectionId is required" }
+      });
+    }
+
+    const data = await truIDClient.getCollectionData(collectionId);
+
+    const { data: existingAction } = await db
+      .from("required_actions")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingAction) {
+      await db
+        .from("required_actions")
+        .update({ bank_linked: true, bank_in_review: false })
+        .eq("user_id", user.id);
+    } else {
+      await db
+        .from("required_actions")
+        .insert({ user_id: user.id, bank_linked: true, bank_in_review: false });
+    }
+
+    res.json({
+      success: true,
+      snapshot: data
+    });
+  } catch (error) {
+    console.error("Banking capture error:", error);
+    res.status(error.status || 500).json({
+      success: false,
+      error: { message: error.message || "Internal server error" }
+    });
+  }
+});
+
 function extractLatestStatus(statuses) {
   if (!Array.isArray(statuses) || !statuses.length) return null;
   const sorted = [...statuses].sort((a, b) => {

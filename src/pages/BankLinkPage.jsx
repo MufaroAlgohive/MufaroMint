@@ -1,41 +1,136 @@
-import React, { useState, useEffect } from "react";
-import { ArrowLeft, Landmark, CheckCircle2, Shield } from "lucide-react";
-import { TruidConnector } from "../components/TruidConnector";
+import React, { useRef, useState, useEffect } from "react";
+import { ArrowLeft, Landmark, ShieldCheck, CheckCircle2, Shield } from "lucide-react";
 import { supabase } from "../lib/supabase";
-import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
 const BankLinkPage = ({ onBack, onComplete }) => {
-  const profile = useProfile();
   const { bankLinked } = useRequiredActions();
-  const [verified, setVerified] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [status, setStatus] = useState("idle");
+  const [message, setMessage] = useState("");
+  const collectionIdRef = useRef(null);
+  const pollingRef = useRef(null);
+  const lastStatusRef = useRef(null);
 
   useEffect(() => {
-    if (bankLinked) setVerified(true);
+    if (bankLinked) setStatus("already_linked");
   }, [bankLinked]);
 
-  const handleVerified = async () => {
-    setUpdatingStatus(true);
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
+
+  const startSession = async () => {
+    setStatus("connecting");
+    setMessage("Initializing secure connection...");
+
     try {
-      if (supabase) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData?.user?.id) {
-          await supabase
-            .from("required_actions")
-            .update({ bank_linked: true, bank_in_review: false })
-            .eq("user_id", userData.user.id);
-        }
-      }
-      setVerified(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Authentication required");
+
+      const response = await fetch("/api/banking/initiate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
+      });
+
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || "Connection failed");
+
+      collectionIdRef.current = data.collectionId;
+
+      const width = 500;
+      const height = 700;
+      const left = (window.screen.width - width) / 2;
+      const top = (window.screen.height - height) / 2;
+
+      const popup = window.open(
+        data.consumerUrl,
+        "TruID Banking",
+        `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes`
+      );
+
+      if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
+
+      setMessage("Complete the process in the popup window...");
+      setStatus("polling");
+      startPolling(data.collectionId);
     } catch (err) {
-      console.error("Failed to update bank status:", err);
-    } finally {
-      setUpdatingStatus(false);
+      console.error("Banking initiate error:", err);
+      setStatus("error");
+      setMessage(err.message);
     }
   };
 
-  if (verified) {
+  const startPolling = (collectionId) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/banking/status?collectionId=${collectionId}`);
+        const data = await res.json();
+        const rawStatus = data.currentStatus;
+        const s = String(rawStatus || "").toUpperCase();
+        const numericStatus = Number(rawStatus);
+        const hasNumericStatus = Number.isFinite(numericStatus);
+        const isComplete =
+          s.includes("SUCCESS") ||
+          s.includes("COMPLETED") ||
+          (hasNumericStatus && numericStatus >= 2000 && numericStatus < 3000);
+        const isFailed =
+          s.includes("FAILED") ||
+          s.includes("CANCELLED") ||
+          s.includes("ERROR");
+
+        const statusSignature = JSON.stringify({ status: rawStatus });
+        if (statusSignature !== lastStatusRef.current) {
+          lastStatusRef.current = statusSignature;
+        }
+
+        if (isComplete) {
+          clearInterval(pollingRef.current);
+          setStatus("capturing");
+          setMessage("Verifying banking data...");
+
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const captureRes = await fetch("/api/banking/capture", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: session ? `Bearer ${session.access_token}` : "",
+              },
+              body: JSON.stringify({ collectionId }),
+            });
+
+            const captureData = await captureRes.json();
+            if (!captureRes.ok || !captureData.success) {
+              throw new Error(captureData.error || "Capture failed");
+            }
+
+            setStatus("success");
+            setMessage("Bank account linked successfully!");
+          } catch (captureErr) {
+            console.error("Capture error:", captureErr);
+            setStatus("error");
+            setMessage("Failed to verify banking data. Please try again.");
+          }
+        } else if (isFailed) {
+          clearInterval(pollingRef.current);
+          setStatus("error");
+          setMessage("Bank connection was cancelled or failed.");
+        }
+      } catch (e) {
+        console.error("Polling error:", e);
+      }
+    }, 3000);
+  };
+
+  if (status === "already_linked" || status === "success") {
     return (
       <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
@@ -89,22 +184,63 @@ const BankLinkPage = ({ onBack, onComplete }) => {
           <div className="h-10 w-10" aria-hidden="true" />
         </header>
 
-        <div className="mt-6 flex flex-col items-center text-center mb-6">
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 text-blue-600 mb-4">
-            <Landmark className="h-8 w-8" />
-          </div>
-          <p className="text-sm text-slate-500">
-            Verify and link your bank account securely through TruID.
-          </p>
-        </div>
+        <div className="mt-8 rounded-3xl bg-white p-6 shadow-sm">
+          <div className="flex flex-col items-center gap-6 py-4">
+            <div
+              className={`h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500 ${
+                status === "polling" || status === "capturing"
+                  ? "bg-amber-100 text-amber-600 animate-pulse"
+                  : status === "error"
+                  ? "bg-red-100 text-red-500"
+                  : "bg-blue-100 text-blue-600"
+              }`}
+            >
+              <Landmark className="h-8 w-8" />
+            </div>
 
-        <TruidConnector
-          onVerified={handleVerified}
-          userProfile={{
-            name: profile?.name || "",
-            idNumber: profile?.idNumber || "",
-          }}
-        />
+            <div className="text-center max-w-xs">
+              <h2 className="text-lg font-semibold text-slate-900 mb-2">Bank Verification</h2>
+              <p className="text-sm text-slate-500">
+                {message || "Securely link your bank account through TruID to enable withdrawals and payouts."}
+              </p>
+              {status === "error" && (
+                <p className="text-xs text-red-500 font-semibold mt-2">{message}</p>
+              )}
+            </div>
+
+            {(status === "idle" || status === "error") && (
+              <button
+                type="button"
+                onClick={startSession}
+                className="w-full py-4 rounded-full bg-slate-900 text-white font-semibold text-sm shadow-lg hover:bg-slate-800 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <ShieldCheck className="h-5 w-5" />
+                {status === "error" ? "Try Again" : "Connect Bank"}
+              </button>
+            )}
+
+            {status === "connecting" && (
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+                <span className="w-2 h-2 rounded-full bg-slate-500 animate-ping" />
+                Connecting...
+              </div>
+            )}
+
+            {status === "polling" && (
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600">
+                <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping" />
+                Waiting for bank...
+              </div>
+            )}
+
+            {status === "capturing" && (
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600">
+                <span className="w-2 h-2 rounded-full bg-amber-600 animate-spin" />
+                Verifying...
+              </div>
+            )}
+          </div>
+        </div>
 
         <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-400">
           <Shield className="h-4 w-4" />
