@@ -14,9 +14,9 @@ const getTransactionIcon = (name, direction) => {
 
 const getIconColors = (direction, name) => {
   const lower = (name || "").toLowerCase();
-  if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return { bg: "bg-violet-50", text: "text-violet-600" };
+  if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return { bg: "bg-blue-50", text: "text-blue-600" };
   if (direction === "credit") return { bg: "bg-emerald-50", text: "text-emerald-600" };
-  return { bg: "bg-rose-50", text: "text-rose-500" };
+  return { bg: "bg-slate-100", text: "text-slate-500" };
 };
 
 const TransactionHistorySection = ({ items, onViewAll }) => {
@@ -27,7 +27,7 @@ const TransactionHistorySection = ({ items, onViewAll }) => {
         <button
           type="button"
           onClick={onViewAll}
-          className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
+          className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
         >
           View all
         </button>
@@ -67,7 +67,7 @@ const TransactionHistorySection = ({ items, onViewAll }) => {
                   </div>
                 </div>
                 <p className={`text-sm font-bold tabular-nums flex-shrink-0 ${
-                  (item.title || "").toLowerCase().match(/invest|strategy|purchas|buy|bought/) ? "text-violet-600" : isCredit ? "text-emerald-600" : "text-slate-800"
+                  isCredit ? "text-emerald-600" : "text-slate-800"
                 }`}>
                   {item.amount}
                 </p>

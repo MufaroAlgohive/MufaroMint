@@ -18,9 +18,9 @@ const getTransactionIcon = (name, direction) => {
 
 const getIconColors = (direction, name) => {
   const lower = (name || "").toLowerCase();
-  if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return { bg: "bg-violet-50", text: "text-violet-600" };
+  if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return { bg: "bg-blue-50", text: "text-blue-600" };
   if (direction === "credit") return { bg: "bg-emerald-50", text: "text-emerald-600" };
-  return { bg: "bg-rose-50", text: "text-rose-500" };
+  return { bg: "bg-slate-100", text: "text-slate-500" };
 };
 
 const getFilterCategory = (direction, name) => {
@@ -100,14 +100,9 @@ const ActivityPage = ({ onBack }) => {
   }, [transactions]);
 
   const summaryStats = useMemo(() => {
-    const investKeywords = /invest|strategy|purchas|buy|bought/i;
-    const totalInvested = activityItems
-      .filter(i => !i.isPositive && investKeywords.test(i.title))
-      .reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
-    const totalDeposits = activityItems
-      .filter(i => i.isPositive)
-      .reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
-    return { totalInvested, totalDeposits, count: activityItems.length };
+    const totalIn = activityItems.filter(i => i.isPositive).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
+    const totalOut = activityItems.filter(i => !i.isPositive).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
+    return { totalIn, totalOut, count: activityItems.length };
   }, [activityItems]);
 
   const visibleItems = useMemo(() => {
@@ -180,7 +175,7 @@ const ActivityPage = ({ onBack }) => {
             type="button"
             aria-label="Filter by date"
             onClick={() => setShowDateFilter((prev) => !prev)}
-            className={`flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition ${showDateFilter || fromDate || toDate ? "bg-violet-100 text-violet-700" : "bg-white text-slate-700"}`}
+            className={`flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition ${showDateFilter || fromDate || toDate ? "bg-blue-50 text-blue-600" : "bg-white text-slate-700"}`}
           >
             <CalendarDays className="h-5 w-5" />
           </button>
@@ -194,7 +189,7 @@ const ActivityPage = ({ onBack }) => {
             placeholder="Search transactions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
+            className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-50 transition"
           />
           {searchQuery && (
             <button
@@ -211,7 +206,7 @@ const ActivityPage = ({ onBack }) => {
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold text-slate-500">Date Range</p>
               {(fromDate || toDate) && (
-                <button onClick={() => { setFromDate(""); setToDate(""); }} className="text-[11px] font-semibold text-violet-600">
+                <button onClick={() => { setFromDate(""); setToDate(""); }} className="text-[11px] font-semibold text-blue-600">
                   Clear
                 </button>
               )}
@@ -223,7 +218,7 @@ const ActivityPage = ({ onBack }) => {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-violet-300 focus:outline-none"
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-blue-200 focus:outline-none"
                 />
               </label>
               <label className="flex flex-col gap-1.5 text-[11px] font-semibold text-slate-400">
@@ -232,7 +227,7 @@ const ActivityPage = ({ onBack }) => {
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-violet-300 focus:outline-none"
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-blue-200 focus:outline-none"
                 />
               </label>
             </div>
@@ -242,21 +237,21 @@ const ActivityPage = ({ onBack }) => {
         <div className="mt-5 grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100/80">
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="h-6 w-6 rounded-full bg-violet-50 flex items-center justify-center">
-                <TrendingUp className="h-3 w-3 text-violet-600" />
-              </div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Invested</p>
-            </div>
-            <p className="text-lg font-bold text-violet-600">R{summaryStats.totalInvested.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-          </div>
-          <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100/80">
-            <div className="flex items-center gap-2 mb-1.5">
               <div className="h-6 w-6 rounded-full bg-emerald-50 flex items-center justify-center">
                 <ArrowDownLeft className="h-3 w-3 text-emerald-600" />
               </div>
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Deposits</p>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Money In</p>
             </div>
-            <p className="text-lg font-bold text-emerald-600">R{summaryStats.totalDeposits.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-lg font-bold text-emerald-600">R{summaryStats.totalIn.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100/80">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center">
+                <ArrowUpRight className="h-3 w-3 text-slate-500" />
+              </div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Money Out</p>
+            </div>
+            <p className="text-lg font-bold text-slate-700">R{summaryStats.totalOut.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
         </div>
 
@@ -343,7 +338,7 @@ const ActivityPage = ({ onBack }) => {
                           </div>
                         </div>
                         <p className={`text-sm font-bold tabular-nums flex-shrink-0 ${
-                          (item.title || "").toLowerCase().match(/invest|strategy|purchas|buy|bought/) ? "text-violet-600" : item.isPositive ? "text-emerald-600" : "text-slate-800"
+                          item.isPositive ? "text-emerald-600" : "text-slate-800"
                         }`}>
                           {item.amount}
                         </p>
