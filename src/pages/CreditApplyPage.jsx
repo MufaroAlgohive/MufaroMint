@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
-import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, Info } from "lucide-react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, Info, X, Shield, XCircle } from "lucide-react";
 import { MintGradientLayout } from "../components/credit/ui/MintGradientLayout";
 import { MintCard } from "../components/credit/ui/MintCard";
 import { MintRadarChart } from "../components/credit/ui/MintRadarChart";
@@ -10,229 +10,227 @@ import CreditApplySkeleton from "../components/CreditApplySkeleton";
 
 // --- Subcomponents for Stages ---
 
-// Stage 1: TruID Connect
+// Stage 1: TruID Connect (in-app iframe)
 const ConnectionStage = ({ onComplete, onError }) => {
-  const [status, setStatus] = useState("idle"); // idle, connecting, polling, capturing, success, error
+  const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
-  const [debugLog, setDebugLog] = useState([]);
+  const [consumerUrl, setConsumerUrl] = useState(null);
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
-  const lastStatusRef = useRef(null);
-  const popupRef = useRef(null);
-  const popupCheckRef = useRef(null);
 
-  const addLog = (msg) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const startSession = async () => {
     setStatus("connecting");
     setMessage("Initializing secure connection...");
-    addLog("Starting session...");
-    
+
     try {
-       const { data: { session } } = await supabase.auth.getSession();
-       if (!session) throw new Error("Authentication required");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Authentication required");
 
-       const response = await fetch("/api/banking/initiate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({})
-       });
-       
-       const data = await response.json();
-       addLog(`Initiate response: ${JSON.stringify(data)}`);
-       if (!data.success) {
-         const errMsg = typeof data.error === "string" ? data.error : data.error?.message || "Connection failed";
-         throw new Error(errMsg);
-       }
+      const response = await fetch("/api/banking/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({}),
+      });
 
-       collectionIdRef.current = data.collectionId;
-       
-       // Open popup
-       const width = 500;
-       const height = 700;
-       const left = (window.screen.width - width) / 2;
-       const top = (window.screen.height - height) / 2;
-       
-       const popup = window.open(
-          data.consumerUrl,
-          "TruID Banking",
-          `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes`
-       );
+      const data = await response.json();
+      if (!data.success) {
+        const errMsg = typeof data.error === "string" ? data.error : data.error?.message || "Connection failed";
+        throw new Error(errMsg);
+      }
 
-       if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
-       
-       popupRef.current = popup;
-       setMessage("Complete the process in the popup window...");
-       setStatus("polling");
-       addLog(`Polling started for collectionId: ${data.collectionId}`);
-       startPolling(data.collectionId);
-
-       popupCheckRef.current = setInterval(() => {
-         if (popup.closed) {
-           clearInterval(popupCheckRef.current);
-           if (pollingRef.current) {
-             clearInterval(pollingRef.current);
-             pollingRef.current = null;
-           }
-           addLog("Popup closed by user - polling stopped");
-           if (status === "polling") {
-             setStatus("idle");
-             setMessage("Bank window was closed. Tap Connect Bank to try again.");
-           }
-         }
-       }, 1000);
-
+      collectionIdRef.current = data.collectionId;
+      setConsumerUrl(data.consumerUrl);
+      setStatus("banking");
+      setMessage("");
+      startPolling(data.collectionId);
     } catch (err) {
       console.error(err);
       setStatus("error");
       setMessage(err.message);
-      addLog(`Error starting: ${err.message}`);
       onError(err.message);
     }
   };
+
+  const handleCancel = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setConsumerUrl(null);
+    setStatus("cancelled");
+    setMessage("Bank linking was cancelled. You can try again when you're ready.");
+  }, []);
 
   const pollCountRef = useRef(0);
   const MAX_POLLS = 120;
 
   const startPolling = (collectionId) => {
-     if (pollingRef.current) clearInterval(pollingRef.current);
-     pollCountRef.current = 0;
-     
-     pollingRef.current = setInterval(async () => {
-        pollCountRef.current += 1;
-        if (pollCountRef.current > MAX_POLLS) {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    pollCountRef.current = 0;
+
+    pollingRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > MAX_POLLS) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+        setConsumerUrl(null);
+        setStatus("error");
+        setMessage("Connection timed out. Please try again.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/banking/status?collectionId=${collectionId}`);
+        const data = await res.json();
+        const outcome = data.outcome;
+
+        if (outcome === "completed") {
           clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setConsumerUrl(null);
+          setStatus("capturing");
+          setMessage("Analyzing banking data...");
+
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const captureRes = await fetch("/api/banking/capture", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: session ? `Bearer ${session.access_token}` : "",
+              },
+              body: JSON.stringify({ collectionId }),
+            });
+
+            const captureText = await captureRes.text();
+            let captureData;
+            try {
+              captureData = JSON.parse(captureText);
+            } catch (e) {
+              throw new Error("Invalid response from server");
+            }
+
+            if (!captureRes.ok || !captureData.success) {
+              throw new Error(captureData.error || "Capture failed");
+            }
+
+            setStatus("success");
+            setMessage("Banking data verified successfully.");
+
+            setTimeout(() => {
+              onComplete(collectionId, captureData.success ? captureData.snapshot : null);
+            }, 2000);
+          } catch (err) {
+            console.error("Capture error", err);
+            setStatus("error");
+            setMessage("Failed to retrieve banking data.");
+          }
+        } else if (outcome === "failed") {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+          setConsumerUrl(null);
           setStatus("error");
-          setMessage("Connection timed out. Please try again.");
-          addLog("Polling timed out after max attempts");
-          return;
+          setMessage("Bank connection was cancelled or failed.");
         }
-
-        try {
-           const res = await fetch(`/api/banking/status?collectionId=${collectionId}`);
-           const data = await res.json();
-           const outcome = data.outcome;
-
-           const statusSignature = JSON.stringify({ status: data.currentStatus });
-           if (statusSignature !== lastStatusRef.current) {
-             addLog(`Poll Status: ${data.currentStatus}, Outcome: ${outcome}`);
-             lastStatusRef.current = statusSignature;
-           }
-
-           if (outcome === "completed") {
-              clearInterval(pollingRef.current);
-              if (popupCheckRef.current) clearInterval(popupCheckRef.current);
-              try { popupRef.current?.close(); } catch (_) {}
-              setStatus("capturing");
-              setMessage("Analyzing banking data...");
-              addLog("Status Success. Starting Capture...");
-              
-              // Capture Data
-              try {
-                  const { data: { session } } = await supabase.auth.getSession();
-                  const captureRes = await fetch(`/api/banking/capture`, {
-                      method: "POST",
-                      headers: { 
-                          "Content-Type": "application/json",
-                          "Authorization": session ? `Bearer ${session.access_token}` : ""
-                      },
-                      body: JSON.stringify({ collectionId })
-                  });
-                  
-                  const captureText = await captureRes.text();
-                  addLog(`Capture Raw Response: ${captureText.substring(0, 200)}...`);
-                  
-                  let captureData;
-                  try {
-                      captureData = JSON.parse(captureText);
-                  } catch(e) {
-                      addLog("Failed to parse capture response JSON");
-                      throw new Error("Invalid JSON from capture endpoint");
-                  }
-                  
-                  if (!captureRes.ok || !captureData.success) {
-                      addLog(`Capture Failed: ${captureData.error || captureRes.statusText}`);
-                      throw new Error(captureData.error || "Capture failed");
-                  }
-
-                  setStatus("success");
-                  setMessage("Banking data verified successfully.");
-                  addLog("Capture Success! Saved Snapshot:");
-                  addLog(JSON.stringify(captureData.snapshot, null, 2));
-                  
-                  // Brief delay to show success
-                  setTimeout(() => {
-                      onComplete(collectionId, captureData.success ? captureData.snapshot : null);
-                  }, 3000); // Increased delay so user can see debug logs
-
-              } catch (err) {
-                  console.error("Capture error", err);
-                  setStatus("error");
-                  setMessage("Failed to retrieve banking data.");
-                  addLog(`Capture Error Exception: ${err.message}`);
-              }
-
-           } else if (outcome === "failed") {
-              clearInterval(pollingRef.current);
-              if (popupCheckRef.current) clearInterval(popupCheckRef.current);
-              try { popupRef.current?.close(); } catch (_) {}
-              setStatus("error");
-              setMessage("Bank connection was cancelled or failed.");
-              addLog(`Polling Failed Status: ${data.currentStatus}`);
-           }
-        } catch (e) {
-           console.error("Polling error", e);
-           addLog(`Polling Exception: ${e.message}`);
-        }
-     }, 3000);
+      } catch (e) {
+        console.error("Polling error", e);
+      }
+    }, 3000);
   };
-  
-  // Cleanup
-  useEffect(() => {
-     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, []);
+
+  if (status === "banking" && consumerUrl) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-slate-50">
+        <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200 shadow-sm"
+          style={{ paddingTop: "max(12px, env(safe-area-inset-top))" }}>
+          <div className="flex items-center gap-3">
+            <Landmark className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-semibold text-slate-800">Bank Verification</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+
+        <div className="flex-1 relative">
+          <iframe
+            src={consumerUrl}
+            title="TruID Bank Verification"
+            className="absolute inset-0 w-full h-full border-0"
+            allow="camera; microphone"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation allow-modals"
+          />
+        </div>
+
+        <div className="px-4 py-2 bg-white border-t border-slate-200 flex items-center justify-center gap-2 text-xs text-slate-400"
+          style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}>
+          <Shield className="h-3 w-3" />
+          <span>Secured by TruID Connect</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <MintCard title="Bank Verification" subtitle="Securely link your primary account to verify income." className="animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="flex flex-col items-center gap-6 py-4">
-        <div className={`h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500 ${status === 'polling' || status === 'capturing' ? 'bg-amber-100 text-amber-600 animate-pulse' : status === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-           <Landmark size={32} />
+        <div className={`h-20 w-20 rounded-full flex items-center justify-center transition-all duration-500 ${
+          status === "capturing" ? "bg-amber-100 text-amber-600 animate-pulse"
+          : status === "success" ? "bg-emerald-100 text-emerald-600"
+          : status === "cancelled" ? "bg-slate-100 text-slate-400"
+          : status === "error" ? "bg-red-50 text-red-500"
+          : "bg-slate-100 text-slate-400"
+        }`}>
+          {status === "cancelled" ? <XCircle size={32} /> : <Landmark size={32} />}
         </div>
-        
+
         <div className="text-center max-w-xs">
-           <p className="text-sm font-medium text-slate-600 mb-1">{message || "We use TruID to verify your affordability in real-time."}</p>
-           {status === 'error' && <p className="text-xs text-red-500 font-bold mt-2">{message}</p>}
+          <p className="text-sm font-medium text-slate-600 mb-1">
+            {message || "We use TruID to verify your affordability in real-time."}
+          </p>
+          {status === "error" && <p className="text-xs text-red-500 font-bold mt-2">{message}</p>}
         </div>
 
-        {status !== 'polling' && status !== 'capturing' && status !== 'success' && (
-           <button 
-             onClick={startSession}
-             className="w-full py-4 rounded-full bg-white/80 text-slate-800 border border-white/70 font-semibold text-sm shadow-sm shadow-black/5 hover:bg-white hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center gap-2"
-           >
-              <ShieldCheck size={18} /> Connect Bank
-           </button>
-        )}
-        
-        {status === 'polling' && (
-           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600">
-             <span className="w-2 h-2 rounded-full bg-amber-600 animate-ping"></span>
-             Waiting for bank...
-           </div>
+        {(status === "idle" || status === "error" || status === "cancelled") && (
+          <button
+            onClick={startSession}
+            className="w-full py-4 rounded-full bg-white/80 text-slate-800 border border-white/70 font-semibold text-sm shadow-sm shadow-black/5 hover:bg-white hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <ShieldCheck size={18} />
+            {status === "error" || status === "cancelled" ? "Try Again" : "Connect Bank"}
+          </button>
         )}
 
-        {status === 'capturing' && (
-           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600">
-             <span className="w-2 h-2 rounded-full bg-amber-600 animate-spin"></span>
-             Analyzing...
-           </div>
-        )}
-         
-         {status === 'success' && (
-           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600">
-             <CheckCircle2 size={16} /> Verified
-           </div>
+        {status === "connecting" && (
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-slate-500 animate-ping" />
+            Connecting...
+          </div>
         )}
 
+        {status === "capturing" && (
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-600">
+            <span className="w-2 h-2 rounded-full bg-amber-600 animate-spin" />
+            Analyzing...
+          </div>
+        )}
+
+        {status === "success" && (
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-600">
+            <CheckCircle2 size={16} /> Verified
+          </div>
+        )}
       </div>
     </MintCard>
   );
