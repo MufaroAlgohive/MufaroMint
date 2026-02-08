@@ -681,10 +681,15 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (isInactivityLocked && isAuthenticated && !isPinEnabled()) {
-      handleLockLogout();
+    if (isInactivityLocked && isAuthenticated) {
+      if (isPinEnabled()) {
+        setShowPinLock(true);
+        unlockInactivity();
+      } else {
+        handleLockLogout();
+      }
     }
-  }, [isInactivityLocked, isAuthenticated, handleLockLogout]);
+  }, [isInactivityLocked, isAuthenticated, handleLockLogout, unlockInactivity]);
 
   if (isCheckingAuth) {
     return (
@@ -722,17 +727,6 @@ const App = () => {
     );
   }
 
-  if (isInactivityLocked && isAuthenticated && isPinEnabled()) {
-    return (
-      <InactivityLockScreen
-        onUnlock={() => {
-          setShowPinLock(true);
-          unlockInactivity();
-        }}
-        onLogout={handleLockLogout}
-      />
-    );
-  }
 
   if (currentPage === "home") {
     return (
