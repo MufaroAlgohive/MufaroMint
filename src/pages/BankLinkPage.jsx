@@ -10,6 +10,8 @@ const BankLinkPage = ({ onBack, onComplete }) => {
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
   const lastStatusRef = useRef(null);
+  const popupRef = useRef(null);
+  const popupCheckRef = useRef(null);
 
   useEffect(() => {
     if (bankLinked) setStatus("already_linked");
@@ -18,6 +20,7 @@ const BankLinkPage = ({ onBack, onComplete }) => {
   useEffect(() => {
     return () => {
       if (pollingRef.current) clearInterval(pollingRef.current);
+      if (popupCheckRef.current) clearInterval(popupCheckRef.current);
     };
   }, []);
 
@@ -59,9 +62,16 @@ const BankLinkPage = ({ onBack, onComplete }) => {
 
       if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
 
+      popupRef.current = popup;
       setMessage("Complete the process in the popup window...");
       setStatus("polling");
       startPolling(data.collectionId);
+
+      popupCheckRef.current = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(popupCheckRef.current);
+        }
+      }, 1000);
     } catch (err) {
       console.error("Banking initiate error:", err);
       setStatus("error");
@@ -97,6 +107,8 @@ const BankLinkPage = ({ onBack, onComplete }) => {
 
         if (outcome === "completed") {
           clearInterval(pollingRef.current);
+          if (popupCheckRef.current) clearInterval(popupCheckRef.current);
+          try { popupRef.current?.close(); } catch (_) {}
           setStatus("capturing");
           setMessage("Verifying banking data...");
 
@@ -125,6 +137,8 @@ const BankLinkPage = ({ onBack, onComplete }) => {
           }
         } else if (outcome === "failed") {
           clearInterval(pollingRef.current);
+          if (popupCheckRef.current) clearInterval(popupCheckRef.current);
+          try { popupRef.current?.close(); } catch (_) {}
           setStatus("error");
           setMessage("Bank connection was cancelled or failed.");
         }

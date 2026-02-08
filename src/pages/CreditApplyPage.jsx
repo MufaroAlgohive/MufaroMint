@@ -17,7 +17,9 @@ const ConnectionStage = ({ onComplete, onError }) => {
   const [debugLog, setDebugLog] = useState([]);
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
-   const lastStatusRef = useRef(null);
+  const lastStatusRef = useRef(null);
+  const popupRef = useRef(null);
+  const popupCheckRef = useRef(null);
 
   const addLog = (msg) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
@@ -59,10 +61,18 @@ const ConnectionStage = ({ onComplete, onError }) => {
 
        if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
        
+       popupRef.current = popup;
        setMessage("Complete the process in the popup window...");
        setStatus("polling");
        addLog(`Polling started for collectionId: ${data.collectionId}`);
        startPolling(data.collectionId);
+
+       popupCheckRef.current = setInterval(() => {
+         if (popup.closed) {
+           clearInterval(popupCheckRef.current);
+           addLog("Popup closed by user");
+         }
+       }, 1000);
 
     } catch (err) {
       console.error(err);
@@ -103,6 +113,8 @@ const ConnectionStage = ({ onComplete, onError }) => {
 
            if (outcome === "completed") {
               clearInterval(pollingRef.current);
+              if (popupCheckRef.current) clearInterval(popupCheckRef.current);
+              try { popupRef.current?.close(); } catch (_) {}
               setStatus("capturing");
               setMessage("Analyzing banking data...");
               addLog("Status Success. Starting Capture...");
@@ -154,6 +166,8 @@ const ConnectionStage = ({ onComplete, onError }) => {
 
            } else if (outcome === "failed") {
               clearInterval(pollingRef.current);
+              if (popupCheckRef.current) clearInterval(popupCheckRef.current);
+              try { popupRef.current?.close(); } catch (_) {}
               setStatus("error");
               setMessage("Bank connection was cancelled or failed.");
               addLog(`Polling Failed Status: ${data.currentStatus}`);
