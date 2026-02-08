@@ -1,122 +1,163 @@
-import React, { useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowLeft, ArrowUpRight, CalendarDays, TrendingUp } from "lucide-react";
+import React, { useMemo, useState, useRef } from "react";
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, CalendarDays, Search, X, TrendingUp, CreditCard, Wallet, RefreshCw, Gift, Filter, ChevronDown } from "lucide-react";
 import ActivitySkeleton from "../components/ActivitySkeleton";
 import { useTransactions } from "../lib/useFinancialData";
 
-const filters = ["All", "Investments", "Loans"];
+const filters = ["All", "Investments", "Deposits", "Withdrawals"];
 
-const iconGradientId = "activity-icon-gradient";
-
-const getActivityIcon = (item) =>
-  item.isPositive ? ArrowDownLeft : ArrowUpRight;
-
-const formatGroupLabel = (dateString) => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
-  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+const getTransactionIcon = (name, direction) => {
+  const lower = (name || "").toLowerCase();
+  if (lower.includes("dividend") || lower.includes("interest")) return Gift;
+  if (lower.includes("credit") || lower.includes("loan")) return CreditCard;
+  if (lower.includes("withdraw") || lower.includes("repay")) return Wallet;
+  if (lower.includes("recurring") || lower.includes("auto")) return RefreshCw;
+  if (direction === "credit") return ArrowDownLeft;
+  return ArrowUpRight;
 };
 
-const getFilterCategory = (type) => {
-  const investmentTypes = ["deposit", "gain", "investment", "dividend"];
-  const loanTypes = ["loan", "repayment", "credit", "withdrawal", "expense"];
-  
-  if (investmentTypes.includes(type?.toLowerCase())) return "Investments";
-  if (loanTypes.includes(type?.toLowerCase())) return "Loans";
+const getIconColors = (direction) => {
+  if (direction === "credit") return { bg: "bg-emerald-50", text: "text-emerald-600" };
+  return { bg: "bg-rose-50", text: "text-rose-500" };
+};
+
+const getFilterCategory = (direction, name) => {
+  const lower = (name || "").toLowerCase();
+  if (lower.includes("withdraw") || lower.includes("repay")) return "Withdrawals";
+  if (lower.includes("deposit") || direction === "credit") return "Deposits";
+  if (lower.includes("invest") || lower.includes("buy") || lower.includes("strategy") || direction === "debit") return "Investments";
   return "Other";
 };
 
-const formatAmount = (amount, type) => {
-  if (amount === undefined || amount === null) return "R0";
-  const incomeTypes = ["deposit", "credit", "gain", "dividend"];
-  const isPositive = incomeTypes.includes(type?.toLowerCase()) || amount > 0;
+const formatRelativeDate = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const itemDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.floor((today - itemDate) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return "This Week";
+  if (diffDays < 30) return "This Month";
+  return date.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+};
+
+const formatShortDate = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+};
+
+const formatAmount = (amount, direction) => {
+  if (amount === undefined || amount === null) return "R0.00";
+  const val = Math.abs(amount) / 100;
+  const isPositive = direction === "credit";
   const sign = isPositive ? "+" : "-";
-  return `${sign}R${Math.abs(amount).toLocaleString()}`;
+  return `${sign}R${val.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 const ActivityPage = ({ onBack }) => {
-  const { transactions, loading } = useTransactions(50);
+  const { transactions, loading } = useTransactions(100);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const searchRef = useRef(null);
 
   const activityItems = useMemo(() => {
     return transactions.map((t) => {
-      const incomeTypes = ["deposit", "credit", "gain", "dividend"];
-      const isPositive = incomeTypes.includes(t.type?.toLowerCase()) || t.amount > 0;
+      const isPositive = t.direction === "credit";
       return {
-        title: t.description || t.type || "Transaction",
-        date: t.created_at ? t.created_at.split("T")[0] : "",
-        amount: formatAmount(t.amount, t.type),
-        type: t.type,
-        filterCategory: getFilterCategory(t.type),
+        id: t.id,
+        title: t.name || t.description || "Transaction",
+        description: t.description || t.store_reference || "",
+        date: t.transaction_date || t.created_at || "",
+        displayDate: formatShortDate(t.transaction_date || t.created_at),
+        time: formatTime(t.transaction_date || t.created_at),
+        amount: formatAmount(t.amount, t.direction),
+        rawAmount: (t.amount || 0) / 100,
+        direction: t.direction,
+        status: t.status,
+        filterCategory: getFilterCategory(t.direction, t.name),
         isPositive,
+        groupLabel: formatRelativeDate(t.transaction_date || t.created_at),
       };
     });
   }, [transactions]);
 
+  const summaryStats = useMemo(() => {
+    const totalIn = activityItems.filter(i => i.isPositive).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
+    const totalOut = activityItems.filter(i => !i.isPositive).reduce((sum, i) => sum + Math.abs(i.rawAmount), 0);
+    return { totalIn, totalOut, count: activityItems.length };
+  }, [activityItems]);
+
   const visibleItems = useMemo(() => {
-    const typeFiltered =
-      activeFilter === "All"
-        ? activityItems
-        : activityItems.filter((item) => item.filterCategory === activeFilter);
-    const hasDateFilter = fromDate || toDate;
-    if (!hasDateFilter) {
-      return typeFiltered;
+    let filtered = activeFilter === "All"
+      ? activityItems
+      : activityItems.filter((item) => item.filterCategory === activeFilter);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((item) =>
+        item.title.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q) ||
+        item.amount.toLowerCase().includes(q)
+      );
     }
-    const fromTime = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
-    const toTime = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
-    return typeFiltered.filter((item) => {
-      const itemTime = new Date(`${item.date}T00:00:00`).getTime();
-      if (Number.isNaN(itemTime)) {
-        return false;
-      }
-      if (fromTime && itemTime < fromTime) {
-        return false;
-      }
-      if (toTime && itemTime > toTime) {
-        return false;
-      }
-      return true;
-    });
-  }, [activeFilter, fromDate, toDate, activityItems]);
+
+    if (fromDate || toDate) {
+      const fromTime = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
+      const toTime = toDate ? new Date(`${toDate}T23:59:59`).getTime() : null;
+      filtered = filtered.filter((item) => {
+        const itemTime = new Date(item.date).getTime();
+        if (isNaN(itemTime)) return false;
+        if (fromTime && itemTime < fromTime) return false;
+        if (toTime && itemTime > toTime) return false;
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [activeFilter, searchQuery, fromDate, toDate, activityItems]);
 
   const groupedItems = useMemo(() => {
-    const groups = visibleItems.reduce((acc, item) => {
-      const label = formatGroupLabel(item.date);
-      if (!acc[label]) {
-        acc[label] = [];
-      }
-      acc[label].push(item);
-      return acc;
-    }, {});
+    const groups = {};
+    visibleItems.forEach((item) => {
+      const label = item.groupLabel;
+      if (!groups[label]) groups[label] = [];
+      groups[label].push(item);
+    });
+    const groupOrder = ["Today", "Yesterday", "This Week", "This Month"];
     return Object.entries(groups)
-      .map(([label, items]) => ({ label, items }))
-      .sort((a, b) => {
-        const dateA = new Date(`${a.items[0].date}T00:00:00`).getTime();
-        const dateB = new Date(`${b.items[0].date}T00:00:00`).getTime();
+      .sort(([a, aItems], [b, bItems]) => {
+        const aIdx = groupOrder.indexOf(a);
+        const bIdx = groupOrder.indexOf(b);
+        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        if (aIdx !== -1) return -1;
+        if (bIdx !== -1) return 1;
+        const dateA = new Date(aItems[0].date).getTime();
+        const dateB = new Date(bItems[0].date).getTime();
         return dateB - dateA;
-      });
+      })
+      .map(([label, items]) => ({ label, items }));
   }, [visibleItems]);
 
-  if (loading) {
-    return <ActivitySkeleton />;
-  }
+  if (loading) return <ActivitySkeleton />;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
       <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
-        <svg aria-hidden="true" className="absolute h-0 w-0">
-          <defs>
-            <linearGradient id={iconGradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#a855f7" />
-              <stop offset="100%" stopColor="#000000" />
-            </linearGradient>
-          </defs>
-        </svg>
         <header className="flex items-center justify-between">
           <button
             type="button"
@@ -131,50 +172,96 @@ const ActivityPage = ({ onBack }) => {
             type="button"
             aria-label="Filter by date"
             onClick={() => setShowDateFilter((prev) => !prev)}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm"
+            className={`flex h-10 w-10 items-center justify-center rounded-full shadow-sm transition ${showDateFilter || fromDate || toDate ? "bg-violet-100 text-violet-700" : "bg-white text-slate-700"}`}
           >
             <CalendarDays className="h-5 w-5" />
           </button>
         </header>
 
+        <div className="mt-5 relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Search transactions..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300 transition"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
         {showDateFilter && (
-          <div className="mt-4 rounded-3xl bg-white p-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-              Date range
-            </p>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-2 text-xs font-semibold text-slate-500">
+          <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-slate-500">Date Range</p>
+              {(fromDate || toDate) && (
+                <button onClick={() => { setFromDate(""); setToDate(""); }} className="text-[11px] font-semibold text-violet-600">
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="grid gap-3 grid-cols-2">
+              <label className="flex flex-col gap-1.5 text-[11px] font-semibold text-slate-400">
                 From
                 <input
                   type="date"
                   value={fromDate}
-                  onChange={(event) => setFromDate(event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-violet-300 focus:outline-none"
                 />
               </label>
-              <label className="flex flex-col gap-2 text-xs font-semibold text-slate-500">
+              <label className="flex flex-col gap-1.5 text-[11px] font-semibold text-slate-400">
                 To
                 <input
                   type="date"
                   value={toDate}
-                  onChange={(event) => setToDate(event.target.value)}
-                  className="rounded-2xl border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-violet-300 focus:outline-none"
                 />
               </label>
             </div>
           </div>
         )}
 
-        <div className="mt-6 flex gap-2 rounded-full bg-white p-1 shadow-sm">
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100/80">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="h-6 w-6 rounded-full bg-emerald-50 flex items-center justify-center">
+                <ArrowDownLeft className="h-3 w-3 text-emerald-600" />
+              </div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Money In</p>
+            </div>
+            <p className="text-lg font-bold text-emerald-600">R{summaryStats.totalIn.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+          <div className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100/80">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="h-6 w-6 rounded-full bg-rose-50 flex items-center justify-center">
+                <ArrowUpRight className="h-3 w-3 text-rose-500" />
+              </div>
+              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Money Out</p>
+            </div>
+            <p className="text-lg font-bold text-slate-800">R{summaryStats.totalOut.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex gap-2 overflow-x-auto scrollbar-none">
           {filters.map((filter) => (
             <button
               key={filter}
               type="button"
               onClick={() => setActiveFilter(filter)}
-              className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold ${
+              className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${
                 activeFilter === filter
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100"
               }`}
             >
               {filter}
@@ -182,49 +269,78 @@ const ActivityPage = ({ onBack }) => {
           ))}
         </div>
 
+        <div className="mt-5 flex items-center justify-between">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            {visibleItems.length} transaction{visibleItems.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+
         {groupedItems.length === 0 ? (
           <div className="mt-12 flex flex-col items-center justify-center text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-4">
-              <TrendingUp className="h-8 w-8" />
+              {searchQuery ? <Search className="h-7 w-7" /> : <TrendingUp className="h-7 w-7" />}
             </div>
-            <p className="text-sm font-semibold text-slate-900 mb-1">No activity yet</p>
-            <p className="text-xs text-slate-500">Your transactions will appear here</p>
+            <p className="text-sm font-semibold text-slate-900 mb-1">
+              {searchQuery ? "No results found" : "No activity yet"}
+            </p>
+            <p className="text-xs text-slate-500">
+              {searchQuery ? `No transactions matching "${searchQuery}"` : "Your transactions will appear here"}
+            </p>
           </div>
         ) : (
-          <section className="mt-6 space-y-6">
+          <section className="mt-4 space-y-5">
             {groupedItems.map((group, groupIndex) => (
-              <div key={`${group.label}-${groupIndex}`} className="space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              <div key={`${group.label}-${groupIndex}`}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3 px-1">
                   {group.label}
                 </p>
-                {group.items.map((item, itemIndex) => {
-                  const Icon = getActivityIcon(item);
-                  return (
-                    <div
-                      key={`${item.title}-${item.date}-${itemIndex}`}
-                      className="flex gap-3 rounded-3xl bg-white p-4 shadow-sm"
-                    >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm">
-                        {Icon && (
-                          <Icon
-                            className="h-5 w-5"
-                            style={{ stroke: `url(#${iconGradientId})` }}
-                          />
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-slate-800">{item.title}</p>
-                          <div className="text-xs text-slate-400">{formatGroupLabel(item.date)}</div>
+                <div className="space-y-2">
+                  {group.items.map((item, itemIndex) => {
+                    const Icon = getTransactionIcon(item.title, item.direction);
+                    const colors = getIconColors(item.direction);
+                    return (
+                      <div
+                        key={`${item.id || itemIndex}`}
+                        className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm border border-slate-100/50"
+                      >
+                        <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${colors.bg}`}>
+                          <Icon className={`h-5 w-5 ${colors.text}`} />
                         </div>
-                        <p className="text-xs text-slate-500">{item.filterCategory}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            <p className="text-[11px] text-slate-400">{item.displayDate}</p>
+                            {item.time && (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <p className="text-[11px] text-slate-400">{item.time}</p>
+                              </>
+                            )}
+                            {item.status && (
+                              <>
+                                <span className="text-slate-300">·</span>
+                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                  item.status === "successful" || item.status === "completed"
+                                    ? "bg-emerald-50 text-emerald-600"
+                                    : item.status === "pending"
+                                    ? "bg-amber-50 text-amber-600"
+                                    : item.status === "failed"
+                                    ? "bg-rose-50 text-rose-500"
+                                    : "bg-slate-100 text-slate-500"
+                                }`}>
+                                  {item.status === "successful" || item.status === "completed" ? "Completed" : item.status === "pending" ? "Pending" : item.status === "failed" ? "Failed" : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <p className={`text-sm font-bold tabular-nums flex-shrink-0 ${item.isPositive ? "text-emerald-600" : "text-slate-800"}`}>
+                          {item.amount}
+                        </p>
                       </div>
-                      <p className={`text-sm font-semibold ${item.isPositive ? 'text-green-600' : 'text-slate-600'}`}>
-                        {item.amount}
-                      </p>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </section>

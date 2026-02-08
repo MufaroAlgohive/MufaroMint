@@ -615,6 +615,9 @@ const HomePage = ({
     title: t.name || t.description || "Transaction",
     date: formatDate(t.transaction_date || t.created_at),
     amount: formatAmount((t.amount || 0) / 100, t.direction),
+    direction: t.direction,
+    status: t.status,
+    description: t.description,
   }));
 
   const handleActionNavigation = (action) => {
