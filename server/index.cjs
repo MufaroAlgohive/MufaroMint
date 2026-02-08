@@ -1065,6 +1065,8 @@ app.post("/api/account/reset", async (req, res) => {
       { name: "loan_application", action: "delete" },
       { name: "investment_goals", action: "delete" },
       { name: "notifications", action: "delete" },
+      { name: "stock_holdings", action: "delete" },
+      { name: "allocations", action: "delete" },
     ];
 
     for (const t of tables) {
