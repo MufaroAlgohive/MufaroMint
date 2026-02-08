@@ -4,6 +4,7 @@ import { Area, ComposedChart, Line, ResponsiveContainer, YAxis } from "recharts"
 import { supabase } from "../lib/supabase";
 import { getStrategyPriceHistory } from "../lib/strategyData";
 import { getStrategyCurrentValue, getStrategyReturnPct } from "../lib/strategyUtils";
+import Skeleton from "./Skeleton";
 
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
 
@@ -243,7 +244,43 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
 
   const masked = "••••";
 
-  if (loading && userId) return <div className="w-full aspect-[1.7/1] animate-pulse bg-white/5 rounded-[28px]" />;
+  if (loading && userId) return (
+    <div className="w-full aspect-[1.7/1] rounded-[28px] bg-white/5 p-4 flex">
+      <div className="w-[50%] flex flex-col justify-between border-r border-white/5 pr-4">
+        <div className="space-y-3">
+          <div>
+            <Skeleton className="h-2.5 w-20 bg-white/10 mb-2" />
+            <Skeleton className="h-5 w-24 bg-white/20 mb-2" />
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-16 bg-white/10" />
+              <Skeleton className="h-4 w-10 rounded-full bg-white/10" />
+            </div>
+          </div>
+          <div>
+            <Skeleton className="h-2.5 w-16 bg-white/10 mb-2" />
+            <div className="flex gap-1">
+              <Skeleton className="h-5 w-14 rounded-full bg-white/10" />
+              <Skeleton className="h-5 w-14 rounded-full bg-white/10" />
+              <Skeleton className="h-5 w-10 rounded-full bg-white/10" />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="w-[50%] flex flex-col justify-between pl-4">
+        <div className="flex gap-1.5">
+          <Skeleton className="h-5 w-8 rounded-full bg-white/10" />
+          <Skeleton className="h-5 w-8 rounded-full bg-white/10" />
+          <Skeleton className="h-5 w-8 rounded-full bg-white/10" />
+        </div>
+        <div className="flex-1 flex items-end gap-1 py-3">
+          {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
+            <Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />
+          ))}
+        </div>
+        <Skeleton className="h-8 w-full rounded-xl bg-white/10" />
+      </div>
+    </div>
+  );
 
   return (
     <div className="relative w-full h-full z-[100]">
@@ -319,7 +356,15 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-full">
-                <p className="text-[9px] text-white/30">{chartLoading ? "Loading..." : "No chart data"}</p>
+                {chartLoading ? (
+                  <div className="flex items-end gap-1 w-full h-full py-2">
+                    {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (
+                      <Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[9px] text-white/30">No chart data</p>
+                )}
               </div>
             )}
           </div>

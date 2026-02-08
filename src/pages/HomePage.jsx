@@ -32,6 +32,7 @@ import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
 import { formatZar } from "../lib/formatCurrency";
 import HomeSkeleton from "../components/HomeSkeleton";
+import Skeleton from "../components/Skeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
@@ -1044,8 +1045,17 @@ const HomePage = ({
             )}
             
             {loadingNews && (
-              <div className="flex justify-center py-6">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" />
+              <div className="divide-y divide-slate-100">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="px-5 py-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-14 rounded-full" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1224,8 +1234,14 @@ const HomePage = ({
 
               <div className="max-h-[60vh] overflow-y-auto pr-1">
                 {loadingGoals ? (
-                  <div className="flex h-40 flex-col items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600" />
+                  <div className="space-y-4">
+                    {[0, 1].map((i) => (
+                      <div key={i} className="rounded-2xl border border-slate-100 p-4 space-y-3">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-48" />
+                        <Skeleton className="h-2 w-full rounded-full" />
+                      </div>
+                    ))}
                   </div>
                 ) : isCreatingGoal || editingGoalId || goals.length === 0 ? (
                   <form onSubmit={editingGoalId ? handleUpdateGoal : handleCreateGoal} className="space-y-4">
