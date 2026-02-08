@@ -1,36 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 
-async function getAuthToken() {
-  if (!supabase) return null;
-  const { data: { session } } = await supabase.auth.getSession();
-  return session?.access_token || null;
-}
-
-async function fetchServerHoldings(token) {
-  const res = await fetch("/api/user/holdings", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    console.error("Failed to fetch holdings from server:", res.status);
-    return [];
-  }
-  const json = await res.json();
-  return json.holdings || [];
-}
-
-async function fetchServerTransactions(token, limit = 50) {
-  const res = await fetch(`/api/user/transactions?limit=${limit}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    console.error("Failed to fetch transactions from server:", res.status);
-    return [];
-  }
-  const json = await res.json();
-  return json.transactions || [];
-}
-
 export const useFinancialData = () => {
   const [data, setData] = useState({
     balance: 0,
@@ -51,60 +21,57 @@ export const useFinancialData = () => {
     }
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) {
         setData((prev) => ({ ...prev, loading: false }));
         return;
       }
 
-      const userId = session.user.id;
-      const token = session.access_token;
+      const userId = userData.user.id;
 
       const [
         balanceResult,
-        holdings,
-        allServerTransactions,
+        recentTransactionsResult,
+        allTransactionsResult,
+        holdingsResult,
         creditResult,
       ] = await Promise.all([
         supabase.from("user_balances").select("*").eq("user_id", userId).maybeSingle(),
-        fetchServerHoldings(token),
-        fetchServerTransactions(token, 100),
+        supabase.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+        supabase.from("transactions").select("type, amount").eq("user_id", userId),
+        supabase.from("user_holdings").select("*, securities(symbol, name, logo_url)").eq("user_id", userId),
         supabase.from("credit_accounts").select("*").eq("user_id", userId).maybeSingle(),
       ]);
 
-      const transactions = allServerTransactions.slice(0, 20);
-      const allTransactions = allServerTransactions;
+      const transactions = recentTransactionsResult.data || [];
+      const allTransactions = allTransactionsResult.data || [];
+      const holdings = holdingsResult.data || [];
       const creditInfo = creditResult.data;
 
       const sortedHoldings = [...holdings].sort((a, b) => {
-        const aGain = (a.unrealized_pnl || 0) / 100;
-        const bGain = (b.unrealized_pnl || 0) / 100;
+        const aGain = (a.current_value || 0) - (a.cost_basis || 0);
+        const bGain = (b.current_value || 0) - (b.cost_basis || 0);
         return bGain - aGain;
       });
 
-      const bestAssets = sortedHoldings.slice(0, 5).map((h) => {
-        const currentValue = (h.market_value || 0) / 100;
-        const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
-        const changePercent = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
-        return {
-          symbol: h.symbol,
-          name: h.name,
-          value: currentValue,
-          change: changePercent,
-          logo: h.logo_url,
-        };
-      });
+      const bestAssets = sortedHoldings.slice(0, 5).map((h) => ({
+        symbol: h.securities?.symbol || h.symbol || "N/A",
+        name: h.securities?.name || h.name || "Unknown",
+        value: h.current_value || 0,
+        change: h.change_percent || 0,
+        logo: h.securities?.logo_url || null,
+      }));
 
-      const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
+      const totalInvestments = holdings.reduce((sum, h) => sum + (h.cost_basis || 0), 0);
       
-      const incomeTypes = ["credit"];
-      const expenseTypes = ["debit"];
+      const incomeTypes = ["deposit", "credit", "gain"];
+      const expenseTypes = ["withdrawal", "expense"];
       const totalIncome = allTransactions
-        .filter((t) => incomeTypes.includes(t.direction))
-        .reduce((sum, t) => sum + Math.abs((t.amount || 0) / 100), 0);
+        .filter((t) => incomeTypes.includes(t.type))
+        .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
       const totalExpenses = allTransactions
-        .filter((t) => expenseTypes.includes(t.direction))
-        .reduce((sum, t) => sum + Math.abs((t.amount || 0) / 100), 0);
+        .filter((t) => expenseTypes.includes(t.type))
+        .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
       const availableCredit = Math.max(0, (totalIncome - totalExpenses) * 0.2);
       const totalBalance = totalInvestments + availableCredit;
 
@@ -155,42 +122,43 @@ export const useMintBalance = () => {
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) {
           setData((prev) => ({ ...prev, loading: false }));
           return;
         }
 
-        const userId = session.user.id;
-        const token = session.access_token;
+        const userId = userData.user.id;
 
-        const [balanceResult, holdings, allServerTransactions] = await Promise.all([
+        const [balanceResult, holdingsResult, allTransactionsResult, recentTransactionsResult] = await Promise.all([
           supabase.from("user_balances").select("*").eq("user_id", userId).maybeSingle(),
-          fetchServerHoldings(token),
-          fetchServerTransactions(token, 100),
+          supabase.from("user_holdings").select("current_value, cost_basis, daily_change").eq("user_id", userId),
+          supabase.from("transactions").select("type, amount").eq("user_id", userId),
+          supabase.from("transactions").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
         ]);
 
-        const recentTransactions = allServerTransactions.slice(0, 10);
-        const allTransactions = allServerTransactions;
+        const holdings = holdingsResult.data || [];
+        const allTransactions = allTransactionsResult.data || [];
+        const recentTransactions = recentTransactionsResult.data || [];
         
-        const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
-        const dailyChange = holdings.reduce((sum, h) => sum + ((h.unrealized_pnl || 0) / 100), 0);
+        const totalInvestments = holdings.reduce((sum, h) => sum + (h.cost_basis || 0), 0);
+        const dailyChange = holdings.reduce((sum, h) => sum + (h.daily_change || 0), 0);
         
-        const incomeTypes = ["credit"];
-        const expenseTypes = ["debit"];
+        const incomeTypes = ["deposit", "credit", "gain"];
+        const expenseTypes = ["withdrawal", "expense"];
         const totalIncome = allTransactions
-          .filter((t) => incomeTypes.includes(t.direction))
-          .reduce((sum, t) => sum + Math.abs((t.amount || 0) / 100), 0);
+          .filter((t) => incomeTypes.includes(t.type))
+          .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
         const totalExpenses = allTransactions
-          .filter((t) => expenseTypes.includes(t.direction))
-          .reduce((sum, t) => sum + Math.abs((t.amount || 0) / 100), 0);
+          .filter((t) => expenseTypes.includes(t.type))
+          .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
         const availableCredit = Math.max(0, (totalIncome - totalExpenses) * 0.2);
         const totalBalance = totalInvestments + availableCredit;
 
         const recentChanges = recentTransactions.map((t) => ({
-          title: t.name || t.description || "Transaction",
-          date: formatTransactionDate(t.transaction_date || t.created_at),
-          amount: formatTransactionAmount((t.amount || 0) / 100, t.direction),
+          title: t.description || t.type || "Transaction",
+          date: formatTransactionDate(t.created_at),
+          amount: formatTransactionAmount(t.amount, t.type),
         }));
 
         setData({
@@ -226,14 +194,22 @@ export const useTransactions = (limit = 20) => {
       }
 
       try {
-        const token = await getAuthToken();
-        if (!token) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) {
           setLoading(false);
           return;
         }
 
-        const data = await fetchServerTransactions(token, limit);
-        setTransactions(data);
+        const { data, error } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("user_id", userData.user.id)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+
+        if (error) throw error;
+
+        setTransactions(data || []);
       } catch (err) {
         console.error("Error fetching transactions:", err);
       } finally {
@@ -250,6 +226,8 @@ export const useTransactions = (limit = 20) => {
 export const useCreditInfo = () => {
   const [data, setData] = useState({
     availableCredit: 0,
+    allocationsValue: 0,
+    availableCreditCombined: 0,
     score: 0,
     loanBalance: 0,
     nextPaymentDate: null,
@@ -269,17 +247,19 @@ export const useCreditInfo = () => {
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) {
           setData((prev) => ({ ...prev, loading: false }));
           return;
         }
 
-        const userId = session.user.id;
+        const userId = userData.user.id;
 
-        const [creditResult, scoreHistoryResult] = await Promise.all([
+        const [creditResult, scoreHistoryResult, snapshotResult, allocationsResult] = await Promise.all([
           supabase.from("credit_accounts").select("*").eq("user_id", userId).maybeSingle(),
           supabase.from("credit_score_history").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+          supabase.from("truid_bank_snapshots").select("net_monthly_income,avg_monthly_income,avg_monthly_expenses").eq("user_id", userId).order("captured_at", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("allocations").select("value").eq("user_id", userId),
         ]);
 
         const credit = creditResult.data;
@@ -295,9 +275,27 @@ export const useCreditInfo = () => {
         const scoreChangesToday = allScoreChanges.filter((s) => s.rawDate >= sevenDaysAgo);
         const scoreChangesAllTime = allScoreChanges;
 
+        let computedAvailableCredit = 0;
+        const snapshotData = snapshotResult?.data;
+        const netIncome = Number(snapshotData?.net_monthly_income)
+          || (Number(snapshotData?.avg_monthly_income) - Number(snapshotData?.avg_monthly_expenses))
+          || 0;
+        if (Number.isFinite(netIncome) && netIncome > 0) {
+          computedAvailableCredit = Math.max(1000, Math.floor(netIncome * 0.2));
+        }
+
+        const allocationsValue = (allocationsResult?.data || []).reduce(
+          (sum, allocation) => sum + (Number(allocation?.value) || 0),
+          0
+        );
+
+        const combinedAvailableCredit = (credit?.available_credit || computedAvailableCredit || 0) + allocationsValue;
+
         if (credit) {
           setData({
-            availableCredit: credit.available_credit || 0,
+            availableCredit: credit.available_credit || computedAvailableCredit || 0,
+            allocationsValue,
+            availableCreditCombined: combinedAvailableCredit,
             score: credit.credit_score || 0,
             loanBalance: credit.loan_balance || 0,
             nextPaymentDate: credit.next_payment_date ? formatDate(credit.next_payment_date) : null,
@@ -309,7 +307,16 @@ export const useCreditInfo = () => {
             hasCredit: true,
           });
         } else {
-          setData((prev) => ({ ...prev, loading: false, hasCredit: false }));
+          setData((prev) => ({
+            ...prev,
+            availableCredit: computedAvailableCredit || 0,
+            allocationsValue,
+            availableCreditCombined: combinedAvailableCredit,
+            scoreChangesToday,
+            scoreChangesAllTime,
+            loading: false,
+            hasCredit: false,
+          }));
         }
       } catch (err) {
         console.error("Error fetching credit info:", err);
@@ -343,31 +350,30 @@ export const useInvestments = () => {
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData?.user) {
           setData((prev) => ({ ...prev, loading: false }));
           return;
         }
 
-        const userId = session.user.id;
-        const token = session.access_token;
+        const userId = userData.user.id;
 
-        const [holdings, goalsResult] = await Promise.all([
-          fetchServerHoldings(token),
+        const [holdingsResult, goalsResult] = await Promise.all([
+          supabase.from("user_holdings").select("*, securities(symbol, name, asset_class)").eq("user_id", userId),
           supabase.from("investment_goals").select("*").eq("user_id", userId),
         ]);
 
+        const holdings = holdingsResult.data || [];
         const goals = goalsResult.data || [];
 
-        const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
-        const monthlyChange = holdings.reduce((sum, h) => sum + ((h.unrealized_pnl || 0) / 100), 0);
+        const totalInvestments = holdings.reduce((sum, h) => sum + (h.cost_basis || 0), 0);
+        const monthlyChange = holdings.reduce((sum, h) => sum + (h.monthly_change || 0), 0);
         const monthlyChangePercent = totalInvestments > 0 ? (monthlyChange / totalInvestments) * 100 : 0;
 
         const assetClasses = {};
         holdings.forEach((h) => {
-          const assetClass = h.asset_class || "Other";
-          const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
-          assetClasses[assetClass] = (assetClasses[assetClass] || 0) + costBasis;
+          const assetClass = h.securities?.asset_class || h.asset_class || "Other";
+          assetClasses[assetClass] = (assetClasses[assetClass] || 0) + (h.cost_basis || 0);
         });
 
         const portfolioMix = Object.entries(assetClasses).map(([label, value]) => ({
@@ -418,9 +424,9 @@ function formatTransactionDate(dateString) {
   return date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
 }
 
-function formatTransactionAmount(amount, direction) {
+function formatTransactionAmount(amount, type) {
   if (amount === undefined || amount === null) return "R0";
-  const isPositive = direction === "credit";
+  const isPositive = type === "deposit" || type === "credit" || type === "gain" || amount > 0;
   const sign = isPositive ? "+" : "-";
   return `${sign}R${Math.abs(amount).toLocaleString()}`;
 }

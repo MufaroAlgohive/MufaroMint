@@ -6,7 +6,6 @@ import { MintRadarChart } from "../components/credit/ui/MintRadarChart";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 import { useCreditCheck } from "../lib/useCreditCheck";
-import CreditApplySkeleton from "../components/CreditApplySkeleton";
 
 // --- Subcomponents for Stages ---
 
@@ -17,9 +16,8 @@ const ConnectionStage = ({ onComplete, onError }) => {
   const [debugLog, setDebugLog] = useState([]);
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
-  const lastStatusRef = useRef(null);
-  const popupRef = useRef(null);
-  const popupCheckRef = useRef(null);
+   const lastStatusRef = useRef(null);
+   const popupRef = useRef(null);
 
   const addLog = (msg) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
@@ -40,10 +38,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
        
        const data = await response.json();
        addLog(`Initiate response: ${JSON.stringify(data)}`);
-       if (!data.success) {
-         const errMsg = typeof data.error === "string" ? data.error : data.error?.message || "Connection failed";
-         throw new Error(errMsg);
-       }
+       if (!data.success) throw new Error(data.error || "Connection failed");
 
        collectionIdRef.current = data.collectionId;
        
@@ -60,27 +55,12 @@ const ConnectionStage = ({ onComplete, onError }) => {
        );
 
        if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
-       
        popupRef.current = popup;
+       
        setMessage("Complete the process in the popup window...");
        setStatus("polling");
        addLog(`Polling started for collectionId: ${data.collectionId}`);
        startPolling(data.collectionId);
-
-       popupCheckRef.current = setInterval(() => {
-         if (popup.closed) {
-           clearInterval(popupCheckRef.current);
-           if (pollingRef.current) {
-             clearInterval(pollingRef.current);
-             pollingRef.current = null;
-           }
-           addLog("Popup closed by user - polling stopped");
-           if (status === "polling") {
-             setStatus("idle");
-             setMessage("Bank window was closed. Tap Connect Bank to try again.");
-           }
-         }
-       }, 1000);
 
     } catch (err) {
       console.error(err);
@@ -91,41 +71,33 @@ const ConnectionStage = ({ onComplete, onError }) => {
     }
   };
 
-  const pollCountRef = useRef(0);
-  const MAX_POLLS = 120;
-
   const startPolling = (collectionId) => {
      if (pollingRef.current) clearInterval(pollingRef.current);
-     pollCountRef.current = 0;
      
      pollingRef.current = setInterval(async () => {
-        pollCountRef.current += 1;
-        if (pollCountRef.current > MAX_POLLS) {
-          clearInterval(pollingRef.current);
-          setStatus("error");
-          setMessage("Connection timed out. Please try again.");
-          addLog("Polling timed out after max attempts");
-          return;
-        }
-
         try {
            const res = await fetch(`/api/banking/status?collectionId=${collectionId}`);
            const data = await res.json();
-           const outcome = data.outcome;
+           const rawStatus = data.currentStatus;
+           const s = String(rawStatus || "").toUpperCase();
+           const numericStatus = Number(rawStatus);
+           const hasNumericStatus = Number.isFinite(numericStatus);
+           const isComplete = s.includes("SUCCESS") || s.includes("COMPLETED") || (hasNumericStatus && numericStatus >= 2000 && numericStatus < 3000);
+           const isFailed = s.includes("FAILED") || s.includes("CANCELLED") || s.includes("ERROR");
 
-           const statusSignature = JSON.stringify({ status: data.currentStatus });
+           const statusSignature = JSON.stringify({ status: rawStatus });
            if (statusSignature !== lastStatusRef.current) {
-             addLog(`Poll Status: ${data.currentStatus}, Outcome: ${outcome}`);
+             addLog(`Poll Status: ${hasNumericStatus ? numericStatus : s || rawStatus}`);
+             addLog(`Status Payload: ${JSON.stringify(data)}`);
              lastStatusRef.current = statusSignature;
            }
 
-           if (outcome === "completed") {
+           if (isComplete) {
               clearInterval(pollingRef.current);
-              if (popupCheckRef.current) clearInterval(popupCheckRef.current);
-              try { popupRef.current?.close(); } catch (_) {}
               setStatus("capturing");
               setMessage("Analyzing banking data...");
               addLog("Status Success. Starting Capture...");
+
               
               // Capture Data
               try {
@@ -155,7 +127,12 @@ const ConnectionStage = ({ onComplete, onError }) => {
                       throw new Error(captureData.error || "Capture failed");
                   }
 
-                  setStatus("success");
+                           if (popupRef.current && !popupRef.current.closed) {
+                              popupRef.current.close();
+                              popupRef.current = null;
+                           }
+
+                           setStatus("success");
                   setMessage("Banking data verified successfully.");
                   addLog("Capture Success! Saved Snapshot:");
                   addLog(JSON.stringify(captureData.snapshot, null, 2));
@@ -172,13 +149,11 @@ const ConnectionStage = ({ onComplete, onError }) => {
                   addLog(`Capture Error Exception: ${err.message}`);
               }
 
-           } else if (outcome === "failed") {
+           } else if (isFailed) {
               clearInterval(pollingRef.current);
-              if (popupCheckRef.current) clearInterval(popupCheckRef.current);
-              try { popupRef.current?.close(); } catch (_) {}
               setStatus("error");
               setMessage("Bank connection was cancelled or failed.");
-              addLog(`Polling Failed Status: ${data.currentStatus}`);
+              addLog(`Polling Failed Status: ${s || rawStatus}`);
            }
         } catch (e) {
            console.error("Polling error", e);
@@ -399,7 +374,7 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 
 
 // Stage 3: Results
-const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResult, onRunAssessment, onContinue }) => {
+const ResultStage = ({ score, isCalculating, breakdown, engineResult, engineError, onRunAssessment, onContinue }) => {
       const [showAllData, setShowAllData] = useState(false);
       const [loaderValue, setLoaderValue] = useState(0);
 
@@ -415,11 +390,9 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
              }, 20);
          } else if (score > 0) {
              setLoaderValue(score);
-         } else if (engineFailed) {
-             setLoaderValue(0);
          }
          return () => clearInterval(interval);
-      }, [isCalculating, score, engineFailed]);
+      }, [isCalculating, score]);
 
       const sanitizeData = (value) => {
          if (Array.isArray(value)) return value.map(sanitizeData);
@@ -447,7 +420,7 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
       const scoreReasons = engineResult?.scoreReasons || [];
       const tenureMonths = engineResult?.breakdown?.employmentTenure?.monthsInCurrentJob;
 
-      const hasAssessment = score > 0 || isCalculating || engineFailed;
+      const hasAssessment = score > 0 || isCalculating;
       const isDeclined = !isCalculating && score > 0 && score < 50;
       const scoreOutcome = score >= 80
          ? "Auto-approval at best rate"
@@ -468,7 +441,7 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
       ];
       const messageIndex = Math.min(statusMessages.length - 1, Math.floor((loaderValue / 100) * statusMessages.length));
       const statusText = hasAssessment 
-        ? (engineFailed ? "Error" : isCalculating ? statusMessages[messageIndex] : "Trust Score")
+        ? (isCalculating ? statusMessages[messageIndex] : "Trust Score")
         : "Start Check";
 
 
@@ -539,19 +512,6 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
                       </button>
                   </div>
 
-                  {engineFailed && !isCalculating && (
-                     <div className="pt-6 space-y-4 text-center">
-                        <p className="text-sm font-semibold text-red-600">Assessment could not be completed.</p>
-                        <p className="text-xs text-slate-500">{engineResult?.error || "Please try again."}</p>
-                        <button
-                           onClick={onRunAssessment}
-                           className="w-full py-3 rounded-full bg-slate-900 text-white font-semibold text-sm shadow-lg hover:bg-slate-800 active:scale-95 transition-all"
-                        >
-                           Retry Assessment
-                        </button>
-                     </div>
-                  )}
-
                   {!isCalculating && score > 0 && (
                      <div className="pt-8 border-t border-slate-50 mt-8 space-y-4">
                         <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
@@ -580,10 +540,7 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
                               {scoreReasons.length ? (
                                  <ul className="list-disc pl-5 space-y-1">
                                     {scoreReasons.map((reason, idx) => (
-                                       <li key={idx} className={reason.impact === "positive" ? "text-emerald-700" : reason.impact === "negative" ? "text-red-600" : "text-slate-700"}>
-                                          <span className="font-semibold">{reason.factor || reason}</span>
-                                          {reason.detail ? `: ${reason.detail}` : typeof reason === "string" ? "" : ""}
-                                       </li>
+                                       <li key={idx}>{reason}</li>
                                     ))}
                                  </ul>
                               ) : (
@@ -689,6 +646,11 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
                               {isDeclined ? "Loan declined" : "Continue to loan configuration"}
                            </button>
                         )}
+                        {engineError && (
+                           <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-semibold text-rose-700">
+                              Experian log: {engineError}
+                           </div>
+                        )}
                      </div>
                   )}
             </MintCard>
@@ -707,12 +669,13 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
    const [showDetails, setShowDetails] = useState(false);
   
   // Real Hook Integration
-  const { 
+   const { 
     form: checkForm, 
     setField, 
     runEngine, 
     engineResult, 
     engineStatus, 
+      engineError,
     employerCsv,
     lockInputs,
     snapshot,
@@ -726,7 +689,6 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
   } = useCreditCheck();
 
   const isCalculating = engineStatus === "Running";
-  const engineFailed = engineStatus === "Failed";
   const score = engineResult?.loanEngineScoreNormalized ?? engineResult?.loanEngineScore ?? 0;
 
    const formatAmount = (value) => {
@@ -910,7 +872,19 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
      switch(step) {
         case 0:
                   if (loadingProfile) {
-                     return <CreditApplySkeleton />;
+                     return (
+                        <MintCard className="animate-in fade-in zoom-in-95 duration-700">
+                           <div className="flex flex-col items-center gap-4 py-8 text-center">
+                              <div className="h-16 w-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center animate-pulse">
+                                 <Search size={28} />
+                              </div>
+                              <div className="space-y-2">
+                                 <h3 className="text-lg font-bold text-slate-900">Checking status...</h3>
+                                 <p className="text-sm text-slate-500">Retrieving your verification profile</p>
+                              </div>
+                           </div>
+                        </MintCard>
+                     );
                   }
 
                   if (autoAdvance) {
@@ -1031,12 +1005,12 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                          yearsLocked={yearsAtEmployerLocked}
                       />;
             case 3:
-          return <ResultStage 
+             return <ResultStage 
              score={score} 
              isCalculating={isCalculating} 
-             engineFailed={engineFailed}
              breakdown={engineResult?.breakdown} 
                 engineResult={engineResult}
+                engineError={engineError}
                 onRunAssessment={handleRunAssessment}
                 onContinue={onComplete}
                 />;

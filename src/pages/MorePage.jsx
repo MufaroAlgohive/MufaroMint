@@ -22,8 +22,9 @@ const MorePage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
-  const { bankLinked } = useRequiredActions();
+  const { bankLinked, bankSnapshotExists } = useRequiredActions();
   const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
+  const isBankLinked = bankLinked || bankSnapshotExists;
 
   const displayName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)
@@ -163,6 +164,39 @@ const MorePage = ({ onNavigate }) => {
       </header>
 
       <div className="flex flex-col items-center text-center">
+        <span
+          className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+            kycVerified
+              ? "bg-green-100 text-green-700"
+              : kycNeedsResubmission
+              ? "bg-amber-100 text-amber-700"
+              : kycPending
+              ? "bg-blue-100 text-blue-700"
+              : "bg-slate-100 text-slate-600"
+          }`}
+        >
+          {kycVerified ? (
+            <>
+              <ShieldCheck className="h-3 w-3" />
+              KYC Verified
+            </>
+          ) : kycNeedsResubmission ? (
+            <>
+              <AlertCircle className="h-3 w-3" />
+              KYC Needs Attention
+            </>
+          ) : kycPending ? (
+            <>
+              <ShieldCheck className="h-3 w-3" />
+              KYC Under Review
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-3 w-3" />
+              KYC Not Verified
+            </>
+          )}
+        </span>
         <h2 className="mt-3 text-xl font-semibold text-slate-900">{nameLabel}</h2>
         <p className="mt-1 text-sm text-slate-500">{usernameLabel}</p>
         <button
@@ -211,7 +245,7 @@ const MorePage = ({ onNavigate }) => {
             </button>
             <button
               type="button"
-              onClick={() => onNavigate?.("creditApply")}
+              onClick={() => onNavigate?.("actions")}
               className="flex w-full items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-left transition hover:bg-slate-100"
             >
               <div className="flex items-center gap-2">
@@ -223,15 +257,22 @@ const MorePage = ({ onNavigate }) => {
                 <span className="text-sm font-medium text-slate-700">Bank Account</span>
               </div>
               <span
-                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${bankLinked
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isBankLinked
                   ? "bg-green-100 text-green-700"
                   : "bg-amber-100 text-amber-700"
                   }`}
               >
-                {bankLinked ? "Linked" : "Not Linked"}
+                {isBankLinked ? "Linked" : "Not Linked"}
               </span>
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => onNavigate?.("actions")}
+            className="mt-4 w-full rounded-full border border-slate-200 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            View All Actions
+          </button>
         </div>
       </div>
 

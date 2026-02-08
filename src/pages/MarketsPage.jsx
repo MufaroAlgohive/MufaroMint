@@ -3,15 +3,24 @@ import { supabase } from "../lib/supabase.js";
 import { getMarketsSecuritiesWithMetrics } from "../lib/marketData.js";
 import { getStrategiesWithMetrics, getPublicStrategies, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
 import { useProfile } from "../lib/useProfile";
-import { TrendingUp, Search, SlidersHorizontal, X, ChevronRight, Star } from "lucide-react";
+import { TrendingUp, Search, SlidersHorizontal, X, ChevronRight } from "lucide-react";
 import NotificationBell from "../components/NotificationBell";
 import Skeleton from "../components/Skeleton";
 import { ChartContainer } from "../components/ui/line-charts-2";
 import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCurrency } from "../lib/formatCurrency";
-import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment } from "../lib/strategyUtils";
 
-const sortOptions = ["Market Cap", "Dividend Yield", "P/E Ratio"];
+// Fallback sparkline data for strategies without price history
+const generateSparkline = (changePct) => {
+  const base = 20;
+  const trend = changePct || 0;
+  return Array.from({ length: 10 }, (_, i) => {
+    const progress = i / 9;
+    return base + (trend * 5 * progress) + (Math.random() * 2 - 1);
+  });
+};
+
+const sortOptions = ["Market Cap", "Dividend Yield", "P/E Ratio", "Beta"];
 
 const strategySortOptions = [
   "Recommended",
@@ -118,7 +127,7 @@ const StrategyMiniChart = ({ values }) => {
   );
 };
 
-const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNewsArticle, onOpenFactsheet, initialViewMode }) => {
+const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNewsArticle, onOpenFactsheet }) => {
   const { profile, loading: profileLoading } = useProfile();
   const [securities, setSecurities] = useState([]);
   const [strategies, setStrategies] = useState([]);
@@ -131,7 +140,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [searchQuery, setSearchQuery] = useState("");
   const [strategiesSearchQuery, setStrategiesSearchQuery] = useState("");
   const [newsSearchQuery, setNewsSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState(initialViewMode || "invest"); // "openstrategies", "invest", "news"
+  const [viewMode, setViewMode] = useState("invest"); // "openstrategies", "invest", "news"
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [selectedStrategyTimeframe, setSelectedStrategyTimeframe] = useState("1M");
   const [selectedStrategyActiveLabel, setSelectedStrategyActiveLabel] = useState(null);
@@ -165,46 +174,28 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [draftTimeHorizon, setDraftTimeHorizon] = useState(new Set());
   const [draftStrategySectors, setDraftStrategySectors] = useState(new Set());
 
-  const [watchlist, setWatchlist] = useState([]);
-
-  useEffect(() => {
-    if (profile?.watchlist && Array.isArray(profile.watchlist)) {
-      setWatchlist(profile.watchlist);
-    }
-  }, [profile]);
-
-  const toggleWatchlist = async (e, symbol) => {
-    e.stopPropagation();
-    if (!profile?.id) return;
-
-    const isWatched = watchlist.includes(symbol);
-    const newWatchlist = isWatched
-      ? watchlist.filter((t) => t !== symbol)
-      : [...watchlist, symbol];
-
-    setWatchlist(newWatchlist);
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({ watchlist: newWatchlist })
-      .eq('id', profile.id);
-
-    if (error) {
-      setWatchlist(watchlist);
-      console.error("Watchlist sync failed:", error);
-    }
-  };
-
-  const watchedSecurities = useMemo(() => {
-    return securities.filter((s) => watchlist.includes(s.symbol));
-  }, [securities, watchlist]);
-
-  const holdingsBySymbol = useMemo(() => buildHoldingsBySymbol(holdingsSecurities), [holdingsSecurities]);
+  const holdingsBySymbol = useMemo(
+    () => new Map(holdingsSecurities.map((security) => [security.symbol, security])),
+    [holdingsSecurities],
+  );
   const previewGradientId = useId();
+
+  const getStrategyHoldingsSnapshot = (strategy) => {
+    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return [];
+    return strategy.holdings.map((holding) => {
+      const symbol = holding.ticker || holding.symbol || holding;
+      const security = holdingsBySymbol.get(symbol);
+      return {
+        symbol,
+        name: security?.name || symbol,
+        logo_url: security?.logo_url || null,
+      };
+    });
+  };
   
   // News pagination
   const [newsPage, setNewsPage] = useState(1);
-  const newsPerPage = 7;
+  const newsPerPage = 20;
 
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -285,43 +276,19 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         // Get all unique ticker symbols from strategies if they have holdings
         const allTickers = [...new Set(
           strategySources
-            .flatMap((strategy) => getHoldingsArray(strategy).flatMap((h) => {
-              const rawSymbol = h.ticker || h.symbol || h;
-              const normalizedSymbol = normalizeSymbol(rawSymbol);
-              return normalizedSymbol && normalizedSymbol !== rawSymbol
-                ? [rawSymbol, normalizedSymbol]
-                : [rawSymbol];
-            }))
+            .filter(s => s.holdings && Array.isArray(s.holdings))
+            .flatMap(s => s.holdings.map(h => h.ticker || h.symbol || h))
         )];
         
         if (allTickers.length === 0) return;
 
-        const chunkSize = 50;
-        const chunks = [];
-        for (let i = 0; i < allTickers.length; i += chunkSize) {
-          chunks.push(allTickers.slice(i, i + chunkSize));
-        }
+        const { data, error } = await supabase
+          .from("securities")
+          .select("symbol, logo_url, name, currency, security_metrics(last_close)")
+          .in("symbol", allTickers);
 
-        const results = await Promise.all(
-          chunks.map((symbols) => (
-            supabase
-              .from("securities")
-              .select("id, symbol, logo_url, name, last_price")
-              .in("symbol", symbols)
-          )),
-        );
-
-        const merged = [];
-        results.forEach(({ data, error }) => {
-          if (error) {
-            console.error("Error fetching holdings securities chunk:", error);
-            return;
-          }
-          if (data?.length) merged.push(...data);
-        });
-
-        if (merged.length) {
-          setHoldingsSecurities(merged);
+        if (!error && data) {
+          setHoldingsSecurities(data);
         }
       } catch (error) {
         console.error("Error fetching holdings securities:", error);
@@ -438,16 +405,14 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         ? selectedRisks.has(strategy.risk_level)
         : true;
       
-      const minInvest = calculateMinInvestment(strategy, holdingsBySymbol);
-      let investmentCategory = null;
-      if (minInvest != null) {
-        if (minInvest >= 10000) investmentCategory = "R10,000+";
-        else if (minInvest >= 2500) investmentCategory = "R2,500+";
-        else investmentCategory = "R500+";
-      }
+      // Convert min_investment to minInvestment categories for filtering
+      const minInvest = strategy.min_investment || 0;
+      let investmentCategory = "R500+";
+      if (minInvest >= 10000) investmentCategory = "R10,000+";
+      else if (minInvest >= 2500) investmentCategory = "R2,500+";
       
       const matchesMinInvestment = selectedMinInvestment && selectedMinInvestment !== "Any"
-        ? minInvest != null && investmentCategory === selectedMinInvestment
+        ? investmentCategory === selectedMinInvestment
         : true;
       
       const matchesExposure = selectedExposure.size
@@ -480,7 +445,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       sorted.sort((a, b) => (b.performance_score || 0) - (a.performance_score || 0));
     }
     if (strategySort === "Lowest minimum") {
-      sorted.sort((a, b) => (calculateMinInvestment(a, holdingsBySymbol) || 0) - (calculateMinInvestment(b, holdingsBySymbol) || 0));
+      sorted.sort((a, b) => (a.min_investment || 0) - (b.min_investment || 0));
     }
 
     return sorted;
@@ -533,15 +498,42 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     return `R${num.toFixed(2)}`;
   };
 
-  const getDisplayCurrency = () => "R";
+  const getDisplayCurrency = (security) => {
+    const currency = security.currency || "R";
+    return currency.toUpperCase() === "ZAC" ? "R" : currency;
+  };
 
   const formatPrice = (security) => {
     if (security.currentPrice != null) {
-      return Number(security.currentPrice).toFixed(2);
+      const currency = security.currency || "R";
+      const priceValue = currency.toUpperCase() === "ZAC"
+        ? Number(security.currentPrice) / 100
+        : Number(security.currentPrice);
+      return priceValue.toFixed(2);
     }
     return "—";
   };
 
+  const getHoldingSymbol = (holding) => holding?.ticker || holding?.symbol || holding;
+
+  const getHoldingsMinInvestment = (strategy) => {
+    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return null;
+    const total = strategy.holdings.reduce((sum, holding) => {
+      const symbol = getHoldingSymbol(holding);
+      const security = holdingsSecurities.find((s) => s.symbol === symbol);
+      const metrics = Array.isArray(security?.security_metrics)
+        ? security.security_metrics[0]
+        : security?.security_metrics;
+      const lastClose = metrics?.last_close;
+      if (lastClose == null) return sum;
+      const currency = security?.currency || "R";
+      const normalizedPrice = currency.toUpperCase() === "ZAC"
+        ? Number(lastClose) / 100
+        : Number(lastClose);
+      return sum + (Number.isFinite(normalizedPrice) ? normalizedPrice : 0);
+    }, 0);
+    return total > 0 ? total : null;
+  };
 
   useEffect(() => {
     if (!selectedStrategy) {
@@ -1034,82 +1026,19 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             {/* Grouped Sections - only show when NOT searching */}
             {!searchQuery && (
               <>
-                {watchedSecurities.length > 0 && (
-                  <section>
-                    <div className="mb-4 flex items-center justify-between">
-                      <h2 className="text-lg font-bold text-slate-900">My Watchlist</h2>
-                      <ChevronRight className="h-5 w-5 text-slate-400" />
-                    </div>
-                    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-hide">
-                      {watchedSecurities.map((security) => (
-                        <button
-                          key={security.id}
-                          onClick={() => onOpenStockDetail(security)}
-                          className="relative flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-5 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97]"
-                        >
-                          <div onClick={(e) => toggleWatchlist(e, security.symbol)} className="absolute top-3 right-3 z-10">
-                            <Star className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                          </div>
-                          <div className="flex items-start gap-3">
-                            {security.logo_url ? (
-                              <img
-                                src={security.logo_url}
-                                alt={security.symbol}
-                                className="h-12 w-12 rounded-full border border-slate-100 object-cover flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-bold text-white">
-                                {security.symbol?.substring(0, 2) || "—"}
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="truncate text-sm font-bold text-slate-900">
-                                {security.short_name || security.name}
-                              </p>
-                              <p className="mt-0.5 text-xs text-slate-500">{security.symbol}</p>
-                              <div className="mt-2">
-                                {security.currentPrice != null ? (
-                                  <>
-                                    <p className="text-lg font-bold text-slate-900">
-                                      <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
-                                      {formatPrice(security)}
-                                    </p>
-                                    {security.changePct != null && (
-                                      <p className={`mt-1 text-xs font-semibold ${
-                                        security.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'
-                                      }`}>
-                                        {security.changePct >= 0 ? '+' : ''}{security.changePct.toFixed(2)}%
-                                      </p>
-                                    )}
-                                  </>
-                                ) : (
-                                  <p className="text-xs text-slate-500">No pricing data</p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
                 {/* Largest Companies Section */}
                 <section>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900">Largest companies</h2>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
               </div>
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-hide">
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
                 {largestCompanies.map((security) => (
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
-                    className="relative flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-5 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97]"
+                    className="flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                   >
-                    <div onClick={(e) => toggleWatchlist(e, security.symbol)} className="absolute top-3 right-3 z-10">
-                      <Star className={`h-5 w-5 ${watchlist.includes(security.symbol) ? "fill-yellow-400 text-yellow-400" : "text-slate-300"}`} />
-                    </div>
                     <div className="flex items-start gap-3">
                       {security.logo_url ? (
                         <img
@@ -1159,16 +1088,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 <h2 className="text-lg font-bold text-slate-900">Highest dividend yield</h2>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
               </div>
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-hide">
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
                 {highestDividendYield.map((security) => (
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
-                    className="relative flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-5 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97]"
+                    className="flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                   >
-                    <div onClick={(e) => toggleWatchlist(e, security.symbol)} className="absolute top-3 right-3 z-10">
-                      <Star className={`h-5 w-5 ${watchlist.includes(security.symbol) ? "fill-yellow-400 text-yellow-400" : "text-slate-300"}`} />
-                    </div>
                     <div className="flex items-start gap-3">
                       {security.logo_url ? (
                         <img
@@ -1188,28 +1114,32 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         <p className="mt-0.5 text-xs text-slate-500">{security.symbol}</p>
                         <div className="mt-2">
                           {security.currentPrice != null ? (
-                            <div className="flex items-baseline gap-2">
+                            <>
                               <p className="text-lg font-bold text-slate-900">
                                 <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
                                 {formatPrice(security)}
                               </p>
                               {security.changePct != null && (
-                                <span className={`text-xs font-semibold ${
+                                <p className={`mt-1 text-xs font-semibold ${
                                   security.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'
                                 }`}>
                                   {security.changePct >= 0 ? '+' : ''}{security.changePct.toFixed(2)}%
-                                </span>
+                                </p>
                               )}
-                            </div>
+                            </>
                           ) : (
                             <p className="text-sm text-slate-400">—</p>
                           )}
                         </div>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-700">
-                            {Number(security.dividend_yield).toFixed(2)}% yield
-                          </span>
+                        <div className="mt-2 flex items-baseline gap-2">
+                          <p className="text-lg font-bold text-emerald-600">
+                            {Number(security.dividend_yield).toFixed(2)}%
+                          </p>
+                          <span className="text-xs text-slate-400">yield</span>
                         </div>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Market cap: {formatMarketCap(security.market_cap)}
+                        </p>
                       </div>
                     </div>
                   </button>
@@ -1223,16 +1153,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 <h2 className="text-lg font-bold text-slate-900">Gainers</h2>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
               </div>
-              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-hide">
+              <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
                 {gainers.map((security) => (
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
-                    className="relative flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-5 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97]"
+                    className="flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                   >
-                    <div onClick={(e) => toggleWatchlist(e, security.symbol)} className="absolute top-3 right-3 z-10">
-                      <Star className={`h-5 w-5 ${watchlist.includes(security.symbol) ? "fill-yellow-400 text-yellow-400" : "text-slate-300"}`} />
-                    </div>
                     <div className="flex items-start gap-3">
                       {security.logo_url ? (
                         <img
@@ -1251,14 +1178,9 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         </p>
                         <p className="mt-0.5 text-xs text-slate-500">{security.symbol}</p>
                         <div className="mt-2">
-                          {security.currentPrice != null ? (
-                            <p className="text-lg font-bold text-slate-900">
-                              <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
-                              {formatPrice(security)}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-slate-500">No pricing data</p>
-                          )}
+                          <p className="text-lg font-bold text-slate-900">
+                            {formatMarketCap(security.market_cap)}
+                          </p>
                         </div>
                         <p className="mt-1 text-xs font-semibold text-emerald-600">
                           +{security.percentGain.toFixed(2)}%
@@ -1281,7 +1203,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
-                    className="w-full rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97]"
+                    className="w-full rounded-3xl bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                   >
                     <div className="flex items-start gap-3">
                       {security.logo_url ? (
@@ -1325,9 +1247,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                               <p className="text-xs text-slate-500">No pricing data</p>
                             )}
                           </div>
-                          <div onClick={(e) => toggleWatchlist(e, security.symbol)} className="ml-2 flex-shrink-0">
-                            <Star className={`h-5 w-5 ${watchlist.includes(security.symbol) ? "fill-yellow-400 text-yellow-400" : "text-slate-300"}`} />
-                          </div>
                         </div>
 
                         <div className="mt-3 flex items-center gap-2">
@@ -1339,6 +1258,17 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           {security.pe && (
                             <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-700">
                               P/E {Number(security.pe).toFixed(2)}
+                            </span>
+                          )}
+                          {security.beta && (
+                            <span
+                              className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                                security.beta > 1
+                                  ? "bg-orange-50 text-orange-700"
+                                  : "bg-green-50 text-green-700"
+                              }`}
+                            >
+                              β {Number(security.beta).toFixed(2)}
                             </span>
                           )}
                         </div>
@@ -1369,7 +1299,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                       <button
                         key={security.id}
                         onClick={() => onOpenStockDetail(security)}
-                        className="w-full rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97]"
+                        className="w-full rounded-3xl bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                       >
                         <div className="flex items-start gap-3">
                           {security.logo_url ? (
@@ -1413,9 +1343,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                                   <p className="text-xs text-slate-400">—</p>
                                 )}
                               </div>
-                              <div onClick={(e) => toggleWatchlist(e, security.symbol)} className="ml-2 flex-shrink-0">
-                                <Star className={`h-5 w-5 ${watchlist.includes(security.symbol) ? "fill-yellow-400 text-yellow-400" : "text-slate-300"}`} />
-                              </div>
                             </div>
 
                             <div className="mt-3 flex items-center gap-2">
@@ -1427,6 +1354,17 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                               {security.pe && (
                                 <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-700">
                                   P/E {Number(security.pe).toFixed(2)}
+                                </span>
+                              )}
+                              {security.beta && (
+                                <span
+                                  className={`rounded-full px-2 py-1 text-[10px] font-medium ${
+                                    security.beta > 1
+                                      ? "bg-orange-50 text-orange-700"
+                                      : "bg-green-50 text-green-700"
+                                  }`}
+                                >
+                                  β {Number(security.beta).toFixed(2)}
                                 </span>
                               )}
                             </div>
@@ -1480,12 +1418,20 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           : strategy.description
                         : '';
                       
-                      const calcMin = calculateMinInvestment(strategy, holdingsBySymbol);
-                      const formattedMinInvestment = calcMin ? `Min. ${formatCurrency(calcMin, "R")}` : null;
+                      // Format minimum investment
+                      const holdingsMinInvestment = getHoldingsMinInvestment(strategy);
+                      const formattedMinInvestment = holdingsMinInvestment
+                        ? `Min. ${formatCurrency(holdingsMinInvestment, "R")}`
+                        : null;
                       
-                      const sparkline = [20, 22, 21, 24, 26, 25, 28, 30, 29, 32];
+                      // Generate sparkline (fallback until we have real price history)
+                      const sparkline = generateSparkline(0);
                       
-                      const holdingsSnapshot = getStrategyHoldingsSnapshot(strategy, holdingsBySymbol);
+                      const holdingsSnapshot = getStrategyHoldingsSnapshot(strategy);
+                      const holdingsList = holdingsSnapshot
+                        .slice(0, 3)
+                        .map((holding) => holding.name || holding.symbol)
+                        .filter(Boolean);
                       
                       return (
                       <button
@@ -1499,21 +1445,48 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         className="flex-shrink-0 w-80 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-slate-200 p-4 transition-all snap-center"
                       >
                         <div className="flex items-start gap-3">
+                          <div className="flex items-center">
+                            <div className="flex -space-x-2">
+                              {holdingsSnapshot.slice(0, 3).map((holding) => (
+                                <div
+                                  key={`${displayName}-${holding.symbol}`}
+                                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                                >
+                                  {holding.logo_url ? (
+                                    <img
+                                      src={holding.logo_url}
+                                      alt={holding.name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">
+                                      {holding.symbol?.substring(0, 2)}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                              {holdingsSnapshot.length > 3 ? (
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
+                                  +{Math.max(0, holdingsSnapshot.length - 3)}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
                           <div className="flex-1 flex items-start justify-between gap-4">
-                            <div className="text-left space-y-1">
-                              <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-                              <div>
-                                <p className="text-xs text-slate-600 line-clamp-1">
-                                  {strategy.risk_level || 'Balanced'} {strategy.objective && `• ${strategy.objective}`}
-                                </p>
-                                <p className="text-[11px] text-slate-400 line-clamp-1">
-                                  {formattedMinInvestment}
-                                </p>
-                              </div>
+                          <div className="text-left space-y-1">
+                            <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                            <div>
+                              <p className="text-xs text-slate-600 line-clamp-1">
+                                {strategy.risk_level || 'Balanced'} {strategy.objective && `• ${strategy.objective}`}
+                              </p>
+                              <p className="text-[11px] text-slate-400 line-clamp-1">
+                                {formattedMinInvestment || truncatedDescription.substring(0, 30)}
+                              </p>
                             </div>
-                            <div className="flex items-center rounded-xl bg-slate-50 px-2">
-                              <StrategyMiniChart values={sparkline} />
-                            </div>
+                          </div>
+                          <div className="flex items-center rounded-xl bg-slate-50 px-2">
+                            <StrategyMiniChart values={sparkline} />
+                          </div>
                           </div>
                         </div>
 
@@ -1533,12 +1506,18 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           )}
                         </div>
 
+                        {holdingsList.length > 0 && (
+                          <p className="mt-2 text-xs font-medium text-slate-500">
+                            Top holdings: {holdingsList.join(" · ")}
+                          </p>
+                        )}
+
                         {holdingsSnapshot.length > 0 && (
                           <div className="mt-3 flex items-center gap-3">
                             <div className="flex -space-x-2">
                               {holdingsSnapshot.slice(0, 3).map((holding) => (
                                 <div
-                                  key={`${displayName}-${holding.id || holding.symbol}-snapshot`}
+                                  key={`${displayName}-${holding.symbol}-snapshot`}
                                   className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
                                 >
                                   {holding.logo_url ? (
@@ -1684,10 +1663,49 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             
             <div className="p-6">
               <div className="flex items-start gap-3 mb-6">
+                <div className="flex items-center">
+                  {(() => {
+                    const snapshot = getStrategyHoldingsSnapshot(selectedStrategy);
+                    const visibleHoldings = snapshot.slice(0, 3);
+                    const extraCount = Math.max(0, snapshot.length - visibleHoldings.length);
+                    return (
+                      <div className="flex -space-x-2">
+                        {visibleHoldings.map((holding) => (
+                          <div
+                            key={`${selectedStrategy.name}-${holding.symbol}`}
+                            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                          >
+                            {holding.logo_url ? (
+                              <img
+                                src={holding.logo_url}
+                                alt={holding.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">
+                                {holding.symbol?.substring(0, 2)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {extraCount > 0 ? (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
+                            +{extraCount}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
+                </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-slate-900">{selectedStrategy.name}</h2>
                   <p className="text-sm text-slate-500">
-                    {calculateMinInvestment(selectedStrategy, holdingsBySymbol) ? `Min. ${formatCurrency(calculateMinInvestment(selectedStrategy, holdingsBySymbol), "R")}` : "Calculating..."}
+                    {(() => {
+                      const holdingsMinInvestment = getHoldingsMinInvestment(selectedStrategy);
+                      return holdingsMinInvestment
+                        ? `Min. ${formatCurrency(holdingsMinInvestment, "R")}`
+                        : 'Min. —';
+                    })()}
                   </p>
                 </div>
               </div>
@@ -1720,10 +1738,8 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 </div>
                 <div className="h-44 w-full">
                   {selectedStrategyAnalyticsLoading ? (
-                    <div className="flex h-full items-end gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
-                      {[45, 65, 35, 80, 55, 70, 40, 90, 60, 50, 75, 85].map((h, i) => (
-                        <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${h}%` }} />
-                      ))}
+                    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+                      Loading analytics...
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
@@ -1867,13 +1883,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
               <button
                 onClick={() => {
                   setSelectedStrategy(null);
-                  const hArr = getHoldingsArray(selectedStrategy);
-                  const enrichedHoldings = hArr.map(h => {
-                    const sym = h.ticker || h.symbol || h;
-                    const sec = holdingsBySymbol.get(sym) || holdingsBySymbol.get(normalizeSymbol(sym));
-                    return { ...h, logo_url: sec?.logo_url || null };
-                  });
-                  onOpenFactsheet({ ...selectedStrategy, calculatedMinInvestment: calculateMinInvestment(selectedStrategy, holdingsBySymbol), holdingsWithLogos: enrichedHoldings });
+                  onOpenFactsheet(selectedStrategy);
                 }}
                 className="mt-6 w-full rounded-2xl bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] py-4 font-semibold text-white shadow-lg transition-all active:scale-95"
               >

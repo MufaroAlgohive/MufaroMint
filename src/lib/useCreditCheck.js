@@ -82,6 +82,28 @@ const parseYearsAtEmployerNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const sanitizeEngineResult = (value) => {
+  if (Array.isArray(value)) return value.map(sanitizeEngineResult);
+  if (value && typeof value === "object") {
+    const blockedKeys = new Set([
+      "gross_monthly_income",
+      "net_monthly_income",
+      "avg_monthly_income",
+      "avg_monthly_expenses",
+      "monthly_income",
+      "monthlyIncome",
+      "monthly_expenses",
+      "monthlyExpenses"
+    ]);
+    return Object.entries(value).reduce((acc, [key, val]) => {
+      if (blockedKeys.has(key)) return acc;
+      acc[key] = sanitizeEngineResult(val);
+      return acc;
+    }, {});
+  }
+  return value;
+};
+
 const buildWarningList = (form, profile) => {
   const warnings = [];
   if (!form.identityNumber) warnings.push("Missing ID number.");
@@ -104,6 +126,7 @@ export function useCreditCheck() {
   const [locked, setLocked] = useState(false);
   const [engineResult, setEngineResult] = useState(null);
   const [engineStatus, setEngineStatus] = useState("Idle");
+  const [engineError, setEngineError] = useState("");
   const [mockMode, setMockMode] = useState(null);
   const [employerCsv, setEmployerCsv] = useState([]);
   const [isUpdatingLoan, setIsUpdatingLoan] = useState(false);
@@ -142,6 +165,39 @@ export function useCreditCheck() {
       .then((record) => setLoanRecord(record))
       .catch(() => null);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadStoredEngineResult = async () => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId || engineResult) return;
+
+      const { data: scoreData } = await supabase
+        .from("loan_engine_score")
+        .select("engine_result, engine_score")
+        .eq("user_id", userId)
+        .order("run_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!active) return;
+      if (scoreData?.engine_result) {
+        setEngineResult(scoreData.engine_result);
+        setEngineStatus("Complete");
+      } else if (Number.isFinite(scoreData?.engine_score)) {
+        setEngineStatus("Complete");
+      }
+    };
+
+    loadStoredEngineResult();
+
+    return () => {
+      active = false;
+    };
+  }, [engineResult]);
 
   useEffect(() => {
     let active = true;
@@ -305,6 +361,7 @@ export function useCreditCheck() {
   const runEngine = useCallback(async () => {
     setEngineStatus("Running");
     setEngineResult(null);
+    setEngineError("");
 
     if (!supabase) {
       setEngineStatus("Failed");
@@ -340,6 +397,7 @@ export function useCreditCheck() {
       }
     };
 
+    let result;
     try {
       const response = await fetch(`${apiBase}/credit-check`, {
         method: "POST",
@@ -350,14 +408,24 @@ export function useCreditCheck() {
         body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
-      setEngineResult(result);
-      setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
-    } catch (err) {
-      console.error("Credit check engine error:", err);
-      setEngineResult({ success: false, error: err.message || "Network error" });
-      setEngineStatus("Failed");
+      const responseText = await response.text();
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        result = { error: responseText || "Invalid JSON from credit check" };
+      }
+
+      if (!response.ok) {
+        setEngineError(result?.error || response.statusText || "Credit check failed");
+      }
+    } catch (error) {
+      setEngineError(error?.message || "Credit check failed");
+      result = { error: error?.message || "Credit check failed" };
     }
+    setEngineResult(result);
+    setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
+
+    // Persisting happens server-side in the credit-check API to avoid duplicates.
   }, [apiBase, form, normalizedContractType, loanRecord]);
 
   const proceedToStep3 = useCallback(async () => {
@@ -387,6 +455,7 @@ export function useCreditCheck() {
     editInputs,
     engineResult,
     engineStatus,
+    engineError,
     runEngine,
     mockMode,
     employerCsv,

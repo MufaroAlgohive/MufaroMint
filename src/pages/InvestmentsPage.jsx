@@ -8,20 +8,19 @@ import NotificationBell from "../components/NotificationBell";
 
 const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
   const { profile, loading } = useProfile();
-  const { 
-    totalInvestments, 
-    monthlyChangePercent, 
-    portfolioMix, 
-    goals, 
+  const {
+    totalInvestments,
+    monthlyChangePercent,
+    portfolioMix,
+    goals,
     hasInvestments,
-    loading: investmentsLoading 
+    loading: investmentsLoading,
   } = useInvestments();
   const [allocations, setAllocations] = useState([]);
   const [customGoals, setCustomGoals] = useState([]);
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
   const [goalDate, setGoalDate] = useState("");
-  
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
     .split(" ")
@@ -69,6 +68,9 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
   if (loading || investmentsLoading) {
     return <InvestmentsSkeleton />;
   }
+
+  const safeTotalInvestments = Number.isFinite(totalInvestments) ? totalInvestments : 0;
+  const hasMonthlyChange = Number.isFinite(monthlyChangePercent) && monthlyChangePercent !== 0;
 
   const defaultPortfolioMix = [
     { label: "Equities", value: "0%" },
@@ -126,15 +128,18 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
           <section className="glass-card p-5 text-white">
             <p className="text-xs uppercase tracking-[0.2em] text-white/70">Total Investments</p>
             <p className="mt-3 text-3xl font-semibold">
-              R{totalInvestments.toLocaleString()}
+              R{safeTotalInvestments.toLocaleString()}
             </p>
-            {hasInvestments && monthlyChangePercent !== 0 && (
-              <div className={`mt-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                monthlyChangePercent >= 0 
-                  ? 'bg-emerald-400/20 text-emerald-100' 
-                  : 'bg-rose-400/20 text-rose-100'
-              }`}>
-                {monthlyChangePercent >= 0 ? '+' : ''}{monthlyChangePercent.toFixed(1)}% this month
+            {hasInvestments && hasMonthlyChange && (
+              <div
+                className={`mt-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                  monthlyChangePercent >= 0
+                    ? "bg-emerald-400/20 text-emerald-100"
+                    : "bg-rose-400/20 text-rose-100"
+                }`}
+              >
+                {monthlyChangePercent >= 0 ? "+" : ""}
+                {monthlyChangePercent.toFixed(1)}% this month
               </div>
             )}
           </section>
@@ -143,7 +148,7 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
 
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-5 px-4 pb-10 md:max-w-md md:px-8">
         {!hasInvestments ? (
-          <section className="rounded-3xl bg-white px-4 py-8 shadow-md text-center">
+          <section className="rounded-3xl bg-white px-4 py-8 text-center shadow-md">
             <div className="flex h-20 w-20 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-5">
               <TrendingUp className="h-10 w-10" />
             </div>
