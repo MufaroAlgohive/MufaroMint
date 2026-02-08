@@ -29,7 +29,6 @@ import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
-import { getStrategiesWithMetrics } from "../lib/strategyData";
 import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
 import { formatZar } from "../lib/formatCurrency";
 import HomeSkeleton from "../components/HomeSkeleton";
@@ -368,27 +367,51 @@ const HomePage = ({
       try {
         if (!profile?.id) return;
 
-        const { data: userStrategyLinks, error: linksError } = await supabase
-          .from("user_strategies")
-          .select("strategy_id")
-          .eq("user_id", profile.id);
-
-        console.log("[HomePage] user_strategies query for user:", profile.id, "result:", userStrategyLinks, "error:", linksError);
-
-        const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
-
-        if (subscribedIds.length === 0) {
-          console.log("[HomePage] No subscribed strategy IDs found");
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
           setBestStrategies([]);
           return;
         }
 
-        const data = await getStrategiesWithMetrics();
-        const filtered = data
-          .filter(s => subscribedIds.includes(s.id))
+        const res = await fetch("/api/user/strategies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          console.error("[HomePage] Failed to fetch user strategies:", res.status);
+          setBestStrategies([]);
+          return;
+        }
+
+        const json = await res.json();
+        const serverStrategies = json.strategies || [];
+
+        if (serverStrategies.length === 0) {
+          console.log("[HomePage] No user strategies found");
+          setBestStrategies([]);
+          return;
+        }
+
+        const formatted = serverStrategies.map(s => ({
+          id: s.id,
+          name: s.name,
+          short_name: s.shortName,
+          description: s.description,
+          risk_level: s.riskLevel,
+          sector: s.sector,
+          icon_url: s.iconUrl,
+          image_url: s.imageUrl,
+          holdings: s.holdings || [],
+          investedAmount: s.investedAmount,
+          change_pct: s.metrics?.change_pct || 0,
+          strategy_metrics: s.metrics ? [s.metrics] : [],
+        }));
+
+        const sorted = formatted
           .sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
           .slice(0, 5);
-        setBestStrategies(filtered);
+        setBestStrategies(sorted);
       } catch (error) {
         console.error("Failed to load strategies", error);
         setBestStrategies([]);

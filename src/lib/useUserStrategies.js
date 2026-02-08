@@ -23,73 +23,43 @@ export const useUserStrategies = () => {
         return;
       }
 
-      const userId = session.user.id;
+      const token = session.access_token;
+      const res = await fetch("/api/user/strategies", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      const { data: userStrategyLinks, error: linksErr } = await supabase
-        .from("user_strategies")
-        .select("strategy_id")
-        .eq("user_id", userId);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        console.error("[useUserStrategies] API error:", res.status, errJson);
+        setData((prev) => ({ ...prev, loading: false, error: errJson.error || "Failed to fetch strategies" }));
+        return;
+      }
 
-      console.log("[useUserStrategies] user_strategies for", userId, ":", userStrategyLinks, "error:", linksErr);
+      const json = await res.json();
+      const serverStrategies = json.strategies || [];
 
-      const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
-
-      if (subscribedIds.length === 0) {
-        console.log("[useUserStrategies] No subscribed strategy IDs");
+      if (serverStrategies.length === 0) {
+        console.log("[useUserStrategies] No strategies found from API");
         setData({ strategies: [], selectedStrategy: null, loading: false, error: null });
         return;
       }
 
-      const { data: strategies, error } = await supabase
-        .from("strategies")
-        .select(`
-          id,
-          name,
-          short_name,
-          description,
-          risk_level,
-          sector,
-          icon_url,
-          image_url,
-          holdings,
-          strategy_metrics (
-            as_of_date,
-            last_close,
-            change_pct,
-            r_1w,
-            r_1m,
-            r_3m,
-            r_ytd,
-            r_1y
-          )
-        `)
-        .in("id", subscribedIds)
-        .eq("status", "active")
-        .limit(5);
-
-      if (error) {
-        console.error("Error fetching strategies:", error);
-        setData((prev) => ({ ...prev, loading: false, error: error.message }));
-        return;
-      }
-
-      const formattedStrategies = (strategies || []).map((strategy) => {
-        const metrics = strategy?.strategy_metrics;
-        const latestMetric = Array.isArray(metrics) ? metrics[0] : metrics;
+      const formattedStrategies = serverStrategies.map((strategy) => {
+        const latestMetric = strategy.metrics;
         const changePercent = latestMetric?.r_1m ? (latestMetric.r_1m * 100).toFixed(1) : 0;
 
         return {
           id: strategy.id,
           strategyId: strategy.id,
           name: strategy.name || "Unknown Strategy",
-          shortName: strategy.short_name || strategy.name || "Strategy",
+          shortName: strategy.shortName || strategy.name || "Strategy",
           description: strategy.description || "",
-          riskLevel: strategy.risk_level || "Moderate",
+          riskLevel: strategy.riskLevel || "Moderate",
           sector: strategy.sector || "",
-          iconUrl: strategy.icon_url,
-          imageUrl: strategy.image_url,
-          holdings: strategy?.holdings || [],
-          investedAmount: 0,
+          iconUrl: strategy.iconUrl,
+          imageUrl: strategy.imageUrl,
+          holdings: strategy.holdings || [],
+          investedAmount: strategy.investedAmount || 0,
           currentValue: latestMetric?.last_close || 0,
           unitsHeld: 0,
           entryDate: null,

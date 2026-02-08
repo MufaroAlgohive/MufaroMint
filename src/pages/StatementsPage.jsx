@@ -59,14 +59,25 @@ const StatementsPage = ({ onOpenNotifications }) => {
       }
 
       try {
-        const { data: userStrategyLinks } = await supabase
-          .from("user_strategies")
-          .select("strategy_id")
-          .eq("user_id", profile.id);
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          if (isMounted) setStrategiesLoading(false);
+          return;
+        }
 
-        const subscribedIds = (userStrategyLinks || []).map(us => us.strategy_id).filter(Boolean);
+        const res = await fetch("/api/user/strategies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          console.error("[StatementsPage] Failed to fetch strategies:", res.status);
+          if (isMounted) setStrategiesLoading(false);
+          return;
+        }
+        const json = await res.json();
+        const userStrategies = json.strategies || [];
 
-        if (subscribedIds.length === 0) {
+        if (userStrategies.length === 0) {
           if (isMounted) {
             setStrategyRows([]);
             setRawStrategies([]);
@@ -74,6 +85,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
           }
           return;
         }
+
+        const subscribedIds = userStrategies.map(s => s.id);
 
         const { data: strategies, error } = await supabase
           .from("strategies")

@@ -152,85 +152,27 @@ try {
   console.warn('Supabase client not available:', e.message);
 }
 
-async function ensureUserStrategiesTable() {
-  if (!supabaseAdmin) return;
+async function cleanupInvalidHoldings() {
+  const db = supabaseAdmin || supabase;
+  if (!db) return;
   try {
-    const { data, error } = await supabaseAdmin
-      .from("user_strategies")
-      .select("user_id")
-      .limit(0);
-    
-    if (error && error.code === 'PGRST205') {
-      console.log("[migration] user_strategies table not found, creating via SQL...");
-      const sqlUrl = SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/';
-      
-      const createTableSQL = `
-        CREATE TABLE IF NOT EXISTS public.user_strategies (
-          id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-          user_id uuid NOT NULL,
-          strategy_id uuid NOT NULL REFERENCES public.strategies(id),
-          created_at timestamptz DEFAULT now(),
-          updated_at timestamptz DEFAULT now(),
-          UNIQUE(user_id, strategy_id)
-        );
-        
-        ALTER TABLE public.user_strategies ENABLE ROW LEVEL SECURITY;
-        
-        CREATE POLICY "Users can view own strategies" ON public.user_strategies
-          FOR SELECT USING (auth.uid() = user_id);
-        
-        CREATE POLICY "Service role full access to user_strategies" ON public.user_strategies
-          FOR ALL USING (true) WITH CHECK (true);
-      `;
-      
-      const resp = await fetch(SUPABASE_URL.replace(/\/+$/, '') + '/sql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_SERVICE_ROLE_KEY,
-          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-        },
-        body: JSON.stringify({ query: createTableSQL }),
-      });
-      
-      if (resp.ok) {
-        console.log("[migration] user_strategies table created successfully!");
-      } else {
-        const errText = await resp.text();
-        console.error("[migration] Failed to create user_strategies via SQL API:", resp.status, errText);
-        console.log("[migration] Trying alternative approach via PostgREST...");
-        
-        const rpcResp = await fetch(SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/exec_sql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': SUPABASE_SERVICE_ROLE_KEY,
-            'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-            'Prefer': 'return=representation',
-          },
-          body: JSON.stringify({ sql: createTableSQL }),
-        });
-        
-        if (rpcResp.ok) {
-          console.log("[migration] user_strategies table created via RPC!");
-        } else {
-          const rpcErr = await rpcResp.text();
-          console.error("[migration] RPC also failed:", rpcResp.status, rpcErr);
-          console.error("[migration] Please create the user_strategies table manually in the Supabase dashboard SQL editor:");
-          console.error("[migration] SQL:", createTableSQL.trim());
-        }
+    const { data: holdings } = await db.from('stock_holdings').select('id, security_id');
+    if (!holdings || holdings.length === 0) return;
+    const secIds = holdings.map(h => h.security_id).filter(Boolean);
+    const { data: strategies } = await db.from('strategies').select('id').in('id', secIds);
+    const strategyIds = new Set((strategies || []).map(s => s.id));
+    for (const h of holdings) {
+      if (strategyIds.has(h.security_id)) {
+        console.log('[cleanup] Deleting invalid stock_holding', h.id, 'security_id is a strategy');
+        await db.from('stock_holdings').delete().eq('id', h.id);
       }
-    } else if (!error) {
-      console.log("[migration] user_strategies table already exists");
-    } else {
-      console.error("[migration] Error checking user_strategies:", error);
     }
   } catch (e) {
-    console.error("[migration] Error during table check:", e.message);
+    console.error('[cleanup] Error cleaning up invalid holdings:', e.message);
   }
 }
 
-ensureUserStrategiesTable();
+cleanupInvalidHoldings();
 
 function parseServices(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -1055,22 +997,7 @@ app.post("/api/record-investment", async (req, res) => {
     }
 
     if (strategyId) {
-      console.log("[record-investment] Creating strategy link - userId:", userId, "strategyId:", strategyId);
-      const { data: linkData, error: linkError } = await db
-        .from("user_strategies")
-        .upsert({ 
-          user_id: userId, 
-          strategy_id: strategyId,
-        }, { onConflict: 'user_id,strategy_id' })
-        .select();
-
-      if (linkError) {
-        console.error("[record-investment] STRATEGY LINK ERROR:", JSON.stringify(linkError));
-      } else {
-        console.log("[record-investment] Strategy link created/updated OK:", JSON.stringify(linkData));
-      }
-    } else {
-      console.log("[record-investment] No strategyId provided, skipping strategy link");
+      console.log("[record-investment] Strategy investment detected - strategyId:", strategyId, "- strategy subscriptions are derived from transactions");
     }
 
     console.log("[record-investment] Checking if securityId exists in securities table:", securityId);
@@ -1279,6 +1206,113 @@ app.get("/api/user/holdings", async (req, res) => {
   }
 });
 
+app.get("/api/user/strategies", async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: "Database not connected" });
+    }
+
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: authError || "Unauthorized" });
+    }
+
+    const db = supabaseAdmin || supabase;
+    const userId = user.id;
+
+    const { data: transactions, error: txError } = await db
+      .from("transactions")
+      .select("id, name, amount, direction, transaction_date")
+      .eq("user_id", userId)
+      .eq("direction", "debit");
+
+    if (txError) {
+      console.error("[user/strategies] Error fetching transactions:", txError);
+      return res.status(500).json({ success: false, error: txError.message });
+    }
+
+    const strategyInvestments = {};
+    for (const tx of (transactions || [])) {
+      const txName = (tx.name || "").trim();
+      let strategyName = null;
+      if (txName.startsWith("Strategy Investment: ")) {
+        strategyName = txName.replace("Strategy Investment: ", "").trim();
+      } else if (txName.startsWith("Purchased ")) {
+        strategyName = txName.replace("Purchased ", "").trim();
+      }
+      if (strategyName) {
+        if (!strategyInvestments[strategyName]) {
+          strategyInvestments[strategyName] = 0;
+        }
+        strategyInvestments[strategyName] += Math.abs(tx.amount || 0);
+      }
+    }
+
+    const strategyNames = Object.keys(strategyInvestments);
+    if (strategyNames.length === 0) {
+      return res.json({ success: true, strategies: [] });
+    }
+
+    const { data: allStrategies, error: stratErr } = await db
+      .from("strategies")
+      .select(`
+        id, name, short_name, description, risk_level, sector, icon_url, image_url, holdings, status,
+        strategy_metrics (
+          as_of_date, last_close, change_pct, r_1w, r_1m, r_3m, r_ytd, r_1y
+        )
+      `)
+      .eq("status", "active");
+
+    if (stratErr) {
+      console.error("[user/strategies] Error fetching strategies:", stratErr);
+      return res.status(500).json({ success: false, error: stratErr.message });
+    }
+
+    const matchedStrategies = [];
+    for (const strategy of (allStrategies || [])) {
+      const matchKey = strategyNames.find(sn =>
+        sn.toLowerCase() === (strategy.name || "").toLowerCase() ||
+        sn.toLowerCase() === (strategy.short_name || "").toLowerCase()
+      );
+      if (matchKey) {
+        const metrics = strategy.strategy_metrics;
+        const latestMetric = Array.isArray(metrics) ? metrics[0] : metrics;
+        matchedStrategies.push({
+          id: strategy.id,
+          name: strategy.name,
+          shortName: strategy.short_name || strategy.name,
+          description: strategy.description || "",
+          riskLevel: strategy.risk_level || "Moderate",
+          sector: strategy.sector || "",
+          iconUrl: strategy.icon_url,
+          imageUrl: strategy.image_url,
+          holdings: strategy.holdings || [],
+          investedAmount: strategyInvestments[matchKey] / 100,
+          metrics: latestMetric || null,
+        });
+      }
+    }
+
+    const holdingSecIds = matchedStrategies.map(s => s.id);
+    if (holdingSecIds.length > 0) {
+      const { data: badHoldings } = await db
+        .from("stock_holdings")
+        .select("id, security_id")
+        .eq("user_id", userId)
+        .in("security_id", holdingSecIds);
+      for (const bh of (badHoldings || [])) {
+        console.log("[user/strategies] Cleaning up invalid stock_holding", bh.id, "for strategy", bh.security_id);
+        await db.from("stock_holdings").delete().eq("id", bh.id);
+      }
+    }
+
+    res.json({ success: true, strategies: matchedStrategies });
+  } catch (error) {
+    console.error("[user/strategies] Error:", error);
+    res.status(500).json({ success: false, error: error.message || "Failed to fetch user strategies" });
+  }
+});
+
 app.get("/api/user/transactions", async (req, res) => {
   try {
     if (!supabase) {
@@ -1327,37 +1361,17 @@ app.get("/api/debug/user-investments", async (req, res) => {
     const db = supabaseAdmin || supabase;
     const userId = user.id;
 
-    const [strategiesResult, holdingsResult, transactionsResult] = await Promise.all([
-      db.from("user_strategies").select("*").eq("user_id", userId),
+    const [holdingsResult, transactionsResult] = await Promise.all([
       db.from("stock_holdings").select("*").eq("user_id", userId),
       db.from("transactions").select("id, direction, name, description, amount, store_reference, status, transaction_date").eq("user_id", userId).order("transaction_date", { ascending: false }).limit(20),
     ]);
 
-    let strategiesWithDetails = [];
-    const strategyLinks = strategiesResult.data || [];
-    if (strategyLinks.length > 0) {
-      const strategyIds = strategyLinks.map(s => s.strategy_id).filter(Boolean);
-      if (strategyIds.length > 0) {
-        const { data: strategies } = await db
-          .from("strategies")
-          .select("id, name, short_name, status, risk_level")
-          .in("id", strategyIds);
-        strategiesWithDetails = (strategies || []).map(s => ({
-          ...s,
-          userLink: strategyLinks.find(l => l.strategy_id === s.id),
-        }));
-      }
-    }
-
     res.json({
       success: true,
       userId,
-      userStrategyLinks: strategyLinks,
-      strategiesWithDetails,
       stockHoldings: holdingsResult.data || [],
       recentTransactions: transactionsResult.data || [],
       summary: {
-        strategyLinksCount: strategyLinks.length,
         stockHoldingsCount: (holdingsResult.data || []).length,
         transactionsCount: (transactionsResult.data || []).length,
       },
