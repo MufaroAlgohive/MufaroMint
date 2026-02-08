@@ -1819,6 +1819,41 @@ app.get("/api/debug/user-investments", async (req, res) => {
   }
 });
 
+app.get("/api/admin/lookup-user", async (req, res) => {
+  try {
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.status(500).json({ success: false, error: "No database" });
+
+    const email = req.query.email;
+    if (!email) return res.status(400).json({ success: false, error: "email required" });
+
+    const { data: users } = await supabaseAdmin.auth.admin.listUsers();
+    const user = (users?.users || []).find(u => u.email === email);
+    if (!user) return res.json({ success: false, error: "User not found" });
+
+    const userId = user.id;
+
+    const [txResult, holdingsResult, actionsResult, strategiesResult] = await Promise.all([
+      db.from("transactions").select("*").eq("user_id", userId).order("transaction_date", { ascending: false }).limit(30),
+      db.from("stock_holdings").select("*").eq("user_id", userId),
+      db.from("required_actions").select("*").eq("user_id", userId).maybeSingle(),
+      db.from("strategies").select("id, name, short_name").eq("status", "active"),
+    ]);
+
+    res.json({
+      success: true,
+      userId,
+      email,
+      transactions: txResult.data || [],
+      stockHoldings: holdingsResult.data || [],
+      requiredActions: actionsResult.data || null,
+      availableStrategies: (strategiesResult.data || []).map(s => ({ id: s.id, name: s.name, shortName: s.short_name })),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post("/api/credit-check", async (req, res) => {
   try {
     const { userData, loanApplicationId } = req.body;
