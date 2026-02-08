@@ -1268,6 +1268,25 @@ app.get("/api/user/strategies", async (req, res) => {
       return res.status(500).json({ success: false, error: stratErr.message });
     }
 
+    const allHoldingSymbols = new Set();
+    for (const strategy of (allStrategies || [])) {
+      const h = strategy.holdings || [];
+      if (Array.isArray(h)) {
+        h.forEach(item => { if (item.symbol) allHoldingSymbols.add(item.symbol); });
+      }
+    }
+
+    let securitiesMap = {};
+    if (allHoldingSymbols.size > 0) {
+      const { data: secs } = await db
+        .from("securities")
+        .select("symbol, logo_url, name")
+        .in("symbol", Array.from(allHoldingSymbols));
+      if (secs) {
+        secs.forEach(s => { securitiesMap[s.symbol] = s; });
+      }
+    }
+
     const matchedStrategies = [];
     for (const strategy of (allStrategies || [])) {
       const matchKey = strategyNames.find(sn =>
@@ -1277,6 +1296,11 @@ app.get("/api/user/strategies", async (req, res) => {
       if (matchKey) {
         const metrics = strategy.strategy_metrics;
         const latestMetric = Array.isArray(metrics) ? metrics[0] : metrics;
+        const enrichedHoldings = (strategy.holdings || []).map(h => ({
+          ...h,
+          logo_url: h.logo_url || securitiesMap[h.symbol]?.logo_url || null,
+          name: h.name || securitiesMap[h.symbol]?.name || h.symbol,
+        }));
         matchedStrategies.push({
           id: strategy.id,
           name: strategy.name,
@@ -1286,7 +1310,7 @@ app.get("/api/user/strategies", async (req, res) => {
           sector: strategy.sector || "",
           iconUrl: strategy.icon_url,
           imageUrl: strategy.image_url,
-          holdings: strategy.holdings || [],
+          holdings: enrichedHoldings,
           investedAmount: strategyInvestments[matchKey] / 100,
           metrics: latestMetric || null,
         });

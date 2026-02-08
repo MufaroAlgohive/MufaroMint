@@ -209,11 +209,19 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
     strategies.forEach(s => {
       const sym = s.shortName || s.name || "Strategy";
       if (!holdingsMap.has(sym)) {
+        const holdingsArr = s.holdings || [];
+        const topLogos = holdingsArr
+          .sort((a, b) => (b.weight || 0) - (a.weight || 0))
+          .slice(0, 3)
+          .map(h => h.logo_url || null)
+          .filter(Boolean);
         holdingsMap.set(sym, {
           symbol: sym,
           name: s.name || "Strategy",
           weight: 0,
-          logo: s.iconUrl || s.imageUrl || null,
+          logo: null,
+          isStrategy: true,
+          topLogos,
           currentValue: s.investedAmount || 0,
           change: s.previousMonthChange || 0,
         });
@@ -732,7 +740,13 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 overflow-hidden">
-                    {failedLogos[holding.symbol] || !holding.logo ? (
+                    {holding.isStrategy && holding.topLogos?.length > 0 ? (
+                      <div className="flex -space-x-1.5 items-center justify-center">
+                        {holding.topLogos.slice(0, 3).map((logo, li) => (
+                          <img key={li} src={logo} className="w-5 h-5 rounded-full object-cover border border-white shadow-sm" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                        ))}
+                      </div>
+                    ) : failedLogos[holding.symbol] || !holding.logo ? (
                       <span className="text-xs font-bold text-slate-600">
                         {holding.symbol.slice(0, 3)}
                       </span>
@@ -752,7 +766,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                     <p className="text-xs text-slate-500">{holding.name}</p>
                   </div>
                 </div>
-                <p className="text-sm font-semibold text-slate-700">
+                <p className={`text-sm font-semibold ${holding.change > 0 ? 'text-emerald-600' : holding.change < 0 ? 'text-rose-600' : 'text-slate-700'}`}>
                   {holding.weight.toFixed(1)}%
                 </p>
               </div>
@@ -1193,6 +1207,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
           name: h.name,
           ticker: h.symbol,
           logo: h.logo,
+          isStrategy: h.isStrategy || false,
+          topLogos: h.topLogos || [],
           currentValue: h.currentValue || 0,
           change: h.change || 0,
         })).sort((a, b) => b.currentValue - a.currentValue);
@@ -1364,14 +1380,22 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                 )}
               </div>
               <div className="space-y-3">
-                {pagedHoldings.map((stock) => (
+                {pagedHoldings.map((stock) => {
+                  const pctValue = totalValue > 0 ? ((stock.currentValue / totalValue) * 100) : 0;
+                  return (
                   <div 
                     key={stock.id}
                     className="rounded-2xl bg-white/70 backdrop-blur-xl p-4 shadow-sm border border-slate-100/50"
                   >
                     <div className="flex items-center gap-3">
                       <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-                        {!stock.logo || failedLogos[stock.ticker] ? (
+                        {stock.isStrategy && stock.topLogos?.length > 0 ? (
+                          <div className="flex -space-x-1.5 items-center justify-center h-full w-full bg-gradient-to-br from-violet-50 to-purple-50">
+                            {stock.topLogos.slice(0, 3).map((logo, li) => (
+                              <img key={li} src={logo} className="w-5 h-5 rounded-full object-cover border border-white shadow-sm" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                            ))}
+                          </div>
+                        ) : !stock.logo || failedLogos[stock.ticker] ? (
                           <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-purple-100 text-xs font-bold text-violet-700">
                             {stock.ticker.slice(0, 2)}
                           </div>
@@ -1394,13 +1418,14 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                         <p className="text-sm font-bold text-slate-900">
                           {formatCurrency(stock.currentValue)}
                         </p>
-                        <p className="text-xs font-semibold text-emerald-500">
-                          {totalValue > 0 ? ((stock.currentValue / totalValue) * 100).toFixed(1) : '0.0'}%
+                        <p className={`text-xs font-semibold ${stock.change > 0 ? 'text-emerald-500' : stock.change < 0 ? 'text-rose-500' : 'text-violet-500'}`}>
+                          {pctValue.toFixed(1)}%
                         </p>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
             );

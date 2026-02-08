@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { Eye, EyeOff, TrendingUp, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
 import { Area, ComposedChart, Line, ResponsiveContainer, YAxis } from "recharts";
 import { supabase } from "../lib/supabase";
+import { getStrategyPriceHistory } from "../lib/strategyData";
 
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
 
@@ -56,15 +57,32 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
         : [{ holdings: [] }, { strategies: [] }];
 
       const stockHoldings = holdingsRes.holdings || [];
-      const strategyItems = (strategiesRes.strategies || []).map(s => ({
-        symbol: s.shortName || s.name || "Strategy",
-        name: s.name || "Strategy",
-        market_value: (s.investedAmount || 0) * 100,
-        avg_fill: (s.investedAmount || 0) * 100,
-        quantity: 1,
-        logo_url: s.iconUrl || s.imageUrl || null,
-        security_id: null,
-      }));
+      const strategyItems = (strategiesRes.strategies || []).map(s => {
+        const holdingsArr = s.holdings || [];
+        const topLogos = holdingsArr
+          .sort((a, b) => (b.weight || 0) - (a.weight || 0))
+          .slice(0, 3)
+          .map(h => h.logo_url || null)
+          .filter(Boolean);
+        const metrics = s.metrics || {};
+        const changePct = metrics.r_1m ? metrics.r_1m * 100 : 0;
+        const investedCents = (s.investedAmount || 0) * 100;
+        const currentCents = investedCents * (1 + (metrics.r_1m || 0));
+        return {
+          symbol: s.shortName || s.name || "Strategy",
+          name: s.name || "Strategy",
+          market_value: currentCents,
+          avg_fill: investedCents,
+          quantity: 1,
+          logo_url: null,
+          security_id: null,
+          isStrategy: true,
+          strategyId: s.id,
+          topLogos: topLogos,
+          changePct: changePct,
+          holdings: holdingsArr,
+        };
+      });
       const enrichedHoldings = [...stockHoldings, ...strategyItems];
 
       const mValue = enrichedHoldings.reduce((acc, h) => acc + Number(h.market_value || 0) / 100, 0);
@@ -101,6 +119,25 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
       const totalWeight = holdingsToChart.reduce((s, h) => s + Number(h.market_value || 0), 0);
       if (totalWeight === 0) {
         setChartData([]);
+        setChartLoading(false);
+        return;
+      }
+
+      if (selectedAsset?.isStrategy && selectedAsset?.strategyId) {
+        const timeframeMap = { "1m": "1M", "3m": "3M", "6m": "6M" };
+        const tf = timeframeMap[activeTab] || "1M";
+        const priceHistory = await getStrategyPriceHistory(selectedAsset.strategyId, tf);
+        if (priceHistory && priceHistory.length > 0) {
+          const investedValue = Number(selectedAsset.avg_fill || 0) / 100;
+          const firstNav = priceHistory[0].nav;
+          const points = priceHistory.map(p => ({
+            d: p.ts,
+            v: firstNav > 0 ? Number((investedValue * (p.nav / firstNav)).toFixed(2)) : investedValue,
+          }));
+          setChartData(points);
+        } else {
+          setChartData([]);
+        }
         setChartLoading(false);
         return;
       }
@@ -235,12 +272,18 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
                 <div className="flex flex-wrap gap-1">
                   {dbData.holdings.slice(0, 3).map((h, i) => (
                     <div key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/10">
-                      {h.logo_url ? (
+                      {h.isStrategy && h.topLogos?.length > 0 ? (
+                        <div className="flex -space-x-1">
+                          {h.topLogos.slice(0, 3).map((logo, li) => (
+                            <img key={li} src={logo} className="w-3 h-3 rounded-full object-cover border border-white/20" />
+                          ))}
+                        </div>
+                      ) : h.logo_url ? (
                         <img src={h.logo_url} className="w-3 h-3 rounded-full object-cover" />
                       ) : (
                         <span className="text-[6px] text-white/60">{h.symbol?.substring(0, 2)}</span>
                       )}
-                      <span className="text-[8px] font-medium text-white/80">{h.symbol?.replace('.JO', '')}</span>
+                      <span className="text-[8px] font-medium text-white/80">{h.isStrategy ? h.symbol : h.symbol?.replace('.JO', '')}</span>
                     </div>
                   ))}
                   {dbData.holdings.length > 3 && (
@@ -295,9 +338,19 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
               <span className="text-[9px] font-medium text-white/90 truncate">All Investments</span>
             </button>
             {dbData.holdings.map((item, idx) => (
-              <button key={idx} onClick={() => { setSelectedAsset(item); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.security_id === item.security_id ? 'bg-white/10' : 'hover:bg-white/5'}`}>
+              <button key={idx} onClick={() => { setSelectedAsset(item); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? 'bg-white/10' : 'hover:bg-white/5'}`}>
                 <div className="w-4 h-4 rounded-full overflow-hidden bg-white/10 shrink-0">
-                  {item.logo_url ? <img src={item.logo_url} className="w-full h-full object-cover" /> : <span className="flex items-center justify-center w-full h-full text-[6px] text-white/60">{item.symbol?.substring(0, 2)}</span>}
+                  {item.isStrategy && item.topLogos?.length > 0 ? (
+                    <div className="flex -space-x-1 h-full items-center justify-center">
+                      {item.topLogos.slice(0, 2).map((logo, li) => (
+                        <img key={li} src={logo} className="w-3 h-3 rounded-full object-cover border border-white/20" />
+                      ))}
+                    </div>
+                  ) : item.logo_url ? (
+                    <img src={item.logo_url} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="flex items-center justify-center w-full h-full text-[6px] text-white/60">{item.symbol?.substring(0, 2)}</span>
+                  )}
                 </div>
                 <span className="text-[9px] font-medium text-white/90 truncate">{item.symbol}</span>
               </button>
