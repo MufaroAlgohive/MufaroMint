@@ -27,7 +27,7 @@ const TransactionHistorySection = ({ items, onViewAll }) => {
         <button
           type="button"
           onClick={onViewAll}
-          className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+          className="text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
         >
           View all
         </button>

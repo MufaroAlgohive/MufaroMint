@@ -733,7 +733,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
       <div className="relative mx-auto flex w-full max-w-sm flex-col gap-4 px-4 pb-10 md:max-w-md md:px-8">
         <button 
           onClick={() => setCurrentView("allocations")}
-          className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl"
+          className="w-full py-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-sm font-semibold text-slate-700 active:scale-[0.98] transition-all duration-150 hover:bg-slate-100"
         >
           View All Allocations
         </button>
@@ -741,7 +741,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         <section className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-slate-900">Linked Goals</p>
-            <button className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 transition">
+            <button className="flex items-center gap-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors">
               View All
               <ChevronRight className="h-3.5 w-3.5" />
             </button>

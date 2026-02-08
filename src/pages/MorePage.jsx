@@ -268,7 +268,7 @@ const MorePage = ({ onNavigate }) => {
           <button
             type="button"
             onClick={() => onNavigate?.("actions")}
-            className="mt-4 w-full rounded-full border border-slate-200 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="mt-4 w-full py-3 rounded-2xl bg-slate-50 border border-slate-200/80 text-sm font-semibold text-slate-700 active:scale-[0.98] transition-all duration-150 hover:bg-slate-100"
           >
             View All Actions
           </button>
