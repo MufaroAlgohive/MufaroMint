@@ -302,11 +302,11 @@ const App = () => {
         if (justLoggedInRef.current || Date.now() < sessionCheckSkipUntilRef.current) {
           return;
         }
-        if (!['welcome', 'auth', 'linkExpired'].includes(currentPageRef.current)) {
-          setShowSessionExpired(true);
-        } else {
-          setCurrentPage("welcome");
+        if (['welcome', 'auth', 'linkExpired'].includes(currentPageRef.current)) {
+          return;
         }
+        sessionExpiredPageRef.current = currentPageRef.current;
+        setShowSessionExpired(true);
         setShowPinLock(false);
       }
       if (event === 'TOKEN_REFRESHED' && session) {
@@ -1466,11 +1466,17 @@ const App = () => {
     justLoggedInRef.current = false;
   };
 
+  const handlePreLogin = () => {
+    justLoggedInRef.current = true;
+    sessionCheckSkipUntilRef.current = Date.now() + 30000;
+  };
+
   return (
     <AuthPage
       initialStep={authStep}
       onSignupComplete={handleSignupComplete}
       onLoginComplete={handleLoginComplete}
+      onPreLogin={handlePreLogin}
     />
   );
 };

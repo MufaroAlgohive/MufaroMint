@@ -29,7 +29,7 @@ const LOGIN_COOLDOWN_TIME = 1800;
 const COOLDOWN_TIMES = [300, 1800];
 const DEBUG_BIOMETRICS = false;
 
-const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) => {
+const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, onPreLogin }) => {
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -174,6 +174,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       }
       
       if (storedCredentials?.username && storedCredentials?.password) {
+        if (onPreLogin) onPreLogin();
         const { data, error: loginError } = await supabase.auth.signInWithPassword({
           email: storedCredentials.username,
           password: storedCredentials.password,
@@ -581,6 +582,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     setIsLoading(true);
     
     try {
+      if (onPreLogin) onPreLogin();
       const { data, error } = await supabase.auth.signInWithPassword({
         email: loginEmail,
         password: loginPassword,
