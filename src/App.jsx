@@ -347,25 +347,33 @@ const App = () => {
 
   const sessionCheckSkipUntilRef = useRef(0);
 
+  const sessionCheckFailCountRef = useRef(0);
+
   useEffect(() => {
     if (!supabase || !isAuthenticated) return;
 
     const checkSession = async () => {
       if (justLoggedInRef.current) return;
       if (Date.now() < sessionCheckSkipUntilRef.current) return;
+      if (document.hidden) return;
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           const { data: refreshed } = await supabase.auth.refreshSession();
           if (!refreshed?.session) {
-            console.log('[session-check] No active session found');
-            sessionExpiredPageRef.current = currentPageRef.current;
-            setShowPinLock(false);
-            setShowSessionExpired(true);
+            sessionCheckFailCountRef.current += 1;
+            console.log(`[session-check] No active session found (attempt ${sessionCheckFailCountRef.current}/3)`);
+            if (sessionCheckFailCountRef.current >= 3) {
+              sessionExpiredPageRef.current = currentPageRef.current;
+              setShowPinLock(false);
+              setShowSessionExpired(true);
+              sessionCheckFailCountRef.current = 0;
+            }
             return;
           }
         }
+        sessionCheckFailCountRef.current = 0;
         const activeSession = session || (await supabase.auth.getSession()).data?.session;
         const fingerprint = localStorage.getItem('mint_session_fingerprint');
         if (fingerprint && activeSession?.access_token) {
@@ -390,8 +398,8 @@ const App = () => {
       }
     };
 
-    const initialDelay = setTimeout(() => checkSession(), 10000);
-    const interval = setInterval(checkSession, 15000);
+    const initialDelay = setTimeout(() => checkSession(), 15000);
+    const interval = setInterval(checkSession, 30000);
 
     return () => {
       clearTimeout(initialDelay);
