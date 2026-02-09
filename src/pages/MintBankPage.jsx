@@ -168,7 +168,7 @@ const MintBankPage = ({ onBack, onComplete }) => {
           <button
             type="button"
             onClick={() => {
-              setStep("connect");
+              setStep("intro");
               setStatus("idle");
               setMessage("");
             }}
