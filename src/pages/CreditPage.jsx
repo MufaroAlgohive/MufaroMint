@@ -72,7 +72,7 @@ const CreditPage = ({ onOpenNotifications, onOpenCreditApply, initialView = "ove
                   className="h-10 w-10 rounded-full border border-white/40 object-cover"
                 />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
                   {initials || "—"}
                 </div>
               )}

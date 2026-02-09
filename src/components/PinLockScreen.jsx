@@ -165,7 +165,7 @@ const PinLockScreen = ({ onUnlock, onLogout, userEmail, userAvatar, userName }) 
             className="h-20 w-20 rounded-full border-2 border-slate-200 object-cover"
           />
         ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-200 bg-white text-xl font-bold text-slate-900 shadow-sm">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-2 border-violet-300 bg-gradient-to-br from-violet-500 to-purple-600 text-xl font-bold text-white shadow-sm">
             {initials || '?'}
           </div>
         )}

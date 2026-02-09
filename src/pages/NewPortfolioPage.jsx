@@ -466,7 +466,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           {/* Top row: Avatar stacked with greeting, notification on right */}
           <header className="flex items-start justify-between">
             <div className="flex flex-col gap-1">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full overflow-hidden bg-gradient-to-br from-amber-200 to-amber-400 text-sm font-semibold text-amber-900 shadow-lg shadow-amber-500/20">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full overflow-hidden bg-white/20 border border-white/30 text-sm font-semibold text-white">
                 {profile.avatarUrl ? (
                   <img 
                     src={profile.avatarUrl}
