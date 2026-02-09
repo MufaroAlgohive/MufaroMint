@@ -2104,6 +2104,44 @@ app.post("/api/sessions/revoke-others", async (req, res) => {
   }
 });
 
+app.get("/api/sessions/validate", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    const token = authHeader.split(" ")[1];
+    const db = supabaseAdmin || supabase;
+    if (!db) {
+      return res.status(500).json({ success: false, error: "Database not available" });
+    }
+    const { data: { user }, error: authError } = await db.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: "Invalid token" });
+    }
+    const fingerprint = req.query.fingerprint || "";
+    if (!fingerprint) {
+      return res.json({ success: true, valid: true });
+    }
+    if (!pgPool) {
+      return res.json({ success: true, valid: true });
+    }
+    const client = await pgPool.connect();
+    try {
+      const result = await client.query(
+        "SELECT id FROM user_sessions WHERE user_id = $1 AND session_token = $2 LIMIT 1",
+        [user.id, fingerprint]
+      );
+      res.json({ success: true, valid: result.rows.length > 0 });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error("Session validate error:", error);
+    res.json({ success: true, valid: true });
+  }
+});
+
 const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TruID API server running on port ${PORT}`);

@@ -333,16 +333,36 @@ const App = () => {
           sessionExpiredPageRef.current = currentPageRef.current;
           setShowPinLock(false);
           setShowSessionExpired(true);
+          return;
+        }
+        const fingerprint = localStorage.getItem('mint_session_fingerprint');
+        if (fingerprint && session.access_token) {
+          try {
+            const res = await fetch(`/api/sessions/validate?fingerprint=${encodeURIComponent(fingerprint)}`, {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            const json = await res.json();
+            if (json.success && json.valid === false) {
+              console.log('[session-check] Session revoked remotely');
+              await supabase.auth.signOut();
+              setShowPinLock(false);
+              setCurrentPage("welcome");
+              return;
+            }
+          } catch (valErr) {
+            console.error('[session-check] Validation error:', valErr);
+          }
         }
       } catch (err) {
         console.error('[session-check] Error:', err);
       }
     };
 
-    const interval = setInterval(checkSession, 60000);
+    const interval = setInterval(checkSession, 15000);
+    checkSession();
 
     return () => clearInterval(interval);
-  }, [isAuthenticated, currentPage]);
+  }, [isAuthenticated]);
 
   const openAuthFlow = (step) => {
     setAuthStep(step);
