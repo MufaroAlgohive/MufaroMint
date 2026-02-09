@@ -19,7 +19,7 @@ const globalState = {
   lastNotificationTime: 0,
 };
 
-const DEBOUNCE_MS = 3000;
+const DEBOUNCE_MS = 30000;
 
 function notifyListeners() {
   globalState.listeners.forEach((listener) => listener());

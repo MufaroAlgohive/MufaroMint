@@ -17,6 +17,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `AuthLayout.jsx` - Auth page layout
     - `NotificationBell.jsx` - Bell icon with unread count badge
     - `TruidConnector.jsx` - TruID Connect integration for identity verification
+    - `PinLockScreen.jsx` - PIN lock screen overlay with iOS-style number pad
   - `lib/` - Utility libraries
     - `supabase.js` - Supabase client initialization
     - `biometrics.js` - Biometric authentication utilities (Face ID/Touch ID)
@@ -24,10 +25,12 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `NotificationsContext.jsx` - Centralized notifications state management with real-time updates
     - `useSumsubStatus.js` - Hook for fetching KYC status directly from Sumsub API (single source of truth)
     - `useRequiredActions.js` - Hook for bank linking status only (no KYC - that's in useSumsubStatus)
-    - `useUserStrategies.js` - Hook for fetching user's investment strategies from Supabase
+    - `useUserStrategies.js` - Hook for fetching user's investment strategies via /api/user/strategies endpoint (derives from transactions)
     - `useFinancialData.js` - Hook for financial data utilities
     - `strategyData.js` - Strategy price history fetching utilities
     - `useProfile.js` - Profile hook with id, email, name, avatarUrl, phoneNumber, dateOfBirth, gender, address, idNumber, watchlist
+    - `useInactivityTimeout.jsx` - Inactivity timeout hook (5-min inactivity = full logout, no lock screen)
+    - `usePin.js` - PIN/passcode utilities (save, verify, remove, isPinEnabled) with SHA-256 hashing
   - `pages/` - Page components
     - `StatementsPage.jsx` - Statements page with Strategy/Holdings/Financials tabs, real data from Supabase, PDF download
     - `NewPortfolioPage.jsx` - Portfolio dashboard with strategy selector dropdown and performance charts
@@ -39,8 +42,10 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `MorePage.jsx` - Profile and menu page with KYC badge and Required Actions
     - `EditProfilePage.jsx` - Edit profile with phone, DOB, gender, country, city fields
     - `ProfileDetailsPage.jsx` - View-only profile details page
-    - `SettingsPage.jsx` - Settings with biometrics toggle and change password
+    - `SettingsPage.jsx` - Settings with biometrics, PIN, session timeout, active sessions, change password
     - `ChangePasswordPage.jsx` - Dedicated page for changing password
+    - `ActiveSessionsPage.jsx` - View active login sessions with device/browser info, logout options
+    - `PinSetupPage.jsx` - 5-digit PIN setup with confirm step, light UI
     - `NotificationsPage.jsx` - Full notifications list with swipe-to-delete
     - `NotificationSettingsPage.jsx` - Notification type preferences toggles
   - `styles/` - CSS styles
@@ -143,7 +148,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - Verification Widget: `src/components/SumsubVerification.jsx` - Sumsub WebSDK integration
   - Main Endpoint: POST `/api/sumsub/status` - Returns normalized KYC status from Sumsub
   - Access Token: POST `/api/sumsub/access-token` - Generates Sumsub SDK access token
-  - Environment variables: SUMSUB_APP_TOKEN, SUMSUB_SECRET_KEY, SUMSUB_BASE_URL, SUMSUB_LEVEL_NAME
+  - Environment variables: SUMSUB_APP_TOKEN, SUMSUB_SECRET_KEY, SUMSUB_BASE_URL, SUMSUB_LEVEL_NAME (default: mint-advanced-kyc)
   - **KYC Status Values**: verified, pending, needs_resubmission, not_verified
   - **Notification Triggers**: Based on Sumsub status changes, stored in localStorage to prevent duplicates
   - **30-second cache**: Prevents excessive API calls while keeping status fresh

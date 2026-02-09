@@ -1720,8 +1720,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 </div>
                 <div className="h-44 w-full">
                   {selectedStrategyAnalyticsLoading ? (
-                    <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
-                      Loading analytics...
+                    <div className="flex h-full items-end gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4">
+                      {[45, 65, 35, 80, 55, 70, 40, 90, 60, 50, 75, 85].map((h, i) => (
+                        <Skeleton key={i} className="flex-1 rounded-sm" style={{ height: `${h}%` }} />
+                      ))}
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">

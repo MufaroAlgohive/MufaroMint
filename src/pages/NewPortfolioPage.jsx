@@ -5,7 +5,7 @@ import { Area, ComposedChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, 
 import { useInvestments } from "../lib/useFinancialData";
 import { useProfile } from "../lib/useProfile";
 import { useUserStrategies, useStrategyChartData } from "../lib/useUserStrategies";
-import { getMonthlyReturns } from "../lib/strategyData";
+import { getMonthlyReturns, getStockMonthlyReturns, getOverallPortfolioMonthlyReturns } from "../lib/strategyData";
 import { useStockQuotes, useStockChart } from "../lib/useStockData";
 import SwipeBackWrapper from "../components/SwipeBackWrapper.jsx";
 import PortfolioSkeleton from "../components/PortfolioSkeleton";
@@ -22,9 +22,9 @@ const getReturnColor = (value) => {
 };
 
 
-const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
+const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies, onBack }) => {
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [activeTab, setActiveTab] = useState("strategy");
+  const [activeTab, setActiveTab] = useState("stocks");
   const [timeFilter, setTimeFilter] = useState("W");
   const [failedLogos, setFailedLogos] = useState({});
   const [currentView, setCurrentView] = useState("portfolio");
@@ -41,6 +41,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [calendarData, setCalendarData] = useState({});
   const [showYearDropdown, setShowYearDropdown] = useState(false);
+  const [calendarFilter, setCalendarFilter] = useState("overall");
+  const [showCalendarFilterDropdown, setShowCalendarFilterDropdown] = useState(false);
   const tabOrder = ["strategy", "stocks", "holdings"];
 
   useEffect(() => {
@@ -132,30 +134,21 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
   }, [showYearDropdown]);
 
   useEffect(() => {
-    if (!selectedStock && stocksList.length > 0) {
-      setSelectedStock(stocksList[0]);
+    const handleClickOutside = (event) => {
+      if (calendarFilterRef.current && !calendarFilterRef.current.contains(event.target)) {
+        setShowCalendarFilterDropdown(false);
+      }
+    };
+    if (showCalendarFilterDropdown) {
+      document.addEventListener("mousedown", handleClickOutside);
     }
-  }, [stocksList, selectedStock]);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showCalendarFilterDropdown]);
 
   const handleStrategySelect = (strategy) => {
     selectStrategy(strategy);
     setShowStrategyDropdown(false);
   };
-
-  useEffect(() => {
-    if (!currentStrategy?.strategyId) return;
-    let cancelled = false;
-    getMonthlyReturns(currentStrategy.strategyId).then(data => {
-      if (!cancelled) {
-        setCalendarData(data);
-        const years = Object.keys(data).sort().reverse();
-        if (years.length > 0 && !years.includes(String(calendarYear))) {
-          setCalendarYear(Number(years[0]));
-        }
-      }
-    });
-    return () => { cancelled = true; };
-  }, [currentStrategy?.strategyId]);
 
   const availableCalendarYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -172,6 +165,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
     return years;
   }, [calendarData, currentStrategy]);
   const yearDropdownRef = useRef(null);
+  const calendarFilterRef = useRef(null);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -179,47 +173,104 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
   };
 
   const { holdings: rawHoldings, loading: holdingsLoading, goals: investmentGoals } = useInvestments();
-  
-  const displayAccountValue = strategies.length > 0 
-    ? strategies.reduce((sum, s) => sum + (s.currentValue || 0), 0) 
-    : 0;
+
+  const calendarFilterOptions = useMemo(() => {
+    const options = [{ id: "overall", label: "Overall Portfolio" }];
+    strategies.forEach(s => {
+      options.push({ id: s.strategyId, label: s.shortName || s.name, type: "strategy" });
+    });
+    if (rawHoldings && rawHoldings.length > 0) {
+      rawHoldings.forEach(h => {
+        if (h.security_id) {
+          options.push({ id: h.security_id, label: h.symbol || h.name, type: "stock" });
+        }
+      });
+    }
+    return options;
+  }, [strategies, rawHoldings]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCalendarData = async () => {
+      let data = {};
+      if (calendarFilter === "overall") {
+        data = await getOverallPortfolioMonthlyReturns(
+          strategies.map(s => s.strategyId).filter(Boolean),
+          (rawHoldings || []).filter(h => h.security_id).map(h => h.security_id),
+          strategies,
+          rawHoldings || []
+        );
+      } else {
+        const matchedStrategy = strategies.find(s => s.strategyId === calendarFilter);
+        if (matchedStrategy) {
+          data = await getMonthlyReturns(calendarFilter, matchedStrategy.firstInvestedDate || null);
+        } else {
+          const matchedHolding = (rawHoldings || []).find(h => h.security_id === calendarFilter);
+          data = await getStockMonthlyReturns(calendarFilter, matchedHolding?.created_at || null);
+        }
+      }
+      if (!cancelled) {
+        setCalendarData(data);
+        const years = Object.keys(data).sort().reverse();
+        if (years.length > 0 && !years.includes(String(calendarYear))) {
+          setCalendarYear(Number(years[0]));
+        }
+      }
+    };
+    fetchCalendarData();
+    return () => { cancelled = true; };
+  }, [calendarFilter, strategies, rawHoldings]);
+
+  const displayAccountValue = useMemo(() => {
+    const holdingsValue = (rawHoldings || []).reduce((sum, h) => sum + ((h.market_value || 0) / 100), 0);
+    const strategiesValue = strategies.reduce((sum, s) => sum + (s.currentValue || s.investedAmount || 0), 0);
+    return holdingsValue + strategiesValue;
+  }, [rawHoldings, strategies]);
 
   const allStrategyHoldings = useMemo(() => {
     const holdingsMap = new Map();
     if (rawHoldings && rawHoldings.length > 0) {
-      const totalValue = rawHoldings.reduce((sum, h) => sum + (h.current_value || 0), 0);
+      const totalValue = rawHoldings.reduce((sum, h) => sum + ((h.market_value || 0) / 100), 0);
       rawHoldings.forEach(h => {
-        const sym = h.securities?.symbol || h.symbol || "N/A";
-        const weight = totalValue > 0 ? ((h.current_value || 0) / totalValue) * 100 : 0;
+        const sym = h.symbol || "N/A";
+        const currentValue = (h.market_value || 0) / 100;
+        const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
+        const changePct = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
+        const weight = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
         holdingsMap.set(sym, {
           symbol: sym,
-          name: h.securities?.name || h.name || "Unknown",
+          name: h.name || "Unknown",
           weight,
-          logo: h.securities?.logo_url || null,
-          currentValue: h.current_value || 0,
-          change: h.change_percent || 0,
+          logo: h.logo_url || null,
+          currentValue,
+          change: changePct,
         });
       });
-    } else if (strategies && strategies.length > 0) {
-      strategies.forEach(s => {
-        if (Array.isArray(s.holdings)) {
-          s.holdings.forEach(h => {
-            if (h.symbol && !holdingsMap.has(h.symbol)) {
-              const matchedStock = stocksList.find(st => st.ticker === h.symbol);
-              const livePrice = liveQuotes[h.symbol]?.price || matchedStock?.price || 0;
-              const liveChange = liveQuotes[h.symbol]?.changePercent ?? matchedStock?.dailyChange ?? 0;
-              holdingsMap.set(h.symbol, {
-                symbol: h.symbol,
-                name: h.name || matchedStock?.name || h.symbol,
-                weight: h.weight || 0,
-                logo: h.logo_url || matchedStock?.logo || null,
-                currentValue: livePrice * (h.shares || 1),
-                change: liveChange,
-              });
-            }
-          });
-        }
-      });
+    }
+    strategies.forEach(s => {
+      const sym = s.shortName || s.name || "Strategy";
+      if (!holdingsMap.has(sym)) {
+        const holdingsArr = s.holdings || [];
+        const topLogos = holdingsArr
+          .sort((a, b) => (b.weight || 0) - (a.weight || 0))
+          .slice(0, 3)
+          .map(h => h.logo_url || null)
+          .filter(Boolean);
+        holdingsMap.set(sym, {
+          symbol: sym,
+          name: s.name || "Strategy",
+          weight: 0,
+          logo: null,
+          isStrategy: true,
+          topLogos,
+          currentValue: s.currentValue || s.investedAmount || 0,
+          change: s.previousMonthChange || 0,
+        });
+      }
+    });
+    const totalValue = Array.from(holdingsMap.values()).reduce((sum, h) => sum + h.currentValue, 0);
+    if (totalValue > 0) {
+      holdingsMap.forEach(h => { h.weight = (h.currentValue / totalValue) * 100; });
     }
     return Array.from(holdingsMap.values()).sort((a, b) => b.weight - a.weight);
   }, [rawHoldings, strategies, stocksList, liveQuotes]);
@@ -228,6 +279,16 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
 
   const getChartData = () => {
     if (realChartData && realChartData.length > 0) {
+      const investedAmount = currentStrategy.currentValue || currentStrategy.investedAmount || 0;
+      if (investedAmount > 0 && realChartData.length > 0) {
+        const latestNav = realChartData[realChartData.length - 1].value;
+        if (!latestNav || latestNav <= 0) return realChartData;
+        const scaleFactor = investedAmount / latestNav;
+        return realChartData.map(d => ({
+          ...d,
+          value: Number((d.value * scaleFactor).toFixed(2)),
+        }));
+      }
       return realChartData;
     }
     return [];
@@ -248,10 +309,20 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
 
   const myStockIds = useMemo(() => new Set(myStocks.map(s => s.id)), [myStocks]);
 
+  useEffect(() => {
+    if (!selectedStock) {
+      if (myStocks.length > 0) {
+        setSelectedStock(myStocks[0]);
+      } else if (stocksList.length > 0) {
+        setSelectedStock(stocksList[0]);
+      }
+    }
+  }, [myStocks, stocksList, selectedStock]);
+
   const goal = investmentGoals && investmentGoals.length > 0 ? investmentGoals[0] : null;
   const goalProgress = goal && goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
 
-  if (strategiesLoading && !strategies.length) {
+  if (strategiesLoading && holdingsLoading) {
     return <PortfolioSkeleton />;
   }
 
@@ -399,7 +470,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
           {/* Top row: Avatar stacked with greeting, notification on right */}
           <header className="flex items-start justify-between">
             <div className="flex flex-col gap-1">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full overflow-hidden bg-gradient-to-br from-amber-200 to-amber-400 text-sm font-semibold text-amber-900 shadow-lg shadow-amber-500/20">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full overflow-hidden bg-white/20 border border-white/30 text-sm font-semibold text-white">
                 {profile.avatarUrl ? (
                   <img 
                     src={profile.avatarUrl}
@@ -506,6 +577,20 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
           {/* Chart section */}
           <div className="relative mx-auto flex w-full max-w-sm flex-col gap-4 px-4 md:max-w-md md:px-8">
         <section className="py-2">
+          {strategies.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-6">
+              <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mb-4">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                  <path d="M2 17l10 5 10-5" />
+                  <path d="M2 12l10 5 10-5" />
+                </svg>
+              </div>
+              <p className="text-lg font-semibold text-slate-900 mb-1">Invest in Your First Strategy</p>
+              <p className="text-sm text-slate-500 text-center max-w-[260px]">Choose a strategy and start building your portfolio. Your performance will show up here.</p>
+            </div>
+          ) : (
+          <>
           <div className="flex items-center justify-between mb-3 -ml-4">
             <div className="relative" ref={dropdownRef}>
               <button 
@@ -519,8 +604,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
               </button>
               {showStrategyDropdown && strategies.length > 0 && (
                 <div 
-                  className="absolute top-full left-0 mt-2 min-w-[200px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 z-50 overflow-hidden"
-                  style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                  className="absolute top-full left-0 mt-2 min-w-[200px] max-h-[280px] overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 z-50 overscroll-contain"
+                  style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", WebkitOverflowScrolling: 'touch' }}
                 >
                   {strategies.map((strategy) => (
                     <button
@@ -669,25 +754,32 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
               </ResponsiveContainer>
             )}
           </div>
+          </>
+          )}
         </section>
       </div>
 
       {/* Scrollable content section - starts after chart */}
       <div className="relative mx-auto flex w-full max-w-sm flex-col gap-4 px-4 pb-10 md:max-w-md md:px-8">
-        <button 
-          onClick={() => setCurrentView("allocations")}
-          className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl"
-        >
-          View All Allocations
-        </button>
+        {strategies.length === 0 ? (
+          <button 
+            onClick={() => onOpenStrategies && onOpenStrategies()}
+            className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            Make Your First Investment
+          </button>
+        ) : (
+          <button 
+            onClick={() => { setCurrentView("allocations"); window.scrollTo(0, 0); }}
+            className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            View All Allocations
+          </button>
+        )}
 
         <section className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50">
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-slate-900">Linked Goals</p>
-            <button className="flex items-center gap-1 text-xs font-medium text-violet-600 hover:text-violet-700 transition">
-              View All
-              <ChevronRight className="h-3.5 w-3.5" />
-            </button>
           </div>
           
           {goal ? (
@@ -730,7 +822,13 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 overflow-hidden">
-                    {failedLogos[holding.symbol] || !holding.logo ? (
+                    {holding.isStrategy && holding.topLogos?.length > 0 ? (
+                      <div className="flex -space-x-1.5 items-center justify-center">
+                        {holding.topLogos.slice(0, 3).map((logo, li) => (
+                          <img key={li} src={logo} className="w-5 h-5 rounded-full object-cover border border-white shadow-sm" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                        ))}
+                      </div>
+                    ) : failedLogos[holding.symbol] || !holding.logo ? (
                       <span className="text-xs font-bold text-slate-600">
                         {holding.symbol.slice(0, 3)}
                       </span>
@@ -750,7 +848,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                     <p className="text-xs text-slate-500">{holding.name}</p>
                   </div>
                 </div>
-                <p className="text-sm font-semibold text-slate-700">
+                <p className="text-sm font-semibold text-emerald-600">
                   {holding.weight.toFixed(1)}%
                 </p>
               </div>
@@ -760,36 +858,64 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
 
         {/* Calendar Returns */}
         <section className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50">
-          <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex items-center justify-between gap-2 mb-4">
             <p className="text-sm font-semibold text-slate-900">Calendar Returns</p>
-            {availableCalendarYears.length > 0 && (
-              <div className="relative" ref={yearDropdownRef}>
+            <div className="flex items-center gap-2">
+              <div className="relative" ref={calendarFilterRef}>
                 <button
-                  onClick={() => setShowYearDropdown(!showYearDropdown)}
-                  className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                  onClick={() => setShowCalendarFilterDropdown(!showCalendarFilterDropdown)}
+                  className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 max-w-[140px]"
                 >
-                  {calendarYear}
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${showYearDropdown ? 'rotate-180' : ''}`} />
+                  <span className="truncate">{calendarFilterOptions.find(o => o.id === calendarFilter)?.label || "Overall Portfolio"}</span>
+                  <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${showCalendarFilterDropdown ? 'rotate-180' : ''}`} />
                 </button>
-                {showYearDropdown && (
-                  <div className="absolute right-0 top-full mt-1 min-w-[80px] bg-white rounded-xl shadow-xl border border-slate-200/50 z-50 overflow-hidden">
-                    {availableCalendarYears.map((year) => (
+                {showCalendarFilterDropdown && (
+                  <div className="absolute right-0 top-full mt-1 min-w-[160px] max-h-[200px] overflow-y-auto bg-white rounded-xl shadow-xl border border-slate-200/50 z-50 overflow-hidden">
+                    {calendarFilterOptions.map((option) => (
                       <button
-                        key={year}
-                        onClick={() => { setCalendarYear(Number(year)); setShowYearDropdown(false); }}
+                        key={option.id}
+                        onClick={() => { setCalendarFilter(option.id); setShowCalendarFilterDropdown(false); }}
                         className={`w-full px-4 py-2.5 text-left text-xs font-semibold transition-colors ${
-                          Number(year) === calendarYear
+                          option.id === calendarFilter
                             ? "bg-violet-50 text-violet-700"
                             : "text-slate-600 hover:bg-slate-50"
                         }`}
                       >
-                        {year}
+                        {option.label}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-            )}
+              {availableCalendarYears.length > 0 && (
+                <div className="relative" ref={yearDropdownRef}>
+                  <button
+                    onClick={() => setShowYearDropdown(!showYearDropdown)}
+                    className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    {calendarYear}
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${showYearDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  {showYearDropdown && (
+                    <div className="absolute right-0 top-full mt-1 min-w-[80px] bg-white rounded-xl shadow-xl border border-slate-200/50 z-50 overflow-hidden">
+                      {availableCalendarYears.map((year) => (
+                        <button
+                          key={year}
+                          onClick={() => { setCalendarYear(Number(year)); setShowYearDropdown(false); }}
+                          className={`w-full px-4 py-2.5 text-left text-xs font-semibold transition-colors ${
+                            Number(year) === calendarYear
+                              ? "bg-violet-50 text-violet-700"
+                              : "text-slate-600 hover:bg-slate-50"
+                          }`}
+                        >
+                          {year}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-2">
             {monthNames.map((label, index) => {
@@ -810,6 +936,16 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
             })}
           </div>
         </section>
+
+              {strategies.length > 0 && (
+              <button
+                onClick={() => (onOpenStrategies || onOpenInvest) && (onOpenStrategies || onOpenInvest)()}
+                className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl flex items-center justify-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Buy More Strategies
+              </button>
+              )}
       </div>
         </>
         </motion.div>
@@ -825,15 +961,48 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
           transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
       {(() => {
-        const stockChartData = liveStockChartData.length > 0 ? liveStockChartData : [];
+        const isMyStock = myStockIds.has(selectedStock?.id);
+        const userHolding = isMyStock && selectedSecurityId ? (rawHoldings || []).find(h => h.security_id === selectedSecurityId) : null;
+        const userQuantity = userHolding ? (userHolding.quantity || 0) : 0;
+        const stockChartData = liveStockChartData.length > 0
+          ? (isMyStock && userQuantity > 0
+              ? liveStockChartData.map(d => ({ ...d, value: Number((d.value * userQuantity).toFixed(2)) }))
+              : liveStockChartData)
+          : [];
         if (!selectedStock) {
-          return <div className="text-center py-10 text-slate-500">Loading stocks...</div>;
+          if (quotesLoading || holdingsLoading) {
+            return <div className="text-center py-10 text-slate-500">Loading stocks...</div>;
+          }
+          if (stocksList.length === 0) {
+            return <div className="text-center py-10 text-slate-500">No stocks available.</div>;
+          }
+          return null;
         }
         const otherStocks = stocksList.filter(s => s.id !== selectedStock?.id && !myStockIds.has(s.id));
+        const hasNoHoldings = myStocks.length === 0;
         return (
           <>
+            {hasNoHoldings ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6">
+                <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mb-4">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                    <polyline points="16 7 22 7 22 13" />
+                  </svg>
+                </div>
+                <p className="text-lg font-semibold text-slate-900 mb-1">Invest in Your First Stock</p>
+                <p className="text-sm text-slate-500 text-center max-w-[260px] mb-5">Browse stocks below and start building your portfolio. Your holdings will show up here.</p>
+                <button
+                  onClick={() => onOpenInvest && onOpenInvest()}
+                  className="w-full max-w-[280px] py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl"
+                >
+                  Make Your First Investment
+                </button>
+              </div>
+            ) : (
             <div className="relative mx-auto flex w-full max-w-sm flex-col gap-4 px-4 md:max-w-md md:px-8">
               <section className="py-2">
+                {/* Chart and stock selector only shown when user has holdings */}
                 <div className="flex items-center justify-between mb-3 px-1">
                   <div className="relative" ref={stockDropdownRef}>
                     <button
@@ -845,12 +1014,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                       </span>
                       <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showStockDropdown ? 'rotate-180' : ''}`} />
                     </button>
-                    {showStockDropdown && (
+                    {showStockDropdown && (myStocks.length > 0 || stocksList.length > 0) && (
                       <div
-                        className="absolute top-full left-0 mt-2 min-w-[200px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 z-50 overflow-hidden"
-                        style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif" }}
+                        className="absolute top-full left-0 mt-2 min-w-[200px] max-h-[280px] overflow-y-auto bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 z-50 overscroll-contain"
+                        style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", WebkitOverflowScrolling: 'touch' }}
                       >
-                        {stocksList.map((stock) => (
+                        {(myStocks.length > 0 ? myStocks : stocksList.slice(0, 20)).map((stock) => (
                           <button
                             key={stock.id}
                             onClick={() => { setSelectedStock(stock); setShowStockDropdown(false); }}
@@ -893,13 +1062,29 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                 </div>
 
                 <div className="mb-3 px-1">
-                  <p className="text-3xl font-bold text-slate-900">{formatCurrency(liveQuotes[selectedStock.ticker]?.price || selectedStock.price)}</p>
                   {(() => {
-                    const change = liveQuotes[selectedStock.ticker]?.changePercent ?? selectedStock.dailyChange;
+                    const perSharePrice = liveQuotes[selectedStock.ticker]?.price || selectedStock.price;
+                    const changePct = liveQuotes[selectedStock.ticker]?.changePercent ?? selectedStock.dailyChange;
+                    if (isMyStock && userQuantity > 0) {
+                      const holdingValue = perSharePrice * userQuantity;
+                      const previousValue = holdingValue / (1 + changePct / 100);
+                      const absChange = holdingValue - previousValue;
+                      return (
+                        <>
+                          <p className="text-3xl font-bold text-slate-900">{formatCurrency(holdingValue)}</p>
+                          <p className={`text-sm ${changePct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {absChange >= 0 ? '+' : '-'}{formatCurrency(Math.abs(absChange))} ({changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}% Today)
+                          </p>
+                        </>
+                      );
+                    }
                     return (
-                      <p className={`text-sm ${change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        ({change >= 0 ? '+' : ''}{change.toFixed(2)}% Today)
-                      </p>
+                      <>
+                        <p className="text-3xl font-bold text-slate-900">{formatCurrency(perSharePrice)}</p>
+                        <p className={`text-sm ${changePct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          ({changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}% Today)
+                        </p>
+                      </>
                     );
                   })()}
                 </div>
@@ -1004,6 +1189,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                 </div>
               </section>
             </div>
+            )}
 
             <div className="relative mx-auto flex w-full max-w-sm flex-col gap-4 px-4 pb-10 md:max-w-md md:px-8">
               {myStocks.length > 0 && (() => {
@@ -1042,6 +1228,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                       const livePrice = liveQuotes[stock.ticker]?.price || stock.price;
                       const liveChange = liveQuotes[stock.ticker]?.changePercent ?? stock.dailyChange;
                       const isPositive = liveChange >= 0;
+                      const stockSecId = liveQuotes[stock.ticker]?.id || null;
+                      const stockHolding = stockSecId ? (rawHoldings || []).find(h => h.security_id === stockSecId) : null;
+                      const stockQty = stockHolding ? (stockHolding.quantity || 0) : 0;
+                      const displayPrice = stockQty > 0 ? livePrice * stockQty : livePrice;
                       return (
                         <button
                           key={stock.id}
@@ -1064,10 +1254,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
-                            <p className="text-xs text-slate-500 font-medium">{stock.ticker}</p>
+                            <p className="text-xs text-slate-500 font-medium">{stockQty > 0 ? `${stockQty} shares · ${formatCurrency(livePrice)}/share` : stock.ticker}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-bold text-slate-900">{formatCurrency(livePrice)}</p>
+                            <p className="text-sm font-bold text-slate-900">{formatCurrency(displayPrice)}</p>
                             <p className={`text-xs font-medium ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
                               {isPositive ? '+' : ''}{liveChange.toFixed(2)}%
                             </p>
@@ -1154,12 +1344,15 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                 );
               })()}
 
+              {!hasNoHoldings && (
               <button
+                onClick={() => onOpenInvest && onOpenInvest()}
                 className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl flex items-center justify-center gap-2"
               >
                 <Plus className="h-4 w-4" />
                 Buy More Stocks
               </button>
+              )}
             </div>
           </>
         );
@@ -1191,6 +1384,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
           name: h.name,
           ticker: h.symbol,
           logo: h.logo,
+          isStrategy: h.isStrategy || false,
+          topLogos: h.topLogos || [],
           currentValue: h.currentValue || 0,
           change: h.change || 0,
         })).sort((a, b) => b.currentValue - a.currentValue);
@@ -1362,14 +1557,22 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                 )}
               </div>
               <div className="space-y-3">
-                {pagedHoldings.map((stock) => (
+                {pagedHoldings.map((stock) => {
+                  const pctValue = totalValue > 0 ? ((stock.currentValue / totalValue) * 100) : 0;
+                  return (
                   <div 
                     key={stock.id}
                     className="rounded-2xl bg-white/70 backdrop-blur-xl p-4 shadow-sm border border-slate-100/50"
                   >
                     <div className="flex items-center gap-3">
                       <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-                        {!stock.logo || failedLogos[stock.ticker] ? (
+                        {stock.isStrategy && stock.topLogos?.length > 0 ? (
+                          <div className="flex -space-x-1.5 items-center justify-center h-full w-full bg-gradient-to-br from-violet-50 to-purple-50">
+                            {stock.topLogos.slice(0, 3).map((logo, li) => (
+                              <img key={li} src={logo} className="w-5 h-5 rounded-full object-cover border border-white shadow-sm" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                            ))}
+                          </div>
+                        ) : !stock.logo || failedLogos[stock.ticker] ? (
                           <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-purple-100 text-xs font-bold text-violet-700">
                             {stock.ticker.slice(0, 2)}
                           </div>
@@ -1393,12 +1596,13 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onBack }) => {
                           {formatCurrency(stock.currentValue)}
                         </p>
                         <p className="text-xs font-semibold text-emerald-500">
-                          {totalValue > 0 ? ((stock.currentValue / totalValue) * 100).toFixed(1) : '0.0'}%
+                          {pctValue.toFixed(1)}%
                         </p>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </section>
             );

@@ -1,0 +1,40 @@
+logger.js:3 main-baseUrl https://api.truidconnect.io/consumer-api
+App.vue:45 Loaded bank statuses? :  Object
+App.vue:48 Vuex bank statuses? :  Object
+/VQJHTS38X3U:1 [Intervention] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://www.truidconnect.io/fonts/Poppins-Regular.4b4ebe20.ttf
+logger.js:3 App-loadCollection-window www.truidconnect.io
+logger.js:3 App-loadCollection-items Array(3)
+vue.runtime.esm.js:7919 [Intervention] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://www.truidconnect.io/fonts/Poppins-Medium.a52d0bf0.ttf
+vue.runtime.esm.js:7919 [Intervention] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://www.truidconnect.io/fonts/Poppins-Bold.8001a01b.ttf
+index.js:79 Timer Arr Array(1)
+vue.runtime.esm.js:8650 [Intervention] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://cdn.jsdelivr.net/npm/@mdi/font@4.x/fonts/materialdesignicons-webfont.woff2?v=4.9.95
+logger.js:3 App-loadCollection-window www.truidconnect.io
+logger.js:3 App-loadCollection-items Array(3)
+index.js:79 Timer Arr Array(1)
+logger.js:3 App-loadCollection-window www.truidconnect.io
+logger.js:3 App-loadCollection-items Array(3)
+index.js:79 Timer Arr Array(1)
+logger.js:3 App-loadBanks-window www.truidconnect.io
+logger.js:3 App-loadBanks-items Array(3)
+logger.js:3 App-loadCollection-window www.truidconnect.io
+logger.js:3 App-loadCollection-items Array(3)
+index.js:79 Timer Arr Array(1)
+FlowAuthenticator.vue:75 Changing latestStatus  Object
+index.js:253 Changed last status Object
+FlowAuthenticator.vue:108 Message in  Authentication completed
+index.js:79 Timer Arr Array(1)
+FlowAuthenticator.vue:75 Changing latestStatus  Object
+index.js:253 Changed last status Object
+FlowAuthenticator.vue:108 Message in  Authentication completed
+FlowAuthenticator.vue:75 Changing latestStatus  {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+index.js:253 Changed last status {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+FlowAuthenticator.vue:108 Message in  Authentication completed
+FlowAuthenticator.vue:75 Changing latestStatus  {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+index.js:253 Changed last status {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+FlowAuthenticator.vue:108 Message in  Authentication completed
+FlowAuthenticator.vue:75 Changing latestStatus  {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+index.js:253 Changed last status {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+FlowAuthenticator.vue:108 Message in  Authentication completed
+FlowAuthenticator.vue:75 Changing latestStatus  {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+index.js:253 Changed last status {timestamp: '08-Feb-2026 20:40:17.382 +0200', code: 1099, message: 'Authentication completed', challengeId: undefined}
+FlowAuthenticator.vue:108 Message in  Authentication completed

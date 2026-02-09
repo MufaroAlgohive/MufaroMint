@@ -455,6 +455,15 @@ export const getStrategyPriceHistory = async (strategyId, timeframe = "6M") => {
       }
     });
 
+    if (timeframe === "1D") {
+      const uniqueDates = [...new Set(result.map(r => r.ts.split("T")[0]))];
+      const recentDates = uniqueDates.slice(-3);
+      const trimmed = result.filter(r => recentDates.includes(r.ts.split("T")[0]));
+      cache.priceHistory.set(cacheKey, { data: trimmed, timestamp: Date.now() });
+      console.log(`✅ Computed ${trimmed.length} NAV points from holdings for strategy ${strategyId} (${timeframe})`);
+      return trimmed;
+    }
+
     cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
     console.log(`✅ Computed ${result.length} NAV points from holdings for strategy ${strategyId} (${timeframe})`);
     return result;
@@ -497,52 +506,132 @@ export const getChangeColor = (change) => {
   return change > 0 ? "text-emerald-500" : "text-red-500";
 };
 
-export const getMonthlyReturns = async (strategyId) => {
+export const getMonthlyReturns = async (strategyId, startDate = null) => {
   if (!supabase || !strategyId) return {};
 
-  const cacheKey = `monthly_returns_${strategyId}`;
+  const cacheKey = `monthly_returns_${strategyId}_${startDate || 'all'}`;
   const cached = cache.priceHistory.get(cacheKey);
   if (cached && (Date.now() - cached.timestamp) < 300000) {
     return cached.data;
   }
 
   try {
-    const { data: prices, error } = await supabase
-      .from("strategy_prices")
-      .select("ts, nav")
-      .eq("strategy_id", strategyId)
-      .order("ts", { ascending: true });
+    const { data: strategy, error: stratError } = await supabase
+      .from("strategies")
+      .select("holdings")
+      .eq("id", strategyId)
+      .single();
 
-    if (error || !prices || prices.length < 2) return {};
+    if (stratError || !strategy || !Array.isArray(strategy.holdings) || strategy.holdings.length === 0) {
+      console.warn("No holdings for monthly returns computation");
+      return {};
+    }
 
-    const byMonth = {};
-    prices.forEach(p => {
-      const d = new Date(p.ts);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      if (!byMonth[key]) byMonth[key] = [];
-      byMonth[key].push(p.nav);
+    const holdings = strategy.holdings;
+    const symbols = holdings.map(h => h.symbol);
+
+    const { data: securities, error: secError } = await supabase
+      .from("securities")
+      .select("id, symbol")
+      .in("symbol", symbols);
+
+    if (secError || !securities || securities.length === 0) return {};
+
+    const symbolToId = {};
+    securities.forEach(s => { symbolToId[s.symbol] = s.id; });
+
+    const totalWeight = holdings.reduce((sum, h) => {
+      if (symbolToId[h.symbol]) return sum + (h.weight || 0);
+      return sum;
+    }, 0);
+
+    if (totalWeight === 0) return {};
+
+    const pricePromises = holdings
+      .filter(h => symbolToId[h.symbol])
+      .map(async (h) => {
+        const secId = symbolToId[h.symbol];
+        const priceSeries = await getSecurityPrices(secId, "1Y");
+        return { symbol: h.symbol, weight: h.weight / totalWeight, prices: priceSeries };
+      });
+
+    const allPrices = await Promise.all(pricePromises);
+    const validPrices = allPrices.filter(p => p.prices && p.prices.length > 0);
+
+    if (validPrices.length === 0) return {};
+
+    const basePrices = {};
+    validPrices.forEach(({ symbol, prices }) => {
+      if (prices.length > 0) basePrices[symbol] = prices[0].close;
     });
 
-    const result = {};
-    const sortedKeys = Object.keys(byMonth).sort();
+    const priceByDateSymbol = {};
+    const allDates = new Set();
+    validPrices.forEach(({ symbol, prices }) => {
+      priceByDateSymbol[symbol] = {};
+      prices.forEach(p => {
+        const dateKey = p.ts.split("T")[0];
+        priceByDateSymbol[symbol][dateKey] = p.close;
+        allDates.add(dateKey);
+      });
+    });
 
-    for (let i = 0; i < sortedKeys.length; i++) {
-      const key = sortedKeys[i];
-      const navs = byMonth[key];
-      const endNav = navs[navs.length - 1];
+    const sortedDates = Array.from(allDates).sort();
 
-      let startNav;
-      if (i > 0) {
-        const prevNavs = byMonth[sortedKeys[i - 1]];
-        startNav = prevNavs[prevNavs.length - 1];
-      } else {
-        startNav = navs[0];
+    const navByDate = {};
+    sortedDates.forEach(dateKey => {
+      let weightedIndex = 0;
+      let usedWeight = 0;
+
+      validPrices.forEach(({ symbol, weight }) => {
+        const currentPrice = priceByDateSymbol[symbol]?.[dateKey];
+        const basePrice = basePrices[symbol];
+        if (currentPrice && basePrice && basePrice !== 0) {
+          const normalized = (currentPrice / basePrice) * 100;
+          weightedIndex += normalized * weight;
+          usedWeight += weight;
+        }
+      });
+
+      if (usedWeight > 0) {
+        navByDate[dateKey] = (weightedIndex / usedWeight);
       }
+    });
 
-      if (startNav && startNav > 0) {
-        const [year, month] = key.split("-");
+    const monthlyNav = {};
+    Object.entries(navByDate).forEach(([dateKey, nav]) => {
+      const [year, month] = dateKey.split("-");
+      const key = `${year}-${month}`;
+      monthlyNav[key] = nav;
+    });
+
+    const sortedMonths = Object.keys(monthlyNav).sort();
+    const result = {};
+
+    for (let i = 1; i < sortedMonths.length; i++) {
+      const prevNav = monthlyNav[sortedMonths[i - 1]];
+      const currNav = monthlyNav[sortedMonths[i]];
+      if (prevNav && prevNav > 0) {
+        const [year, month] = sortedMonths[i].split("-");
         if (!result[year]) result[year] = {};
-        result[year][month] = (endNav - startNav) / startNav;
+        result[year][month] = (currNav - prevNav) / prevNav;
+      }
+    }
+
+    if (startDate) {
+      const startYM = startDate.slice(0, 7);
+      const [startYear, startMonth] = startYM.split("-");
+      for (const year of Object.keys(result)) {
+        if (year < startYear) {
+          delete result[year];
+        } else if (year === startYear) {
+          for (const month of Object.keys(result[year])) {
+            if (month < startMonth) {
+              delete result[year][month];
+            }
+          }
+          if (Object.keys(result[year]).length === 0) delete result[year];
+        }
       }
     }
 
@@ -550,6 +639,134 @@ export const getMonthlyReturns = async (strategyId) => {
     return result;
   } catch (err) {
     console.error("Error computing monthly returns:", err);
+    return {};
+  }
+};
+
+export const getStockMonthlyReturns = async (securityId, startDate = null) => {
+  if (!supabase || !securityId) return {};
+
+  const cacheKey = `monthly_returns_stock_${securityId}_${startDate || 'all'}`;
+  const cached = cache.priceHistory.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp) < 300000) {
+    return cached.data;
+  }
+
+  try {
+    const priceSeries = await getSecurityPrices(securityId, "1Y");
+    if (!priceSeries || priceSeries.length < 2) return {};
+
+    const monthlyNav = {};
+    priceSeries.forEach(p => {
+      const dateKey = p.ts.split("T")[0];
+      const [year, month] = dateKey.split("-");
+      const key = `${year}-${month}`;
+      monthlyNav[key] = p.close;
+    });
+
+    const sortedMonths = Object.keys(monthlyNav).sort();
+    const result = {};
+
+    for (let i = 1; i < sortedMonths.length; i++) {
+      const prevNav = monthlyNav[sortedMonths[i - 1]];
+      const currNav = monthlyNav[sortedMonths[i]];
+      if (prevNav && prevNav > 0) {
+        const [year, month] = sortedMonths[i].split("-");
+        if (!result[year]) result[year] = {};
+        result[year][month] = (currNav - prevNav) / prevNav;
+      }
+    }
+
+    if (startDate) {
+      const startYM = startDate.slice(0, 7);
+      const [startYear, startMonth] = startYM.split("-");
+      for (const year of Object.keys(result)) {
+        if (year < startYear) {
+          delete result[year];
+        } else if (year === startYear) {
+          for (const month of Object.keys(result[year])) {
+            if (month < startMonth) {
+              delete result[year][month];
+            }
+          }
+          if (Object.keys(result[year]).length === 0) delete result[year];
+        }
+      }
+    }
+
+    cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
+    return result;
+  } catch (err) {
+    console.error("Error computing stock monthly returns:", err);
+    return {};
+  }
+};
+
+export const getOverallPortfolioMonthlyReturns = async (strategyIds, stockSecurityIds, strategies, rawHoldings) => {
+  const cacheKey = `monthly_returns_overall_${strategyIds.sort().join("_")}_${stockSecurityIds.sort().join("_")}`;
+  const cached = cache.priceHistory.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp) < 300000) {
+    return cached.data;
+  }
+
+  try {
+    const allMonthlyData = [];
+
+    for (const sid of strategyIds) {
+      const strategy = strategies.find(s => s.strategyId === sid);
+      const returns = await getMonthlyReturns(sid, strategy?.firstInvestedDate || null);
+      const value = strategy?.investedAmount || strategy?.currentValue || 0;
+      if (Object.keys(returns).length > 0) {
+        allMonthlyData.push({ returns, value });
+      }
+    }
+
+    for (const secId of stockSecurityIds) {
+      const holding = rawHoldings.find(h => h.security_id === secId);
+      const returns = await getStockMonthlyReturns(secId, holding?.created_at || null);
+      const value = holding ? (holding.market_value || 0) / 100 : 0;
+      if (Object.keys(returns).length > 0) {
+        allMonthlyData.push({ returns, value });
+      }
+    }
+
+    if (allMonthlyData.length === 0) return {};
+
+    const totalValue = allMonthlyData.reduce((sum, d) => sum + d.value, 0);
+    if (totalValue === 0) return {};
+
+    const allMonths = new Set();
+    allMonthlyData.forEach(({ returns }) => {
+      Object.entries(returns).forEach(([year, months]) => {
+        Object.keys(months).forEach(month => allMonths.add(`${year}-${month}`));
+      });
+    });
+
+    const result = {};
+    Array.from(allMonths).sort().forEach(key => {
+      const [year, month] = key.split("-");
+      let weightedReturn = 0;
+      let totalWeight = 0;
+
+      allMonthlyData.forEach(({ returns, value }) => {
+        const ret = returns[year]?.[month];
+        if (ret != null) {
+          const weight = value / totalValue;
+          weightedReturn += ret * weight;
+          totalWeight += weight;
+        }
+      });
+
+      if (totalWeight > 0) {
+        if (!result[year]) result[year] = {};
+        result[year][month] = weightedReturn / totalWeight;
+      }
+    });
+
+    cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
+    return result;
+  } catch (err) {
+    console.error("Error computing overall portfolio monthly returns:", err);
     return {};
   }
 };

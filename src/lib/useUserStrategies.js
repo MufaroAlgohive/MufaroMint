@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import { getStrategyPriceHistory } from "./strategyData";
+import { getStrategyCurrentValue, getStrategyReturnPct } from "./strategyUtils";
 
 export const useUserStrategies = () => {
   const [data, setData] = useState({
@@ -18,63 +19,57 @@ export const useUserStrategies = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const userData = session ? { user: session.user } : { user: null };
-
-      const { data: strategies, error } = await supabase
-        .from("strategies")
-        .select(`
-          id,
-          name,
-          short_name,
-          description,
-          risk_level,
-          sector,
-          icon_url,
-          image_url,
-          holdings,
-          strategy_metrics (
-            as_of_date,
-            last_close,
-            change_pct,
-            r_1w,
-            r_1m,
-            r_3m,
-            r_ytd,
-            r_1y
-          )
-        `)
-        .eq("status", "active")
-        .limit(5);
-
-      if (error) {
-        console.error("Error fetching strategies:", error);
-        setData((prev) => ({ ...prev, loading: false, error: error.message }));
+      if (!session?.user) {
+        setData({ strategies: [], selectedStrategy: null, loading: false, error: null });
         return;
       }
 
-      const formattedStrategies = (strategies || []).map((strategy) => {
-        const metrics = strategy?.strategy_metrics;
-        const latestMetric = Array.isArray(metrics) ? metrics[0] : metrics;
-        const changePercent = latestMetric?.r_1m ? (latestMetric.r_1m * 100).toFixed(1) : 0;
+      const token = session.access_token;
+      const res = await fetch("/api/user/strategies", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        console.error("[useUserStrategies] API error:", res.status, errJson);
+        setData((prev) => ({ ...prev, loading: false, error: errJson.error || "Failed to fetch strategies" }));
+        return;
+      }
+
+      const json = await res.json();
+      const serverStrategies = json.strategies || [];
+
+      if (serverStrategies.length === 0) {
+        console.log("[useUserStrategies] No strategies found from API");
+        setData({ strategies: [], selectedStrategy: null, loading: false, error: null });
+        return;
+      }
+
+      const formattedStrategies = serverStrategies.map((strategy) => {
+        const latestMetric = strategy.metrics;
+        const invested = strategy.investedAmount || 0;
+        const currentVal = getStrategyCurrentValue(invested, latestMetric);
+        const changePct = getStrategyReturnPct(latestMetric);
 
         return {
           id: strategy.id,
           strategyId: strategy.id,
           name: strategy.name || "Unknown Strategy",
-          shortName: strategy.short_name || strategy.name || "Strategy",
+          shortName: strategy.shortName || strategy.name || "Strategy",
           description: strategy.description || "",
-          riskLevel: strategy.risk_level || "Moderate",
+          riskLevel: strategy.riskLevel || "Moderate",
           sector: strategy.sector || "",
-          iconUrl: strategy.icon_url,
-          imageUrl: strategy.image_url,
-          holdings: strategy?.holdings || [],
-          investedAmount: 0,
-          currentValue: latestMetric?.last_close || 0,
+          iconUrl: strategy.iconUrl,
+          imageUrl: strategy.imageUrl,
+          holdings: strategy.holdings || [],
+          investedAmount: invested,
+          currentValue: currentVal,
           unitsHeld: 0,
           entryDate: null,
           lastUpdated: latestMetric?.as_of_date,
-          previousMonthChange: parseFloat(changePercent),
+          previousMonthChange: parseFloat(changePct.toFixed(1)),
           metrics: latestMetric,
+          firstInvestedDate: strategy.firstInvestedDate || null,
         };
       });
 
@@ -163,7 +158,7 @@ function formatChartData(priceHistory, timeFilter) {
       return priceHistory.map((p, idx) => {
         const date = new Date(p.ts);
         return {
-          day: dayNames[date.getDay()],
+          day: dayNames[date.getDay()] + ' ' + date.getDate(),
           value: p.nav,
           fullDate: date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' }),
         };

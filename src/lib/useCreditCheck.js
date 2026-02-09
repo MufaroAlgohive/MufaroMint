@@ -340,18 +340,24 @@ export function useCreditCheck() {
       }
     };
 
-    const response = await fetch(`${apiBase}/credit-check`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
-      },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const response = await fetch(`${apiBase}/credit-check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
 
-    const result = await response.json();
-    setEngineResult(result);
-    setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
+      const result = await response.json();
+      setEngineResult(result);
+      setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
+    } catch (err) {
+      console.error("Credit check engine error:", err);
+      setEngineResult({ success: false, error: err.message || "Network error" });
+      setEngineStatus("Failed");
+    }
   }, [apiBase, form, normalizedContractType, loanRecord]);
 
   const proceedToStep3 = useCallback(async () => {

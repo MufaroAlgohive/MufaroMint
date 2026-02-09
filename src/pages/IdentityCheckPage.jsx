@@ -7,6 +7,7 @@ import { useSumsubStatus } from "../lib/useSumsubStatus";
 const IdentityCheckPage = ({ onBack, onComplete }) => {
   const { kycVerified, kycPending, kycNeedsResubmission, loading, refetch } = useSumsubStatus();
   const [showResubmission, setShowResubmission] = useState(false);
+  const [justVerified, setJustVerified] = useState(false);
 
   if (loading) {
     return (
@@ -17,7 +18,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
     );
   }
 
-  if (kycVerified) {
+  if (justVerified || kycVerified) {
     return (
       <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
         <div className="mx-auto flex w-full max-w-sm flex-col px-4 pb-10 pt-12 md:max-w-md md:px-8">
@@ -47,7 +48,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
               onClick={onBack}
               className="inline-flex items-center justify-center rounded-full bg-slate-900 px-8 py-3 text-sm font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
             >
-              Go Back
+              Go to Home
             </button>
           </div>
         </div>
@@ -133,7 +134,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
               <SumsubVerification 
                 onVerified={() => {
                   refetch();
-                  if (onComplete) onComplete();
+                  setJustVerified(true);
                 }}
               />
             </div>
@@ -208,7 +209,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
   return (
     <UserOnboardingPage 
       onBack={onBack} 
-      onComplete={onComplete} 
+      onComplete={() => setJustVerified(true)} 
     />
   );
 };

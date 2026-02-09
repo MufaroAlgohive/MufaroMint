@@ -71,7 +71,8 @@ const SumsubVerification = ({ onVerified }) => {
         
         setUserId(currentUserId);
 
-        const response = await fetch("/api/sumsub/access-token", {
+        const apiBase = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -102,7 +103,8 @@ const SumsubVerification = ({ onVerified }) => {
 
   const accessTokenExpirationHandler = useCallback(async () => {
     try {
-      const response = await fetch("/api/sumsub/access-token", {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -150,10 +152,12 @@ const SumsubVerification = ({ onVerified }) => {
         if ((reviewStatus === "completed" || reviewStatus === "onHold") && reviewAnswer === "GREEN") {
           setVerificationComplete(true);
           setVerificationStatus("approved");
+          setError(null);
+          setErrorType(null);
           if (onVerified) {
             onVerified();
           }
-        } else if (reviewAnswer === "RED") {
+        } else if (reviewAnswer === "RED" && reviewStatus === "completed") {
           setVerificationStatus("rejected");
           if (rejectType === "RETRY") {
             setError("Some documents need to be resubmitted. Please try again with clearer images.");
@@ -162,6 +166,9 @@ const SumsubVerification = ({ onVerified }) => {
             setError("Verification was not successful. Please contact support for assistance.");
             setErrorType("rejected");
           }
+        } else if (reviewAnswer === "RED" && (reviewStatus === "prechecked" || reviewStatus === "pending")) {
+          console.log("Precheck/pending rejection with RETRY - Sumsub SDK will handle retry flow internally");
+          setVerificationStatus("pending");
         } else if (reviewStatus === "pending" || reviewStatus === "queued" || reviewStatus === "onHold") {
           setVerificationStatus("pending");
         }
@@ -197,7 +204,8 @@ const SumsubVerification = ({ onVerified }) => {
     // Re-initialize Sumsub
     const reinitialize = async () => {
       try {
-        const response = await fetch("/api/sumsub/access-token", {
+        const apiBase = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${apiBase}/api/sumsub/access-token`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userId }),

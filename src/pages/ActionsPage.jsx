@@ -3,27 +3,17 @@ import {
   ArrowLeft,
   BadgeCheck,
   ChevronRight,
-  Landmark,
-  UserPlus,
   CheckCircle2,
 } from "lucide-react";
 import ActionsSkeleton from "../components/ActionsSkeleton";
-import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { bankLinked, bankInReview } = useRequiredActions();
-  const { kycVerified, kycPending, kycNeedsResubmission, loading, rejectLabels } = useSumsubStatus();
+  const { kycVerified, kycPending, kycNeedsResubmission, loading: kycLoading, rejectLabels } = useSumsubStatus();
 
-  if (loading) {
+  if (kycLoading) {
     return <ActionsSkeleton />;
   }
-
-  const getBankStatus = () => {
-    if (bankLinked) return "Verified";
-    if (bankInReview) return "In review";
-    return "Required";
-  };
 
   const getKycStatus = () => {
     if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
@@ -50,6 +40,7 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       }
       return "Some documents need resubmission";
     }
+    if (kycVerified) return "Identity verification complete";
     return "Needed to unlock higher limits";
   };
 
@@ -64,29 +55,11 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       completed: kycVerified,
       navigateTo: "identityCheck",
     },
-    {
-      id: "bank-link",
-      title: "Link your primary bank",
-      description: "Connect to enable instant transfers",
-      status: getBankStatus(),
-      icon: Landmark,
-      completed: bankLinked,
-      navigateTo: "creditApply",
-    },
-    {
-      id: "invite",
-      title: "Invite a friend",
-      description: "Share Mint and earn bonus rewards",
-      status: "Optional",
-      icon: UserPlus,
-      completed: false,
-      navigateTo: "invite",
-    },
   ];
 
   const outstandingActions = allActions.filter((a) => !a.completed);
   const completedActions = allActions.filter((a) => a.completed);
-  const allRequiredComplete = kycVerified && bankLinked;
+  const allRequiredComplete = kycVerified;
 
   const handleActionPress = (action) => {
     if (onNavigate && action.navigateTo) {
@@ -116,7 +89,15 @@ const ActionsPage = ({ onBack, onNavigate }) => {
               <CheckCircle2 className="h-10 w-10" />
             </div>
             <h2 className="text-lg font-semibold text-slate-900 mb-2">All done!</h2>
-            <p className="text-sm text-slate-500">You've completed all required actions.</p>
+            <p className="text-sm text-slate-500 mb-6">You've completed all required actions.</p>
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-6 py-2.5 rounded-full font-medium text-white text-sm transition-all duration-200"
+              style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' }}
+            >
+              Go to Home
+            </button>
           </div>
         ) : (
           <>

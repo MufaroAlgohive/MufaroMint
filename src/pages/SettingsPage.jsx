@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ArrowLeft, Lock, Fingerprint, Bell } from "lucide-react";
+import { ArrowLeft, Lock, Fingerprint, Bell, KeyRound, Smartphone } from "lucide-react";
 import {
   authenticateWithBiometrics,
   disableBiometrics,
@@ -10,6 +10,7 @@ import {
   isNativePlatform,
 } from "../lib/biometrics";
 import { supabase } from "../lib/supabase";
+import { isPinEnabled, removePin } from "../lib/usePin";
 
 const SettingsPage = ({ onNavigate, onBack }) => {
   const [biometricsOn, setBiometricsOn] = useState(false);
@@ -17,6 +18,7 @@ const SettingsPage = ({ onNavigate, onBack }) => {
   const [isAvailable, setIsAvailable] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [userEmail, setUserEmail] = useState("");
+  const [pinOn, setPinOn] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -24,6 +26,7 @@ const SettingsPage = ({ onNavigate, onBack }) => {
       setIsAvailable(available);
       setBiometryType(type);
       setBiometricsOn(isBiometricsEnabled());
+      setPinOn(isPinEnabled());
 
       if (supabase) {
         const { data } = await supabase.auth.getUser();
@@ -68,6 +71,15 @@ const SettingsPage = ({ onNavigate, onBack }) => {
     }
   };
 
+  const handlePinToggle = () => {
+    if (pinOn) {
+      removePin();
+      setPinOn(false);
+    } else {
+      onNavigate?.("pinSetup");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 px-6 pt-12 pb-24">
       <header className="mb-8 flex items-center gap-3">
@@ -83,6 +95,8 @@ const SettingsPage = ({ onNavigate, onBack }) => {
       </header>
 
       <div className="space-y-4">
+        <p className="text-xs font-bold uppercase text-slate-400 px-1">Security</p>
+
         <div className="rounded-2xl bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -116,6 +130,38 @@ const SettingsPage = ({ onNavigate, onBack }) => {
           </div>
         </div>
 
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50 text-violet-600">
+                <KeyRound className="h-5 w-5" />
+              </span>
+              <div className="flex-1">
+                <h2 className="text-base font-semibold text-slate-900">
+                  PIN / Passcode
+                </h2>
+                <p className="text-sm text-slate-500">
+                  {pinOn ? "5-digit PIN is active" : "Set a 5-digit PIN to secure your app"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handlePinToggle}
+              className={`relative inline-flex h-8 w-14 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 ${
+                pinOn ? "bg-green-500" : "bg-slate-300"
+              }`}
+              role="switch"
+              aria-checked={pinOn}
+            >
+              <span
+                className={`pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  pinOn ? "translate-x-6" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={() => onNavigate?.("changePassword")}
@@ -132,6 +178,22 @@ const SettingsPage = ({ onNavigate, onBack }) => {
 
         <button
           type="button"
+          onClick={() => onNavigate?.("activeSessions")}
+          className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-sm transition active:scale-[0.99]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+            <Smartphone className="h-5 w-5" />
+          </span>
+          <div className="flex-1">
+            <h2 className="text-base font-semibold text-slate-900">Active Sessions</h2>
+            <p className="text-sm text-slate-500">See where you're logged in</p>
+          </div>
+        </button>
+
+        <p className="text-xs font-bold uppercase text-slate-400 px-1 pt-2">Preferences</p>
+
+        <button
+          type="button"
           onClick={() => onNavigate?.("notificationSettings")}
           className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-sm transition active:scale-[0.99]"
         >
@@ -144,19 +206,6 @@ const SettingsPage = ({ onNavigate, onBack }) => {
           </div>
         </button>
 
-        <button
-          type="button"
-          onClick={() => onNavigate?.("biometricsDebug")}
-          className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-sm transition active:scale-[0.99]"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-            <Fingerprint className="h-5 w-5" />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-base font-semibold text-slate-900">Biometrics Debug</h2>
-            <p className="text-sm text-slate-500">Test Face ID and view diagnostic logs</p>
-          </div>
-        </button>
 
       </div>
     </div>

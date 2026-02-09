@@ -53,15 +53,45 @@ const StatementsPage = ({ onOpenNotifications }) => {
     let isMounted = true;
 
     const loadStrategies = async () => {
-      if (!supabase) {
-        if (isMounted) setStrategiesLoading(false);
+      if (!supabase || !profile?.id) {
         return;
       }
+      if (isMounted) setStrategiesLoading(true);
 
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          if (isMounted) setStrategiesLoading(false);
+          return;
+        }
+
+        const res = await fetch("/api/user/strategies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          console.error("[StatementsPage] Failed to fetch strategies:", res.status);
+          if (isMounted) setStrategiesLoading(false);
+          return;
+        }
+        const json = await res.json();
+        const userStrategies = json.strategies || [];
+
+        if (userStrategies.length === 0) {
+          if (isMounted) {
+            setStrategyRows([]);
+            setRawStrategies([]);
+            setStrategiesLoading(false);
+          }
+          return;
+        }
+
+        const subscribedIds = userStrategies.map(s => s.id);
+
         const { data: strategies, error } = await supabase
           .from("strategies")
           .select("id, name, short_name, description, risk_level, holdings, strategy_metrics(as_of_date, last_close, change_pct, r_1m)")
+          .in("id", subscribedIds)
           .eq("status", "active");
 
         if (error) throw error;
@@ -132,7 +162,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [profile?.id]);
 
   useEffect(() => {
     if (!supabase || rawStrategies.length === 0) return;
@@ -180,18 +210,31 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
     const loadHoldings = async () => {
       if (!supabase || !profile?.id) {
-        if (isMounted) setHoldingsLoading(false);
         return;
       }
+      if (isMounted) setHoldingsLoading(true);
 
       try {
-        const { data: holdings, error } = await supabase
-          .from("stock_holdings")
-          .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
-          .eq("user_id", profile.id);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          if (isMounted) setHoldingsLoading(false);
+          return;
+        }
 
-        if (error) throw error;
-        if (!holdings || holdings.length === 0) {
+        const res = await fetch("/api/user/holdings", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (!res.ok) {
+          console.error("Failed to fetch holdings from server:", res.status);
+          if (isMounted) setHoldingsLoading(false);
+          return;
+        }
+
+        const json = await res.json();
+        const holdings = json.holdings || [];
+
+        if (holdings.length === 0) {
           if (isMounted) {
             setHoldingsRows([]);
             setHoldingsLoading(false);
@@ -199,26 +242,10 @@ const StatementsPage = ({ onOpenNotifications }) => {
           return;
         }
 
-        const securityIds = [...new Set(holdings.map((holding) => holding.security_id).filter(Boolean))];
-        let securities = [];
-
-        if (securityIds.length > 0) {
-          const { data: securityRows, error: securitiesError } = await supabase
-            .from("securities")
-            .select("id, symbol, exchange, name, logo_url, last_price")
-            .in("id", securityIds);
-
-          if (securitiesError) throw securitiesError;
-          securities = securityRows || [];
-        }
-
-        const securitiesById = new Map(securities.map((security) => [security.id, security]));
-
         const mappedHoldings = holdings.map((holding) => {
-          const security = securitiesById.get(holding.security_id);
-          const symbol = security?.symbol || "—";
-          const exchange = security?.exchange || "";
-          const title = security?.name || symbol;
+          const symbol = holding.symbol || "—";
+          const exchange = holding.exchange || "";
+          const title = holding.name || symbol;
           const asOfValue = holding.as_of_date || holding.updated_at || holding.created_at;
           const asOfDate = asOfValue ? new Date(asOfValue) : null;
           const dateLabel = asOfDate
@@ -229,28 +256,28 @@ const StatementsPage = ({ onOpenNotifications }) => {
             : "—";
           const quantity = Number(holding.quantity);
           const avgFill = Number(holding.avg_fill);
-          const lastPrice = Number(security?.last_price);
-          const marketPriceValue = Number.isFinite(lastPrice) ? lastPrice * 100 : NaN;
+          const lastPriceCents = Number(holding.last_price);
+          const marketPriceValue = Number.isFinite(lastPriceCents) ? lastPriceCents : NaN;
           const marketValue = Number.isFinite(marketPriceValue) && Number.isFinite(quantity)
             ? marketPriceValue * quantity
             : NaN;
           const formattedQty = Number.isFinite(quantity)
             ? quantity.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 6 })
             : "—";
-          const formattedAvg = Number.isFinite(avgFill) ? formatCurrency(avgFill) : "—";
-          const formattedPrice = Number.isFinite(marketPriceValue) ? formatCurrency(marketPriceValue) : "—";
-          const formattedValue = Number.isFinite(marketValue) ? formatCurrency(marketValue) : "—";
+          const formattedAvg = Number.isFinite(avgFill) ? formatCurrency(avgFill / 100) : "—";
+          const formattedPrice = Number.isFinite(marketPriceValue) ? formatCurrency(marketPriceValue / 100) : "—";
+          const formattedValue = Number.isFinite(marketValue) ? formatCurrency(marketValue / 100) : "—";
           const computedUnrealized = Number.isFinite(marketPriceValue) && Number.isFinite(avgFill) && Number.isFinite(quantity)
             ? (marketPriceValue - avgFill) * quantity
             : NaN;
           const formattedPnl = Number.isFinite(computedUnrealized)
-            ? `${computedUnrealized < 0 ? "-" : "+"}${formatCurrency(Math.abs(computedUnrealized))}`
+            ? `${computedUnrealized < 0 ? "-" : "+"}${formatCurrency(Math.abs(computedUnrealized) / 100)}`
             : "—";
 
           return {
             type: "Holdings",
             icon: null,
-            logoUrl: security?.logo_url || null,
+            logoUrl: holding.logo_url || null,
             title,
             desc: exchange ? `${symbol} · ${exchange}` : symbol,
             instrument: title,
@@ -276,7 +303,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
               id: holding.id,
               quantity: Number(holding.quantity),
               marketValue: Number(holding.market_value),
-              lastPrice: Number(securitiesById.get(holding.security_id)?.last_price),
+              lastPrice: Number(holding.last_price),
             })),
           );
           setHoldingsLoading(false);
@@ -299,9 +326,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
     const loadFinancials = async () => {
       if (!supabase || !profile?.id) {
-        if (isMounted) setFinancialsLoading(false);
         return;
       }
+      if (isMounted) setFinancialsLoading(true);
 
       try {
         const { data: allocations, error } = await supabase
@@ -397,7 +424,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
   const combinedRows = [...strategyRows, ...holdingsRows, ...financialsRows];
 
   const filtered = combinedRows.filter((row) => {
-    if (activeTab === "strategy") return row.type === "Strategy" || row.type === "Holdings";
+    if (activeTab === "strategy") return row.type === "Strategy";
     if (activeTab === "holdings") return row.type === "Holdings";
     if (activeTab === "financials") return row.type === "Reports";
     return true;
@@ -408,7 +435,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
     : filtered;
 
   const isLoading =
-    (activeTab === "strategy" && (strategiesLoading || holdingsLoading)) ||
+    (activeTab === "strategy" && strategiesLoading) ||
     (activeTab === "holdings" && holdingsLoading) ||
     (activeTab === "financials" && financialsLoading);
 
@@ -711,7 +738,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   className="h-10 w-10 rounded-full border border-white/40 object-cover"
                 />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
                   {initials || "—"}
                 </div>
               )}
@@ -846,8 +873,14 @@ const StatementsPage = ({ onOpenNotifications }) => {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
                 <MoreHorizontal className="h-7 w-7 text-slate-400" />
               </div>
-              <p className="mt-4 text-sm font-semibold text-slate-700">No data available</p>
-              <p className="mt-1 text-xs text-slate-400">There are no items to display for this view.</p>
+              <p className="mt-4 text-sm font-semibold text-slate-700">
+                {activeTab === "strategy" ? "No strategies subscribed" : "No data available"}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {activeTab === "strategy"
+                  ? "You haven't subscribed to any strategies yet."
+                  : "There are no items to display for this view."}
+              </p>
             </div>
           ) : (
             <div className="mt-4 space-y-3">

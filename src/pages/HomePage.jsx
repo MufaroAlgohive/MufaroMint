@@ -29,10 +29,10 @@ import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
-import { getStrategiesWithMetrics } from "../lib/strategyData";
 import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
 import { formatZar } from "../lib/formatCurrency";
 import HomeSkeleton from "../components/HomeSkeleton";
+import Skeleton from "../components/Skeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
@@ -202,40 +202,90 @@ const HomePage = ({
   const fetchBestAssets = React.useCallback(async () => {
     if (!profile?.id) return;
     try {
-      const { data, error } = await supabase
+      const { data: holdings, error: holdingsError } = await supabase
+        .from('stock_holdings')
+        .select('id, security_id, quantity, avg_fill, market_value, unrealized_pnl')
+        .eq('user_id', profile.id)
+        .order('market_value', { ascending: false })
+        .limit(5);
+
+      if (holdingsError) throw holdingsError;
+
+      if (holdings && holdings.length > 0) {
+        const securityIds = holdings.map(h => h.security_id).filter(Boolean);
+        let securitiesMap = {};
+        let metricsMap = {};
+        if (securityIds.length > 0) {
+          const [secResult, metResult] = await Promise.all([
+            supabase.from('securities').select('id, symbol, name, logo_url').in('id', securityIds),
+            supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
+          ]);
+          if (secResult.data) {
+            secResult.data.forEach(s => { securitiesMap[s.id] = s; });
+          }
+          if (metResult.data) {
+            metResult.data.forEach(m => { metricsMap[m.security_id] = m.change_pct || 0; });
+          }
+        }
+
+        const formatted = holdings
+          .filter(h => securitiesMap[h.security_id])
+          .map(h => {
+            const sec = securitiesMap[h.security_id];
+            return {
+              symbol: sec.symbol,
+              name: sec.name,
+              logo: sec.logo_url,
+              value: (h.market_value || 0) / 100,
+              change: metricsMap[h.security_id] || 0,
+            };
+          });
+
+        setLocalBestAssets(formatted);
+        return;
+      }
+
+      const { data: allocData, error: allocError } = await supabase
         .from('allocations')
-        .select(`
-          value,
-          security_id,
-          securities!inner ( symbol, name, logo_url )
-        `)
+        .select('value, security_id')
         .eq('user_id', profile.id)
         .order('value', { ascending: false })
         .limit(5);
 
-      if (error) throw error;
+      if (allocError) throw allocError;
 
-      const securityIds = data.map(item => item.security_id).filter(Boolean);
-      let metricsMap = {};
-      if (securityIds.length > 0) {
-        const { data: metricsData } = await supabase
-          .from('security_metrics')
-          .select('security_id, change_pct')
-          .in('security_id', securityIds);
-        if (metricsData) {
-          metricsData.forEach(m => { metricsMap[m.security_id] = m.change_pct || 0; });
+      if (allocData && allocData.length > 0) {
+        const securityIds = allocData.map(item => item.security_id).filter(Boolean);
+        let securitiesMap = {};
+        let metricsMap = {};
+        if (securityIds.length > 0) {
+          const [secResult, metResult] = await Promise.all([
+            supabase.from('securities').select('id, symbol, name, logo_url').in('id', securityIds),
+            supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
+          ]);
+          if (secResult.data) {
+            secResult.data.forEach(s => { securitiesMap[s.id] = s; });
+          }
+          if (metResult.data) {
+            metResult.data.forEach(m => { metricsMap[m.security_id] = m.change_pct || 0; });
+          }
         }
+
+        const formatted = allocData
+          .filter(item => securitiesMap[item.security_id])
+          .map(item => {
+            const sec = securitiesMap[item.security_id];
+            return {
+              symbol: sec.symbol,
+              name: sec.name,
+              logo: sec.logo_url,
+              value: item.value,
+              change: metricsMap[item.security_id] || 0,
+            };
+          });
+
+        setLocalBestAssets(formatted);
       }
-
-      const formatted = data.map(item => ({
-        symbol: item.securities.symbol,
-        name: item.securities.name,
-        logo: item.securities.logo_url,
-        value: item.value,
-        change: metricsMap[item.security_id] || 0
-      }));
-
-      setLocalBestAssets(formatted); 
     } catch (e) { 
       console.error("Asset fetch error:", e.message); 
     }
@@ -316,17 +366,60 @@ const HomePage = ({
   useEffect(() => {
     const fetchStrategies = async () => {
       try {
-        const data = await getStrategiesWithMetrics();
-        const sorted = data
+        if (!profile?.id) return;
+
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setBestStrategies([]);
+          return;
+        }
+
+        const res = await fetch("/api/user/strategies", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          console.error("[HomePage] Failed to fetch user strategies:", res.status);
+          setBestStrategies([]);
+          return;
+        }
+
+        const json = await res.json();
+        const serverStrategies = json.strategies || [];
+
+        if (serverStrategies.length === 0) {
+          console.log("[HomePage] No user strategies found");
+          setBestStrategies([]);
+          return;
+        }
+
+        const formatted = serverStrategies.map(s => ({
+          id: s.id,
+          name: s.name,
+          short_name: s.shortName,
+          description: s.description,
+          risk_level: s.riskLevel,
+          sector: s.sector,
+          icon_url: s.iconUrl,
+          image_url: s.imageUrl,
+          holdings: s.holdings || [],
+          investedAmount: s.investedAmount,
+          change_pct: s.metrics?.change_pct || 0,
+          strategy_metrics: s.metrics ? [s.metrics] : [],
+        }));
+
+        const sorted = formatted
           .sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
           .slice(0, 5);
         setBestStrategies(sorted);
       } catch (error) {
         console.error("Failed to load strategies", error);
+        setBestStrategies([]);
       }
     };
     fetchStrategies();
-  }, []);
+  }, [profile?.id]);
 
   const holdingsBySymbol = useMemo(() => buildHoldingsBySymbol(holdingsSecurities), [holdingsSecurities]);
 
@@ -450,8 +543,7 @@ const HomePage = ({
         name: newGoal.name,
         target_amount: parseFloat(newGoal.target_amount),
         target_date: newGoal.target_date || null,
-        current_amount: 0,
-        progress_percent: 0
+        current_amount: 0
       });
 
       if (error) throw error;
@@ -521,9 +613,14 @@ const HomePage = ({
     : [];
 
   const transactionHistory = transactions.slice(0, 3).map((t) => ({
-    title: t.title || t.description || "Transaction",
-    date: formatDate(t.created_at),
-    amount: formatAmount(t.amount, t.type),
+    title: t.name || t.description || "Transaction",
+    date: formatDate(t.transaction_date || t.created_at),
+    amount: formatAmount((t.amount || 0) / 100, t.direction),
+    direction: t.direction,
+    status: t.status,
+    description: t.description,
+    logo_url: t.logo_url,
+    holding_logos: t.holding_logos || [],
   }));
 
   const handleActionNavigation = (action) => {
@@ -556,7 +653,7 @@ const HomePage = ({
                   className="h-10 w-10 rounded-full border border-white/40 object-cover"
                 />
               ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-xs font-semibold text-slate-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
                   {initials || "—"}
                 </div>
               )}
@@ -722,8 +819,8 @@ const HomePage = ({
             </div>
             {hasInvestments && (
               <button 
-                onClick={onOpenInvest} 
-                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
+                onClick={onOpenInvestments} 
+                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
               >
                 View all
               </button>
@@ -804,8 +901,8 @@ const HomePage = ({
             </div>
             {hasStrategies && (
               <button 
-                onClick={onOpenInvest} 
-                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
+                onClick={onOpenStrategies} 
+                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
               >
                 View all
               </button>
@@ -886,7 +983,7 @@ const HomePage = ({
               <p className="text-xs text-slate-500 mb-4">Explore our curated investment portfolios</p>
               <button
                 type="button"
-                onClick={onOpenInvest}
+                onClick={onOpenStrategies}
                 className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
               >
                 Browse Strategies
@@ -911,7 +1008,7 @@ const HomePage = ({
             </div>
             <button 
               onClick={() => onOpenNews && onOpenNews()}
-              className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
+              className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
             >
               View all
             </button>
@@ -948,8 +1045,17 @@ const HomePage = ({
             )}
             
             {loadingNews && (
-              <div className="flex justify-center py-6">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" />
+              <div className="divide-y divide-slate-100">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="px-5 py-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-14 rounded-full" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1110,7 +1216,7 @@ const HomePage = ({
             <div className="p-6">
               <header className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900">
-                  {editingGoalId ? "Edit Goal" : isCreatingGoal ? "New Goal" : "Your Goals"}
+                  {editingGoalId ? "Edit Goal" : (isCreatingGoal || goals.length === 0) ? "New Goal" : "Your Goals"}
                 </h2>
                 <button
                   type="button"
@@ -1128,10 +1234,16 @@ const HomePage = ({
 
               <div className="max-h-[60vh] overflow-y-auto pr-1">
                 {loadingGoals ? (
-                  <div className="flex h-40 flex-col items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600" />
+                  <div className="space-y-4">
+                    {[0, 1].map((i) => (
+                      <div key={i} className="rounded-2xl border border-slate-100 p-4 space-y-3">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-48" />
+                        <Skeleton className="h-2 w-full rounded-full" />
+                      </div>
+                    ))}
                   </div>
-                ) : isCreatingGoal || editingGoalId ? (
+                ) : isCreatingGoal || editingGoalId || goals.length === 0 ? (
                   <form onSubmit={editingGoalId ? handleUpdateGoal : handleCreateGoal} className="space-y-4">
                     <div>
                       <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">Goal Name</label>
@@ -1263,11 +1375,9 @@ function formatDate(dateString) {
   return date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
 }
 
-function formatAmount(amount, type) {
-  if (amount === undefined || amount === null) return "R0";
-  const isPositive = type === "deposit" || type === "credit" || type === "gain" || amount > 0;
-  const sign = isPositive ? "+" : "-";
-  return `${sign}R${Math.abs(amount).toLocaleString()}`;
+function formatAmount(amount, direction) {
+  if (amount === undefined || amount === null) return "R0.00";
+  return `R${Math.abs(amount).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default HomePage;

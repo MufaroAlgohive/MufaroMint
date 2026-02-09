@@ -58,7 +58,12 @@ export const calculateMinInvestment = (strategy, holdingsBySymbol) => {
 export const getStrategyHoldingsSnapshot = (strategy, holdingsBySymbol) => {
   const holdings = getHoldingsArray(strategy);
   if (!holdings.length) return [];
-  return holdings.map((holding) => {
+  const sorted = [...holdings].sort((a, b) => {
+    const weightA = Number(a.weight || a.shares || a.quantity || 0);
+    const weightB = Number(b.weight || b.shares || b.quantity || 0);
+    return weightB - weightA;
+  });
+  return sorted.map((holding) => {
     const rawSymbol = holding.ticker || holding.symbol || holding;
     const normalizedSym = normalizeSymbol(rawSymbol);
     const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSym);
@@ -69,4 +74,17 @@ export const getStrategyHoldingsSnapshot = (strategy, holdingsBySymbol) => {
       logo_url: security?.logo_url || null,
     };
   });
+};
+
+export const getStrategyCurrentValue = (investedAmount, metrics) => {
+  if (!investedAmount || investedAmount <= 0) return 0;
+  if (!metrics) return investedAmount;
+  const bestReturn = metrics.r_ytd ?? metrics.r_1y ?? metrics.r_3m ?? metrics.r_1m ?? 0;
+  return investedAmount * (1 + bestReturn);
+};
+
+export const getStrategyReturnPct = (metrics) => {
+  if (!metrics) return 0;
+  const bestReturn = metrics.r_ytd ?? metrics.r_1y ?? metrics.r_3m ?? metrics.r_1m ?? 0;
+  return bestReturn * 100;
 };

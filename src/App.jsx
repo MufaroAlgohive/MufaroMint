@@ -42,6 +42,11 @@ import StatementsPage from "./pages/StatementsPage.jsx";
 import IdentityCheckPage from "./pages/IdentityCheckPage.jsx";
 import BankLinkPage from "./pages/BankLinkPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
+import ActiveSessionsPage from "./pages/ActiveSessionsPage.jsx";
+import PinSetupPage from "./pages/PinSetupPage.jsx";
+import { useInactivityTimeout } from "./lib/useInactivityTimeout.jsx";
+import PinLockScreen from "./components/PinLockScreen.jsx";
+import { isPinEnabled } from "./lib/usePin.js";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -86,6 +91,51 @@ const App = () => {
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0 });
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications } = useNotificationsContext();
+  const [showPinLock, setShowPinLock] = useState(false);
+
+  const currentPageRef = useRef(currentPage);
+  currentPageRef.current = currentPage;
+  const isAuthenticated = !['welcome', 'auth', 'linkExpired'].includes(currentPage);
+  useInactivityTimeout({
+    enabled: isAuthenticated,
+    onLogout: () => {
+      if (supabase) supabase.auth.signOut({ scope: 'local' });
+      sessionStorage.removeItem('mint_pin_unlocked');
+      setShowPinLock(false);
+      setCurrentPage("welcome");
+    },
+  });
+
+  const justLoggedInRef = useRef(false);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        localStorage.setItem('mint_app_hidden_at', Date.now().toString());
+      } else {
+        if (justLoggedInRef.current) return;
+        const hiddenAt = localStorage.getItem('mint_app_hidden_at');
+        if (hiddenAt) {
+          const elapsed = Date.now() - parseInt(hiddenAt, 10);
+          const ONE_MINUTE = 60 * 1000;
+          if (elapsed >= ONE_MINUTE && isAuthenticated && !isCheckingAuth) {
+            if (isPinEnabled()) {
+              sessionStorage.removeItem('mint_pin_unlocked');
+              setShowPinLock(true);
+            } else {
+              if (supabase) supabase.auth.signOut({ scope: 'local' });
+              sessionStorage.removeItem('mint_pin_unlocked');
+              setShowPinLock(false);
+              setCurrentPage("welcome");
+            }
+          }
+          localStorage.removeItem('mint_app_hidden_at');
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated, isCheckingAuth]);
   
   const navigationHistory = useRef([]);
   const pageStateCache = useRef({});
@@ -235,6 +285,10 @@ const App = () => {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
             setCurrentPage("home");
+            const alreadyUnlocked = sessionStorage.getItem('mint_pin_unlocked') === 'true';
+            if (isPinEnabled() && !alreadyUnlocked) {
+              setShowPinLock(true);
+            }
           }
         } catch (err) {
           console.error("Session check error:", err);
@@ -267,12 +321,91 @@ const App = () => {
       if (event === 'PASSWORD_RECOVERY') {
         handleRecoveryFlow();
       }
+      if (event === 'SIGNED_OUT') {
+        if (justLoggedInRef.current || Date.now() < sessionCheckSkipUntilRef.current) {
+          return;
+        }
+        if (['welcome', 'auth', 'linkExpired'].includes(currentPageRef.current)) {
+          return;
+        }
+        sessionExpiredPageRef.current = currentPageRef.current;
+        setShowSessionExpired(true);
+        setShowPinLock(false);
+      }
+      if (event === 'TOKEN_REFRESHED' && session) {
+        setSessionReady(true);
+      }
     });
     
     return () => {
       subscription?.unsubscribe();
     };
   }, []);
+
+  const [showSessionExpired, setShowSessionExpired] = useState(false);
+  const sessionExpiredPageRef = useRef(null);
+
+  const sessionCheckSkipUntilRef = useRef(0);
+
+  const sessionCheckFailCountRef = useRef(0);
+
+  useEffect(() => {
+    if (!supabase || !isAuthenticated) return;
+
+    const checkSession = async () => {
+      if (justLoggedInRef.current) return;
+      if (Date.now() < sessionCheckSkipUntilRef.current) return;
+      if (document.hidden) return;
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          if (!refreshed?.session) {
+            sessionCheckFailCountRef.current += 1;
+            console.log(`[session-check] No active session found (attempt ${sessionCheckFailCountRef.current}/3)`);
+            if (sessionCheckFailCountRef.current >= 3) {
+              sessionExpiredPageRef.current = currentPageRef.current;
+              setShowPinLock(false);
+              setShowSessionExpired(true);
+              sessionCheckFailCountRef.current = 0;
+            }
+            return;
+          }
+        }
+        sessionCheckFailCountRef.current = 0;
+        const activeSession = session || (await supabase.auth.getSession()).data?.session;
+        const fingerprint = localStorage.getItem('mint_session_fingerprint');
+        if (fingerprint && activeSession?.access_token) {
+          try {
+            const res = await fetch(`/api/sessions/validate?fingerprint=${encodeURIComponent(fingerprint)}`, {
+              headers: { Authorization: `Bearer ${activeSession.access_token}` },
+            });
+            const json = await res.json();
+            if (json.success && json.valid === false) {
+              console.log('[session-check] Session revoked remotely');
+              await supabase.auth.signOut({ scope: 'local' });
+              setShowPinLock(false);
+              setCurrentPage("welcome");
+              return;
+            }
+          } catch (valErr) {
+            // ignore validation errors
+          }
+        }
+      } catch (err) {
+        console.error('[session-check] Error:', err);
+      }
+    };
+
+    const initialDelay = setTimeout(() => checkSession(), 15000);
+    const interval = setInterval(checkSession, 30000);
+
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(interval);
+    };
+  }, [isAuthenticated]);
 
   const openAuthFlow = (step) => {
     setAuthStep(step);
@@ -398,6 +531,7 @@ const App = () => {
               onBack={noOp}
               onOpenNotifications={noOp}
               onOpenInvest={noOp}
+              onOpenStrategies={noOp}
             />
           </AppLayout>
         );
@@ -644,6 +778,15 @@ const App = () => {
     return renderPageContent(previousPageName, true);
   }, [previousPageName, currentPage, renderPageContent]);
 
+  const handleLockLogout = useCallback(() => {
+    if (supabase) supabase.auth.signOut({ scope: 'local' });
+    sessionStorage.removeItem('mint_pin_unlocked');
+    setShowPinLock(false);
+    setCurrentPage("welcome");
+  }, []);
+
+
+
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0d0d12]">
@@ -670,6 +813,53 @@ const App = () => {
       </div>
     );
   }
+
+  if (showSessionExpired && isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50">
+        <div className="flex w-full max-w-sm flex-col items-center px-8">
+          <div className="flex items-center gap-3 mb-10">
+            <img src="/assets/mint-logo.svg" alt="Mint" className="h-6 w-auto" />
+            <span className="mint-brand text-lg font-semibold tracking-[0.12em]">MINT</span>
+          </div>
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white border-2 border-slate-200 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="mt-6 text-2xl font-bold text-slate-900">Session Expired</h1>
+          <p className="mt-2 text-center text-sm text-slate-500">
+            Your session has expired. Please log in again to continue.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setShowSessionExpired(false);
+              setShowPinLock(false);
+              setCurrentPage("auth");
+              setAuthStep("loginEmail");
+            }}
+            className="mt-8 w-full rounded-full bg-slate-900 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition active:scale-95"
+          >
+            Log In Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showPinLock && isAuthenticated) {
+    return (
+      <PinLockScreen
+        onUnlock={() => {
+          setShowPinLock(false);
+          sessionStorage.setItem('mint_pin_unlocked', 'true');
+        }}
+        onLogout={handleLockLogout}
+      />
+    );
+  }
+
 
   if (currentPage === "home") {
     return (
@@ -801,6 +991,7 @@ const App = () => {
             navigateTo("notifications");
           }}
           onOpenInvest={() => navigateTo("markets")}
+          onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
         />
       </AppLayout>
     );
@@ -1111,9 +1302,9 @@ const App = () => {
 
   if (currentPage === "actions") {
     return (
-      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+      <SwipeBackWrapper onBack={() => navigateTo("home")} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <ActionsPage
-          onBack={goBack}
+          onBack={() => navigateTo("home")}
           onNavigate={navigateTo}
         />
       </SwipeBackWrapper>
@@ -1124,8 +1315,8 @@ const App = () => {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <IdentityCheckPage 
-          onBack={goBack} 
-          onComplete={() => navigateTo("actions")}
+          onBack={() => navigateTo("home")} 
+          onComplete={() => navigateTo("home")}
         />
       </SwipeBackWrapper>
     );
@@ -1174,6 +1365,22 @@ const App = () => {
     );
   }
 
+  if (currentPage === "activeSessions") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <ActiveSessionsPage onBack={goBack} onLogout={() => { if (supabase) supabase.auth.signOut(); setCurrentPage("welcome"); }} />
+      </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "pinSetup") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <PinSetupPage onBack={goBack} />
+      </SwipeBackWrapper>
+    );
+  }
+
   if (currentPage === "legal") {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
@@ -1195,26 +1402,95 @@ const App = () => {
     );
   }
 
-  const handleSignupComplete = async () => {
-    if (supabase) {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        await createWelcomeNotification(userData.user.id);
-        await refetchNotifications();
+  const recordSession = async () => {
+    try {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) return;
+      const ua = navigator.userAgent || '';
+      let browser = 'Unknown';
+      if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+      else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+      else if (ua.includes('Firefox')) browser = 'Firefox';
+      else if (ua.includes('Edg')) browser = 'Edge';
+      else if (ua.includes('Opera') || ua.includes('OPR')) browser = 'Opera';
+      let os = 'Unknown';
+      if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+      else if (ua.includes('Android')) os = 'Android';
+      else if (ua.includes('Mac OS')) os = 'macOS';
+      else if (ua.includes('Windows')) os = 'Windows';
+      else if (ua.includes('Linux')) os = 'Linux';
+      const isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      const deviceType = isMobile ? 'mobile' : 'desktop';
+      let fingerprint = localStorage.getItem('mint_session_fingerprint');
+      if (!fingerprint) {
+        fingerprint = 'sf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+        localStorage.setItem('mint_session_fingerprint', fingerprint);
       }
+      const res = await fetch('/api/sessions/record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userAgent: ua, browser, os, deviceType, sessionFingerprint: fingerprint }),
+      });
+      const json = await res.json();
+      if (json.sessionId) {
+        localStorage.setItem('mint_session_id', json.sessionId);
+      }
+    } catch (err) {
+      console.error('Failed to record session:', err);
     }
+  };
+
+  const handleSignupComplete = async () => {
+    justLoggedInRef.current = true;
+    sessionCheckSkipUntilRef.current = Date.now() + 30000;
+    localStorage.setItem('mint_last_activity', Date.now().toString());
     setCurrentPage("home");
+    try {
+      await recordSession();
+      if (supabase) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          await createWelcomeNotification(userData.user.id).catch(() => {});
+          await refetchNotifications().catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error('Post-signup tasks error:', err);
+    }
+    justLoggedInRef.current = false;
   };
 
   const handleLoginComplete = async () => {
-    if (supabase) {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        await createWelcomeNotification(userData.user.id);
-        await refetchNotifications();
-      }
+    justLoggedInRef.current = true;
+    sessionCheckSkipUntilRef.current = Date.now() + 30000;
+    setShowSessionExpired(false);
+    localStorage.setItem('mint_last_activity', Date.now().toString());
+    const returnPage = sessionExpiredPageRef.current;
+    if (returnPage && !['welcome', 'auth', 'linkExpired'].includes(returnPage)) {
+      setCurrentPage(returnPage);
+      sessionExpiredPageRef.current = null;
+    } else {
+      setCurrentPage("home");
     }
-    setCurrentPage("home");
+    try {
+      await recordSession();
+      if (supabase) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          await refetchNotifications().catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.error('Post-login tasks error:', err);
+    }
+    justLoggedInRef.current = false;
+  };
+
+  const handlePreLogin = () => {
+    justLoggedInRef.current = true;
+    sessionCheckSkipUntilRef.current = Date.now() + 30000;
   };
 
   return (
@@ -1222,6 +1498,7 @@ const App = () => {
       initialStep={authStep}
       onSignupComplete={handleSignupComplete}
       onLoginComplete={handleLoginComplete}
+      onPreLogin={handlePreLogin}
     />
   );
 };

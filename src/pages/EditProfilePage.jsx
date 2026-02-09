@@ -189,7 +189,7 @@ const EditProfilePage = ({ onNavigate, onBack }) => {
               className="h-20 w-20 rounded-full border border-slate-200 object-cover"
             />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-lg font-semibold text-slate-600">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-slate-200 bg-gradient-to-br from-violet-500 to-purple-600 text-lg font-semibold text-white">
               {initials || (loading ? "" : "—")}
             </div>
           )}
