@@ -493,21 +493,24 @@ app.post("/api/sumsub/status", async (req, res) => {
       status = "verified";
       console.log(`Status: verified (all steps GREEN)`);
     } else if (hasRejectedSteps || reviewAnswer === "RED") {
-      // User submitted documents but they were rejected
       status = "needs_resubmission";
       console.log(`Status: needs_resubmission (rejected)`);
     } else if (reviewStatus === "onHold") {
       status = "needs_resubmission";
       console.log(`Status: needs_resubmission (on hold)`);
+    } else if (hasIncompleteSteps && hasAnySubmittedSteps && (reviewStatus === "init" || !reviewStatus)) {
+      status = "needs_resubmission";
+      console.log(`Status: needs_resubmission (documents requested - reset with incomplete steps)`);
     } else if (reviewStatus === "pending" || reviewStatus === "queued") {
       status = "pending";
       console.log(`Status: pending (review pending/queued)`);
-    } else if (hasAnySubmittedSteps) {
-      // User has started verification but not complete yet
+    } else if (hasAnySubmittedSteps && !hasIncompleteSteps) {
       status = "pending";
       console.log(`Status: pending (verification in progress)`);
+    } else if (hasAnySubmittedSteps) {
+      status = "pending";
+      console.log(`Status: pending (partially submitted)`);
     } else {
-      // User has never submitted any documents
       status = "not_verified";
       console.log(`Status: not_verified (no documents submitted)`);
     }
