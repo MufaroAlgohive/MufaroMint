@@ -299,6 +299,9 @@ const App = () => {
         handleRecoveryFlow();
       }
       if (event === 'SIGNED_OUT') {
+        if (justLoggedInRef.current) {
+          return;
+        }
         if (!['welcome', 'auth', 'linkExpired'].includes(currentPageRef.current)) {
           setShowSessionExpired(true);
         } else {
@@ -1388,34 +1391,42 @@ const App = () => {
   const handleSignupComplete = async () => {
     justLoggedInRef.current = true;
     localStorage.setItem('mint_last_activity', Date.now().toString());
-    if (supabase) {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        await createWelcomeNotification(userData.user.id);
-        await refetchNotifications();
-      }
-    }
-    await recordSession();
     setCurrentPage("home");
+    try {
+      if (supabase) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          await createWelcomeNotification(userData.user.id).catch(() => {});
+          await refetchNotifications().catch(() => {});
+        }
+      }
+      await recordSession();
+    } catch (err) {
+      console.error('Post-signup tasks error:', err);
+    }
   };
 
   const handleLoginComplete = async () => {
     justLoggedInRef.current = true;
     setShowSessionExpired(false);
     localStorage.setItem('mint_last_activity', Date.now().toString());
-    if (supabase) {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user) {
-        await refetchNotifications();
-      }
-    }
-    await recordSession();
     const returnPage = sessionExpiredPageRef.current;
     if (returnPage && !['welcome', 'auth', 'linkExpired'].includes(returnPage)) {
       setCurrentPage(returnPage);
       sessionExpiredPageRef.current = null;
     } else {
       setCurrentPage("home");
+    }
+    try {
+      if (supabase) {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData?.user) {
+          await refetchNotifications().catch(() => {});
+        }
+      }
+      await recordSession();
+    } catch (err) {
+      console.error('Post-login tasks error:', err);
     }
   };
 
