@@ -141,7 +141,7 @@ const SettingsPage = ({ onNavigate, onBack }) => {
                   PIN / Passcode
                 </h2>
                 <p className="text-sm text-slate-500">
-                  {pinOn ? "4-digit PIN is active" : "Set a PIN for quick access"}
+                  {pinOn ? "5-digit PIN is active" : "Set a 5-digit PIN to secure your app"}
                 </p>
               </div>
             </div>

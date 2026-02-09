@@ -44,7 +44,7 @@ import BankLinkPage from "./pages/BankLinkPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
 import ActiveSessionsPage from "./pages/ActiveSessionsPage.jsx";
 import PinSetupPage from "./pages/PinSetupPage.jsx";
-import { useInactivityTimeout, InactivityLockScreen, hasInactivityExpired } from "./lib/useInactivityTimeout.jsx";
+import { useInactivityTimeout } from "./lib/useInactivityTimeout.jsx";
 import PinLockScreen from "./components/PinLockScreen.jsx";
 import { isPinEnabled } from "./lib/usePin.js";
 
@@ -96,27 +96,37 @@ const App = () => {
   const currentPageRef = useRef(currentPage);
   currentPageRef.current = currentPage;
   const isAuthenticated = !['welcome', 'auth', 'linkExpired'].includes(currentPage);
-  const { isLocked: isInactivityLocked, unlock: unlockInactivity } = useInactivityTimeout({
+  useInactivityTimeout({
     enabled: isAuthenticated,
     onLogout: () => {
       if (supabase) supabase.auth.signOut();
+      setShowPinLock(false);
       setCurrentPage("welcome");
     },
   });
 
   const justLoggedInRef = useRef(false);
-  const prevAuthRef = useRef(false);
+
   useEffect(() => {
-    if (isAuthenticated && !prevAuthRef.current && isPinEnabled() && !justLoggedInRef.current) {
-      if (hasInactivityExpired()) {
-        setShowPinLock(true);
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        localStorage.setItem('mint_app_hidden_at', Date.now().toString());
+      } else {
+        if (justLoggedInRef.current) return;
+        const hiddenAt = localStorage.getItem('mint_app_hidden_at');
+        if (hiddenAt) {
+          const elapsed = Date.now() - parseInt(hiddenAt, 10);
+          const ONE_MINUTE = 60 * 1000;
+          if (elapsed >= ONE_MINUTE && isPinEnabled() && isAuthenticated && !isCheckingAuth) {
+            setShowPinLock(true);
+          }
+          localStorage.removeItem('mint_app_hidden_at');
+        }
       }
-    }
-    prevAuthRef.current = isAuthenticated;
-    if (justLoggedInRef.current) {
-      justLoggedInRef.current = false;
-    }
-  }, [isAuthenticated]);
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated, isCheckingAuth]);
   
   const navigationHistory = useRef([]);
   const pageStateCache = useRef({});
@@ -266,6 +276,9 @@ const App = () => {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
             setCurrentPage("home");
+            if (isPinEnabled()) {
+              setShowPinLock(true);
+            }
           }
         } catch (err) {
           console.error("Session check error:", err);
@@ -753,20 +766,7 @@ const App = () => {
     setCurrentPage("welcome");
   }, []);
 
-  useEffect(() => {
-    if (isInactivityLocked && isAuthenticated) {
-      if (justLoggedInRef.current) {
-        unlockInactivity();
-        return;
-      }
-      if (isPinEnabled()) {
-        setShowPinLock(true);
-        unlockInactivity();
-      } else {
-        handleLockLogout();
-      }
-    }
-  }, [isInactivityLocked, isAuthenticated, handleLockLogout, unlockInactivity]);
+
 
   if (isCheckingAuth) {
     return (

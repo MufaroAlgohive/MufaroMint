@@ -3,7 +3,7 @@ import { ArrowLeft, Delete } from 'lucide-react';
 import { setPin, setPinEmail } from '../lib/usePin';
 import { supabase } from '../lib/supabase';
 
-const PIN_LENGTH = 4;
+const PIN_LENGTH = 5;
 
 const PinDots = ({ filled, shake }) => (
   <div className={`flex items-center justify-center gap-4 ${shake ? 'animate-shake' : ''}`}>
@@ -170,7 +170,7 @@ const PinSetupPage = ({ onNavigate, onBack }) => {
         </h1>
         <p className="mb-8 text-center text-sm text-slate-500">
           {step === 'enter'
-            ? 'Enter a 4-digit PIN to secure your app'
+            ? 'Enter a 5-digit PIN to secure your app'
             : 'Re-enter your PIN to confirm'}
         </p>
 

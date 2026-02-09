@@ -29,7 +29,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `useFinancialData.js` - Hook for financial data utilities
     - `strategyData.js` - Strategy price history fetching utilities
     - `useProfile.js` - Profile hook with id, email, name, avatarUrl, phoneNumber, dateOfBirth, gender, address, idNumber, watchlist
-    - `useInactivityTimeout.jsx` - Inactivity timeout hook and lock screen component with configurable timeout
+    - `useInactivityTimeout.jsx` - Inactivity timeout hook (5-min inactivity = full logout, no lock screen)
     - `usePin.js` - PIN/passcode utilities (save, verify, remove, isPinEnabled) with SHA-256 hashing
   - `pages/` - Page components
     - `StatementsPage.jsx` - Statements page with Strategy/Holdings/Financials tabs, real data from Supabase, PDF download
@@ -45,7 +45,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `SettingsPage.jsx` - Settings with biometrics, PIN, session timeout, active sessions, change password
     - `ChangePasswordPage.jsx` - Dedicated page for changing password
     - `ActiveSessionsPage.jsx` - View active login sessions with device/browser info, logout options
-    - `PinSetupPage.jsx` - 4-digit PIN setup with confirm step, dark glassmorphism UI
+    - `PinSetupPage.jsx` - 5-digit PIN setup with confirm step, light UI
     - `NotificationsPage.jsx` - Full notifications list with swipe-to-delete
     - `NotificationSettingsPage.jsx` - Notification type preferences toggles
   - `styles/` - CSS styles

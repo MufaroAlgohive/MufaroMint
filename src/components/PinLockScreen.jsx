@@ -10,7 +10,7 @@ import {
   isNativePlatform,
 } from '../lib/biometrics';
 
-const PIN_LENGTH = 4;
+const PIN_LENGTH = 5;
 const MAX_ATTEMPTS = 3;
 
 const PinDots = ({ filled, shake }) => (
