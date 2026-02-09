@@ -145,11 +145,19 @@ const MintBankPage = ({ onBack, onComplete }) => {
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-semibold text-slate-900">Linked Accounts</h1>
+          <h1 className="text-lg font-semibold text-slate-900">Bank Account</h1>
           <div className="h-10 w-10" aria-hidden="true" />
         </header>
 
-        <div className="mt-6 space-y-3">
+        <div className="flex flex-col items-center mt-10 mb-8">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 mb-5">
+            <CheckCircle2 className="h-10 w-10 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900">Successful</h2>
+          <p className="text-sm text-slate-500 mt-2 text-center max-w-[280px]">Your bank account has been securely linked and verified via TruID.</p>
+        </div>
+
+        <div className="space-y-3">
           <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-600 shrink-0">
               <Landmark className="h-6 w-6" />
