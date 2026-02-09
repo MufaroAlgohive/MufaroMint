@@ -93,6 +93,8 @@ const App = () => {
   const { refetch: refetchNotifications } = useNotificationsContext();
   const [showPinLock, setShowPinLock] = useState(false);
 
+  const currentPageRef = useRef(currentPage);
+  currentPageRef.current = currentPage;
   const isAuthenticated = !['welcome', 'auth', 'linkExpired'].includes(currentPage);
   const { isLocked: isInactivityLocked, unlock: unlockInactivity } = useInactivityTimeout({
     enabled: isAuthenticated,
@@ -296,12 +298,48 @@ const App = () => {
       if (event === 'PASSWORD_RECOVERY') {
         handleRecoveryFlow();
       }
+      if (event === 'SIGNED_OUT') {
+        if (!['welcome', 'auth', 'linkExpired'].includes(currentPageRef.current)) {
+          setShowSessionExpired(true);
+        } else {
+          setCurrentPage("welcome");
+        }
+        setShowPinLock(false);
+      }
+      if (event === 'TOKEN_REFRESHED' && session) {
+        setSessionReady(true);
+      }
     });
     
     return () => {
       subscription?.unsubscribe();
     };
   }, []);
+
+  const [showSessionExpired, setShowSessionExpired] = useState(false);
+  const sessionExpiredPageRef = useRef(null);
+
+  useEffect(() => {
+    if (!supabase || !isAuthenticated) return;
+
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          console.log('[session-check] No active session found');
+          sessionExpiredPageRef.current = currentPageRef.current;
+          setShowPinLock(false);
+          setShowSessionExpired(true);
+        }
+      } catch (err) {
+        console.error('[session-check] Error:', err);
+      }
+    };
+
+    const interval = setInterval(checkSession, 60000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, currentPage]);
 
   const openAuthFlow = (step) => {
     setAuthStep(step);
@@ -716,6 +754,40 @@ const App = () => {
             className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
           >
             Request New Link
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showSessionExpired && isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50">
+        <div className="flex w-full max-w-sm flex-col items-center px-8">
+          <div className="flex items-center gap-3 mb-10">
+            <img src="/assets/mint-logo.svg" alt="Mint" className="h-6 w-auto" />
+            <span className="mint-brand text-lg font-semibold tracking-[0.12em]">MINT</span>
+          </div>
+          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white border-2 border-slate-200 shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-slate-900" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="mt-6 text-2xl font-bold text-slate-900">Session Expired</h1>
+          <p className="mt-2 text-center text-sm text-slate-500">
+            Your session has expired. Please log in again to continue.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setShowSessionExpired(false);
+              setShowPinLock(false);
+              setCurrentPage("auth");
+              setAuthStep("loginEmail");
+            }}
+            className="mt-8 w-full rounded-full bg-slate-900 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition active:scale-95"
+          >
+            Log In Again
           </button>
         </div>
       </div>
@@ -1329,6 +1401,7 @@ const App = () => {
 
   const handleLoginComplete = async () => {
     justLoggedInRef.current = true;
+    setShowSessionExpired(false);
     localStorage.setItem('mint_last_activity', Date.now().toString());
     if (supabase) {
       const { data: userData } = await supabase.auth.getUser();
@@ -1337,7 +1410,13 @@ const App = () => {
       }
     }
     await recordSession();
-    setCurrentPage("home");
+    const returnPage = sessionExpiredPageRef.current;
+    if (returnPage && !['welcome', 'auth', 'linkExpired'].includes(returnPage)) {
+      setCurrentPage(returnPage);
+      sessionExpiredPageRef.current = null;
+    } else {
+      setCurrentPage("home");
+    }
   };
 
   return (
