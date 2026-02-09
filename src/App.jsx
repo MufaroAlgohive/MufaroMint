@@ -682,6 +682,10 @@ const App = () => {
 
   useEffect(() => {
     if (isInactivityLocked && isAuthenticated) {
+      if (justLoggedInRef.current) {
+        unlockInactivity();
+        return;
+      }
       if (isPinEnabled()) {
         setShowPinLock(true);
         unlockInactivity();
@@ -1271,6 +1275,7 @@ const App = () => {
 
   const handleSignupComplete = async () => {
     justLoggedInRef.current = true;
+    localStorage.setItem('mint_last_activity', Date.now().toString());
     if (supabase) {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
@@ -1283,6 +1288,7 @@ const App = () => {
 
   const handleLoginComplete = async () => {
     justLoggedInRef.current = true;
+    localStorage.setItem('mint_last_activity', Date.now().toString());
     if (supabase) {
       const { data: userData } = await supabase.auth.getUser();
       if (userData?.user) {
