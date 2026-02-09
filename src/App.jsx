@@ -117,8 +117,14 @@ const App = () => {
         if (hiddenAt) {
           const elapsed = Date.now() - parseInt(hiddenAt, 10);
           const ONE_MINUTE = 60 * 1000;
-          if (elapsed >= ONE_MINUTE && isPinEnabled() && isAuthenticated && !isCheckingAuth) {
-            setShowPinLock(true);
+          if (elapsed >= ONE_MINUTE && isAuthenticated && !isCheckingAuth) {
+            if (isPinEnabled()) {
+              setShowPinLock(true);
+            } else {
+              if (supabase) supabase.auth.signOut({ scope: 'local' });
+              setShowPinLock(false);
+              setCurrentPage("welcome");
+            }
           }
           localStorage.removeItem('mint_app_hidden_at');
         }
