@@ -100,6 +100,7 @@ const App = () => {
     enabled: isAuthenticated,
     onLogout: () => {
       if (supabase) supabase.auth.signOut({ scope: 'local' });
+      sessionStorage.removeItem('mint_pin_unlocked');
       setShowPinLock(false);
       setCurrentPage("welcome");
     },
@@ -119,9 +120,11 @@ const App = () => {
           const ONE_MINUTE = 60 * 1000;
           if (elapsed >= ONE_MINUTE && isAuthenticated && !isCheckingAuth) {
             if (isPinEnabled()) {
+              sessionStorage.removeItem('mint_pin_unlocked');
               setShowPinLock(true);
             } else {
               if (supabase) supabase.auth.signOut({ scope: 'local' });
+              sessionStorage.removeItem('mint_pin_unlocked');
               setShowPinLock(false);
               setCurrentPage("welcome");
             }
@@ -282,7 +285,8 @@ const App = () => {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
             setCurrentPage("home");
-            if (isPinEnabled()) {
+            const alreadyUnlocked = sessionStorage.getItem('mint_pin_unlocked') === 'true';
+            if (isPinEnabled() && !alreadyUnlocked) {
               setShowPinLock(true);
             }
           }
@@ -768,6 +772,7 @@ const App = () => {
 
   const handleLockLogout = useCallback(() => {
     if (supabase) supabase.auth.signOut({ scope: 'local' });
+    sessionStorage.removeItem('mint_pin_unlocked');
     setShowPinLock(false);
     setCurrentPage("welcome");
   }, []);
@@ -838,7 +843,10 @@ const App = () => {
   if (showPinLock && isAuthenticated) {
     return (
       <PinLockScreen
-        onUnlock={() => setShowPinLock(false)}
+        onUnlock={() => {
+          setShowPinLock(false);
+          sessionStorage.setItem('mint_pin_unlocked', 'true');
+        }}
         onLogout={handleLockLogout}
       />
     );
