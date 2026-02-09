@@ -123,11 +123,8 @@ const ConnectionStage = ({ onComplete, onError }) => {
             }
 
             setStatus("success");
-            setMessage("Banking data verified successfully.");
-
-            setTimeout(() => {
-              onComplete(collectionId, captureData.success ? captureData.snapshot : null);
-            }, 2000);
+            setMessage("Bank account linked successfully!");
+            onComplete(collectionId, captureData.success ? captureData.snapshot : null);
           } catch (err) {
             console.error("Capture error", err);
             setStatus("error");
@@ -736,7 +733,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
       if (!snapshot || step !== 0) return;
       setAutoAdvance(true);
       const timer = setTimeout(() => {
-         setStep(2);
+         setStep("bank_success");
          setAutoAdvance(false);
       }, 900);
       return () => clearTimeout(timer);
@@ -798,7 +795,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
          if (snapshotData.avg_monthly_income) setField("annualIncome", String(snapshotData.avg_monthly_income * 12));
          if (snapshotData.avg_monthly_expenses) setField("annualExpenses", String(snapshotData.avg_monthly_expenses * 12));
      }
-     setStep(2);
+     setStep("bank_success");
   };
 
   const handleEnrichmentSubmit = async (finalData) => {
@@ -889,6 +886,38 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
 
   // Render Based on Step
    const renderContent = () => {
+     if (step === "bank_success") {
+        return (
+           <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
+              <header className="w-full flex items-center justify-start pt-10 pb-6">
+                 <button
+                    onClick={() => onBack ? onBack() : window.history.back()}
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
+                 >
+                    <ArrowLeft className="h-5 w-5" />
+                 </button>
+              </header>
+
+              <div className="mt-16 flex flex-col items-center justify-center text-center">
+                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600 mb-4">
+                    <CheckCircle2 className="h-10 w-10" />
+                 </div>
+                 <h2 className="text-lg font-semibold text-slate-900 mb-2">Bank Account Linked</h2>
+                 <p className="text-sm text-slate-500 mb-8 max-w-[280px]">
+                    Your bank account has been successfully verified and linked.
+                 </p>
+                 <button
+                    type="button"
+                    onClick={() => onBack ? onBack() : window.history.back()}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-900 px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 active:scale-95"
+                 >
+                    Done
+                 </button>
+              </div>
+           </div>
+        );
+     }
+
      switch(step) {
         case 0:
                   if (loadingProfile) {
@@ -1040,7 +1069,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
     return `${step} / 3`;
   };
 
-   if (step === 0) {
+   if (step === 0 || step === "bank_success") {
       return renderContent();
    }
 
