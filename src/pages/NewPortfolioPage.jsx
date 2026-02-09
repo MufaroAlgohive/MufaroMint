@@ -759,8 +759,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
       <div className="relative mx-auto flex w-full max-w-sm flex-col gap-4 px-4 pb-10 md:max-w-md md:px-8">
         {strategies.length === 0 ? (
           <button 
-            onClick={() => { /* Navigate to strategy selection */ }}
-            className="w-full py-3.5 rounded-full bg-gradient-to-r from-purple-600 to-purple-700 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-purple-600/30 transition hover:-translate-y-0.5 hover:shadow-xl"
+            onClick={() => onOpenStrategies && onOpenStrategies()}
+            className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl"
           >
             Make Your First Investment
           </button>
@@ -933,6 +933,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           </div>
         </section>
 
+              {strategies.length > 0 && (
               <button
                 onClick={() => (onOpenStrategies || onOpenInvest) && (onOpenStrategies || onOpenInvest)()}
                 className="w-full py-3.5 rounded-full bg-gradient-to-r from-slate-800 to-slate-900 text-sm font-semibold uppercase tracking-[0.1em] text-white shadow-lg shadow-slate-900/30 transition hover:-translate-y-0.5 hover:shadow-xl flex items-center justify-center gap-2"
@@ -940,6 +941,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 <Plus className="h-4 w-4" />
                 Buy More Strategies
               </button>
+              )}
       </div>
         </>
         </motion.div>

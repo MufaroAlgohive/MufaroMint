@@ -65,14 +65,16 @@ const MorePage = ({ onNavigate }) => {
           .from("profiles")
           .select("first_name, last_name, email, avatar_url")
           .eq("id", userData.user.id)
-          .single();
-
-        if (profileError) {
-          throw profileError;
-        }
+          .maybeSingle();
 
         if (alive) {
-          setProfile(profileData);
+          const metadata = userData.user.user_metadata || {};
+          setProfile(profileData || {
+            first_name: metadata.first_name || "",
+            last_name: metadata.last_name || "",
+            email: userData.user.email || "",
+            avatar_url: metadata.avatar_url || "",
+          });
           setLoading(false);
         }
       } catch (err) {
@@ -154,7 +156,7 @@ const MorePage = ({ onNavigate }) => {
               className="h-20 w-20 rounded-full border border-slate-200 object-cover"
             />
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border border-slate-200 bg-slate-100 text-lg font-semibold text-slate-600">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-lg font-semibold text-white">
               {initials || "—"}
             </div>
           )}
