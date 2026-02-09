@@ -206,21 +206,6 @@ const SettingsPage = ({ onNavigate, onBack }) => {
           </div>
         </button>
 
-        <p className="text-xs font-bold uppercase text-slate-400 px-1 pt-2">Developer</p>
-
-        <button
-          type="button"
-          onClick={() => onNavigate?.("biometricsDebug")}
-          className="flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left shadow-sm transition active:scale-[0.99]"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700">
-            <Fingerprint className="h-5 w-5" />
-          </span>
-          <div className="flex-1">
-            <h2 className="text-base font-semibold text-slate-900">Biometrics Debug</h2>
-            <p className="text-sm text-slate-500">Test Face ID and view diagnostic logs</p>
-          </div>
-        </button>
 
       </div>
     </div>
