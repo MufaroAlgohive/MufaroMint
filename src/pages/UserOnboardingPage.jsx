@@ -386,9 +386,18 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
             .insert({ user_id: userId, ...actionPayload });
         }
 
+        const sofData = JSON.stringify({
+          risk_disclosure_agreed: agreedRiskDisclosure || false,
+          source_of_funds: sourceOfFunds || null,
+          source_of_funds_other: sourceOfFunds === "other" ? (sourceOfFundsOther || null) : null,
+          expected_monthly_investment: expectedMonthlyInvestment || null,
+          completed_at: new Date().toISOString(),
+        });
+
         const onboardingPayload = {
           user_id: userId,
           kyc_status: "onboarding_complete",
+          sumsub_raw: sofData,
         };
 
         if (existingOnboardingId) {

@@ -141,7 +141,8 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - Step 3: Risk & Disclosure acknowledgment (investment risk warnings, market volatility, no guaranteed returns, regulatory compliance, diversification)
   - Step 4: Source of Funds declaration (primary source, expected monthly investment amount, legitimacy declaration)
   - Step 5: Terms & Conditions and Privacy Policy agreements
-  - Saves onboarding data to Supabase `user_onboarding` table (including risk_disclosure_agreed, source_of_funds, expected_monthly_investment)
+  - Saves onboarding data to Supabase `user_onboarding` table
+  - Source of funds, risk disclosure, and expected monthly investment stored as JSON in `sumsub_raw` column (external DB constraint - can't add new columns)
   - Sumsub integration for KYC verification with status checking
   - Backend API server on port 3001 for API calls
   - Glassmorphism UI with smooth animations
