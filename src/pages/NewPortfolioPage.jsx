@@ -1063,21 +1063,24 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
 
                 <div className="mb-3 px-1">
                   {(() => {
-                    const perSharePrice = liveQuotes[selectedStock.ticker]?.price || selectedStock.price;
-                    const changePct = liveQuotes[selectedStock.ticker]?.changePercent ?? selectedStock.dailyChange;
-                    if (isMyStock && userQuantity > 0) {
-                      const holdingValue = perSharePrice * userQuantity;
-                      const previousValue = holdingValue / (1 + changePct / 100);
-                      const absChange = holdingValue - previousValue;
+                    if (isMyStock && userHolding && userQuantity > 0) {
+                      const holdingMarketValue = (userHolding.market_value || 0) / 100;
+                      const costBasis = ((userHolding.avg_fill || 0) * userQuantity) / 100;
+                      const pnl = holdingMarketValue - costBasis;
+                      const pnlPct = costBasis > 0 ? ((pnl / costBasis) * 100) : 0;
+                      const dailyChangePct = userHolding.change_percent || 0;
+                      const dailyChangeAmt = (holdingMarketValue * dailyChangePct) / (100 + dailyChangePct);
                       return (
                         <>
-                          <p className="text-3xl font-bold text-slate-900">{formatCurrency(holdingValue)}</p>
-                          <p className={`text-sm ${changePct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {absChange >= 0 ? '+' : '-'}{formatCurrency(Math.abs(absChange))} ({changePct >= 0 ? '+' : ''}{changePct.toFixed(2)}% Today)
+                          <p className="text-3xl font-bold text-slate-900">{formatCurrency(holdingMarketValue)}</p>
+                          <p className={`text-sm ${pnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {pnl >= 0 ? '+' : ''}{formatCurrency(pnl)} ({pnl >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
                           </p>
                         </>
                       );
                     }
+                    const perSharePrice = liveQuotes[selectedStock.ticker]?.price || selectedStock.price;
+                    const changePct = liveQuotes[selectedStock.ticker]?.changePercent ?? selectedStock.dailyChange;
                     return (
                       <>
                         <p className="text-3xl font-bold text-slate-900">{formatCurrency(perSharePrice)}</p>
