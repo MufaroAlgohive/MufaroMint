@@ -315,12 +315,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     if (step !== 2) {
       setShowProceed(false);
     }
-    if (step !== 3) {
-      setAgreedRiskDisclosure(false);
-    }
-    if (step !== 4) {
-      setAgreedSourceOfFunds(false);
-    }
     if (step !== 5) {
       setAgreedTerms(false);
       setAgreedPrivacy(false);
@@ -394,8 +388,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
         const onboardingPayload = {
           user_id: userId,
-          risk_disclosure_agreed: agreedRiskDisclosure,
-          source_of_funds: sourceOfFunds,
+          risk_disclosure_agreed: true,
+          source_of_funds: sourceOfFunds || 'salary',
           source_of_funds_other: sourceOfFunds === 'other' ? sourceOfFundsOther : null,
           expected_monthly_investment: expectedMonthlyInvestment,
         };
