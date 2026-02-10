@@ -322,22 +322,23 @@ const HomePage = ({
     getUser();
   }, []);
 
-  useEffect(() => {
-    const checkOnboarding = async () => {
-      if (!supabase || !profile?.id) return;
-      try {
-        const { data } = await supabase
-          .from("user_onboarding")
-          .select("risk_disclosure_agreed, source_of_funds")
-          .eq("user_id", profile.id)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        const record = data?.[0];
-        setOnboardingComplete(!!(record?.risk_disclosure_agreed && record?.source_of_funds));
-      } catch {}
-    };
-    checkOnboarding();
+  const fetchOnboardingStatus = React.useCallback(async () => {
+    if (!supabase || !profile?.id) return;
+    try {
+      const { data } = await supabase
+        .from("user_onboarding")
+        .select("risk_disclosure_agreed, source_of_funds")
+        .eq("user_id", profile.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const record = data?.[0];
+      setOnboardingComplete(!!(record?.risk_disclosure_agreed && record?.source_of_funds));
+    } catch {}
   }, [profile?.id]);
+
+  useEffect(() => {
+    fetchOnboardingStatus();
+  }, [fetchOnboardingStatus]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -367,6 +368,14 @@ const HomePage = ({
       }, () => {
         if (typeof fetchRequiredActions === 'function') fetchRequiredActions();
       })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_onboarding',
+        filter: `user_id=eq.${profile.id}`
+      }, () => {
+        fetchOnboardingStatus();
+      })
       .subscribe();
 
     fetchBestAssets();
@@ -375,7 +384,7 @@ const HomePage = ({
     return () => {
       supabase.removeChannel(homeSubscription);
     };
-  }, [profile?.id, fetchBestAssets, fetchGoals, fetchFinancialData, fetchRequiredActions]);
+  }, [profile?.id, fetchBestAssets, fetchGoals, fetchFinancialData, fetchRequiredActions, fetchOnboardingStatus]);
 
   useEffect(() => {
     if (pricesLastUpdated && profile?.id) {
