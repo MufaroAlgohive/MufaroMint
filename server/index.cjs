@@ -1108,7 +1108,8 @@ app.post("/api/banking/unlink", async (req, res) => {
     if (!token) return res.status(401).json({ success: false, error: "Missing token" });
 
     const db = supabaseAdmin || supabase;
-    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
     if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
 
     await db

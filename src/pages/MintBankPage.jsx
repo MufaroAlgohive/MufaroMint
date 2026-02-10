@@ -1,21 +1,32 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Landmark, ShieldCheck, CheckCircle2, Shield, X, XCircle, Lock, Info, ChevronDown, ChevronUp, CreditCard, Wallet, Plus } from "lucide-react";
+import { ArrowLeft, Landmark, ShieldCheck, CheckCircle2, Shield, X, XCircle, Lock, Info, ChevronDown, ChevronUp, CreditCard, Wallet, Plus, Unlink, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
 const BANK_BRANDS = {
   "fnb": { name: "FNB", color: "#009A44", textColor: "#FFFFFF" },
   "first national bank": { name: "FNB", color: "#009A44", textColor: "#FFFFFF" },
+  "first national": { name: "FNB", color: "#009A44", textColor: "#FFFFFF" },
   "standard bank": { name: "SB", color: "#003DA5", textColor: "#FFFFFF" },
+  "standard": { name: "SB", color: "#003DA5", textColor: "#FFFFFF" },
   "absa": { name: "ABSA", color: "#AF1F2D", textColor: "#FFFFFF" },
+  "abs": { name: "ABSA", color: "#AF1F2D", textColor: "#FFFFFF" },
   "nedbank": { name: "NB", color: "#009639", textColor: "#FFFFFF" },
+  "ned": { name: "NB", color: "#009639", textColor: "#FFFFFF" },
   "capitec": { name: "C", color: "#0033A0", textColor: "#FFFFFF" },
   "capitec bank": { name: "C", color: "#0033A0", textColor: "#FFFFFF" },
+  "cap": { name: "C", color: "#0033A0", textColor: "#FFFFFF" },
   "investec": { name: "IN", color: "#003B5C", textColor: "#FFFFFF" },
   "discovery bank": { name: "D", color: "#FF6B00", textColor: "#FFFFFF" },
+  "discovery": { name: "D", color: "#FF6B00", textColor: "#FFFFFF" },
+  "disc": { name: "D", color: "#FF6B00", textColor: "#FFFFFF" },
   "tymebank": { name: "TB", color: "#FFD100", textColor: "#1A1A1A" },
+  "tyme": { name: "TB", color: "#FFD100", textColor: "#1A1A1A" },
   "african bank": { name: "AB", color: "#E31937", textColor: "#FFFFFF" },
   "bank zero": { name: "BZ", color: "#00C4B3", textColor: "#FFFFFF" },
+  "bidvest": { name: "BV", color: "#1B3A6B", textColor: "#FFFFFF" },
+  "sasfin": { name: "SF", color: "#003366", textColor: "#FFFFFF" },
+  "grindrod": { name: "GR", color: "#005B2F", textColor: "#FFFFFF" },
 };
 
 const getBankBrand = (bankName) => {
@@ -25,11 +36,11 @@ const getBankBrand = (bankName) => {
     if (key.includes(pattern)) return brand;
   }
   const initials = bankName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
-  return { name: initials || "BA", color: "#64748b", textColor: "#FFFFFF" };
+  return { name: initials || "BA", color: "#334155", textColor: "#FFFFFF" };
 };
 
 const maskAccountNumber = (num) => {
-  if (!num) return "••••";
+  if (!num || num.trim().length === 0) return "";
   const cleaned = num.replace(/\s/g, "");
   if (cleaned.length <= 4) return cleaned;
   return "•••• " + cleaned.slice(-4);
@@ -49,7 +60,7 @@ const saveLinkedBanks = (banks) => {
 };
 
 const MintBankPage = ({ onBack, onComplete }) => {
-  const { bankLinked } = useRequiredActions();
+  const { bankLinked, refetch: refetchActions } = useRequiredActions();
   const [step, setStep] = useState("intro");
   const [showDetails, setShowDetails] = useState(false);
   const [status, setStatus] = useState("idle");
@@ -59,6 +70,12 @@ const MintBankPage = ({ onBack, onComplete }) => {
   const [linkedBanks, setLinkedBanks] = useState(() => getLinkedBanks());
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
+  const [showUnlinkModal, setShowUnlinkModal] = useState(false);
+  const [unlinkPassword, setUnlinkPassword] = useState("");
+  const [unlinkError, setUnlinkError] = useState("");
+  const [unlinkLoading, setUnlinkLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [unlinkSuccess, setUnlinkSuccess] = useState(false);
 
   useEffect(() => {
     if (bankLinked) {
@@ -121,6 +138,63 @@ const MintBankPage = ({ onBack, onComplete }) => {
     setStatus("cancelled");
     setMessage("Bank linking was cancelled. You can try again when you're ready.");
   }, []);
+
+  const handleUnlinkBank = async () => {
+    if (!unlinkPassword.trim()) {
+      setUnlinkError("Please enter your password");
+      return;
+    }
+    setUnlinkLoading(true);
+    setUnlinkError("");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) throw new Error("Could not retrieve account email");
+
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: unlinkPassword,
+      });
+      if (signInErr) {
+        setUnlinkError("Incorrect password. Please try again.");
+        setUnlinkLoading(false);
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expired");
+
+      const res = await fetch("/api/banking/unlink", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Failed to unlink bank account");
+      }
+
+      localStorage.removeItem("mint_linked_banks");
+      setLinkedBanks([]);
+      setShowUnlinkModal(false);
+      setUnlinkPassword("");
+      setUnlinkSuccess(true);
+      if (refetchActions) refetchActions();
+
+      setTimeout(() => {
+        setUnlinkSuccess(false);
+        setStep("intro");
+        setStatus("idle");
+        setMessage("");
+      }, 2000);
+    } catch (err) {
+      console.error("Unlink error:", err);
+      setUnlinkError(err.message || "Something went wrong");
+    } finally {
+      setUnlinkLoading(false);
+    }
+  };
 
   const pollCountRef = useRef(0);
   const MAX_POLLS = 120;
@@ -304,12 +378,124 @@ const MintBankPage = ({ onBack, onComplete }) => {
           >
             Done
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowUnlinkModal(true);
+              setUnlinkPassword("");
+              setUnlinkError("");
+              setShowPassword(false);
+            }}
+            className="w-full py-3 rounded-full text-red-500 font-semibold text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <Unlink className="h-4 w-4" />
+            Unlink Bank Account
+          </button>
         </div>
 
         <div className="mt-8 flex items-center justify-center gap-2 text-xs text-slate-400">
           <Shield className="h-4 w-4" />
           <span>All accounts are securely verified through TruID Connect.</span>
         </div>
+
+        {unlinkSuccess && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-8 flex flex-col items-center gap-4 shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+              <p className="text-lg font-semibold text-slate-900">Bank Unlinked</p>
+              <p className="text-sm text-slate-500 text-center">Your bank account has been successfully unlinked.</p>
+            </div>
+          </div>
+        )}
+
+        {showUnlinkModal && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 animate-in fade-in duration-200" onClick={() => setShowUnlinkModal(false)}>
+            <div
+              className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom-8 duration-300"
+              style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-bold text-slate-900">Unlink Bank Account</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowUnlinkModal(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-100 mb-6">
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Are you sure you want to unlink your bank account?</p>
+                  <p className="text-xs text-amber-600 mt-1">This will remove your linked bank details. You can re-link anytime.</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={unlinkPassword}
+                    onChange={(e) => { setUnlinkPassword(e.target.value); setUnlinkError(""); }}
+                    placeholder="Enter your password"
+                    className="w-full px-4 py-3.5 pr-12 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all"
+                    autoComplete="current-password"
+                    onKeyDown={(e) => { if (e.key === "Enter") handleUnlinkBank(); }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
+                {unlinkError && (
+                  <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                    <XCircle className="h-3 w-3" />
+                    {unlinkError}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={handleUnlinkBank}
+                  disabled={unlinkLoading}
+                  className="w-full py-4 rounded-full bg-red-500 text-white font-semibold text-sm uppercase tracking-[0.15em] shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {unlinkLoading ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                      Unlinking...
+                    </>
+                  ) : (
+                    <>
+                      <Unlink className="h-4 w-4" />
+                      Unlink Account
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowUnlinkModal(false)}
+                  className="w-full py-4 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm uppercase tracking-[0.15em] active:scale-95 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
