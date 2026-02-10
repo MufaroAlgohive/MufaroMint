@@ -134,13 +134,16 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - Subscriptions (formerly My Orders)
   - Log out
 - **User Identification Onboarding Flow**:
-  - 3-step verification process triggered from Actions page
-  - Step 1: Employment details (status, employer, income)
-  - Step 2: Identity verification via TruID Connect
-  - Step 3: Terms & Conditions and Privacy Policy agreements
-  - Saves onboarding data to Supabase `user_onboarding` table
-  - TruID integration for KYC verification with status checking
-  - Backend API server on port 3001 for TruID API calls
+  - 5-step verification process triggered from Actions page
+  - Step 0: Welcome overview (shows 4 steps)
+  - Step 1: Employment details (status, employer, income) - currently skipped
+  - Step 2: Identity verification via Sumsub KYC
+  - Step 3: Risk & Disclosure acknowledgment (investment risk warnings, market volatility, no guaranteed returns, regulatory compliance, diversification)
+  - Step 4: Source of Funds declaration (primary source, expected monthly investment amount, legitimacy declaration)
+  - Step 5: Terms & Conditions and Privacy Policy agreements
+  - Saves onboarding data to Supabase `user_onboarding` table (including risk_disclosure_agreed, source_of_funds, expected_monthly_investment)
+  - Sumsub integration for KYC verification with status checking
+  - Backend API server on port 3001 for API calls
   - Glassmorphism UI with smooth animations
 - **Sumsub KYC Integration** (Primary):
   - **Architecture**: Sumsub is the single source of truth for KYC status - no local database storage

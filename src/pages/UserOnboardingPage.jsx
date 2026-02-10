@@ -34,6 +34,26 @@ const FileContractIcon = (props) => (
   </svg>
 );
 
+const ShieldIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"
+    />
+  </svg>
+);
+
+const WalletIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" {...props}>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1 0 6h3.75A2.25 2.25 0 0 0 21 13.5V12Zm0 0V9.75a2.25 2.25 0 0 0-2.25-2.25h-13.5A2.25 2.25 0 0 0 3 9.75v7.5A2.25 2.25 0 0 0 5.25 19.5h13.5A2.25 2.25 0 0 0 21 17.25V12ZM5.25 7.5h13.5A2.25 2.25 0 0 1 21 9.75M5.25 7.5A2.25 2.25 0 0 0 3 9.75M5.25 7.5V6a2.25 2.25 0 0 1 2.25-2.25h9A2.25 2.25 0 0 1 18.75 6v1.5"
+    />
+  </svg>
+);
+
 const employmentOptions = [
   { value: "", label: "Select your status" },
   { value: "employed", label: "Employed" },
@@ -42,6 +62,29 @@ const employmentOptions = [
   { value: "student", label: "Student" },
   { value: "contractor", label: "Contractor" },
   { value: "retired", label: "Retired" },
+];
+
+const sourceOfFundsOptions = [
+  { value: "", label: "Select source of funds" },
+  { value: "salary", label: "Salary / Employment Income" },
+  { value: "business", label: "Business Income" },
+  { value: "savings", label: "Savings" },
+  { value: "investment_returns", label: "Investment Returns" },
+  { value: "inheritance", label: "Inheritance" },
+  { value: "gift", label: "Gift" },
+  { value: "pension", label: "Pension / Retirement Fund" },
+  { value: "property_sale", label: "Sale of Property" },
+  { value: "other", label: "Other" },
+];
+
+const monthlyInvestmentOptions = [
+  { value: "", label: "Select amount range" },
+  { value: "under_1000", label: "Less than R1,000" },
+  { value: "1000_5000", label: "R1,000 - R5,000" },
+  { value: "5000_10000", label: "R5,000 - R10,000" },
+  { value: "10000_50000", label: "R10,000 - R50,000" },
+  { value: "50000_100000", label: "R50,000 - R100,000" },
+  { value: "over_100000", label: "More than R100,000" },
 ];
 
 const OnboardingProcessPage = ({ onBack, onComplete }) => {
@@ -64,15 +107,26 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [existingOnboardingId, setExistingOnboardingId] = useState(null);
+  const [agreedRiskDisclosure, setAgreedRiskDisclosure] = useState(false);
+  const [sourceOfFunds, setSourceOfFunds] = useState("");
+  const [sourceOfFundsOther, setSourceOfFundsOther] = useState("");
+  const [expectedMonthlyInvestment, setExpectedMonthlyInvestment] = useState("");
+  const [agreedSourceOfFunds, setAgreedSourceOfFunds] = useState(false);
+  const [sofDropdownOpen, setSofDropdownOpen] = useState(false);
   const [authStatus, setAuthStatus] = useState({
     isChecked: false,
     isAuthenticated: false,
     displayName: "",
   });
   const dropdownRef = useRef(null);
+  const sofDropdownRef = useRef(null);
 
   const selectedOption = employmentOptions.find(
     (option) => option.value === employmentStatus
+  );
+
+  const selectedSofOption = sourceOfFundsOptions.find(
+    (option) => option.value === sourceOfFunds
   );
 
   const goToStep = (nextStep) => {
@@ -90,7 +144,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   };
 
   const handleBack = () => {
-    if (step === 3) {
+    if (step === 5) {
+      goToStep(4);
+    } else if (step === 4) {
+      goToStep(3);
+    } else if (step === 3) {
       goToStep(2);
     } else if (step === 2) {
       goToStep(0);
@@ -102,6 +160,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const handleSelect = (value) => {
     setEmploymentStatus(value);
     setIsDropdownOpen(false);
+  };
+
+  const handleSofSelect = (value) => {
+    setSourceOfFunds(value);
+    setSofDropdownOpen(false);
   };
 
   const toNumericIncome = (value) => {
@@ -178,6 +241,9 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
+      if (sofDropdownRef.current && !sofDropdownRef.current.contains(event.target)) {
+        setSofDropdownOpen(false);
+      }
     };
 
     document.addEventListener("click", handleOutsideClick);
@@ -249,6 +315,12 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       setShowProceed(false);
     }
     if (step !== 3) {
+      setAgreedRiskDisclosure(false);
+    }
+    if (step !== 4) {
+      setAgreedSourceOfFunds(false);
+    }
+    if (step !== 5) {
       setAgreedTerms(false);
       setAgreedPrivacy(false);
     }
@@ -261,6 +333,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
   const showStudentSection = employmentStatus === "student";
   const agreementReady = agreedTerms && agreedPrivacy;
+  const sofReady = sourceOfFunds && agreedSourceOfFunds;
 
   const handleFinalComplete = async () => {
     if (!supabase) {
@@ -279,15 +352,33 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           .eq("user_id", userId)
           .maybeSingle();
 
+        const actionPayload = {
+          kyc_verified: true,
+        };
+
         if (existingAction) {
           await supabase
             .from("required_actions")
-            .update({ kyc_verified: true })
+            .update(actionPayload)
             .eq("user_id", userId);
         } else {
           await supabase
             .from("required_actions")
-            .insert({ user_id: userId, kyc_verified: true });
+            .insert({ user_id: userId, ...actionPayload });
+        }
+
+        const onboardingPayload = {
+          user_id: userId,
+          risk_disclosure_agreed: agreedRiskDisclosure,
+          source_of_funds: sourceOfFunds,
+          source_of_funds_other: sourceOfFunds === 'other' ? sourceOfFundsOther : null,
+          expected_monthly_investment: expectedMonthlyInvestment,
+        };
+
+        if (existingOnboardingId) {
+          await supabase.from("user_onboarding").update(onboardingPayload).eq("id", existingOnboardingId);
+        } else {
+          await supabase.from("user_onboarding").insert(onboardingPayload);
         }
       }
     } catch (err) {
@@ -300,7 +391,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   return (
     <div
       className={`onboarding-process ${isFading ? "fade-out" : "fade-in"} ${
-        isDropdownOpen ? "dropdown-open" : ""
+        isDropdownOpen || sofDropdownOpen ? "dropdown-open" : ""
       }`}
     >
       <div className="min-h-screen flex items-center justify-center px-4 py-8 relative">
@@ -345,6 +436,10 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 <div className="step-circle">1</div>
                 <div className="step-line"></div>
                 <div className="step-circle">2</div>
+                <div className="step-line"></div>
+                <div className="step-circle">3</div>
+                <div className="step-line"></div>
+                <div className="step-circle">4</div>
               </div>
 
               <div className="step-info animate-fade-in delay-3">
@@ -360,6 +455,26 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
                 <div className="step-item">
                   <div className="step-number">2</div>
+                  <div className="step-content">
+                    <div className="step-title">Risk Disclosure</div>
+                    <div className="step-description">
+                      Review investment risk disclosure
+                    </div>
+                  </div>
+                </div>
+
+                <div className="step-item">
+                  <div className="step-number">3</div>
+                  <div className="step-content">
+                    <div className="step-title">Source of Funds</div>
+                    <div className="step-description">
+                      Declare the origin of your investment funds
+                    </div>
+                  </div>
+                </div>
+
+                <div className="step-item">
+                  <div className="step-number">4</div>
                   <div className="step-content">
                     <div className="step-title">Agreements</div>
                     <div className="step-description">
@@ -381,7 +496,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  You'll be taken through our two-step process
+                  You'll be taken through our four-step process
                 </p>
               </div>
             </div>
@@ -392,7 +507,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   className="text-xs uppercase tracking-[0.2em] mb-2"
                   style={{ color: "hsl(270 20% 55%)" }}
                 >
-                  Step 1 of 3
+                  Step 1 of 4
                 </p>
                 <h2
                   className="text-3xl font-light tracking-tight mb-2"
@@ -617,7 +732,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   className="text-xs uppercase tracking-[0.2em] mb-2"
                   style={{ color: "#6b7280" }}
                 >
-                  Step 1 of 2
+                  Step 1 of 4
                 </p>
                 <h2
                   className="text-3xl font-light tracking-tight mb-2"
@@ -637,10 +752,247 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                     className="continue-button proceed-button"
                     onClick={() => goToStep(3)}
                   >
-                    Continue to Agreements
+                    Continue to Risk Disclosure
                   </button>
                 </div>
               )}
+            </div>
+          ) : step === 3 ? (
+            <div className="w-full max-w-3xl mx-auto">
+              <div className="text-center animate-fade-in delay-1">
+                <div className="hero-icon">
+                  <ShieldIcon width={48} height={48} />
+                </div>
+                <h2
+                  className="text-3xl font-light tracking-tight mb-2"
+                  style={{ color: "hsl(270 30% 25%)" }}
+                >
+                  Risk Disclosure
+                </h2>
+                <p className="text-sm mb-6" style={{ color: "hsl(270 20% 50%)" }}>
+                  Please review the investment risk disclosure
+                </p>
+              </div>
+
+              <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
+                <div className="progress-step"></div>
+                <div className="progress-step"></div>
+              </div>
+
+              <div className="agreement-card animate-fade-in delay-2">
+                <div className="agreement-title">Investment Risk Disclosure</div>
+
+                <div className="agreement-section">
+                  <div className="section-title">1. Investment Risk Warning</div>
+                  <div className="agreement-text">
+                    Investing in financial instruments involves risk, including the possible loss of some or all of your principal investment. Past performance is not indicative of future results. The value of investments and the income derived from them may go down as well as up.
+                  </div>
+                </div>
+
+                <div className="agreement-section">
+                  <div className="section-title">2. Market Volatility</div>
+                  <div className="agreement-text">
+                    Financial markets can be volatile and unpredictable. Prices of securities, including those listed on the JSE, can fluctuate significantly due to various factors including economic conditions, political events, company performance, and market sentiment.
+                  </div>
+                </div>
+
+                <div className="agreement-section">
+                  <div className="section-title">3. No Guaranteed Returns</div>
+                  <div className="agreement-text">
+                    MINT does not guarantee any returns on investments. All investment decisions are made at your own risk. You should only invest money that you can afford to lose without affecting your standard of living.
+                  </div>
+                </div>
+
+                <div className="agreement-section">
+                  <div className="section-title">4. Regulatory Compliance</div>
+                  <div className="agreement-text">
+                    MINT operates in compliance with South African financial regulations. We are committed to transparency and providing you with the information needed to make informed investment decisions. However, we do not provide personalised financial advice.
+                  </div>
+                </div>
+
+                <div className="agreement-section">
+                  <div className="section-title">5. Diversification Notice</div>
+                  <div className="agreement-text">
+                    Concentrating investments in a single security, sector, or asset class increases risk. We encourage you to diversify your portfolio and seek independent financial advice if needed.
+                  </div>
+                </div>
+              </div>
+
+              <div className="checkbox-container animate-fade-in delay-3" style={{ display: 'block' }}>
+                <label className="checkbox-item">
+                  <input
+                    type="checkbox"
+                    checked={agreedRiskDisclosure}
+                    onChange={(event) => setAgreedRiskDisclosure(event.target.checked)}
+                  />
+                  <span className="checkbox-label">
+                    I acknowledge that I have read and understand the investment risk disclosure
+                  </span>
+                </label>
+              </div>
+
+              <div className="text-center mt-8 animate-fade-in delay-4">
+                <button
+                  type="button"
+                  className={`continue-button agreement-continue ${agreedRiskDisclosure ? "enabled" : ""}`}
+                  disabled={!agreedRiskDisclosure}
+                  onClick={() => goToStep(4)}
+                >
+                  Continue to Source of Funds
+                </button>
+              </div>
+
+              <div className="text-center mt-6 animate-fade-in delay-4">
+                <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
+                  Step 2 of 4
+                </p>
+              </div>
+            </div>
+          ) : step === 4 ? (
+            <div className="w-full max-w-3xl mx-auto">
+              <div className="text-center animate-fade-in delay-1">
+                <div className="hero-icon">
+                  <WalletIcon width={48} height={48} />
+                </div>
+                <h2
+                  className="text-3xl font-light tracking-tight mb-2"
+                  style={{ color: "hsl(270 30% 25%)" }}
+                >
+                  Source of Funds
+                </h2>
+                <p className="text-sm mb-6" style={{ color: "hsl(270 20% 50%)" }}>
+                  Declare the origin of your investment funds
+                </p>
+              </div>
+
+              <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
+                <div className="progress-step"></div>
+              </div>
+
+              <div className="space-y-5">
+                <div className="animate-fade-in delay-2">
+                  <label htmlFor="source-of-funds">Primary Source of Funds</label>
+                  <div className="custom-select" ref={sofDropdownRef}>
+                    <div
+                      className={`glass-field select-trigger ${
+                        sofDropdownOpen ? "active" : ""
+                      }`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSofDropdownOpen((prev) => !prev)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSofDropdownOpen((prev) => !prev);
+                        }
+                      }}
+                    >
+                      <div
+                        className="selected-value"
+                        data-placeholder="Select source of funds"
+                      >
+                        {sourceOfFunds ? selectedSofOption?.label : ""}
+                      </div>
+                    </div>
+                    <div className={`custom-dropdown ${sofDropdownOpen ? "active" : ""}`}>
+                      {sourceOfFundsOptions.map((option) => (
+                        <div
+                          key={option.value || "placeholder"}
+                          className={`custom-option ${
+                            sourceOfFunds === option.value ? "selected" : ""
+                          }`}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handleSofSelect(option.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handleSofSelect(option.value);
+                            }
+                          }}
+                        >
+                          {option.label}
+                        </div>
+                      ))}
+                    </div>
+                    <input
+                      type="hidden"
+                      id="source-of-funds"
+                      name="source-of-funds"
+                      value={sourceOfFunds}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className={`conditional-section hide-when-dropdown-open ${
+                    sourceOfFunds === "other" ? "active" : ""
+                  }`}
+                >
+                  <label htmlFor="source-of-funds-other">Please describe your source of funds</label>
+                  <div className="glass-field">
+                    <input
+                      type="text"
+                      id="source-of-funds-other"
+                      placeholder="Describe your source of funds"
+                      value={sourceOfFundsOther}
+                      onChange={(event) => setSourceOfFundsOther(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="animate-fade-in delay-3 hide-when-dropdown-open">
+                  <label htmlFor="expected-monthly-investment">Expected Monthly Investment Amount</label>
+                  <div className="glass-field">
+                    <select
+                      id="expected-monthly-investment"
+                      value={expectedMonthlyInvestment}
+                      onChange={(event) => setExpectedMonthlyInvestment(event.target.value)}
+                    >
+                      {monthlyInvestmentOptions.map((option) => (
+                        <option key={option.value || "placeholder"} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="animate-fade-in delay-3 hide-when-dropdown-open" style={{ display: 'block' }}>
+                  <label className="checkbox-item">
+                    <input
+                      type="checkbox"
+                      checked={agreedSourceOfFunds}
+                      onChange={(event) => setAgreedSourceOfFunds(event.target.checked)}
+                    />
+                    <span className="checkbox-label">
+                      I declare that the funds I will use for investing are from legitimate sources and I am the beneficial owner of these funds
+                    </span>
+                  </label>
+                </div>
+
+                <div className="text-center mt-8 animate-fade-in delay-4 hide-when-dropdown-open">
+                  <button
+                    type="button"
+                    className={`continue-button agreement-continue ${sofReady ? "enabled" : ""}`}
+                    disabled={!sofReady}
+                    onClick={() => goToStep(5)}
+                  >
+                    Continue to Agreements
+                  </button>
+                </div>
+
+                <div className="text-center mt-6 animate-fade-in delay-4 hide-when-dropdown-open">
+                  <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
+                    Step 3 of 4
+                  </p>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="w-full max-w-3xl mx-auto">
@@ -660,6 +1012,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
               </div>
@@ -754,7 +1108,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 2 of 2 - Final step to complete your onboarding
+                  Step 4 of 4 - Final step to complete your onboarding
                 </p>
               </div>
             </div>
