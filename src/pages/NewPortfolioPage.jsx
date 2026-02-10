@@ -312,15 +312,18 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
 
   const myStockIds = useMemo(() => new Set(myStocks.map(s => s.id)), [myStocks]);
 
+  const prevMyStocksRef = useRef(0);
   useEffect(() => {
-    if (!selectedStock) {
-      if (myStocks.length > 0) {
+    if (myStocks.length > 0) {
+      const currentIsMyStock = selectedStock && myStocks.some(s => s.id === selectedStock.id);
+      if (!selectedStock || !currentIsMyStock || prevMyStocksRef.current === 0) {
         setSelectedStock(myStocks[0]);
-      } else if (stocksList.length > 0) {
-        setSelectedStock(stocksList[0]);
       }
+      prevMyStocksRef.current = myStocks.length;
+    } else if (!selectedStock && stocksList.length > 0) {
+      setSelectedStock(stocksList[0]);
     }
-  }, [myStocks, stocksList, selectedStock]);
+  }, [myStocks, stocksList]);
 
   const goal = investmentGoals && investmentGoals.length > 0 ? investmentGoals[0] : null;
   const goalProgress = goal && goal.targetAmount > 0 ? (goal.currentAmount / goal.targetAmount) * 100 : 0;
