@@ -1086,6 +1086,26 @@ app.post("/api/banking/capture", async (req, res) => {
         .insert({ user_id: user.id, bank_linked: true, bank_in_review: false });
     }
 
+    try {
+      const bankJson = JSON.stringify(bankAccounts);
+      const { data: existingOnboarding } = await db
+        .from("user_onboarding")
+        .select("id")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (existingOnboarding) {
+        await db
+          .from("user_onboarding")
+          .update({ sumsub_outcome: bankJson })
+          .eq("id", existingOnboarding.id);
+      }
+    } catch (bankSaveErr) {
+      console.error("Failed to save bank details:", bankSaveErr.message);
+    }
+
     res.json({
       success: true,
       snapshot: data,
@@ -1101,6 +1121,45 @@ app.post("/api/banking/capture", async (req, res) => {
 });
 
 
+app.get("/api/banking/accounts", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const { data, error } = await db
+      .from("user_onboarding")
+      .select("sumsub_outcome")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    let accounts = [];
+    if (data?.sumsub_outcome) {
+      try {
+        accounts = JSON.parse(data.sumsub_outcome);
+      } catch (e) {
+        accounts = [];
+      }
+    }
+
+    res.json({ success: true, accounts });
+  } catch (error) {
+    console.error("Fetch bank accounts error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post("/api/banking/unlink", async (req, res) => {
   try {
     const authHeader = req.headers.authorization || "";
@@ -1112,12 +1171,47 @@ app.post("/api/banking/unlink", async (req, res) => {
     const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
     if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
 
-    await db
-      .from("required_actions")
-      .update({ bank_linked: false, bank_in_review: false, bank_linked_at: null })
-      .eq("user_id", user.id);
+    const { accountIndex, unlinkAll } = req.body;
 
-    res.json({ success: true, message: "Bank account unlinked" });
+    const { data: onboarding } = await db
+      .from("user_onboarding")
+      .select("id, sumsub_outcome")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let remainingAccounts = [];
+    if (onboarding?.sumsub_outcome) {
+      try {
+        const accounts = JSON.parse(onboarding.sumsub_outcome);
+        if (unlinkAll) {
+          remainingAccounts = [];
+        } else if (typeof accountIndex === "number" && accountIndex >= 0 && accountIndex < accounts.length) {
+          remainingAccounts = accounts.filter((_, i) => i !== accountIndex);
+        } else {
+          return res.status(400).json({ success: false, error: "Valid accountIndex or unlinkAll flag required" });
+        }
+      } catch (e) {
+        remainingAccounts = [];
+      }
+    }
+
+    if (onboarding) {
+      await db
+        .from("user_onboarding")
+        .update({ sumsub_outcome: remainingAccounts.length > 0 ? JSON.stringify(remainingAccounts) : null })
+        .eq("id", onboarding.id);
+    }
+
+    if (remainingAccounts.length === 0) {
+      await db
+        .from("required_actions")
+        .update({ bank_linked: false, bank_in_review: false, bank_linked_at: null })
+        .eq("user_id", user.id);
+    }
+
+    res.json({ success: true, remainingAccounts, message: remainingAccounts.length > 0 ? "Account removed" : "All bank accounts unlinked" });
   } catch (error) {
     console.error("Unlink error:", error);
     res.status(500).json({ success: false, error: error.message });

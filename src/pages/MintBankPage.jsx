@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Landmark, ShieldCheck, CheckCircle2, Shield, X, XCircle, Lock, Info, ChevronDown, ChevronUp, CreditCard, Wallet, Plus, Unlink, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Landmark, ShieldCheck, CheckCircle2, Shield, X, XCircle, Lock, Info, ChevronDown, ChevronUp, CreditCard, Wallet, Plus, Unlink, AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
@@ -46,19 +46,6 @@ const maskAccountNumber = (num) => {
   return "•••• " + cleaned.slice(-4);
 };
 
-const getLinkedBanks = () => {
-  try {
-    const stored = localStorage.getItem("mint_linked_banks");
-    return stored ? JSON.parse(stored) : [];
-  } catch { return []; }
-};
-
-const saveLinkedBanks = (banks) => {
-  try {
-    localStorage.setItem("mint_linked_banks", JSON.stringify(banks));
-  } catch (e) { console.error("Failed to save linked banks:", e); }
-};
-
 const MintBankPage = ({ onBack, onComplete }) => {
   const { bankLinked, refetch: refetchActions } = useRequiredActions();
   const [step, setStep] = useState("intro");
@@ -67,7 +54,8 @@ const MintBankPage = ({ onBack, onComplete }) => {
   const [message, setMessage] = useState("");
   const [consumerUrl, setConsumerUrl] = useState(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [linkedBanks, setLinkedBanks] = useState(() => getLinkedBanks());
+  const [linkedBanks, setLinkedBanks] = useState([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
   const [showUnlinkModal, setShowUnlinkModal] = useState(false);
@@ -76,16 +64,33 @@ const MintBankPage = ({ onBack, onComplete }) => {
   const [unlinkLoading, setUnlinkLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [unlinkSuccess, setUnlinkSuccess] = useState(false);
+  const [unlinkingIndex, setUnlinkingIndex] = useState(null);
+
+  const fetchBankAccounts = useCallback(async () => {
+    try {
+      setLoadingAccounts(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch("/api/banking/accounts", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json();
+      if (data.success && data.accounts) {
+        setLinkedBanks(data.accounts);
+      }
+    } catch (e) {
+      console.error("Failed to fetch bank accounts:", e);
+    } finally {
+      setLoadingAccounts(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (bankLinked) {
-      const stored = getLinkedBanks();
-      if (stored.length > 0) {
-        setLinkedBanks(stored);
-      }
+      fetchBankAccounts();
       setStep("already_linked");
     }
-  }, [bankLinked]);
+  }, [bankLinked, fetchBankAccounts]);
 
   useEffect(() => {
     return () => {
@@ -139,29 +144,32 @@ const MintBankPage = ({ onBack, onComplete }) => {
     setMessage("Bank linking was cancelled. You can try again when you're ready.");
   }, []);
 
-  const handleUnlinkBank = async () => {
+  const handleUnlink = (accountIdx) => {
+    setUnlinkingIndex(accountIdx);
+    setShowUnlinkModal(true);
+    setUnlinkPassword("");
+    setUnlinkError("");
+    setShowPassword(false);
+  };
+
+  const confirmUnlink = async () => {
     if (!unlinkPassword.trim()) {
-      setUnlinkError("Please enter your password");
+      setUnlinkError("Password is required");
       return;
     }
     setUnlinkLoading(true);
     setUnlinkError("");
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) throw new Error("Could not retrieve account email");
+      const { data: { session } } = await supabase.auth.getSession();
+      const email = session?.user?.email;
+      if (!email) throw new Error("No email found");
 
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: unlinkPassword,
-      });
-      if (signInErr) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: unlinkPassword });
+      if (signInError) {
         setUnlinkError("Incorrect password. Please try again.");
         setUnlinkLoading(false);
         return;
       }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Session expired");
 
       const res = await fetch("/api/banking/unlink", {
         method: "POST",
@@ -169,28 +177,30 @@ const MintBankPage = ({ onBack, onComplete }) => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: JSON.stringify(unlinkingIndex < 0 ? { unlinkAll: true } : { accountIndex: unlinkingIndex }),
       });
-      const result = await res.json();
-      if (!res.ok || !result.success) {
-        throw new Error(result.error || "Failed to unlink bank account");
-      }
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to unlink");
 
       localStorage.removeItem("mint_linked_banks");
-      setLinkedBanks([]);
-      setShowUnlinkModal(false);
-      setUnlinkPassword("");
-      setUnlinkSuccess(true);
-      if (refetchActions) refetchActions();
 
-      setTimeout(() => {
-        setUnlinkSuccess(false);
-        setStep("intro");
-        setStatus("idle");
-        setMessage("");
-      }, 2000);
-    } catch (err) {
-      console.error("Unlink error:", err);
-      setUnlinkError(err.message || "Something went wrong");
+      setShowUnlinkModal(false);
+
+      if (data.remainingAccounts && data.remainingAccounts.length > 0) {
+        setLinkedBanks(data.remainingAccounts);
+      } else {
+        setUnlinkSuccess(true);
+        if (refetchActions) refetchActions();
+        setTimeout(() => {
+          setUnlinkSuccess(false);
+          setLinkedBanks([]);
+          setStep("intro");
+          setStatus("idle");
+          setMessage("");
+        }, 2000);
+      }
+    } catch (e) {
+      setUnlinkError(e.message);
     } finally {
       setUnlinkLoading(false);
     }
@@ -246,9 +256,7 @@ const MintBankPage = ({ onBack, onComplete }) => {
               ...acc,
               linkedAt: new Date().toISOString(),
             }));
-            const updated = [...linkedBanks, ...newAccounts];
-            setLinkedBanks(updated);
-            saveLinkedBanks(updated);
+            setLinkedBanks(prev => [...prev, ...newAccounts]);
             setStep("success");
           } catch (captureErr) {
             console.error("Capture error:", captureErr);
@@ -314,28 +322,38 @@ const MintBankPage = ({ onBack, onComplete }) => {
           <div className="h-10 w-10" aria-hidden="true" />
         </header>
 
-        {hasStoredAccounts ? (
+        {loadingAccounts ? (
+          <div className="mt-12 flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 text-slate-400 animate-spin" />
+            <p className="text-sm text-slate-400">Loading accounts...</p>
+          </div>
+        ) : hasStoredAccounts ? (
           <div className="mt-6 space-y-3">
             {linkedBanks.map((bank, idx) => {
               const brand = getBankBrand(bank.bankName);
-              const hasAccountNum = bank.accountNumber && bank.accountNumber.length > 0;
+              const maskedNum = maskAccountNumber(bank.accountNumber);
               return (
                 <div key={idx} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
                   <div
                     className="flex h-12 w-12 items-center justify-center rounded-2xl shrink-0 font-bold shadow-sm"
-                    style={{ backgroundColor: brand.color, color: brand.textColor, fontSize: brand.name.length > 2 ? "10px" : "14px", letterSpacing: "0.02em" }}
+                    style={{ backgroundColor: brand.color, color: brand.textColor, fontSize: brand.name.length > 2 ? "10px" : "14px" }}
                   >
                     {brand.name}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900">{bank.bankName}</p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      {bank.accountType || "Current"}{hasAccountNum ? ` • ${maskAccountNumber(bank.accountNumber)}` : ""}
+                      {bank.accountType || "Current"}{maskedNum ? ` • ${maskedNum}` : ""}
                     </p>
                   </div>
-                  <span className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700 shrink-0">
-                    Linked
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleUnlink(idx)}
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 transition-colors shrink-0"
+                    title="Unlink account"
+                  >
+                    <Unlink className="h-4 w-4" />
+                  </button>
                 </div>
               );
             })}
@@ -350,9 +368,14 @@ const MintBankPage = ({ onBack, onComplete }) => {
                 <p className="text-sm font-semibold text-slate-900">Bank Account Linked</p>
                 <p className="text-xs text-slate-500 mt-0.5">Verified via TruID</p>
               </div>
-              <span className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700 shrink-0">
-                Linked
-              </span>
+              <button
+                type="button"
+                onClick={() => handleUnlink(-1)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 transition-colors shrink-0"
+                title="Unlink account"
+              >
+                <Unlink className="h-4 w-4" />
+              </button>
             </div>
             <p className="text-xs text-slate-400 text-center mt-4">Re-link your account to view full bank details.</p>
           </div>
@@ -377,19 +400,6 @@ const MintBankPage = ({ onBack, onComplete }) => {
             className="w-full py-4 rounded-full bg-slate-100 text-slate-700 font-semibold text-sm uppercase tracking-[0.15em] active:scale-95 transition-all"
           >
             Done
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setShowUnlinkModal(true);
-              setUnlinkPassword("");
-              setUnlinkError("");
-              setShowPassword(false);
-            }}
-            className="w-full py-3 rounded-full text-red-500 font-semibold text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <Unlink className="h-4 w-4" />
-            Unlink Bank Account
           </button>
         </div>
 
@@ -431,7 +441,7 @@ const MintBankPage = ({ onBack, onComplete }) => {
               <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-100 mb-6">
                 <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-amber-800">Are you sure you want to unlink your bank account?</p>
+                  <p className="text-sm font-semibold text-amber-800">Are you sure you want to unlink this bank account?</p>
                   <p className="text-xs text-amber-600 mt-1">This will remove your linked bank details. You can re-link anytime.</p>
                 </div>
               </div>
@@ -448,7 +458,7 @@ const MintBankPage = ({ onBack, onComplete }) => {
                     placeholder="Enter your password"
                     className="w-full px-4 py-3.5 pr-12 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all"
                     autoComplete="current-password"
-                    onKeyDown={(e) => { if (e.key === "Enter") handleUnlinkBank(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") confirmUnlink(); }}
                   />
                   <button
                     type="button"
@@ -469,7 +479,7 @@ const MintBankPage = ({ onBack, onComplete }) => {
               <div className="space-y-3">
                 <button
                   type="button"
-                  onClick={handleUnlinkBank}
+                  onClick={confirmUnlink}
                   disabled={unlinkLoading}
                   className="w-full py-4 rounded-full bg-red-500 text-white font-semibold text-sm uppercase tracking-[0.15em] shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
