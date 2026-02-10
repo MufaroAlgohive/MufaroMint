@@ -325,15 +325,20 @@ const HomePage = ({
   const fetchOnboardingStatus = React.useCallback(async () => {
     if (!supabase || !profile?.id) return;
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("user_onboarding")
-        .select("risk_disclosure_agreed, source_of_funds")
+        .select("kyc_status")
         .eq("user_id", profile.id)
         .order("created_at", { ascending: false })
         .limit(1);
+      console.log("[Onboarding Check] data:", JSON.stringify(data), "error:", error?.message || "none");
       const record = data?.[0];
-      setOnboardingComplete(!!(record?.risk_disclosure_agreed && record?.source_of_funds));
-    } catch {}
+      const complete = record?.kyc_status === "onboarding_complete";
+      console.log("[Onboarding Check] kyc_status:", record?.kyc_status, "complete:", complete);
+      setOnboardingComplete(complete);
+    } catch (err) {
+      console.error("[Onboarding Check] Error:", err);
+    }
   }, [profile?.id]);
 
   useEffect(() => {

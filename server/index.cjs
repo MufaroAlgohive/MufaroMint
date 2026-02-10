@@ -2252,6 +2252,73 @@ app.get("/api/sessions/validate", async (req, res) => {
   }
 });
 
+app.post("/api/migrate/onboarding-columns", async (req, res) => {
+  try {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return res.json({ error: "Missing Supabase credentials" });
+    }
+
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.json({ error: "no db" });
+
+    const testResult = await db
+      .from("user_onboarding")
+      .select("risk_disclosure_agreed")
+      .limit(1);
+
+    if (testResult.error) {
+      const sql = `
+ALTER TABLE user_onboarding ADD COLUMN IF NOT EXISTS risk_disclosure_agreed boolean DEFAULT false;
+ALTER TABLE user_onboarding ADD COLUMN IF NOT EXISTS source_of_funds text;
+ALTER TABLE user_onboarding ADD COLUMN IF NOT EXISTS source_of_funds_other text;
+ALTER TABLE user_onboarding ADD COLUMN IF NOT EXISTS expected_monthly_investment text;`;
+
+      // Try via Supabase SQL API  
+      const response = await globalThis.fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ sql_query: sql }),
+      });
+
+      res.json({
+        status: "columns_missing",
+        column_test_error: testResult.error.message,
+        sql_to_run: sql.trim(),
+      });
+    } else {
+      res.json({ status: "columns_exist", data: testResult.data });
+    }
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
+app.get("/api/debug/onboarding/:userId", async (req, res) => {
+  try {
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.json({ error: "no db" });
+    const { data: onboarding, error: e1 } = await db
+      .from("user_onboarding")
+      .select("*")
+      .eq("user_id", req.params.userId)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const { data: actions, error: e2 } = await db
+      .from("required_actions")
+      .select("*")
+      .eq("user_id", req.params.userId)
+      .limit(1);
+    res.json({ onboarding, actions, errors: { onboarding: e1?.message, actions: e2?.message } });
+  } catch (e) {
+    res.json({ error: e.message });
+  }
+});
+
 const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TruID API server running on port ${PORT}`);

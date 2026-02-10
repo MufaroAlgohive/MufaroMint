@@ -388,10 +388,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
         const onboardingPayload = {
           user_id: userId,
-          risk_disclosure_agreed: true,
-          source_of_funds: sourceOfFunds || 'salary',
-          source_of_funds_other: sourceOfFunds === 'other' ? sourceOfFundsOther : null,
-          expected_monthly_investment: expectedMonthlyInvestment,
+          kyc_status: "onboarding_complete",
         };
 
         if (existingOnboardingId) {

@@ -32,7 +32,7 @@ const ActionsPage = ({ onBack, onNavigate }) => {
         }
         const { data } = await supabase
           .from("user_onboarding")
-          .select("risk_disclosure_agreed, source_of_funds, expected_monthly_investment")
+          .select("kyc_status")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(1);
@@ -49,9 +49,9 @@ const ActionsPage = ({ onBack, onNavigate }) => {
     return <ActionsSkeleton />;
   }
 
-  const riskDisclosureComplete = !!onboardingData?.risk_disclosure_agreed;
-  const sourceOfFundsComplete = !!onboardingData?.source_of_funds;
-  const allOnboardingComplete = kycVerified && riskDisclosureComplete && sourceOfFundsComplete;
+  const riskDisclosureComplete = onboardingData?.kyc_status === "onboarding_complete";
+  const sourceOfFundsComplete = onboardingData?.kyc_status === "onboarding_complete";
+  const allOnboardingComplete = kycVerified && onboardingData?.kyc_status === "onboarding_complete";
 
   const getKycStatus = () => {
     if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };

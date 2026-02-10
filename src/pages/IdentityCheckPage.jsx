@@ -26,12 +26,12 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
         }
         const { data } = await supabase
           .from("user_onboarding")
-          .select("risk_disclosure_agreed, source_of_funds")
+          .select("kyc_status")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(1);
         const record = data?.[0];
-        if (record?.risk_disclosure_agreed && record?.source_of_funds) {
+        if (record?.kyc_status === "onboarding_complete") {
           setOnboardingComplete(true);
         }
       } catch {
