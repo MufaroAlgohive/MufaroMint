@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Eye, EyeOff, ChevronDown, ChevronRight, ChevronLeft, ArrowLeft, TrendingUp, TrendingDown, Plus } from "lucide-react";
 import { Area, ComposedChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell } from 'recharts';
 import { useInvestments } from "../lib/useFinancialData";
+import { useRealtimePrices } from "../lib/useRealtimePrices";
 import { useProfile } from "../lib/useProfile";
 import { useUserStrategies, useStrategyChartData } from "../lib/useUserStrategies";
 import { getMonthlyReturns, getStockMonthlyReturns, getOverallPortfolioMonthlyReturns } from "../lib/strategyData";
 import { useStockQuotes, useStockChart } from "../lib/useStockData";
+import { clearMarketDataCache } from "../lib/marketData";
 import SwipeBackWrapper from "../components/SwipeBackWrapper.jsx";
 import PortfolioSkeleton from "../components/PortfolioSkeleton";
 
@@ -60,7 +62,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     }
   }, [currentView]);
 
-  const { securities: allSecurities, quotes: liveQuotes, loading: quotesLoading } = useStockQuotes(true);
+  const { lastUpdated: pricesLastUpdated } = useRealtimePrices();
+  const { securities: allSecurities, quotes: liveQuotes, loading: quotesLoading, refetch: refetchStocks } = useStockQuotes(true);
   const stocksList = useMemo(() => {
     if (!allSecurities || allSecurities.length === 0) return [];
     return allSecurities
@@ -172,7 +175,15 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     return date.toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
   };
 
-  const { holdings: rawHoldings, loading: holdingsLoading, goals: investmentGoals } = useInvestments();
+  const { holdings: rawHoldings, loading: holdingsLoading, goals: investmentGoals, refetch: refetchInvestments } = useInvestments();
+
+  useEffect(() => {
+    if (pricesLastUpdated) {
+      clearMarketDataCache();
+      refetchStocks();
+      refetchInvestments();
+    }
+  }, [pricesLastUpdated, refetchInvestments]);
 
   const calendarFilterOptions = useMemo(() => {
     const options = [{ id: "overall", label: "Overall Portfolio" }];

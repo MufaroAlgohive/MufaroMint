@@ -335,74 +335,74 @@ export const useInvestments = () => {
     hasInvestments: false,
   });
 
-  useEffect(() => {
-    const fetchInvestments = async () => {
-      if (!supabase) {
+  const fetchInvestments = useCallback(async () => {
+    if (!supabase) {
+      setData((prev) => ({ ...prev, loading: false }));
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
         setData((prev) => ({ ...prev, loading: false }));
         return;
       }
 
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-          setData((prev) => ({ ...prev, loading: false }));
-          return;
-        }
+      const userId = session.user.id;
+      const token = session.access_token;
 
-        const userId = session.user.id;
-        const token = session.access_token;
+      const [holdings, goalsResult] = await Promise.all([
+        fetchServerHoldings(token),
+        supabase.from("investment_goals").select("*").eq("user_id", userId),
+      ]);
 
-        const [holdings, goalsResult] = await Promise.all([
-          fetchServerHoldings(token),
-          supabase.from("investment_goals").select("*").eq("user_id", userId),
-        ]);
+      const goals = goalsResult.data || [];
 
-        const goals = goalsResult.data || [];
+      const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
+      const monthlyChange = holdings.reduce((sum, h) => sum + ((h.unrealized_pnl || 0) / 100), 0);
+      const monthlyChangePercent = totalInvestments > 0 ? (monthlyChange / totalInvestments) * 100 : 0;
 
-        const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
-        const monthlyChange = holdings.reduce((sum, h) => sum + ((h.unrealized_pnl || 0) / 100), 0);
-        const monthlyChangePercent = totalInvestments > 0 ? (monthlyChange / totalInvestments) * 100 : 0;
+      const assetClasses = {};
+      holdings.forEach((h) => {
+        const assetClass = h.asset_class || "Other";
+        const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
+        assetClasses[assetClass] = (assetClasses[assetClass] || 0) + costBasis;
+      });
 
-        const assetClasses = {};
-        holdings.forEach((h) => {
-          const assetClass = h.asset_class || "Other";
-          const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
-          assetClasses[assetClass] = (assetClasses[assetClass] || 0) + costBasis;
-        });
+      const portfolioMix = Object.entries(assetClasses).map(([label, value]) => ({
+        label,
+        value: totalInvestments > 0 ? Math.round((value / totalInvestments) * 100) + "%" : "0%",
+      }));
 
-        const portfolioMix = Object.entries(assetClasses).map(([label, value]) => ({
-          label,
-          value: totalInvestments > 0 ? Math.round((value / totalInvestments) * 100) + "%" : "0%",
-        }));
+      const formattedGoals = goals.map((g) => ({
+        label: g.name || "Goal",
+        value: `R${(g.target_amount || 0).toLocaleString()}`,
+        progress: g.target_amount > 0 ? Math.round((g.current_amount / g.target_amount) * 100) + "%" : "0%",
+        currentAmount: g.current_amount || 0,
+        targetAmount: g.target_amount || 0,
+      }));
 
-        const formattedGoals = goals.map((g) => ({
-          label: g.name || "Goal",
-          value: `R${(g.target_amount || 0).toLocaleString()}`,
-          progress: g.target_amount > 0 ? Math.round((g.current_amount / g.target_amount) * 100) + "%" : "0%",
-          currentAmount: g.current_amount || 0,
-          targetAmount: g.target_amount || 0,
-        }));
-
-        setData({
-          totalInvestments,
-          monthlyChange,
-          monthlyChangePercent,
-          portfolioMix: portfolioMix.length > 0 ? portfolioMix : [],
-          goals: formattedGoals,
-          holdings,
-          loading: false,
-          hasInvestments: holdings.length > 0,
-        });
-      } catch (err) {
-        console.error("Error fetching investments:", err);
-        setData((prev) => ({ ...prev, loading: false }));
-      }
-    };
-
-    fetchInvestments();
+      setData({
+        totalInvestments,
+        monthlyChange,
+        monthlyChangePercent,
+        portfolioMix: portfolioMix.length > 0 ? portfolioMix : [],
+        goals: formattedGoals,
+        holdings,
+        loading: false,
+        hasInvestments: holdings.length > 0,
+      });
+    } catch (err) {
+      console.error("Error fetching investments:", err);
+      setData((prev) => ({ ...prev, loading: false }));
+    }
   }, []);
 
-  return data;
+  useEffect(() => {
+    fetchInvestments();
+  }, [fetchInvestments]);
+
+  return { ...data, refetch: fetchInvestments };
 };
 
 function formatTransactionDate(dateString) {

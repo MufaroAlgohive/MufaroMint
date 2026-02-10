@@ -29,6 +29,7 @@ import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
+import { useRealtimePrices } from "../lib/useRealtimePrices";
 import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
 import { formatZar } from "../lib/formatCurrency";
 import HomeSkeleton from "../components/HomeSkeleton";
@@ -117,6 +118,7 @@ const HomePage = ({
   const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
   const { balance, investments, transactions, bestAssets, loading: financialLoading, refetch: fetchFinancialData } = useFinancialData();
   const { monthlyChangePercent } = useInvestments();
+  const { lastUpdated: pricesLastUpdated } = useRealtimePrices();
   const [bestStrategies, setBestStrategies] = useState([]);
   const [holdingsSecurities, setHoldingsSecurities] = useState([]);
   const [failedLogos, setFailedLogos] = useState({});
@@ -356,6 +358,13 @@ const HomePage = ({
       supabase.removeChannel(homeSubscription);
     };
   }, [profile?.id, fetchBestAssets, fetchGoals, fetchFinancialData, fetchRequiredActions]);
+
+  useEffect(() => {
+    if (pricesLastUpdated && profile?.id) {
+      fetchBestAssets();
+      if (typeof fetchFinancialData === 'function') fetchFinancialData();
+    }
+  }, [pricesLastUpdated]);
 
   useEffect(() => {
     if (showGoalsModal && profile?.id) {

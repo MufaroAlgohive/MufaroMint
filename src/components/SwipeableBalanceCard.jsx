@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Eye, EyeOff, TrendingUp, LayoutGrid, ChevronDown, ChevronUp } from "lucide-react";
 import { Area, ComposedChart, Line, ResponsiveContainer, YAxis } from "recharts";
 import { supabase } from "../lib/supabase";
 import { getStrategyPriceHistory } from "../lib/strategyData";
 import { getStrategyCurrentValue, getStrategyReturnPct } from "../lib/strategyUtils";
+import { useRealtimePrices } from "../lib/useRealtimePrices";
 import Skeleton from "./Skeleton";
 
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
@@ -25,6 +26,20 @@ const TIMEFRAME_DAYS = { "1m": 45, "3m": 110, "6m": 220 };
 const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => {
   const [activeTab, setActiveTab] = useState("1m");
   const [isOpen, setIsOpen] = useState(false);
+  const { lastUpdated, isConnected } = useRealtimePrices();
+  const [showUpdatedText, setShowUpdatedText] = useState(false);
+  const updatedTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (lastUpdated) {
+      setShowUpdatedText(true);
+      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
+      updatedTimerRef.current = setTimeout(() => setShowUpdatedText(false), 3000);
+    }
+    return () => {
+      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
+    };
+  }, [lastUpdated]);
 
   useEffect(() => {
     if (!isBackFacing) setIsOpen(false);
@@ -101,7 +116,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
       setLoading(false);
     };
     loadData();
-  }, [userId]);
+  }, [userId, lastUpdated]);
 
   useEffect(() => {
     const fetchChartPrices = async () => {
@@ -229,7 +244,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
     };
 
     fetchChartPrices();
-  }, [userId, dbData.holdings, activeTab, selectedAsset]);
+  }, [userId, dbData.holdings, activeTab, selectedAsset, lastUpdated]);
 
   const displayMarketValue = selectedAsset
     ? Number(selectedAsset.market_value || 0) / 100
@@ -282,8 +297,44 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
     </div>
   );
 
+  const getUpdatedAgoText = () => {
+    if (!lastUpdated) return "";
+    const seconds = Math.round((Date.now() - lastUpdated) / 1000);
+    if (seconds < 5) return "Updated just now";
+    if (seconds < 60) return `Updated ${seconds}s ago`;
+    return `Updated ${Math.round(seconds / 60)}m ago`;
+  };
+
   return (
     <div className="relative w-full h-full z-[100]">
+      {isConnected && (
+        <div className="absolute top-2 right-3 z-20 flex items-center gap-1.5">
+          {showUpdatedText && (
+            <span
+              className="text-[8px] text-white/50 font-medium transition-opacity duration-500"
+              style={{ animation: "fadeInOut 3s ease-in-out" }}
+            >
+              {getUpdatedAgoText()}
+            </span>
+          )}
+          <span
+            className="block w-1.5 h-1.5 rounded-full bg-emerald-400"
+            style={{ animation: "pulse-dot 2s ease-in-out infinite" }}
+          />
+          <style>{`
+            @keyframes pulse-dot {
+              0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+              50% { opacity: 0.7; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0); }
+            }
+            @keyframes fadeInOut {
+              0% { opacity: 0; }
+              10% { opacity: 1; }
+              80% { opacity: 1; }
+              100% { opacity: 0; }
+            }
+          `}</style>
+        </div>
+      )}
       <div className="relative z-10 flex h-full text-white">
         <div className="w-[50%] p-4 flex flex-col justify-between border-r border-white/5">
           <div className="space-y-3">
