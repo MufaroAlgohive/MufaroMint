@@ -77,7 +77,9 @@ export const useSumsubStatus = () => {
       return;
     }
 
-    setStatus(prev => ({ ...prev, loading: true }));
+    if (!cachedStatus) {
+      setStatus(prev => ({ ...prev, loading: true }));
+    }
     
     try {
       if (!supabase) {
