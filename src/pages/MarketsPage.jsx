@@ -137,6 +137,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [selectedStrategyActiveLabel, setSelectedStrategyActiveLabel] = useState(null);
   const [selectedStrategyAnalytics, setSelectedStrategyAnalytics] = useState(null);
   const [selectedStrategyAnalyticsLoading, setSelectedStrategyAnalyticsLoading] = useState(false);
+  const [strategyYtdById, setStrategyYtdById] = useState({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sheetOffset, setSheetOffset] = useState(0);
   const dragStartY = useRef(null);
@@ -274,6 +275,44 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
     fetchPublicStrategies();
   }, []);
+
+  // Fetch YTD returns for OpenStrategies cards using the same source as Factsheet
+  useEffect(() => {
+    const fetchStrategyYtd = async () => {
+      if (!supabase || publicStrategies.length === 0) {
+        setStrategyYtdById({});
+        return;
+      }
+
+      try {
+        const strategyIds = [...new Set(publicStrategies.map((strategy) => strategy.id).filter(Boolean))];
+        if (strategyIds.length === 0) {
+          setStrategyYtdById({});
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from("strategy_analytics")
+          .select("strategy_id, ytd_return, summary")
+          .in("strategy_id", strategyIds);
+
+        if (error) throw error;
+
+        const nextMap = (data || []).reduce((acc, row) => {
+          const summaryYtd = row?.summary?.ytd_return;
+          acc[row.strategy_id] = summaryYtd ?? row?.ytd_return ?? null;
+          return acc;
+        }, {});
+
+        setStrategyYtdById(nextMap);
+      } catch (error) {
+        console.error("Error fetching strategy YTD analytics:", error);
+        setStrategyYtdById({});
+      }
+    };
+
+    fetchStrategyYtd();
+  }, [publicStrategies]);
 
   // Fetch holdings securities for strategy cards (only if we have mock data)
   useEffect(() => {
@@ -423,9 +462,31 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       .slice(0, 10);
   }, [filteredSecurities]);
 
+  const publicStrategiesWithMetrics = useMemo(() => {
+    if (!publicStrategies.length) return [];
+
+    const strategiesById = new Map(strategies.map((strategy) => [strategy.id, strategy]));
+
+    return publicStrategies.map((publicStrategy) => {
+      const strategyWithMetrics = strategiesById.get(publicStrategy.id);
+      const analyticsYtd = strategyYtdById[publicStrategy.id];
+      if (!strategyWithMetrics) {
+        return {
+          ...publicStrategy,
+          r_ytd: analyticsYtd ?? null,
+        };
+      }
+
+      return {
+        ...publicStrategy,
+        r_ytd: analyticsYtd ?? strategyWithMetrics.r_ytd ?? strategyWithMetrics.latest_metric?.r_ytd ?? null,
+      };
+    });
+  }, [publicStrategies, strategies, strategyYtdById]);
+
   const filteredStrategies = useMemo(() => {
     // Use publicStrategies for OpenStrategies view
-    const results = publicStrategies.filter((strategy) => {
+    const results = publicStrategiesWithMetrics.filter((strategy) => {
       const matchesName =
         strategiesSearchQuery.length === 0
           ? true
@@ -485,7 +546,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
     return sorted;
   }, [
-    publicStrategies,
+    publicStrategiesWithMetrics,
     strategiesSearchQuery,
     selectedRisks,
     selectedMinInvestment,
@@ -1531,6 +1592,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                               Featured
                             </span>
                           )}
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
+                          <span className="text-xs font-semibold text-slate-600">YTD return</span>
+                          <span className={`text-xs font-semibold ${getChangeColor(strategy.r_ytd)}`}>
+                            {formatChangePct(strategy.r_ytd)}
+                          </span>
                         </div>
 
                         {holdingsSnapshot.length > 0 && (
