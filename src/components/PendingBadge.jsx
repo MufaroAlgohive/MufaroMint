@@ -1,5 +1,5 @@
 import React from "react";
-import { Clock } from "lucide-react";
+import { Clock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 
 const sizeMap = {
   xs: "text-[9px] px-1.5 py-0.5 gap-0.5",
@@ -13,15 +13,44 @@ const iconSizeMap = {
   md: 12,
 };
 
-const PendingBadge = ({ size = "sm", label = "Pending", className = "" }) => {
+const statusConfig = {
+  pending_csdp: {
+    label: "Pending CSDP",
+    icon: Clock,
+    colors: "bg-amber-50 text-amber-600 border-amber-200",
+  },
+  pending_broker: {
+    label: "Pending Broker",
+    icon: Loader2,
+    colors: "bg-blue-50 text-blue-600 border-blue-200",
+  },
+  confirmed: {
+    label: "Confirmed",
+    icon: CheckCircle2,
+    colors: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  },
+  failed: {
+    label: "Failed",
+    icon: AlertTriangle,
+    colors: "bg-rose-50 text-rose-600 border-rose-200",
+  },
+};
+
+const SettlementBadge = ({ status, size = "sm", labelOverride, className = "" }) => {
+  const config = statusConfig[status];
+  if (!config) return null;
+
+  const Icon = config.icon;
+  const label = labelOverride || config.label;
+
   return (
     <span
-      className={`inline-flex items-center font-semibold rounded-full bg-amber-50 text-amber-600 border border-amber-200 ${sizeMap[size] || sizeMap.sm} ${className}`}
+      className={`inline-flex items-center font-semibold rounded-full border ${config.colors} ${sizeMap[size] || sizeMap.sm} ${className}`}
     >
-      <Clock size={iconSizeMap[size] || 10} />
+      <Icon size={iconSizeMap[size] || 10} />
       {label}
     </span>
   );
 };
 
-export default PendingBadge;
+export default SettlementBadge;

@@ -207,6 +207,135 @@ async function cleanupInvalidHoldings() {
 
 cleanupInvalidHoldings();
 
+// ============================================================
+// Settlement Status System
+// Tracks investment lifecycle: pending_csdp → pending_broker → confirmed
+// ============================================================
+const SETTLEMENT_STATUSES = {
+  PENDING_CSDP: 'pending_csdp',
+  PENDING_BROKER: 'pending_broker',
+  CONFIRMED: 'confirmed',
+  FAILED: 'failed',
+};
+
+const settlementConfig = {
+  csdpEnabled: !!(process.env.CSDP_API_KEY && process.env.CSDP_API_URL),
+  brokerEnabled: !!(process.env.BROKER_API_KEY && process.env.BROKER_API_URL),
+  get isFullyIntegrated() {
+    return this.csdpEnabled && this.brokerEnabled;
+  },
+};
+
+console.log('[settlement] Config:', {
+  csdpEnabled: settlementConfig.csdpEnabled,
+  brokerEnabled: settlementConfig.brokerEnabled,
+  fullyIntegrated: settlementConfig.isFullyIntegrated,
+});
+
+async function runSettlementMigration() {
+  const db = supabaseAdmin || supabase;
+  if (!db) return;
+
+  try {
+    const { data: testTx } = await db
+      .from('transactions')
+      .select('settlement_status')
+      .limit(1);
+
+    if (testTx !== null) {
+      console.log('[settlement] settlement_status column already exists on transactions');
+    }
+  } catch (e) {
+    if (e.message?.includes('settlement_status') || e.code === '42703') {
+      console.log('[settlement] Adding settlement_status column to transactions...');
+      try {
+        const { error } = await db.rpc('exec_sql', {
+          query: "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS settlement_status TEXT DEFAULT 'pending_csdp'"
+        });
+        if (error) {
+          console.log('[settlement] Could not add column via RPC (expected if RPC not configured):', error.message);
+        }
+      } catch (rpcErr) {
+        console.log('[settlement] RPC not available, settlement_status column needs manual addition');
+      }
+    }
+  }
+
+  try {
+    const { data: testH } = await db
+      .from('stock_holdings')
+      .select('settlement_status')
+      .limit(1);
+
+    if (testH !== null) {
+      console.log('[settlement] settlement_status column already exists on stock_holdings');
+    }
+  } catch (e) {
+    if (e.message?.includes('settlement_status') || e.code === '42703') {
+      console.log('[settlement] Adding settlement_status column to stock_holdings...');
+      try {
+        const { error } = await db.rpc('exec_sql', {
+          query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS settlement_status TEXT DEFAULT 'pending_csdp'"
+        });
+        if (error) {
+          console.log('[settlement] Could not add column via RPC:', error.message);
+        }
+      } catch (rpcErr) {
+        console.log('[settlement] RPC not available for stock_holdings');
+      }
+    }
+  }
+}
+
+function deriveSettlementStatus(record) {
+  if (record.settlement_status) {
+    return record.settlement_status;
+  }
+
+  if (settlementConfig.isFullyIntegrated) {
+    return SETTLEMENT_STATUSES.CONFIRMED;
+  }
+
+  const name = ((record.name || '') + ' ' + (record.description || '')).toLowerCase();
+  const isInvestment = name.includes('invest') || name.includes('strategy') ||
+    name.includes('purchas') || name.includes('buy') || name.includes('bought') ||
+    name.includes('allocat') || name.includes('order') ||
+    (record.direction === 'debit' && (name.includes('stock') || name.includes('share') || name.includes('securit'))) ||
+    (record.store_reference && record.direction === 'debit');
+
+  if (isInvestment) {
+    if (!settlementConfig.csdpEnabled) {
+      return SETTLEMENT_STATUSES.PENDING_CSDP;
+    }
+    if (!settlementConfig.brokerEnabled) {
+      return SETTLEMENT_STATUSES.PENDING_BROKER;
+    }
+    return SETTLEMENT_STATUSES.CONFIRMED;
+  }
+
+  return record.status || null;
+}
+
+function deriveHoldingSettlementStatus(holding) {
+  if (holding.settlement_status) {
+    return holding.settlement_status;
+  }
+
+  if (settlementConfig.isFullyIntegrated) {
+    return SETTLEMENT_STATUSES.CONFIRMED;
+  }
+
+  if (!settlementConfig.csdpEnabled) {
+    return SETTLEMENT_STATUSES.PENDING_CSDP;
+  }
+  if (!settlementConfig.brokerEnabled) {
+    return SETTLEMENT_STATUSES.PENDING_BROKER;
+  }
+  return SETTLEMENT_STATUSES.CONFIRMED;
+}
+
+runSettlementMigration();
+
 function parseServices(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (typeof value === 'string') {
@@ -1637,6 +1766,11 @@ app.post("/api/record-investment", async (req, res) => {
           unrealized_pnl: 0,
           as_of_date: new Date().toISOString().split("T")[0],
           Status: "active",
+          settlement_status: settlementConfig.isFullyIntegrated
+            ? SETTLEMENT_STATUSES.CONFIRMED
+            : !settlementConfig.csdpEnabled
+              ? SETTLEMENT_STATUSES.PENDING_CSDP
+              : SETTLEMENT_STATUSES.PENDING_BROKER,
         };
         console.log("[record-investment] Insert data:", JSON.stringify(holdingData));
         const { data, error } = await db
@@ -1673,6 +1807,11 @@ app.post("/api/record-investment", async (req, res) => {
         store_reference: paymentReference || null,
         currency: "ZAR",
         status: "posted",
+        settlement_status: settlementConfig.isFullyIntegrated
+          ? SETTLEMENT_STATUSES.CONFIRMED
+          : !settlementConfig.csdpEnabled
+            ? SETTLEMENT_STATUSES.PENDING_CSDP
+            : SETTLEMENT_STATUSES.PENDING_BROKER,
         transaction_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
       })
@@ -1706,10 +1845,23 @@ app.get("/api/user/holdings", async (req, res) => {
     const db = supabaseAdmin || supabase;
     const userId = user.id;
 
-    const { data: holdings, error: holdingsError } = await db
+    let holdings, holdingsError;
+    const holdingsResult = await db
       .from("stock_holdings")
-      .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+      .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status")
       .eq("user_id", userId);
+
+    if (holdingsResult.error && holdingsResult.error.message && holdingsResult.error.message.includes("settlement_status")) {
+      const fallback = await db
+        .from("stock_holdings")
+        .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+        .eq("user_id", userId);
+      holdings = fallback.data;
+      holdingsError = fallback.error;
+    } else {
+      holdings = holdingsResult.data;
+      holdingsError = holdingsResult.error;
+    }
 
     if (holdingsError) {
       console.error("Error fetching holdings:", holdingsError);
@@ -1773,6 +1925,7 @@ app.get("/api/user/holdings", async (req, res) => {
           ...h,
           market_value: liveMarketValue,
           unrealized_pnl: pnl,
+          settlement_status: deriveHoldingSettlementStatus(h),
           symbol: sec?.symbol || "N/A",
           name: sec?.name || "Unknown",
           asset_class: sec?.sector || "Other",
@@ -1944,12 +2097,27 @@ app.get("/api/user/transactions", async (req, res) => {
     const userId = user.id;
     const limit = parseInt(req.query.limit) || 50;
 
-    const { data: transactions, error: txError } = await db
+    let transactions, txError;
+    const txResult = await db
       .from("transactions")
-      .select("id, user_id, direction, name, description, amount, store_reference, currency, status, transaction_date, created_at")
+      .select("id, user_id, direction, name, description, amount, store_reference, currency, status, settlement_status, transaction_date, created_at")
       .eq("user_id", userId)
       .order("transaction_date", { ascending: false })
       .limit(limit);
+
+    if (txResult.error && txResult.error.message && txResult.error.message.includes("settlement_status")) {
+      const fallback = await db
+        .from("transactions")
+        .select("id, user_id, direction, name, description, amount, store_reference, currency, status, transaction_date, created_at")
+        .eq("user_id", userId)
+        .order("transaction_date", { ascending: false })
+        .limit(limit);
+      transactions = fallback.data;
+      txError = fallback.error;
+    } else {
+      transactions = txResult.data;
+      txError = txResult.error;
+    }
 
     if (txError) {
       console.error("Error fetching transactions:", txError);
@@ -2030,17 +2198,19 @@ app.get("/api/user/transactions", async (req, res) => {
       } else if (txName.startsWith("Purchased ")) {
         sName = txName.replace("Purchased ", "").trim();
       }
+
+      const settlement_status = deriveSettlementStatus(tx);
       
       if (sName) {
         const holdingLogos = strategyHoldingsMap[sName.toLowerCase()] || [];
         if (holdingLogos.length > 0) {
-          return { ...tx, holding_logos: holdingLogos, logo_url: null };
+          return { ...tx, settlement_status, holding_logos: holdingLogos, logo_url: null };
         }
         const lower = sName.toLowerCase();
         const logo_url = securityLogoMap[lower] || securityLogoMap[lower.split(".")[0]] || null;
-        return { ...tx, holding_logos: [], logo_url };
+        return { ...tx, settlement_status, holding_logos: [], logo_url };
       }
-      return { ...tx, holding_logos: [], logo_url: null };
+      return { ...tx, settlement_status, holding_logos: [], logo_url: null };
     });
 
     res.json({ success: true, transactions: enrichedTx });
@@ -2464,6 +2634,122 @@ app.get("/api/debug/onboarding/:userId", async (req, res) => {
     res.json({ onboarding, actions, errors: { onboarding: e1?.message, actions: e2?.message } });
   } catch (e) {
     res.json({ error: e.message });
+  }
+});
+
+// ============================================================
+// Settlement System Endpoints
+// ============================================================
+
+app.get("/api/settlement/config", (req, res) => {
+  res.json({
+    success: true,
+    csdpEnabled: settlementConfig.csdpEnabled,
+    brokerEnabled: settlementConfig.brokerEnabled,
+    fullyIntegrated: settlementConfig.isFullyIntegrated,
+    statuses: SETTLEMENT_STATUSES,
+  });
+});
+
+app.post("/api/webhooks/csdp", async (req, res) => {
+  console.log("[CSDP Webhook] Received:", JSON.stringify(req.body));
+
+  if (!settlementConfig.csdpEnabled) {
+    console.log("[CSDP Webhook] CSDP integration not configured - ignoring");
+    return res.status(200).json({ received: true, processed: false, reason: "CSDP not configured" });
+  }
+
+  const { transactionId, holdingId, status, csdpReference } = req.body || {};
+
+  if (!transactionId && !holdingId) {
+    return res.status(400).json({ error: "transactionId or holdingId required" });
+  }
+
+  try {
+    const db = supabaseAdmin || supabase;
+
+    if (status === "approved" || status === "processed") {
+      const newStatus = settlementConfig.brokerEnabled
+        ? SETTLEMENT_STATUSES.PENDING_BROKER
+        : SETTLEMENT_STATUSES.CONFIRMED;
+
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: newStatus }).eq("id", transactionId);
+      }
+      if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: newStatus }).eq("id", holdingId);
+      }
+
+      console.log(`[CSDP Webhook] Updated settlement_status to ${newStatus} for tx:${transactionId} holding:${holdingId}`);
+    } else if (status === "rejected" || status === "failed") {
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", transactionId);
+      }
+      if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
+      }
+      console.log(`[CSDP Webhook] Settlement FAILED for tx:${transactionId} holding:${holdingId}`);
+    }
+
+    res.json({ received: true, processed: true });
+  } catch (error) {
+    console.error("[CSDP Webhook] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/webhooks/broker", async (req, res) => {
+  console.log("[Broker Webhook] Received:", JSON.stringify(req.body));
+
+  if (!settlementConfig.brokerEnabled) {
+    console.log("[Broker Webhook] Broker integration not configured - ignoring");
+    return res.status(200).json({ received: true, processed: false, reason: "Broker not configured" });
+  }
+
+  const { transactionId, holdingId, status, brokerReference, executionPrice, executionQuantity } = req.body || {};
+
+  if (!transactionId && !holdingId) {
+    return res.status(400).json({ error: "transactionId or holdingId required" });
+  }
+
+  try {
+    const db = supabaseAdmin || supabase;
+
+    if (status === "filled" || status === "executed" || status === "confirmed") {
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.CONFIRMED }).eq("id", transactionId);
+      }
+      if (holdingId && executionPrice) {
+        const avgFillCents = Math.round(executionPrice * 100);
+        const updateData = {
+          settlement_status: SETTLEMENT_STATUSES.CONFIRMED,
+          avg_fill: avgFillCents,
+        };
+        if (executionQuantity) {
+          updateData.quantity = executionQuantity;
+          updateData.market_value = Math.round(executionQuantity * executionPrice * 100);
+        }
+        await db.from("stock_holdings").update(updateData).eq("id", holdingId);
+        console.log(`[Broker Webhook] Updated holding ${holdingId} with broker price: R${executionPrice}`);
+      } else if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.CONFIRMED }).eq("id", holdingId);
+      }
+
+      console.log(`[Broker Webhook] Settlement CONFIRMED for tx:${transactionId} holding:${holdingId}`);
+    } else if (status === "rejected" || status === "failed") {
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", transactionId);
+      }
+      if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
+      }
+      console.log(`[Broker Webhook] Settlement FAILED for tx:${transactionId} holding:${holdingId}`);
+    }
+
+    res.json({ received: true, processed: true });
+  } catch (error) {
+    console.error("[Broker Webhook] Error:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 

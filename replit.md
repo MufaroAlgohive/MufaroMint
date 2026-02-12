@@ -176,6 +176,17 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - **Per-account unlink**: Individual accounts can be removed with password confirmation
   - Endpoints: POST `/api/banking/initiate`, GET `/api/banking/status`, POST `/api/banking/capture`, POST `/api/banking/capture-confirm`, GET `/api/banking/accounts`, POST `/api/banking/unlink`
   - Environment variables: TRUID_API_KEY, BRAND_ID, COMPANY_ID, TRUID_API_BASE, TRUID_DOMAIN, REDIRECT_URL, WEBHOOK_URL
+- **Settlement Status Tracking**:
+  - **Architecture**: Real-time detection of CSDP and broker integration via environment variables
+  - Server config: `settlementConfig` in `server/index.cjs` - detects CSDP_API_KEY, BROKER_API_KEY presence
+  - Frontend hook: `src/lib/useSettlementStatus.js` - `useSettlementConfig()` and `getSettlementStatusForHolding()`
+  - Badge component: `src/components/PendingBadge.jsx` - `SettlementBadge` with status-based colors/icons
+  - **Settlement Lifecycle**: pending_csdp → pending_broker → confirmed (failed as error state)
+  - **Status Derivation**: Server derives settlement_status per-record based on env config when column missing
+  - **Graceful Fallback**: If `settlement_status` column doesn't exist in Supabase, queries fall back to exclude it
+  - **Endpoints**: GET `/api/settlement/config`, POST `/api/webhooks/csdp`, POST `/api/webhooks/broker`
+  - **Environment Variables**: CSDP_API_KEY (enables CSDP), BROKER_API_KEY (enables broker)
+  - **Badge Display**: Shows on holdings and investment transactions; hidden when status is "confirmed"
 - **Notifications System**:
   - Centralized state management via NotificationsProvider context
   - Real-time updates via Supabase subscription (filtered by user preferences)

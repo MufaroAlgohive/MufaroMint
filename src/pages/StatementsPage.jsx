@@ -10,7 +10,8 @@ import { formatCurrency } from "../lib/formatCurrency";
 import { normalizeSymbol, getHoldingsArray, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
 import { useTransactions } from "../lib/useFinancialData";
 import ActivitySkeleton from "../components/ActivitySkeleton";
-import PendingBadge from "../components/PendingBadge";
+import SettlementBadge from "../components/PendingBadge";
+import { useSettlementConfig, getSettlementStatusForHolding } from "../lib/useSettlementStatus";
 
 const activityFilters = ["All", "Investments", "Deposits", "Withdrawals"];
 
@@ -77,6 +78,8 @@ const formatAmount = (amount, direction) => {
 
 const StatementsPage = ({ onOpenNotifications }) => {
   const { profile } = useProfile();
+  const settlementCfg = useSettlementConfig();
+  const holdingSettlementStatus = getSettlementStatusForHolding(settlementCfg);
   const [activeTab, setActiveTab] = useState("strategy");
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(9);
@@ -365,6 +368,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
             time: timeLabel,
             flow: "in",
             status: holding.Status || null,
+            settlement_status: holding.settlement_status || null,
           };
         });
 
@@ -466,12 +470,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
         amount: formatAmount(t.amount, t.direction),
         rawAmount: (t.amount || 0) / 100,
         direction: t.direction,
-        status: (() => {
-          const lower = ((t.name || "") + " " + (t.description || "")).toLowerCase();
-          if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return "pending";
-          if (t.direction === "debit" && getFilterCategory(t.direction, t.name) === "Investments") return "pending";
-          return t.status;
-        })(),
+        status: t.status,
+        settlement_status: t.settlement_status || null,
         filterCategory: getFilterCategory(t.direction, t.name),
         isPositive,
         groupLabel: formatRelativeDate(t.transaction_date || t.created_at),
@@ -1095,7 +1095,12 @@ const StatementsPage = ({ onOpenNotifications }) => {
                                       <p className="text-[11px] text-slate-400">{item.time}</p>
                                     </>
                                   )}
-                                  {item.status && (
+                                  {item.settlement_status && item.settlement_status !== "confirmed" ? (
+                                    <>
+                                      <span className="text-slate-300">&middot;</span>
+                                      <SettlementBadge status={item.settlement_status} size="xs" />
+                                    </>
+                                  ) : item.status ? (
                                     <>
                                       <span className="text-slate-300">&middot;</span>
                                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -1110,7 +1115,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
                                         {item.status === "successful" || item.status === "completed" || item.status === "posted" ? "Completed" : item.status === "pending" ? "Pending" : item.status === "failed" ? "Failed" : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                                       </span>
                                     </>
-                                  )}
+                                  ) : null}
                                 </div>
                               </div>
                               <p className="text-sm font-bold tabular-nums flex-shrink-0 text-slate-900">
@@ -1238,7 +1243,10 @@ const StatementsPage = ({ onOpenNotifications }) => {
                           <div className="text-left space-y-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                               <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
-                              <PendingBadge size="xs" />
+                              {(() => {
+                                const s = row.settlement_status || holdingSettlementStatus;
+                                return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
+                              })()}
                             </div>
                             <p className="text-xs text-slate-600 line-clamp-1">{row.riskLevel || row.meta} • {row.desc}</p>
                           </div>
@@ -1312,7 +1320,10 @@ const StatementsPage = ({ onOpenNotifications }) => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-1.5">
                                 <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
-                                <PendingBadge size="xs" />
+                                {(() => {
+                                  const s = row.settlement_status || holdingSettlementStatus;
+                                  return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
+                                })()}
                               </div>
                               <p className="text-xs text-slate-500">{row.desc}</p>
                             </div>
