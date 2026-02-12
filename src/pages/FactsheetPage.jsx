@@ -782,7 +782,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-900">Fees & Disclaimers</h2>
           <ul className="mt-3 space-y-2 text-xs text-slate-600">
-            <li>• Management fee: 0.50% per annum</li>
+            <li>• Management fee: 0% per annum</li>
             <li>• Performance fee: 20% of profits (if applicable)</li>
             <li>• Past performance does not guarantee future results</li>
             <li>• All data is for informational purposes only</li>
