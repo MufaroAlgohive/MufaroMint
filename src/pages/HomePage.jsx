@@ -659,16 +659,24 @@ const HomePage = ({
 
   const outstandingActions = actionsData.filter((action) => !action.isComplete);
 
-  const transactionHistory = transactions.slice(0, 3).map((t) => ({
-    title: t.name || t.description || "Transaction",
-    date: formatDate(t.transaction_date || t.created_at),
-    amount: formatAmount((t.amount || 0) / 100, t.direction),
-    direction: t.direction,
-    status: t.status,
-    description: t.description,
-    logo_url: t.logo_url,
-    holding_logos: t.holding_logos || [],
-  }));
+  const isInvestmentTransaction = (name) => {
+    const lower = (name || "").toLowerCase();
+    return lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought");
+  };
+
+  const transactionHistory = transactions.slice(0, 3).map((t) => {
+    const title = t.name || t.description || "Transaction";
+    return {
+      title,
+      date: formatDate(t.transaction_date || t.created_at),
+      amount: formatAmount((t.amount || 0) / 100, t.direction),
+      direction: t.direction,
+      status: isInvestmentTransaction(title) ? "pending" : t.status,
+      description: t.description,
+      logo_url: t.logo_url,
+      holding_logos: t.holding_logos || [],
+    };
+  });
 
   const handleActionNavigation = (action) => {
     const routes = {

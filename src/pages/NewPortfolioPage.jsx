@@ -11,6 +11,7 @@ import { useStockQuotes, useStockChart } from "../lib/useStockData";
 import { clearMarketDataCache } from "../lib/marketData";
 import SwipeBackWrapper from "../components/SwipeBackWrapper.jsx";
 import PortfolioSkeleton from "../components/PortfolioSkeleton";
+import PendingBadge from "../components/PendingBadge";
 
 
 
@@ -395,7 +396,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                     background: 'rgba(255,255,255,0.7)',
                   }}
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-xs text-slate-500 mb-1">Amount</p>
                       <p className="text-xl font-bold text-slate-900">
@@ -408,6 +409,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         {(allocation.previousMonthChange || 0) >= 0 ? '+' : ''}{(allocation.previousMonthChange || 0).toFixed(1)}%
                       </p>
                     </div>
+                  </div>
+                  <div className="mb-3">
+                    <PendingBadge size="sm" label="Awaiting CSDP & Broker" />
                   </div>
 
                   <div className="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -633,7 +637,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         userSelectedStrategy?.strategyId === strategy.strategyId ? 'bg-purple-50' : ''
                       }`}
                     >
-                      <p className="font-medium text-slate-800 text-sm tracking-tight">{strategy.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-slate-800 text-sm tracking-tight">{strategy.name}</p>
+                        <PendingBadge size="xs" />
+                      </div>
                       <p className="text-xs text-slate-400 mt-0.5 font-medium tabular-nums">
                         R{(strategy.currentValue || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
                       </p>
@@ -668,7 +675,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           </div>
 
           <div className="mb-3 px-1">
-            <p className="text-3xl font-bold text-slate-900">R{(currentStrategy.currentValue || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className="text-3xl font-bold text-slate-900">R{(currentStrategy.currentValue || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</p>
+              <PendingBadge size="sm" label="Pending CSDP" />
+            </div>
             <p className="text-sm text-emerald-500">
               ({currentStrategy.previousMonthChange || 0}% Previous Month)
             </p>
@@ -1608,7 +1618,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                          <PendingBadge size="xs" />
+                        </div>
                         <p className="text-xs text-slate-500 font-medium">{stock.ticker}</p>
                       </div>
                       

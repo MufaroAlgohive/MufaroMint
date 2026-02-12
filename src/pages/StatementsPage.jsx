@@ -10,6 +10,7 @@ import { formatCurrency } from "../lib/formatCurrency";
 import { normalizeSymbol, getHoldingsArray, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
 import { useTransactions } from "../lib/useFinancialData";
 import ActivitySkeleton from "../components/ActivitySkeleton";
+import PendingBadge from "../components/PendingBadge";
 
 const activityFilters = ["All", "Investments", "Deposits", "Withdrawals"];
 
@@ -465,7 +466,12 @@ const StatementsPage = ({ onOpenNotifications }) => {
         amount: formatAmount(t.amount, t.direction),
         rawAmount: (t.amount || 0) / 100,
         direction: t.direction,
-        status: t.status,
+        status: (() => {
+          const lower = ((t.name || "") + " " + (t.description || "")).toLowerCase();
+          if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return "pending";
+          if (t.direction === "debit" && getFilterCategory(t.direction, t.name) === "Investments") return "pending";
+          return t.status;
+        })(),
         filterCategory: getFilterCategory(t.direction, t.name),
         isPositive,
         groupLabel: formatRelativeDate(t.transaction_date || t.created_at),
@@ -1230,7 +1236,10 @@ const StatementsPage = ({ onOpenNotifications }) => {
                       <div className="flex items-start gap-3">
                         <div className="flex-1 flex items-start justify-between gap-4">
                           <div className="text-left space-y-1 min-w-0">
-                            <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
+                              <PendingBadge size="xs" />
+                            </div>
                             <p className="text-xs text-slate-600 line-clamp-1">{row.riskLevel || row.meta} • {row.desc}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
@@ -1301,7 +1310,10 @@ const StatementsPage = ({ onOpenNotifications }) => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
+                                <PendingBadge size="xs" />
+                              </div>
                               <p className="text-xs text-slate-500">{row.desc}</p>
                             </div>
                             <div className="text-right flex-shrink-0">
