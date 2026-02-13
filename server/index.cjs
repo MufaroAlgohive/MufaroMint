@@ -2638,6 +2638,210 @@ app.get("/api/debug/onboarding/:userId", async (req, res) => {
 });
 
 // ============================================================
+// Onboarding Endpoints (server-side for RLS bypass)
+// ============================================================
+
+app.post("/api/onboarding/save-employment", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const {
+      employment_status, employer_name, employer_industry, employment_type,
+      institution_name, course_name, graduation_date,
+      annual_income_amount, annual_income_currency, existing_onboarding_id
+    } = req.body;
+
+    const payload = {
+      user_id: user.id,
+      employment_status: employment_status || null,
+      employer_name: employer_name || null,
+      employer_industry: employer_industry || null,
+      employment_type: employment_type || null,
+      institution_name: institution_name || null,
+      course_name: course_name || null,
+      graduation_date: graduation_date || null,
+      annual_income_amount: annual_income_amount || null,
+      annual_income_currency: annual_income_currency || "USD",
+    };
+
+    let savedId = existing_onboarding_id;
+
+    if (existing_onboarding_id) {
+      const { data: updated, error } = await db
+        .from("user_onboarding")
+        .update(payload)
+        .eq("id", existing_onboarding_id)
+        .eq("user_id", user.id)
+        .select("id");
+      if (error) {
+        console.error("[Onboarding] Update employment error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      if (!updated || updated.length === 0) {
+        return res.status(404).json({ success: false, error: "Onboarding record not found" });
+      }
+    } else {
+      const { data, error } = await db
+        .from("user_onboarding")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (error) {
+        console.error("[Onboarding] Insert employment error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      savedId = data?.id;
+    }
+
+    console.log(`[Onboarding] Employment saved for user ${user.id}, onboarding_id: ${savedId}`);
+    res.json({ success: true, onboarding_id: savedId });
+  } catch (error) {
+    console.error("[Onboarding] Employment save error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/onboarding/complete", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const {
+      existing_onboarding_id,
+      risk_disclosure_agreed,
+      source_of_funds,
+      source_of_funds_other,
+      expected_monthly_investment,
+      agreed_terms,
+      agreed_privacy,
+    } = req.body;
+
+    const userId = user.id;
+
+    const { data: existingAction } = await db
+      .from("required_actions")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const actionPayload = { kyc_verified: true };
+    if (existingAction) {
+      await db.from("required_actions").update(actionPayload).eq("user_id", userId);
+    } else {
+      await db.from("required_actions").insert({ user_id: userId, ...actionPayload });
+    }
+
+    const sofData = JSON.stringify({
+      risk_disclosure_agreed: risk_disclosure_agreed || false,
+      source_of_funds: source_of_funds || null,
+      source_of_funds_other: source_of_funds === "other" ? (source_of_funds_other || null) : null,
+      expected_monthly_investment: expected_monthly_investment || null,
+      agreed_terms: agreed_terms || false,
+      agreed_privacy: agreed_privacy || false,
+      completed_at: new Date().toISOString(),
+    });
+
+    const onboardingPayload = {
+      user_id: userId,
+      kyc_status: "onboarding_complete",
+      sumsub_raw: sofData,
+    };
+
+    let onboardingId = existing_onboarding_id;
+    if (!onboardingId) {
+      const { data: latest } = await db
+        .from("user_onboarding")
+        .select("id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest?.id) onboardingId = latest.id;
+    }
+
+    if (onboardingId) {
+      const { data: updated, error } = await db
+        .from("user_onboarding")
+        .update(onboardingPayload)
+        .eq("id", onboardingId)
+        .eq("user_id", userId)
+        .select("id");
+      if (error) {
+        console.error("[Onboarding] Complete update error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      if (!updated || updated.length === 0) {
+        const { error: insErr } = await db.from("user_onboarding").insert(onboardingPayload);
+        if (insErr) {
+          console.error("[Onboarding] Complete insert fallback error:", insErr.message);
+          return res.status(500).json({ success: false, error: insErr.message });
+        }
+      }
+    } else {
+      const { error } = await db.from("user_onboarding").insert(onboardingPayload);
+      if (error) {
+        console.error("[Onboarding] Complete insert error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+
+    console.log(`[Onboarding] Completed for user ${userId}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("[Onboarding] Complete error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/api/onboarding/status", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const { data, error } = await db
+      .from("user_onboarding")
+      .select("id, kyc_status, employment_status, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[Onboarding] Status fetch error:", error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    res.json({
+      success: true,
+      onboarding: data || null,
+      onboarding_id: data?.id || null,
+    });
+  } catch (error) {
+    console.error("[Onboarding] Status error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================================
 // Settlement System Endpoints
 // ============================================================
 

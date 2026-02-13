@@ -196,16 +196,14 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
     setIsSubmitting(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      const userId = authData?.user?.id;
-      if (!userId) {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
         setSubmitError("You must be signed in to continue.");
         return;
       }
 
       const payload = {
-        user_id: userId,
         employment_status: employmentStatus,
         employer_name: showEmployedSection ? employerName || null : null,
         employer_industry: showEmployedSection ? employerIndustry || null : null,
@@ -215,17 +213,21 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
         graduation_date: showStudentSection ? toGraduationDate(graduationDate) : null,
         annual_income_amount: toNumericIncome(annualIncome),
         annual_income_currency: incomeCurrency || "USD",
+        existing_onboarding_id: existingOnboardingId || null,
       };
 
-      if (existingOnboardingId) {
-        const { error } = await supabase
-          .from("user_onboarding")
-          .update(payload)
-          .eq("id", existingOnboardingId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("user_onboarding").insert(payload);
-        if (error) throw error;
+      const res = await fetch("/api/onboarding/save-employment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || "Failed to save onboarding details.");
+      if (result.onboarding_id) {
+        setExistingOnboardingId(result.onboarding_id);
       }
 
       setSubmitSuccess("Onboarding details saved successfully.");
@@ -286,22 +288,16 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       if (!supabase) return;
 
       try {
-        const { data: authData, error: authError } = await supabase.auth.getUser();
-        if (authError) throw authError;
-        const userId = authData?.user?.id;
-        if (!userId) return;
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
 
-        const { data, error } = await supabase
-          .from("user_onboarding")
-          .select("id")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        if (error) throw error;
-
-        const record = data?.[0];
-        if (record?.id) {
-          setExistingOnboardingId(record.id);
+        const res = await fetch("/api/onboarding/status", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        if (result.success && result.onboarding_id) {
+          setExistingOnboardingId(result.onboarding_id);
         }
       } catch (err) {
         // ignore; user can still proceed normally
@@ -361,49 +357,28 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.id) {
-        const userId = userData.user.id;
-
-        const { data: existingAction } = await supabase
-          .from("required_actions")
-          .select("id")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        const actionPayload = {
-          kyc_verified: true,
-        };
-
-        if (existingAction) {
-          await supabase
-            .from("required_actions")
-            .update(actionPayload)
-            .eq("user_id", userId);
-        } else {
-          await supabase
-            .from("required_actions")
-            .insert({ user_id: userId, ...actionPayload });
-        }
-
-        const sofData = JSON.stringify({
-          risk_disclosure_agreed: agreedRiskDisclosure || false,
-          source_of_funds: sourceOfFunds || null,
-          source_of_funds_other: sourceOfFunds === "other" ? (sourceOfFundsOther || null) : null,
-          expected_monthly_investment: expectedMonthlyInvestment || null,
-          completed_at: new Date().toISOString(),
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (token) {
+        const res = await fetch("/api/onboarding/complete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            existing_onboarding_id: existingOnboardingId || null,
+            risk_disclosure_agreed: agreedRiskDisclosure || false,
+            source_of_funds: sourceOfFunds || null,
+            source_of_funds_other: sourceOfFunds === "other" ? (sourceOfFundsOther || null) : null,
+            expected_monthly_investment: expectedMonthlyInvestment || null,
+            agreed_terms: agreedTerms || false,
+            agreed_privacy: agreedPrivacy || false,
+          }),
         });
-
-        const onboardingPayload = {
-          user_id: userId,
-          kyc_status: "onboarding_complete",
-          sumsub_raw: sofData,
-        };
-
-        if (existingOnboardingId) {
-          await supabase.from("user_onboarding").update(onboardingPayload).eq("id", existingOnboardingId);
-        } else {
-          await supabase.from("user_onboarding").insert(onboardingPayload);
+        const result = await res.json();
+        if (!result.success) {
+          console.error("Failed to complete onboarding:", result.error);
         }
       }
     } catch (err) {
