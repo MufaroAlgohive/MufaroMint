@@ -15,12 +15,12 @@ const iconSizeMap = {
 
 const statusConfig = {
   pending_csdp: {
-    label: "Pending CSDP",
+    label: "Pending",
     icon: Clock,
     colors: "bg-amber-50 text-amber-600 border-amber-200",
   },
   pending_broker: {
-    label: "Pending Broker",
+    label: "Pending",
     icon: Loader2,
     colors: "bg-blue-50 text-blue-600 border-blue-200",
   },
