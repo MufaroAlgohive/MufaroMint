@@ -60,15 +60,15 @@ const MintLogoSilver = ({ className = "" }) => (
 );
 
 const CardContent = ({ children, style, variant = "default" }) => {
-  const bg = "linear-gradient(135deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.16) 100%)";
+  const bg = "linear-gradient(135deg, rgba(255,255,255,0.62) 0%, rgba(255,255,255,0.38) 100%)";
 
   return (
     <div
       className="absolute inset-0 rounded-[24px] overflow-hidden"
       style={{
         background: bg,
-        boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.45)",
-        border: "1px solid rgba(255,255,255,0.35)",
+        boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.35)",
+        border: "1px solid rgba(255,255,255,0.62)",
         backdropFilter: "blur(16px) saturate(140%)",
         WebkitBackdropFilter: "blur(16px) saturate(140%)",
         backfaceVisibility: "hidden",
@@ -93,7 +93,7 @@ const CardContent = ({ children, style, variant = "default" }) => {
       <div
         className="absolute inset-x-0 top-0 h-16 pointer-events-none"
         style={{
-          background: "linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0) 100%)",
+          background: "linear-gradient(180deg, rgba(255,255,255,0.46) 0%, rgba(255,255,255,0) 100%)",
         }}
       />
       {children}
