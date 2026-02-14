@@ -1,215 +1,52 @@
 # Mint Auth (React + Vite)
 
 ## Overview
-A React authentication application using Vite as the build tool with Tailwind CSS for styling and Framer Motion for animations. Features a complete signup flow with password validation and OTP email verification.
+Mint Auth is a React authentication application built with Vite, Tailwind CSS, and Framer Motion. It provides a comprehensive and secure user authentication experience, featuring a complete signup flow with robust password validation, OTP email verification, and advanced security measures like biometric authentication and PIN lock screens. The application also integrates with various third-party services for KYC, bank linking, and real-time market data, aiming to deliver a seamless and feature-rich financial management platform. The project envisions a highly secure, intuitive, and efficient platform for managing personal finances and investments.
 
-## Project Structure
-- `src/` - Main source code
-  - `App.jsx` - Main application component with page routing
-  - `components/` - Reusable UI components
-    - `AuthForm.jsx` - Main authentication form with password/OTP flow
-    - `BiometricPromptModal.jsx` - Modal for enabling Face ID/Touch ID
-    - `PasswordStrengthIndicator.jsx` - Password strength validation component
-    - `TextInput.jsx` - Base text input component
-    - `PasswordInput.jsx` - Password input wrapper
-    - `PrimaryButton.jsx` - Button component
-    - `Preloader.jsx` - Loading animation component
-    - `AuthLayout.jsx` - Auth page layout
-    - `NotificationBell.jsx` - Bell icon with unread count badge
-    - `TruidConnector.jsx` - TruID Connect integration for identity verification
-    - `PinLockScreen.jsx` - PIN lock screen overlay with iOS-style number pad
-  - `lib/` - Utility libraries
-    - `supabase.js` - Supabase client initialization
-    - `biometrics.js` - Biometric authentication utilities (Face ID/Touch ID)
-    - `strategyUtils.js` - Shared strategy utilities (normalizeSymbol, getHoldingsArray, buildHoldingsBySymbol, etc.)
-    - `NotificationsContext.jsx` - Centralized notifications state management with real-time updates
-    - `useSumsubStatus.js` - Hook for fetching KYC status directly from Sumsub API (single source of truth)
-    - `useRequiredActions.js` - Hook for bank linking status only (no KYC - that's in useSumsubStatus)
-    - `useUserStrategies.js` - Hook for fetching user's investment strategies via /api/user/strategies endpoint (derives from transactions)
-    - `useRealtimePrices.js` - Singleton hook for real-time Supabase subscriptions on securities/security_prices tables (auto-updates portfolio when worker data lands)
-    - `useFinancialData.js` - Hook for financial data utilities (useInvestments exposes refetch)
-    - `strategyData.js` - Strategy price history fetching utilities
-    - `useProfile.js` - Profile hook with id, email, name, avatarUrl, phoneNumber, dateOfBirth, gender, address, idNumber, watchlist
-    - `useInactivityTimeout.jsx` - Inactivity timeout hook (5-min inactivity = full logout, no lock screen)
-    - `usePin.js` - PIN/passcode utilities (save, verify, remove, isPinEnabled) with SHA-256 hashing
-  - `pages/` - Page components
-    - `StatementsPage.jsx` - Statements page with Strategy/Holdings/Financials tabs, real data from Supabase, PDF download
-    - `NewPortfolioPage.jsx` - Portfolio dashboard with strategy selector dropdown and performance charts
-    - `AuthPage.jsx` - Authentication page
-    - `OnboardingPage.jsx` - Welcome/landing page (before login)
-    - `UserOnboardingPage.jsx` - User identification onboarding flow (3-step process)
-    - `IdentityCheckPage.jsx` - Identity verification page (wraps UserOnboardingPage)
-    - `HomePage.jsx` - Home page with real-time subscriptions, investment goals CRUD, market insights, best assets from allocations
-    - `MorePage.jsx` - Profile and menu page with KYC badge and Required Actions
-    - `EditProfilePage.jsx` - Edit profile with phone, DOB, gender, country, city fields
-    - `ProfileDetailsPage.jsx` - View-only profile details page
-    - `SettingsPage.jsx` - Settings with biometrics, PIN, session timeout, active sessions, change password
-    - `ChangePasswordPage.jsx` - Dedicated page for changing password
-    - `ActiveSessionsPage.jsx` - View active login sessions with device/browser info, logout options
-    - `PinSetupPage.jsx` - 5-digit PIN setup with confirm step, light UI
-    - `NotificationsPage.jsx` - Full notifications list with swipe-to-delete
-    - `NotificationSettingsPage.jsx` - Notification type preferences toggles
-  - `styles/` - CSS styles
-    - `auth.css` - iOS-style auth form styling
-    - `tailwind.css` - Tailwind configuration
-    - `onboarding-process.css` - Onboarding flow glassmorphism styling
-- `public/` - Static assets
-- `server/` - Backend API server
-  - `index.cjs` - Express server with TruID API routes
-  - `truidClient.cjs` - TruID API client with authentication
-- `index.html` - HTML entry point
+## User Preferences
+- **Communication Style**: I prefer clear and concise communication. Avoid overly technical jargon unless necessary, and provide explanations that are easy to understand.
+- **Coding Style**: I prefer clean, readable, and modular code. Favor functional components in React and maintain a consistent coding style throughout the project.
+- **Workflow Preferences**: I prefer an iterative development approach. Break down tasks into smaller, manageable chunks and seek feedback regularly.
+- **Interaction Preferences**: Ask before making any major architectural changes or introducing new dependencies. Provide a brief explanation for proposed changes.
+- **General Working Preferences**: Do not make changes to the `server/` directory without explicit instruction, as this contains critical backend logic and third-party API integrations.
 
-## Features
-- **Password Validation**: Real-time strength indicator requiring ALL criteria to be "Strong":
-  - At least 8 characters
-  - At least 1 uppercase letter (A-Z)
-  - At least 1 lowercase letter (a-z)
-  - At least 1 number (0-9)
-  - At least 1 special character
-  - Only "Strong" passwords can proceed
-- **OTP Verification Flow** (Signup):
-  - 6-digit OTP code from Supabase email
-  - 180 second code expiry (hidden timer - shows error only when user attempts expired code)
-  - 30 second resend cooldown between requests
-  - Max 5 resend/edit attempts before rate limit triggers
-  - Max 5 incorrect OTP attempts before lockout
-  - Progressive cooldowns: 5min first, 30min second, 30min+ shows "contact support"
-  - Edit email counts as a resend attempt and returns directly to OTP page
-- **Login Flow**:
-  - Email → Password → Home (on success)
-  - Max 5 incorrect login attempts before 30-minute cooldown
-  - Shows remaining attempts after each failed login
-  - Rate limit screen with options: Reset Password or Contact Support
-  - Auto-dismiss rate limit screen after 10 seconds
-- **Forgot Password Flow**:
-  - Send password reset email via Supabase
-  - User clicks magic link in email
-  - Create new password (with strength validation)
-  - Confirm new password
-- **Supabase Integration**:
-  - User authentication (signup, login)
-  - Email verification (OTP)
-  - Password reset via magic link
-  - Environment variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
-- **iOS-Style UI**: Glassmorphism design with smooth animations
-- **Swipe-Back Navigation (iOS-Style)**:
-  - Swipe from left edge of screen to go back to previous page
-  - Works on all non-main-tab pages (Settings, Notifications, Profile, etc.)
-  - **Previous page preview**: Shows the previous page underneath while swiping
-  - **Drop shadow**: Left edge shadow on current page during swipe
-  - **Scaling effect**: Previous page scales from 95% to 100%
-  - **Dim/brightness transition**: Previous page fades in from 60% to 100% opacity
-  - **Velocity detection**: Fast swipes trigger navigation even with less than 50% progress
-  - **Spring animation**: Bouncy spring effect using CSS cubic-bezier
-  - **Haptic feedback**: Vibration when crossing navigation threshold (via Capacitor)
-  - Navigation history and page state cached for smooth transitions
-  - Files: `src/hooks/useSwipeBack.js`, `src/hooks/useNavigationHistory.js`, `src/components/SwipeBackWrapper.jsx`
-- **Biometric Authentication (Face ID/Touch ID)**:
-  - Uses `capacitor-face-id` plugin for native iOS/Android biometrics
-  - Prompts users to enable biometrics after successful signup (OTP verification)
-  - Prompts users to enable biometrics on first-time login
-  - Users can choose to enable or skip biometrics
-  - When enabled, login shows "Use Face ID" button as alternative to password
-  - Account-bound: biometrics are tied to specific user email for security
-  - Toggle switch in Settings page to enable/disable biometrics
-  - Green toggle = Face ID enabled, Grey toggle = Face ID disabled
-  - Works like native iOS Face ID behavior
-- **Profile Management**:
-  - KYC verification status badge displayed between profile picture and name
-  - Required Actions section showing KYC and Bank verification status
-  - Edit Profile page with editable: phone number, date of birth, gender, country, city
-  - Non-editable fields: First name, Last name, Email (display only)
-  - Profile Details page for view-only profile information
-  - Toast notifications on profile save
-- **Settings Page**:
-  - Enable Biometrics toggle
-  - Change Password option
-  - Biometrics Debug for testing
-- **Menu Structure**:
-  - Profile Details - View-only profile
-  - Settings - Biometrics and password
-  - Help & FAQs
-  - Legal Documentation
-  - Privacy
-  - Subscriptions (formerly My Orders)
-  - Log out
-- **User Identification Onboarding Flow**:
-  - 5-step verification process triggered from Actions page
-  - Step 0: Welcome overview (shows 4 steps)
-  - Step 1: Employment details (status, employer, income) - currently skipped
-  - Step 2: Identity verification via Sumsub KYC
-  - Step 3: Risk & Disclosure acknowledgment (investment risk warnings, market volatility, no guaranteed returns, regulatory compliance, diversification)
-  - Step 4: Source of Funds declaration (primary source, expected monthly investment amount, legitimacy declaration)
-  - Step 5: Terms & Conditions and Privacy Policy agreements
-  - Saves onboarding data to Supabase `user_onboarding` table
-  - Source of funds, risk disclosure, and expected monthly investment stored as JSON in `sumsub_raw` column (external DB constraint - can't add new columns)
-  - Sumsub integration for KYC verification with status checking
-  - Backend API server on port 3001 for API calls
-  - Glassmorphism UI with smooth animations
-- **Sumsub KYC Integration** (Primary):
-  - **Architecture**: Sumsub is the single source of truth for KYC status - no local database storage
-  - Backend: `server/index.cjs` - Express server with Sumsub API endpoints
-  - Frontend Hook: `src/lib/useSumsubStatus.js` - Fetches KYC status directly from Sumsub API
-  - Verification Widget: `src/components/SumsubVerification.jsx` - Sumsub WebSDK integration
-  - Main Endpoint: POST `/api/sumsub/status` - Returns normalized KYC status from Sumsub
-  - Access Token: POST `/api/sumsub/access-token` - Generates Sumsub SDK access token
-  - Environment variables: SUMSUB_APP_TOKEN, SUMSUB_SECRET_KEY, SUMSUB_BASE_URL, SUMSUB_LEVEL_NAME (default: mint-advanced-kyc)
-  - **KYC Status Values**: verified, pending, needs_resubmission, not_verified
-  - **Notification Triggers**: Based on Sumsub status changes, stored in localStorage to prevent duplicates
-  - **30-second cache**: Prevents excessive API calls while keeping status fresh
-- **Live Stock Market Data**:
-  - Backend proxy endpoints in `server/index.cjs` to fetch live data from Yahoo Finance
-  - `GET /api/stocks/quote?symbols=AAPL,MSFT` - Live stock quotes (price, change, changePercent)
-  - `GET /api/stocks/chart?symbol=AAPL&range=5d&interval=15m` - Chart data with configurable range/interval
-  - Frontend Hook: `src/lib/useStockData.js` - `useStockQuotes` and `useStockChart` hooks with 60-second caching
-  - Individual Stocks tab displays real-time market prices and charts
-  - Fallback to mock data if API is unavailable
-  - No API key required (uses Yahoo Finance public endpoints)
-- **TruID Bank Linking**:
-  - Backend: `server/index.cjs` - Express server with TruID API endpoints
-  - Client: `server/truidClient.cjs` - TruID API client with authentication
-  - Frontend: `src/pages/MintBankPage.jsx` - Bank linking page with confirmation flow
-  - SVG bank logos: `src/assets/banks/` - FNB, Standard Bank, ABSA, Nedbank, Capitec, Investec, Discovery, TymeBank, African Bank, Bank Zero
-  - **Flow**: TruID verification → User confirms bank/account details → Saved to Supabase
-  - **Confirm step**: After TruID verifies, user selects bank from dropdown (auto-prefilled from TruID data), enters account number, selects account type
-  - **Storage**: Bank accounts stored as JSON in `user_onboarding.sumsub_outcome` column
-  - **Per-account unlink**: Individual accounts can be removed with password confirmation
-  - Endpoints: POST `/api/banking/initiate`, GET `/api/banking/status`, POST `/api/banking/capture`, POST `/api/banking/capture-confirm`, GET `/api/banking/accounts`, POST `/api/banking/unlink`
-  - Environment variables: TRUID_API_KEY, BRAND_ID, COMPANY_ID, TRUID_API_BASE, TRUID_DOMAIN, REDIRECT_URL, WEBHOOK_URL
-- **Notifications System**:
-  - Centralized state management via NotificationsProvider context
-  - Real-time updates via Supabase subscription (filtered by user preferences)
-  - Unread count badge on bell icon (synced across all pages)
-  - Notifications grouped by date (Today, Yesterday, This Week, etc.)
-  - Swipe-to-delete individual notifications
-  - "Mark all as read" bulk action
-  - 8 notification types: transaction, security, investment, credit, promo, bank, verification, system
-  - Notification Settings page with toggle controls per type
-  - Welcome notification triggered on first signup (with duplicate prevention)
-  - Preference changes immediately update real-time filtering
+## System Architecture
 
-## Development
-The development server runs on port 5000 using Vite.
+### UI/UX Decisions
+- **Design Language**: iOS-style UI with a "glassmorphism" design approach for a modern and sleek aesthetic.
+- **Animations**: Smooth transitions and animations are implemented using Framer Motion for an enhanced user experience.
+- **Theming**: Tailwind CSS is used for utility-first styling, enabling rapid and consistent UI development.
+- **Navigation**: Implements an iOS-style "swipe-back" navigation system for intuitive backward navigation on non-main-tab pages, complete with previous page preview, scaling effects, and haptic feedback.
 
-### Commands
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
+### Technical Implementations
+- **Frontend Framework**: React 18 with Vite for fast development and optimized builds.
+- **Styling**: Tailwind CSS 3 and PostCSS with Autoprefixer for efficient and responsive design.
+- **State Management**: Context API for centralized state management, particularly for notifications. Custom hooks are extensively used for data fetching and logic encapsulation (e.g., `useSumsubStatus`, `useRealtimePrices`, `useProfile`).
+- **Authentication Flows**:
+    - **Password Validation**: Real-time strength indicator ensuring "Strong" passwords (8+ chars, uppercase, lowercase, number, special char).
+    - **OTP Verification**: 6-digit OTP with 180-second expiry, 30-second resend cooldown, max 5 resend/edit attempts, and max 5 incorrect OTP attempts before progressive lockouts.
+    - **Login Security**: Max 5 incorrect login attempts before a 30-minute cooldown, with remaining attempts displayed.
+    - **Forgot Password**: Standard email-based password reset with strength validation for new passwords.
+- **Biometric Authentication**: Integration with `capacitor-face-id` for native iOS/Android biometrics (Face ID/Touch ID) for secure login alternatives, configurable via settings.
+- **PIN Lock Screen**: A 5-digit PIN setup and lock screen with SHA-256 hashing for enhanced session security.
+- **User Onboarding**: A multi-step identification process including employment details, Sumsub KYC verification, risk & disclosure acknowledgment, source of funds declaration, and T&C agreements.
+- **Notification System**: Centralized real-time notifications via Supabase subscriptions, grouped by date, with swipe-to-delete, "mark all as read" functionality, and user-configurable notification type preferences.
+- **Settlement Status Tracking**: Real-time detection of CSDP and broker integration via environment variables, with a settlement lifecycle (pending_csdp → pending_broker → confirmed) and status badges on holdings.
 
-### Test OTP Code
-For development testing, the valid OTP code is: `123456`
+### Feature Specifications
+- **Dashboard**: Investment portfolio dashboard with strategy selection and performance charts.
+- **Statements**: Statements page with Strategy/Holdings/Financials tabs and PDF download.
+- **Profile Management**: KYC verification status badge, editable profile details (phone, DOB, gender, country, city), and a view-only profile page.
+- **Settings**: Biometric toggles, change password, session timeout configuration, and active session management.
+- **Navigation Menu**: Comprehensive menu including Profile Details, Settings, Help & FAQs, Legal, Privacy, Subscriptions, and Logout.
 
-## Deployment
-This project is configured for static deployment. The build output goes to the `dist` directory.
+## External Dependencies
 
-## Technologies
-- React 18
-- Vite 5
-- Tailwind CSS 3
-- Framer Motion
-- PostCSS with Autoprefixer
-- Capacitor (for native mobile features)
-- capacitor-face-id (biometric authentication)
-- Express.js (backend API server)
-- Axios (HTTP client for TruID API)
-- TruID Connect (identity verification)
+- **Supabase**: Backend-as-a-Service for user authentication (signup, login, email verification, password reset), database services for user data, onboarding information, and real-time subscriptions for notifications and market data.
+- **Capacitor**: For deploying the React application as a native mobile app and accessing native device features (e.g., biometric authentication).
+- **capacitor-face-id**: Plugin for integrating native Face ID/Touch ID biometric authentication.
+- **Express.js**: Used as a backend API server for handling secure server-side logic and acting as a proxy for third-party APIs.
+- **Axios**: HTTP client used for making API requests, particularly to the TruID API.
+- **TruID Connect**: Identity verification and bank linking service. Integrated via custom backend endpoints to manage the verification and account linking flow.
+- **Sumsub**: KYC (Know Your Customer) verification service. Integrated through backend endpoints (`/api/sumsub/status`, `/api/sumsub/access-token`) and a frontend SDK (`SumsubVerification.jsx`) to manage identity checks.
+- **Yahoo Finance (via custom proxy)**: For fetching live stock market data (quotes and charts). The application uses a custom backend proxy to access Yahoo Finance public endpoints.

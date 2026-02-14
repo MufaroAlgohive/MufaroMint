@@ -4,8 +4,6 @@ import {
   BadgeCheck,
   ChevronRight,
   CheckCircle2,
-  Shield,
-  Wallet,
   FileText,
 } from "lucide-react";
 import ActionsSkeleton from "../components/ActionsSkeleton";
@@ -32,7 +30,7 @@ const ActionsPage = ({ onBack, onNavigate }) => {
         }
         const { data } = await supabase
           .from("user_onboarding")
-          .select("kyc_status")
+          .select("kyc_status, employment_status")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(1);
@@ -49,20 +47,20 @@ const ActionsPage = ({ onBack, onNavigate }) => {
     return <ActionsSkeleton />;
   }
 
-  const riskDisclosureComplete = onboardingData?.kyc_status === "onboarding_complete";
-  const sourceOfFundsComplete = onboardingData?.kyc_status === "onboarding_complete";
-  const allOnboardingComplete = kycVerified && onboardingData?.kyc_status === "onboarding_complete";
+  const hasOnboardingRecord = !!onboardingData;
+  const employmentDone = hasOnboardingRecord && onboardingData.employment_status && onboardingData.employment_status !== "not_provided";
+  const identityComplete = kycVerified && employmentDone;
+  const allOnboardingComplete = identityComplete && onboardingData?.kyc_status === "onboarding_complete";
 
-  const getKycStatus = () => {
-    if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
+  const getIdentityStatus = () => {
+    if (identityComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
     if (kycNeedsResubmission) return { text: "Needs Attention", style: "bg-amber-100 text-amber-700" };
     if (kycPending) return { text: "Pending", style: "bg-blue-100 text-blue-600" };
     return { text: "Required", style: "bg-slate-100 text-slate-500" };
   };
 
-  const kycStatus = getKycStatus();
-
-  const getKycDescription = () => {
+  const getIdentityDescription = () => {
+    if (identityComplete) return "Employment details and identity verification complete";
     if (kycNeedsResubmission) {
       if (rejectLabels && rejectLabels.length > 0) {
         const labelMap = {
@@ -78,12 +76,13 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       }
       return "Some documents need resubmission";
     }
-    if (kycVerified) return "Identity verification complete";
-    return "Needed to unlock higher limits";
+    return "Employment details and identity verification";
   };
 
+  const identityStatus = getIdentityStatus();
+
   const getOnboardingStatus = () => {
-    if (!kycVerified) return { text: "Awaiting KYC", style: "bg-slate-100 text-slate-500" };
+    if (!identityComplete) return { text: "Awaiting Identity", style: "bg-slate-100 text-slate-500" };
     if (allOnboardingComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
     return { text: "Required", style: "bg-slate-100 text-slate-500" };
   };
@@ -93,12 +92,12 @@ const ActionsPage = ({ onBack, onNavigate }) => {
   const allActions = [
     {
       id: "identity",
-      title: "Complete identity check",
-      description: getKycDescription(),
-      status: kycStatus.text,
-      statusStyle: kycStatus.style,
+      title: "Complete identity",
+      description: getIdentityDescription(),
+      status: identityStatus.text,
+      statusStyle: identityStatus.style,
       icon: BadgeCheck,
-      completed: kycVerified,
+      completed: identityComplete,
       navigateTo: "identityCheck",
     },
     {
@@ -112,7 +111,7 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       icon: FileText,
       completed: allOnboardingComplete,
       navigateTo: "identityCheck",
-      disabled: !kycVerified,
+      disabled: !identityComplete,
     },
   ];
 

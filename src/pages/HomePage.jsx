@@ -665,6 +665,7 @@ const HomePage = ({
     amount: formatAmount((t.amount || 0) / 100, t.direction),
     direction: t.direction,
     status: t.status,
+    settlement_status: t.settlement_status || null,
     description: t.description,
     logo_url: t.logo_url,
     holding_logos: t.holding_logos || [],

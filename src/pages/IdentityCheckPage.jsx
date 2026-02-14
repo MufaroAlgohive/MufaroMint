@@ -165,6 +165,7 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
 
             <div className="flex-1">
               <SumsubVerification 
+                resubmitMode={true}
                 onVerified={() => {
                   refetch();
                 }}

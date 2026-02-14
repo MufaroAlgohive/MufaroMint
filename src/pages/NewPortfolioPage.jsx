@@ -11,6 +11,8 @@ import { useStockQuotes, useStockChart } from "../lib/useStockData";
 import { clearMarketDataCache } from "../lib/marketData";
 import SwipeBackWrapper from "../components/SwipeBackWrapper.jsx";
 import PortfolioSkeleton from "../components/PortfolioSkeleton";
+import SettlementBadge from "../components/PendingBadge";
+import { useSettlementConfig, getSettlementStatusForHolding } from "../lib/useSettlementStatus";
 
 
 
@@ -62,6 +64,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     }
   }, [currentView]);
 
+  const settlementCfg = useSettlementConfig();
+  const holdingSettlementStatus = getSettlementStatusForHolding(settlementCfg);
   const { lastUpdated: pricesLastUpdated } = useRealtimePrices();
   const { securities: allSecurities, quotes: liveQuotes, loading: quotesLoading, refetch: refetchStocks } = useStockQuotes(true);
   const stocksList = useMemo(() => {
@@ -256,6 +260,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           logo: h.logo_url || null,
           currentValue,
           change: changePct,
+          settlement_status: h.settlement_status || null,
         });
       });
     }
@@ -395,7 +400,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                     background: 'rgba(255,255,255,0.7)',
                   }}
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-xs text-slate-500 mb-1">Amount</p>
                       <p className="text-xl font-bold text-slate-900">
@@ -409,6 +414,11 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       </p>
                     </div>
                   </div>
+                  {holdingSettlementStatus && holdingSettlementStatus !== "confirmed" && (
+                    <div className="mb-3">
+                      <SettlementBadge status={holdingSettlementStatus} size="sm" />
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                     <div>
@@ -633,7 +643,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         userSelectedStrategy?.strategyId === strategy.strategyId ? 'bg-purple-50' : ''
                       }`}
                     >
-                      <p className="font-medium text-slate-800 text-sm tracking-tight">{strategy.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-slate-800 text-sm tracking-tight">{strategy.name}</p>
+                        {holdingSettlementStatus && holdingSettlementStatus !== "confirmed" && (
+                          <SettlementBadge status={holdingSettlementStatus} size="xs" />
+                        )}
+                      </div>
                       <p className="text-xs text-slate-400 mt-0.5 font-medium tabular-nums">
                         R{(strategy.currentValue || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
                       </p>
@@ -668,7 +683,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           </div>
 
           <div className="mb-3 px-1">
-            <p className="text-3xl font-bold text-slate-900">R{(currentStrategy.currentValue || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</p>
+            <div className="flex items-center gap-2 mb-0.5">
+              <p className="text-3xl font-bold text-slate-900">R{(currentStrategy.currentValue || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</p>
+              {holdingSettlementStatus && holdingSettlementStatus !== "confirmed" && (
+                <SettlementBadge status={holdingSettlementStatus} size="sm" />
+              )}
+            </div>
             <p className="text-sm text-emerald-500">
               ({currentStrategy.previousMonthChange || 0}% Previous Month)
             </p>
@@ -1608,7 +1628,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                          {(stock.settlement_status || holdingSettlementStatus) && (stock.settlement_status || holdingSettlementStatus) !== "confirmed" && (
+                            <SettlementBadge status={stock.settlement_status || holdingSettlementStatus} size="xs" />
+                          )}
+                        </div>
                         <p className="text-xs text-slate-500 font-medium">{stock.ticker}</p>
                       </div>
                       

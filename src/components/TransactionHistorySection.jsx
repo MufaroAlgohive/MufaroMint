@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowDownLeft, ArrowUpRight, TrendingUp, CreditCard, Wallet, RefreshCw, Gift } from "lucide-react";
+import SettlementBadge from "./PendingBadge";
 
 const getTransactionIcon = (name, direction) => {
   const lower = (name || "").toLowerCase();
@@ -37,7 +38,8 @@ const TransactionHistorySection = ({ items, onViewAll }) => {
           items.slice(0, 3).map((item, idx) => {
             const Icon = getTransactionIcon(item.title, item.direction);
             const colors = getIconColors(item.direction, item.title);
-            const isCredit = item.direction === "credit";
+            const settlementStatus = item.settlement_status;
+            const showSettlement = settlementStatus && settlementStatus !== "confirmed";
             return (
               <div
                 key={`${item.title}-${item.date}-${idx}`}
@@ -70,7 +72,12 @@ const TransactionHistorySection = ({ items, onViewAll }) => {
                   <p className="text-sm font-semibold text-slate-900 truncate">{item.title}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-[11px] text-slate-400">{item.date}</p>
-                    {item.status && (
+                    {showSettlement ? (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <SettlementBadge status={settlementStatus} size="xs" />
+                      </>
+                    ) : item.status && !showSettlement ? (
                       <>
                         <span className="text-slate-300">·</span>
                         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
@@ -83,7 +90,7 @@ const TransactionHistorySection = ({ items, onViewAll }) => {
                           {item.status === "successful" || item.status === "completed" || item.status === "posted" ? "Completed" : item.status === "pending" ? "Pending" : item.status}
                         </span>
                       </>
-                    )}
+                    ) : null}
                   </div>
                 </div>
                 <p className="text-sm font-bold tabular-nums flex-shrink-0 text-slate-900">

@@ -6,6 +6,8 @@ import { getStrategyPriceHistory } from "../lib/strategyData";
 import { getStrategyCurrentValue, getStrategyReturnPct } from "../lib/strategyUtils";
 import { useRealtimePrices } from "../lib/useRealtimePrices";
 import Skeleton from "./Skeleton";
+import SettlementBadge from "./PendingBadge";
+import { useSettlementConfig, getSettlementStatusForHolding } from "../lib/useSettlementStatus";
 
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
 
@@ -27,6 +29,8 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
   const [activeTab, setActiveTab] = useState("1m");
   const [isOpen, setIsOpen] = useState(false);
   const { lastUpdated, isConnected } = useRealtimePrices();
+  const settlementCfg = useSettlementConfig();
+  const holdingSettlementStatus = getSettlementStatusForHolding(settlementCfg);
   const [showUpdatedText, setShowUpdatedText] = useState(false);
   const updatedTimerRef = useRef(null);
 
@@ -375,6 +379,10 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
                         <span className="text-[6px] text-white/60">{h.symbol?.substring(0, 2)}</span>
                       )}
                       <span className="text-[8px] font-medium text-white/80">{h.isStrategy ? h.symbol : h.symbol?.replace('.JO', '')}</span>
+                      {(() => {
+                        const s = h.settlement_status || holdingSettlementStatus;
+                        return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
+                      })()}
                     </div>
                   ))}
                   {dbData.holdings.length > 3 && (
@@ -452,6 +460,10 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
                   )}
                 </div>
                 <span className="text-[9px] font-medium text-white/90 truncate">{item.symbol}</span>
+                {(() => {
+                  const s = item.settlement_status || holdingSettlementStatus;
+                  return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
+                })()}
               </button>
             ))}
           </div>

@@ -239,6 +239,42 @@
   font-size: 0.9rem;
   color: hsl(270 35% 30%);
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.onboarding-process .step-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  letter-spacing: 0.03em;
+}
+
+.onboarding-process .step-circle-complete {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+  border-color: #16a34a !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25) !important;
+}
+
+.onboarding-process .step-line-complete {
+  background: linear-gradient(90deg, #22c55e 0%, rgba(168, 85, 247, 0.2) 100%) !important;
+}
+
+.onboarding-process .step-number-complete {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+  color: #ffffff !important;
+}
+
+.onboarding-process .step-item-complete .step-description {
+  color: #16a34a;
 }
 
 .onboarding-process .form-error,

@@ -207,6 +207,135 @@ async function cleanupInvalidHoldings() {
 
 cleanupInvalidHoldings();
 
+// ============================================================
+// Settlement Status System
+// Tracks investment lifecycle: pending_csdp → pending_broker → confirmed
+// ============================================================
+const SETTLEMENT_STATUSES = {
+  PENDING_CSDP: 'pending_csdp',
+  PENDING_BROKER: 'pending_broker',
+  CONFIRMED: 'confirmed',
+  FAILED: 'failed',
+};
+
+const settlementConfig = {
+  csdpEnabled: !!(process.env.CSDP_API_KEY && process.env.CSDP_API_URL),
+  brokerEnabled: !!(process.env.BROKER_API_KEY && process.env.BROKER_API_URL),
+  get isFullyIntegrated() {
+    return this.csdpEnabled && this.brokerEnabled;
+  },
+};
+
+console.log('[settlement] Config:', {
+  csdpEnabled: settlementConfig.csdpEnabled,
+  brokerEnabled: settlementConfig.brokerEnabled,
+  fullyIntegrated: settlementConfig.isFullyIntegrated,
+});
+
+async function runSettlementMigration() {
+  const db = supabaseAdmin || supabase;
+  if (!db) return;
+
+  try {
+    const { data: testTx } = await db
+      .from('transactions')
+      .select('settlement_status')
+      .limit(1);
+
+    if (testTx !== null) {
+      console.log('[settlement] settlement_status column already exists on transactions');
+    }
+  } catch (e) {
+    if (e.message?.includes('settlement_status') || e.code === '42703') {
+      console.log('[settlement] Adding settlement_status column to transactions...');
+      try {
+        const { error } = await db.rpc('exec_sql', {
+          query: "ALTER TABLE transactions ADD COLUMN IF NOT EXISTS settlement_status TEXT DEFAULT 'pending_csdp'"
+        });
+        if (error) {
+          console.log('[settlement] Could not add column via RPC (expected if RPC not configured):', error.message);
+        }
+      } catch (rpcErr) {
+        console.log('[settlement] RPC not available, settlement_status column needs manual addition');
+      }
+    }
+  }
+
+  try {
+    const { data: testH } = await db
+      .from('stock_holdings')
+      .select('settlement_status')
+      .limit(1);
+
+    if (testH !== null) {
+      console.log('[settlement] settlement_status column already exists on stock_holdings');
+    }
+  } catch (e) {
+    if (e.message?.includes('settlement_status') || e.code === '42703') {
+      console.log('[settlement] Adding settlement_status column to stock_holdings...');
+      try {
+        const { error } = await db.rpc('exec_sql', {
+          query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS settlement_status TEXT DEFAULT 'pending_csdp'"
+        });
+        if (error) {
+          console.log('[settlement] Could not add column via RPC:', error.message);
+        }
+      } catch (rpcErr) {
+        console.log('[settlement] RPC not available for stock_holdings');
+      }
+    }
+  }
+}
+
+function deriveSettlementStatus(record) {
+  if (record.settlement_status) {
+    return record.settlement_status;
+  }
+
+  if (settlementConfig.isFullyIntegrated) {
+    return SETTLEMENT_STATUSES.CONFIRMED;
+  }
+
+  const name = ((record.name || '') + ' ' + (record.description || '')).toLowerCase();
+  const isInvestment = name.includes('invest') || name.includes('strategy') ||
+    name.includes('purchas') || name.includes('buy') || name.includes('bought') ||
+    name.includes('allocat') || name.includes('order') ||
+    (record.direction === 'debit' && (name.includes('stock') || name.includes('share') || name.includes('securit'))) ||
+    (record.store_reference && record.direction === 'debit');
+
+  if (isInvestment) {
+    if (!settlementConfig.csdpEnabled) {
+      return SETTLEMENT_STATUSES.PENDING_CSDP;
+    }
+    if (!settlementConfig.brokerEnabled) {
+      return SETTLEMENT_STATUSES.PENDING_BROKER;
+    }
+    return SETTLEMENT_STATUSES.CONFIRMED;
+  }
+
+  return record.status || null;
+}
+
+function deriveHoldingSettlementStatus(holding) {
+  if (holding.settlement_status) {
+    return holding.settlement_status;
+  }
+
+  if (settlementConfig.isFullyIntegrated) {
+    return SETTLEMENT_STATUSES.CONFIRMED;
+  }
+
+  if (!settlementConfig.csdpEnabled) {
+    return SETTLEMENT_STATUSES.PENDING_CSDP;
+  }
+  if (!settlementConfig.brokerEnabled) {
+    return SETTLEMENT_STATUSES.PENDING_BROKER;
+  }
+  return SETTLEMENT_STATUSES.CONFIRMED;
+}
+
+runSettlementMigration();
+
 function parseServices(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
   if (typeof value === 'string') {
@@ -228,17 +357,31 @@ app.post("/api/sumsub/access-token", async (req, res) => {
       });
     }
 
-    const { userId, levelName = SUMSUB_LEVEL_NAME } = req.body;
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.replace("Bearer ", "");
+    const db = supabaseAdmin || supabase;
+    let authenticatedUserId = null;
+
+    if (token && db) {
+      try {
+        const { data: { user } } = await db.auth.getUser(token);
+        if (user) authenticatedUserId = user.id;
+      } catch (e) {}
+    }
+
+    const { levelName = SUMSUB_LEVEL_NAME } = req.body;
+    const userId = authenticatedUserId;
     
     if (!userId) {
-      return res.status(400).json({
+      return res.status(401).json({
         success: false,
-        error: { message: "userId is required" }
+        error: { message: "Authentication required" }
       });
     }
 
+    let applicantData = null;
     try {
-      await createSumsubApplicant(userId, levelName);
+      applicantData = await createSumsubApplicant(userId, levelName);
     } catch (err) {
       if (!err.message.includes("already exists")) {
         console.error("Create applicant error:", err.message);
@@ -246,6 +389,41 @@ app.post("/api/sumsub/access-token", async (req, res) => {
     }
 
     const tokenData = await generateSumsubAccessToken(userId, levelName);
+
+    const onbDb = supabaseAdmin || supabase;
+    if (onbDb) {
+      try {
+        const { data: existing } = await onbDb
+          .from("user_onboarding")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!existing) {
+          const { error: insErr } = await onbDb.from("user_onboarding").insert({
+            user_id: userId,
+            employment_status: "not_provided",
+            sumsub_external_user_id: userId,
+            sumsub_applicant_id: applicantData?.id || null,
+            kyc_status: "pending",
+            kyc_checked_at: new Date().toISOString(),
+            annual_income_currency: "USD",
+          });
+          if (insErr) {
+            console.error("[Sumsub] Failed to create onboarding record:", insErr.message);
+          } else {
+            console.log(`[Sumsub] Created onboarding record for user ${userId}`);
+          }
+        } else if (applicantData?.id) {
+          await onbDb.from("user_onboarding")
+            .update({ sumsub_applicant_id: applicantData.id, sumsub_external_user_id: userId, updated_at: new Date().toISOString() })
+            .eq("id", existing.id)
+            .eq("user_id", userId);
+        }
+      } catch (dbErr) {
+        console.error("[Sumsub] Onboarding record error:", dbErr.message);
+      }
+    }
     
     res.json({
       success: true,
@@ -258,6 +436,83 @@ app.post("/api/sumsub/access-token", async (req, res) => {
       success: false,
       error: { message: error.message || "Failed to generate access token" }
     });
+  }
+});
+
+app.post("/api/sumsub/reset", async (req, res) => {
+  try {
+    if (!SUMSUB_APP_TOKEN || !SUMSUB_SECRET_KEY) {
+      return res.status(500).json({ success: false, error: { message: "Sumsub credentials not configured" } });
+    }
+
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.replace("Bearer ", "");
+    const db = supabaseAdmin || supabase;
+    let authenticatedUserId = null;
+
+    if (token && db) {
+      try {
+        const { data: { user } } = await db.auth.getUser(token);
+        if (user) authenticatedUserId = user.id;
+      } catch (e) {}
+    }
+
+    if (!authenticatedUserId) {
+      return res.status(401).json({ success: false, error: { message: "Authentication required" } });
+    }
+
+    const applicant = await getSumsubApplicantByExternalId(authenticatedUserId);
+    if (!applicant) {
+      return res.status(404).json({ success: false, error: { message: "No applicant found" } });
+    }
+
+    const applicantId = applicant.id;
+    const ts = Math.floor(Date.now() / 1000).toString();
+    const resetPath = `/resources/applicants/${applicantId}/reset`;
+    const signature = createSumsubSignature(ts, "POST", resetPath);
+
+    const resetResponse = await fetch(`${SUMSUB_BASE_URL}${resetPath}`, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "X-App-Token": SUMSUB_APP_TOKEN,
+        "X-App-Access-Ts": ts,
+        "X-App-Access-Sig": signature,
+      },
+    });
+
+    if (!resetResponse.ok) {
+      const errorText = await resetResponse.text();
+      console.error(`Sumsub reset error: ${resetResponse.status} - ${errorText}`);
+      return res.status(resetResponse.status).json({
+        success: false,
+        error: { message: `Failed to reset applicant: ${errorText}` }
+      });
+    }
+
+    console.log(`[Sumsub] Reset applicant ${applicantId} for user ${authenticatedUserId}`);
+
+    const onbDb = supabaseAdmin || supabase;
+    if (onbDb) {
+      try {
+        await onbDb.from("user_onboarding").update({
+          sumsub_review_status: "init",
+          sumsub_review_answer: null,
+          sumsub_outcome: null,
+          kyc_status: "pending",
+          kyc_verified_at: null,
+          updated_at: new Date().toISOString(),
+        }).eq("user_id", authenticatedUserId);
+      } catch (dbErr) {
+        console.error("[Sumsub] Failed to update onboarding on reset:", dbErr.message);
+      }
+    }
+
+    res.json({ success: true, message: "Applicant reset successfully" });
+  } catch (error) {
+    console.error("Sumsub reset error:", error);
+    res.status(500).json({ success: false, error: { message: error.message || "Failed to reset applicant" } });
   }
 });
 
@@ -615,32 +870,44 @@ app.post("/api/sumsub/sync-status", async (req, res) => {
 });
 
 app.post("/api/sumsub/webhook", async (req, res) => {
-  console.log("Sumsub webhook received:", JSON.stringify(req.body, null, 2));
+  const digestHeader = req.headers["x-payload-digest"] || req.headers["x-signature"];
+  if (SUMSUB_SECRET_KEY && digestHeader) {
+    try {
+      const rawBody = JSON.stringify(req.body);
+      const computed = crypto.createHmac("sha256", SUMSUB_SECRET_KEY).update(rawBody).digest("hex");
+      if (computed !== digestHeader) {
+        console.warn("[Webhook] Signature mismatch, rejecting");
+        return res.status(403).json({ error: "Invalid signature" });
+      }
+    } catch (sigErr) {
+      console.warn("[Webhook] Signature verification error:", sigErr.message);
+    }
+  }
+
+  console.log("[Webhook] Sumsub webhook received:", JSON.stringify(req.body, null, 2));
   
   const { type, applicantId, reviewResult, reviewStatus, externalUserId } = req.body;
+  const db = supabaseAdmin || supabase;
   
-  if (!supabase || !externalUserId) {
-    console.log("No Supabase or externalUserId, skipping database update");
+  if (!db || !externalUserId) {
+    console.log("[Webhook] No database client or externalUserId, skipping");
     return res.status(200).json({ received: true });
   }
 
   try {
     let kycUpdate = null;
+    let onboardingKycStatus = null;
+    let reviewAnswer = null;
     
-    // Determine status based on webhook type and review result
     if (type === "applicantReviewed") {
-      const reviewAnswer = reviewResult?.reviewAnswer;
+      reviewAnswer = reviewResult?.reviewAnswer;
       const rejectLabels = reviewResult?.rejectLabels || [];
       
       if (reviewAnswer === "GREEN") {
-        console.log(`User ${externalUserId} KYC verified successfully`);
-        kycUpdate = { 
-          kyc_verified: true, 
-          kyc_pending: false, 
-          kyc_needs_resubmission: false 
-        };
+        console.log(`[Webhook] User ${externalUserId} KYC verified successfully`);
+        kycUpdate = { kyc_verified: true, kyc_pending: false, kyc_needs_resubmission: false };
+        onboardingKycStatus = "verified";
       } else if (reviewAnswer === "RED") {
-        // Check if it's a temporary rejection (can resubmit) or permanent
         const canResubmit = rejectLabels.some(label => 
           ["DOCUMENT_PAGE_MISSING", "INCOMPLETE_DOCUMENT", "UNSATISFACTORY_PHOTOS", 
            "DOCUMENT_DAMAGED", "SCREENSHOTS", "SPAM", "NOT_DOCUMENT", "SELFIE_MISMATCH",
@@ -648,65 +915,82 @@ app.post("/api/sumsub/webhook", async (req, res) => {
         );
         
         if (canResubmit) {
-          console.log(`User ${externalUserId} KYC needs resubmission: ${rejectLabels.join(", ")}`);
-          kycUpdate = { 
-            kyc_verified: false, 
-            kyc_pending: false, 
-            kyc_needs_resubmission: true 
-          };
+          console.log(`[Webhook] User ${externalUserId} KYC needs resubmission: ${rejectLabels.join(", ")}`);
+          kycUpdate = { kyc_verified: false, kyc_pending: false, kyc_needs_resubmission: true };
+          onboardingKycStatus = "resubmission_required";
         } else {
-          console.log(`User ${externalUserId} KYC rejected permanently: ${rejectLabels.join(", ")}`);
-          kycUpdate = { 
-            kyc_verified: false, 
-            kyc_pending: false, 
-            kyc_needs_resubmission: false 
-          };
+          console.log(`[Webhook] User ${externalUserId} KYC rejected permanently: ${rejectLabels.join(", ")}`);
+          kycUpdate = { kyc_verified: false, kyc_pending: false, kyc_needs_resubmission: false };
+          onboardingKycStatus = "rejected";
         }
       }
     } else if (type === "applicantPending" || type === "applicantCreated") {
-      console.log(`User ${externalUserId} KYC is pending review`);
-      kycUpdate = { 
-        kyc_verified: false, 
-        kyc_pending: true, 
-        kyc_needs_resubmission: false 
-      };
+      console.log(`[Webhook] User ${externalUserId} KYC is pending review`);
+      kycUpdate = { kyc_verified: false, kyc_pending: true, kyc_needs_resubmission: false };
+      onboardingKycStatus = "pending";
     } else if (type === "applicantOnHold") {
-      console.log(`User ${externalUserId} KYC on hold - action required`);
-      kycUpdate = { 
-        kyc_verified: false, 
-        kyc_pending: false, 
-        kyc_needs_resubmission: true 
-      };
+      console.log(`[Webhook] User ${externalUserId} KYC on hold`);
+      kycUpdate = { kyc_verified: false, kyc_pending: false, kyc_needs_resubmission: true };
+      onboardingKycStatus = "on_hold";
     } else if (type === "applicantActionPending") {
-      console.log(`User ${externalUserId} KYC action pending - resubmission needed`);
-      kycUpdate = { 
-        kyc_verified: false, 
-        kyc_pending: false, 
-        kyc_needs_resubmission: true 
-      };
+      console.log(`[Webhook] User ${externalUserId} KYC action pending`);
+      kycUpdate = { kyc_verified: false, kyc_pending: false, kyc_needs_resubmission: true };
+      onboardingKycStatus = "action_required";
     }
     
     if (kycUpdate) {
-      const { data: existingAction } = await supabase
+      const { data: existingAction } = await db
         .from("required_actions")
         .select("id")
         .eq("user_id", externalUserId)
         .maybeSingle();
 
       if (existingAction) {
-        await supabase
-          .from("required_actions")
-          .update(kycUpdate)
-          .eq("user_id", externalUserId);
+        await db.from("required_actions").update(kycUpdate).eq("user_id", externalUserId);
       } else {
-        await supabase
-          .from("required_actions")
-          .insert({ user_id: externalUserId, ...kycUpdate });
+        await db.from("required_actions").insert({ user_id: externalUserId, ...kycUpdate });
       }
-      console.log(`Updated KYC status for user ${externalUserId}:`, kycUpdate);
+      console.log(`[Webhook] Updated required_actions for user ${externalUserId}`);
+    }
+
+    if (onboardingKycStatus) {
+      const onboardingUpdate = {
+        sumsub_external_user_id: externalUserId,
+        sumsub_applicant_id: applicantId || null,
+        sumsub_review_status: reviewStatus || type,
+        sumsub_review_answer: reviewAnswer,
+        kyc_status: onboardingKycStatus,
+        kyc_checked_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      if (onboardingKycStatus === "verified") {
+        onboardingUpdate.kyc_verified_at = new Date().toISOString();
+      }
+
+      const { data: existingOnboarding } = await db
+        .from("user_onboarding")
+        .select("id")
+        .eq("user_id", externalUserId)
+        .maybeSingle();
+
+      if (existingOnboarding) {
+        await db.from("user_onboarding").update(onboardingUpdate).eq("id", existingOnboarding.id).eq("user_id", externalUserId);
+        console.log(`[Webhook] Updated user_onboarding for user ${externalUserId} -> ${onboardingKycStatus}`);
+      } else {
+        const { error: insErr } = await db.from("user_onboarding").insert({
+          user_id: externalUserId,
+          employment_status: "not_provided",
+          ...onboardingUpdate,
+        });
+        if (insErr) {
+          console.error(`[Webhook] Failed to create user_onboarding for ${externalUserId}:`, insErr.message);
+        } else {
+          console.log(`[Webhook] Created user_onboarding for user ${externalUserId} -> ${onboardingKycStatus}`);
+        }
+      }
     }
   } catch (err) {
-    console.error("Failed to update KYC status:", err);
+    console.error("[Webhook] Failed to process Sumsub webhook:", err);
   }
   
   res.status(200).json({ received: true });
@@ -1637,6 +1921,11 @@ app.post("/api/record-investment", async (req, res) => {
           unrealized_pnl: 0,
           as_of_date: new Date().toISOString().split("T")[0],
           Status: "active",
+          settlement_status: settlementConfig.isFullyIntegrated
+            ? SETTLEMENT_STATUSES.CONFIRMED
+            : !settlementConfig.csdpEnabled
+              ? SETTLEMENT_STATUSES.PENDING_CSDP
+              : SETTLEMENT_STATUSES.PENDING_BROKER,
         };
         console.log("[record-investment] Insert data:", JSON.stringify(holdingData));
         const { data, error } = await db
@@ -1673,6 +1962,11 @@ app.post("/api/record-investment", async (req, res) => {
         store_reference: paymentReference || null,
         currency: "ZAR",
         status: "posted",
+        settlement_status: settlementConfig.isFullyIntegrated
+          ? SETTLEMENT_STATUSES.CONFIRMED
+          : !settlementConfig.csdpEnabled
+            ? SETTLEMENT_STATUSES.PENDING_CSDP
+            : SETTLEMENT_STATUSES.PENDING_BROKER,
         transaction_date: new Date().toISOString(),
         created_at: new Date().toISOString(),
       })
@@ -1706,10 +2000,23 @@ app.get("/api/user/holdings", async (req, res) => {
     const db = supabaseAdmin || supabase;
     const userId = user.id;
 
-    const { data: holdings, error: holdingsError } = await db
+    let holdings, holdingsError;
+    const holdingsResult = await db
       .from("stock_holdings")
-      .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+      .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status")
       .eq("user_id", userId);
+
+    if (holdingsResult.error && holdingsResult.error.message && holdingsResult.error.message.includes("settlement_status")) {
+      const fallback = await db
+        .from("stock_holdings")
+        .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+        .eq("user_id", userId);
+      holdings = fallback.data;
+      holdingsError = fallback.error;
+    } else {
+      holdings = holdingsResult.data;
+      holdingsError = holdingsResult.error;
+    }
 
     if (holdingsError) {
       console.error("Error fetching holdings:", holdingsError);
@@ -1773,6 +2080,7 @@ app.get("/api/user/holdings", async (req, res) => {
           ...h,
           market_value: liveMarketValue,
           unrealized_pnl: pnl,
+          settlement_status: deriveHoldingSettlementStatus(h),
           symbol: sec?.symbol || "N/A",
           name: sec?.name || "Unknown",
           asset_class: sec?.sector || "Other",
@@ -1944,12 +2252,27 @@ app.get("/api/user/transactions", async (req, res) => {
     const userId = user.id;
     const limit = parseInt(req.query.limit) || 50;
 
-    const { data: transactions, error: txError } = await db
+    let transactions, txError;
+    const txResult = await db
       .from("transactions")
-      .select("id, user_id, direction, name, description, amount, store_reference, currency, status, transaction_date, created_at")
+      .select("id, user_id, direction, name, description, amount, store_reference, currency, status, settlement_status, transaction_date, created_at")
       .eq("user_id", userId)
       .order("transaction_date", { ascending: false })
       .limit(limit);
+
+    if (txResult.error && txResult.error.message && txResult.error.message.includes("settlement_status")) {
+      const fallback = await db
+        .from("transactions")
+        .select("id, user_id, direction, name, description, amount, store_reference, currency, status, transaction_date, created_at")
+        .eq("user_id", userId)
+        .order("transaction_date", { ascending: false })
+        .limit(limit);
+      transactions = fallback.data;
+      txError = fallback.error;
+    } else {
+      transactions = txResult.data;
+      txError = txResult.error;
+    }
 
     if (txError) {
       console.error("Error fetching transactions:", txError);
@@ -2030,17 +2353,19 @@ app.get("/api/user/transactions", async (req, res) => {
       } else if (txName.startsWith("Purchased ")) {
         sName = txName.replace("Purchased ", "").trim();
       }
+
+      const settlement_status = deriveSettlementStatus(tx);
       
       if (sName) {
         const holdingLogos = strategyHoldingsMap[sName.toLowerCase()] || [];
         if (holdingLogos.length > 0) {
-          return { ...tx, holding_logos: holdingLogos, logo_url: null };
+          return { ...tx, settlement_status, holding_logos: holdingLogos, logo_url: null };
         }
         const lower = sName.toLowerCase();
         const logo_url = securityLogoMap[lower] || securityLogoMap[lower.split(".")[0]] || null;
-        return { ...tx, holding_logos: [], logo_url };
+        return { ...tx, settlement_status, holding_logos: [], logo_url };
       }
-      return { ...tx, holding_logos: [], logo_url: null };
+      return { ...tx, settlement_status, holding_logos: [], logo_url: null };
     });
 
     res.json({ success: true, transactions: enrichedTx });
@@ -2465,6 +2790,436 @@ app.get("/api/debug/onboarding/:userId", async (req, res) => {
   } catch (e) {
     res.json({ error: e.message });
   }
+});
+
+// ============================================================
+// Sumsub Sync - backfill missed applicants into user_onboarding
+// ============================================================
+
+app.post("/api/sumsub/sync", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.replace("Bearer ", "");
+    const db = supabaseAdmin || supabase;
+    
+    if (!db) return res.status(500).json({ error: "No database client" });
+    
+    let isAdmin = false;
+    if (token) {
+      try {
+        const { data: { user } } = await db.auth.getUser(token);
+        if (user) isAdmin = true;
+      } catch (e) {}
+    }
+    
+    const internalCall = req.headers["x-internal-key"] === SUMSUB_SECRET_KEY;
+    if (!isAdmin && !internalCall) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (!SUMSUB_APP_TOKEN || !SUMSUB_SECRET_KEY) {
+      return res.status(500).json({ error: "Sumsub credentials not configured" });
+    }
+
+    const { data: { users } } = await db.auth.admin.listUsers();
+    if (!users || users.length === 0) return res.json({ synced: 0, message: "No users found" });
+
+    const { data: onboarded } = await db.from("user_onboarding").select("user_id");
+    const onboardedIds = new Set((onboarded || []).map(o => o.user_id));
+
+    const confirmedUsers = users.filter(u => u.email_confirmed_at && !onboardedIds.has(u.id));
+    console.log(`[Sync] Checking ${confirmedUsers.length} users without onboarding records against Sumsub...`);
+
+    let synced = 0;
+    const results = [];
+
+    for (const u of confirmedUsers) {
+      try {
+        const ts = Math.floor(Date.now() / 1000).toString();
+        const path = `/resources/applicants/-;externalUserId=${u.id}/one`;
+        const sig = createSumsubSignature(ts, "GET", path);
+        
+        const response = await fetch(`${SUMSUB_BASE_URL.startsWith("http") ? SUMSUB_BASE_URL : "https://" + SUMSUB_BASE_URL}${path}`, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+            "X-App-Token": SUMSUB_APP_TOKEN,
+            "X-App-Access-Ts": ts,
+            "X-App-Access-Sig": sig,
+          },
+        });
+
+        if (!response.ok) continue;
+
+        const applicant = await response.json();
+        if (!applicant || !applicant.id) continue;
+
+        const review = applicant.review || {};
+        const reviewAnswer = review.reviewResult?.reviewAnswer || null;
+        const reviewStatus = review.reviewStatus || "init";
+
+        let kycStatus = "pending";
+        if (reviewStatus === "completed" && reviewAnswer === "GREEN") kycStatus = "verified";
+        else if (reviewStatus === "completed" && reviewAnswer === "RED") kycStatus = "rejected";
+        else if (reviewStatus === "onHold") kycStatus = "on_hold";
+
+        const record = {
+          user_id: u.id,
+          employment_status: "not_provided",
+          sumsub_external_user_id: u.id,
+          sumsub_applicant_id: applicant.id,
+          sumsub_review_status: reviewStatus,
+          sumsub_review_answer: reviewAnswer,
+          kyc_status: kycStatus,
+          kyc_checked_at: new Date().toISOString(),
+          annual_income_currency: "USD",
+        };
+        if (kycStatus === "verified") record.kyc_verified_at = new Date().toISOString();
+
+        const { error: insErr } = await db.from("user_onboarding").insert(record);
+        if (insErr) {
+          console.error(`[Sync] Failed for ${u.email}:`, insErr.message);
+          results.push({ userId: u.id, status: "error" });
+        } else {
+          synced++;
+          results.push({ userId: u.id, status: "synced", kycStatus });
+          console.log(`[Sync] Created onboarding for ${u.email} -> ${kycStatus}`);
+        }
+      } catch (fetchErr) {
+        continue;
+      }
+    }
+
+    console.log(`[Sync] Complete: ${synced} new records created`);
+    res.json({ synced, total_checked: confirmedUsers.length, results });
+  } catch (error) {
+    console.error("[Sync] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// Onboarding Endpoints (server-side for RLS bypass)
+// ============================================================
+
+app.post("/api/onboarding/save-employment", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const {
+      employment_status, employer_name, employer_industry, employment_type,
+      institution_name, course_name, graduation_date,
+      annual_income_amount, annual_income_currency, existing_onboarding_id
+    } = req.body;
+
+    const payload = {
+      user_id: user.id,
+      employment_status: employment_status || null,
+      employer_name: employer_name || null,
+      employer_industry: employer_industry || null,
+      employment_type: employment_type || null,
+      institution_name: institution_name || null,
+      course_name: course_name || null,
+      graduation_date: graduation_date || null,
+      annual_income_amount: annual_income_amount || null,
+      annual_income_currency: annual_income_currency || "USD",
+    };
+
+    let savedId = existing_onboarding_id;
+
+    if (existing_onboarding_id) {
+      const { data: updated, error } = await db
+        .from("user_onboarding")
+        .update(payload)
+        .eq("id", existing_onboarding_id)
+        .eq("user_id", user.id)
+        .select("id");
+      if (error) {
+        console.error("[Onboarding] Update employment error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      if (!updated || updated.length === 0) {
+        return res.status(404).json({ success: false, error: "Onboarding record not found" });
+      }
+    } else {
+      const { data, error } = await db
+        .from("user_onboarding")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (error) {
+        console.error("[Onboarding] Insert employment error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      savedId = data?.id;
+    }
+
+    console.log(`[Onboarding] Employment saved for user ${user.id}, onboarding_id: ${savedId}`);
+    res.json({ success: true, onboarding_id: savedId });
+  } catch (error) {
+    console.error("[Onboarding] Employment save error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/onboarding/complete", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const {
+      existing_onboarding_id,
+      risk_disclosure_agreed,
+      source_of_funds,
+      source_of_funds_other,
+      expected_monthly_investment,
+      agreed_terms,
+      agreed_privacy,
+    } = req.body;
+
+    const userId = user.id;
+
+    const { data: existingAction } = await db
+      .from("required_actions")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const actionPayload = { kyc_verified: true };
+    if (existingAction) {
+      await db.from("required_actions").update(actionPayload).eq("user_id", userId);
+    } else {
+      await db.from("required_actions").insert({ user_id: userId, ...actionPayload });
+    }
+
+    const sofData = JSON.stringify({
+      risk_disclosure_agreed: risk_disclosure_agreed || false,
+      source_of_funds: source_of_funds || null,
+      source_of_funds_other: source_of_funds === "other" ? (source_of_funds_other || null) : null,
+      expected_monthly_investment: expected_monthly_investment || null,
+      agreed_terms: agreed_terms || false,
+      agreed_privacy: agreed_privacy || false,
+      completed_at: new Date().toISOString(),
+    });
+
+    const onboardingPayload = {
+      user_id: userId,
+      kyc_status: "onboarding_complete",
+      sumsub_raw: sofData,
+    };
+
+    let onboardingId = existing_onboarding_id;
+    if (!onboardingId) {
+      const { data: latest } = await db
+        .from("user_onboarding")
+        .select("id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latest?.id) onboardingId = latest.id;
+    }
+
+    if (onboardingId) {
+      const { data: updated, error } = await db
+        .from("user_onboarding")
+        .update(onboardingPayload)
+        .eq("id", onboardingId)
+        .eq("user_id", userId)
+        .select("id");
+      if (error) {
+        console.error("[Onboarding] Complete update error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      if (!updated || updated.length === 0) {
+        const { error: insErr } = await db.from("user_onboarding").insert(onboardingPayload);
+        if (insErr) {
+          console.error("[Onboarding] Complete insert fallback error:", insErr.message);
+          return res.status(500).json({ success: false, error: insErr.message });
+        }
+      }
+    } else {
+      const { error } = await db.from("user_onboarding").insert(onboardingPayload);
+      if (error) {
+        console.error("[Onboarding] Complete insert error:", error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+
+    console.log(`[Onboarding] Completed for user ${userId}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error("[Onboarding] Complete error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get("/api/onboarding/status", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const db = supabaseAdmin || supabase;
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const { data, error } = await db
+      .from("user_onboarding")
+      .select("id, kyc_status, employment_status, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error("[Onboarding] Status fetch error:", error.message);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+
+    res.json({
+      success: true,
+      onboarding: data || null,
+      onboarding_id: data?.id || null,
+    });
+  } catch (error) {
+    console.error("[Onboarding] Status error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ============================================================
+// Settlement System Endpoints
+// ============================================================
+
+app.get("/api/settlement/config", (req, res) => {
+  res.json({
+    success: true,
+    csdpEnabled: settlementConfig.csdpEnabled,
+    brokerEnabled: settlementConfig.brokerEnabled,
+    fullyIntegrated: settlementConfig.isFullyIntegrated,
+    statuses: SETTLEMENT_STATUSES,
+  });
+});
+
+app.post("/api/webhooks/csdp", async (req, res) => {
+  console.log("[CSDP Webhook] Received:", JSON.stringify(req.body));
+
+  if (!settlementConfig.csdpEnabled) {
+    console.log("[CSDP Webhook] CSDP integration not configured - ignoring");
+    return res.status(200).json({ received: true, processed: false, reason: "CSDP not configured" });
+  }
+
+  const { transactionId, holdingId, status, csdpReference } = req.body || {};
+
+  if (!transactionId && !holdingId) {
+    return res.status(400).json({ error: "transactionId or holdingId required" });
+  }
+
+  try {
+    const db = supabaseAdmin || supabase;
+
+    if (status === "approved" || status === "processed") {
+      const newStatus = settlementConfig.brokerEnabled
+        ? SETTLEMENT_STATUSES.PENDING_BROKER
+        : SETTLEMENT_STATUSES.CONFIRMED;
+
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: newStatus }).eq("id", transactionId);
+      }
+      if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: newStatus }).eq("id", holdingId);
+      }
+
+      console.log(`[CSDP Webhook] Updated settlement_status to ${newStatus} for tx:${transactionId} holding:${holdingId}`);
+    } else if (status === "rejected" || status === "failed") {
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", transactionId);
+      }
+      if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
+      }
+      console.log(`[CSDP Webhook] Settlement FAILED for tx:${transactionId} holding:${holdingId}`);
+    }
+
+    res.json({ received: true, processed: true });
+  } catch (error) {
+    console.error("[CSDP Webhook] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/webhooks/broker", async (req, res) => {
+  console.log("[Broker Webhook] Received:", JSON.stringify(req.body));
+
+  if (!settlementConfig.brokerEnabled) {
+    console.log("[Broker Webhook] Broker integration not configured - ignoring");
+    return res.status(200).json({ received: true, processed: false, reason: "Broker not configured" });
+  }
+
+  const { transactionId, holdingId, status, brokerReference, executionPrice, executionQuantity } = req.body || {};
+
+  if (!transactionId && !holdingId) {
+    return res.status(400).json({ error: "transactionId or holdingId required" });
+  }
+
+  try {
+    const db = supabaseAdmin || supabase;
+
+    if (status === "filled" || status === "executed" || status === "confirmed") {
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.CONFIRMED }).eq("id", transactionId);
+      }
+      if (holdingId && executionPrice) {
+        const avgFillCents = Math.round(executionPrice * 100);
+        const updateData = {
+          settlement_status: SETTLEMENT_STATUSES.CONFIRMED,
+          avg_fill: avgFillCents,
+        };
+        if (executionQuantity) {
+          updateData.quantity = executionQuantity;
+          updateData.market_value = Math.round(executionQuantity * executionPrice * 100);
+        }
+        await db.from("stock_holdings").update(updateData).eq("id", holdingId);
+        console.log(`[Broker Webhook] Updated holding ${holdingId} with broker price: R${executionPrice}`);
+      } else if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.CONFIRMED }).eq("id", holdingId);
+      }
+
+      console.log(`[Broker Webhook] Settlement CONFIRMED for tx:${transactionId} holding:${holdingId}`);
+    } else if (status === "rejected" || status === "failed") {
+      if (transactionId) {
+        await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", transactionId);
+      }
+      if (holdingId) {
+        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
+      }
+      console.log(`[Broker Webhook] Settlement FAILED for tx:${transactionId} holding:${holdingId}`);
+    }
+
+    res.json({ received: true, processed: true });
+  } catch (error) {
+    console.error("[Broker Webhook] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found", message: "This is the API server. The frontend is served separately." });
 });
 
 const PORT = process.env.API_PORT || 3001;
