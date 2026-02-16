@@ -661,7 +661,7 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
             style={checkboxInputStyle}
           />
           <label htmlFor="lim-advisor" style={checkboxLabelStyle}>
-            On the instruction of my investment advisor [<input type="text" style={{ width: "200px", borderBottom: "1px solid #333", border: "none", fontSize: "11px" }} />], who is a financial services provider licensed in terms of section 8 of the FAIS Act.
+            On the instruction of my investment advisor [<input type="text" value="Mint (Pty) Ltd platform (formally known as Algohive)" readOnly style={{ width: "280px", borderBottom: "1px solid #333", border: "none", fontSize: "11px", background: "transparent" }} />], who is a financial services provider licensed in terms of section 8 of the FAIS Act.
           </label>
         </div>
         {showErrors && !isGroupValid("lim_exercise") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
