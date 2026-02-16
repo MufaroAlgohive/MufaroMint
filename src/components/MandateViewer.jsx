@@ -33,13 +33,13 @@ const InitialsBox = ({ value, onChange, isFirst }) => (
           padding: "2px 0",
           fontSize: "11px",
           outline: "none",
-          background: value ? "#f8f6ff" : "transparent",
+          background: "transparent",
           textTransform: "uppercase",
           letterSpacing: "2px",
         }}
       />
       {isFirst && !value && (
-        <span style={{ fontSize: "8px", color: "hsl(270 40% 55%)", display: "block", marginTop: "2px" }}>
+        <span style={{ fontSize: "8px", color: "#888", display: "block", marginTop: "2px" }}>
           Enter once, fills all pages
         </span>
       )}
@@ -150,7 +150,7 @@ const MandateViewer = ({ profile = {} }) => {
     borderBottom: "1px solid #333",
     padding: "2px 0",
     fontSize: "11px",
-    background: "#f8f6ff",
+    background: "transparent",
     color: "#333",
     outline: "none",
   };
@@ -283,19 +283,19 @@ const MandateViewer = ({ profile = {} }) => {
           </tr>
           <tr>
             <td style={infoTdFirstStyle}>Tel Number (H)</td>
-            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} readOnly /> ) Regional Code ( <input type="text" style={smallInputStyle} readOnly /> ) <input type="text" style={inputStyle} readOnly /></td>
+            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} /> ) Regional Code ( <input type="text" style={smallInputStyle} /> ) <input type="text" style={inputStyle} /></td>
           </tr>
           <tr>
             <td style={infoTdFirstStyle}>Tel Number (W)</td>
-            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} readOnly /> ) Regional Code ( <input type="text" style={smallInputStyle} readOnly /> ) <input type="text" style={inputStyle} readOnly /></td>
+            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} /> ) Regional Code ( <input type="text" style={smallInputStyle} /> ) <input type="text" style={inputStyle} /></td>
           </tr>
           <tr>
             <td style={infoTdFirstStyle}>Fax Number (Confidential)</td>
-            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} readOnly /> ) Regional Code ( <input type="text" style={smallInputStyle} readOnly /> ) <input type="text" style={inputStyle} readOnly /></td>
+            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} /> ) Regional Code ( <input type="text" style={smallInputStyle} /> ) <input type="text" style={inputStyle} /></td>
           </tr>
           <tr>
             <td style={infoTdFirstStyle}>Fax Number (Other)</td>
-            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} readOnly /> ) Regional Code ( <input type="text" style={smallInputStyle} readOnly /> ) <input type="text" style={inputStyle} readOnly /></td>
+            <td style={infoTdStyle}>Country Code ( <input type="text" style={smallInputStyle} /> ) Regional Code ( <input type="text" style={smallInputStyle} /> ) <input type="text" style={inputStyle} /></td>
           </tr>
           <tr>
             <td style={infoTdFirstStyle}>Cell Number</td>
@@ -307,7 +307,7 @@ const MandateViewer = ({ profile = {} }) => {
           </tr>
           <tr>
             <td style={infoTdFirstStyle}>Email Address (Other)</td>
-            <td style={infoTdStyle}><input type="text" style={inputStyle} readOnly /></td>
+            <td style={infoTdStyle}><input type="text" style={inputStyle} /></td>
           </tr>
         </tbody>
       </table>
@@ -372,6 +372,8 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={pStyle}><span style={sectionNumStyle}>1.4</span> Prior to entering into this Mandate ALGOHIVE obtained from the Client information, with regards to the Client's financial circumstances, needs and objectives and such other information necessary to enable ALGOHIVE to render suitable intermediary services to the Client in terms hereof. Alternatively, ALGOHIVE has ascertained that such information was obtained from the Client's financial advisor and has checked that the advisor is licensed in terms of the FAIS Act.</p>
 
+      <InitialsBox value={initials} onChange={setInitials} />
+
       <h3 style={h3Style}>2. AUTHORISATION</h3>
 
       <p style={pStyle}><span style={sectionNumStyle}>2.1</span> The Client hereby authorises ALGOHIVE to manage the Client's investments either with full discretion or limited discretion as set out in the schedule that is attached to this Mandate.</p>
@@ -391,6 +393,9 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={pStyle}><span style={sectionNumStyle}>4.2</span> Where the Client selects a strategist model for replication, performance may vary due to timing, execution, liquidity, and cost factors. Past performance of strategist models is not necessarily indicative of future results. ALGOHIVE does not guarantee identical performance or outcomes.</p>
       <p style={pStyle}><span style={sectionNumStyle}>4.3</span> The Client acknowledges that it has been made aware by ALGOHIVE of risks pertaining to the investments which may result in financial loss to it and acknowledges that it accepts such risks and ALGOHIVE or its staff will not be liable or responsible for any financial losses.</p>
       <p style={pStyle}><span style={sectionNumStyle}>4.4</span> The Client hereby irrevocably indemnifies ALGOHIVE and holds it harmless against all and any claims of whatsoever nature that might be made against it howsoever arising from its management of the investments including but not limited to any loss or damage which might be suffered by the Client in consequence of any depreciation in the value of the investments from whatsoever cause arising.</p>
+
+      <InitialsBox value={initials} onChange={setInitials} />
+
       <p style={pStyle}><span style={sectionNumStyle}>4.5</span> When investing in foreign investment products, it is important to be aware of the following risks:</p>
 
       <p style={indentStyle}><span style={sectionNumStyle}>4.5.1</span> Obtaining access to investment performance information may be more difficult than South African based investments.</p>
@@ -404,6 +409,8 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={indentStyle}><span style={sectionNumStyle}>4.6.2</span> A wrap fund or a model is a basket of different collective investment schemes wrapped as a single investment portfolio. The underlying combination of collective investments schemes is selected optimally to target the risk/return requirement and investment objectives of the client. In fact, it is a number of separate investments in which the investor has direct ownership. These underlying investments are selected in line with the investment requirements of the Client. There is no joint ownership among investors and individual ownership of the participatory interests in the collective investment schemes can be transparently demonstrated at all times. A wrap fund investment is administered and facilitated by a linked investment service provider (LISP) i.e. an Administrative FSP. A wrap fund has no limit concerning the collective investment schemes that it may include in its portfolio. The Administrative FSP of the wrap funds does not guarantee the repurchase of participatory interests in the collective investment schemes that comprise the wrap funds. The Administrative FSP has service level agreements in place with the management company of each collective investment scheme according to which the repurchase of participatory interests in collective investment schemes comprising wrap funds are guaranteed. The costs and other information applicable to wrap funds are set out in the documentation of the administrator of the wrap funds.</p>
 
       <p style={pStyle}><span style={sectionNumStyle}>4.7</span> Any jurisdiction restrictions in respect of the client's portfolio are specified in the schedule that is attached to this Mandate.</p>
+
+      <InitialsBox value={initials} onChange={setInitials} />
 
       <h3 style={h3Style}>5. REGISTRATION OF INVESTMENTS</h3>
 
@@ -425,6 +432,8 @@ const MandateViewer = ({ profile = {} }) => {
       <h3 style={h3Style}>7. VOTING ON BEHALF OF CLIENTS</h3>
 
       <p style={pStyle}><span style={sectionNumStyle}>7.1</span> ALGOHIVE may vote on behalf of the Client in respect of a ballot conducted by collective investment scheme in so far as the ballot relates to the investments managed by ALGOHIVE on behalf of the Client.</p>
+
+      <InitialsBox value={initials} onChange={setInitials} />
 
       <h3 style={h3Style}>8. INFORMATION TO BE DISCLOSED BY PRODUCT PROVIDERS</h3>
 
@@ -451,6 +460,8 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={indentStyle}><span style={sectionNumStyle}>11.3.3</span> Determine the market value of such financial products and any changes therein during the period to which such report relates.</p>
       <p style={pStyle}><span style={sectionNumStyle}>11.4</span> ALGOHIVE shall, on request in a comprehensible and timely manner, provide to the Client any reasonable information regarding the investments, market practices and the risks inherent in the different markets and products.</p>
       <p style={pStyle}><span style={sectionNumStyle}>11.5</span> Reports will include details of portfolio holdings, transactions, and where applicable, performance attribution relative to the selected strategist model.</p>
+
+      <InitialsBox value={initials} onChange={setInitials} />
 
       <h3 style={h3Style}>12. REMUNERATION</h3>
 
@@ -481,6 +492,9 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={pStyle}><span style={sectionNumStyle}>13.2</span> The arbitration shall be held in an informal manner in Durban and the identity of the arbitrator shall be mutually agreed upon between the parties within a period of 5 (five) days from the date that the arbitration is called for. The arbitrator shall be an attorney or advocate of 10 (ten) years' standing or more with experience and knowledge of insurance law and with no interest in the proceedings.</p>
       <p style={pStyle}><span style={sectionNumStyle}>13.3</span> The parties agree to keep the arbitration, its subject matter and evidence heard during the arbitration confidential and not to disclose it to any other person.</p>
       <p style={pStyle}><span style={sectionNumStyle}>13.4</span> The decision of the arbitrator shall be final and binding upon the parties and not subject to appeal.</p>
+
+      <InitialsBox value={initials} onChange={setInitials} />
+
       <p style={pStyle}><span style={sectionNumStyle}>13.5</span> The arbitrator shall include in his award an order as to the costs of the arbitration and who shall bear them.</p>
       <p style={pStyle}><span style={sectionNumStyle}>13.6</span> The arbitrator shall at his sole discretion decide on the formulation of the dispute for arbitration but shall at all times be guided by the requirements of the Financial Advisory and Intermediary Services Act 2002 and all applicable ancillary legislation.</p>
       <p style={pStyle}><span style={sectionNumStyle}>13.7</span> The inclusion of this arbitration clause shall not prevent a party from applying to court for urgent relief in the appropriate circumstances.</p>
@@ -563,6 +577,8 @@ const MandateViewer = ({ profile = {} }) => {
           <label style={checkboxLabelStyle}>{l}</label>
         </div>
       ))}
+
+      <InitialsBox value={initials} onChange={setInitials} />
 
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
@@ -652,6 +668,8 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={{ marginTop: "15px", fontSize: "10px" }}>* Risk preference is determined considering the current set of information and circumstances of the Client but may change over time.</p>
 
+      <InitialsBox value={initials} onChange={setInitials} />
+
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
       <h2 style={h2Style}>ADDENDUM TO MANDATE</h2>
@@ -682,6 +700,8 @@ const MandateViewer = ({ profile = {} }) => {
           ))}
         </tbody>
       </table>
+
+      <InitialsBox value={initials} onChange={setInitials} />
 
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
