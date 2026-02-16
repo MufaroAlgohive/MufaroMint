@@ -94,25 +94,42 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
       if (!userData?.user) return;
 
       if (editingGoalId) {
-        await supabase
+        const updatePayload = {
+          name: goalName,
+          target_amount: Number(goalTarget),
+        };
+        if (goalDate) updatePayload.target_date = goalDate;
+
+        let { error } = await supabase
           .from("investment_goals")
-          .update({
-            name: goalName,
-            target_amount: Number(goalTarget),
-            target_date: goalDate,
-          })
+          .update(updatePayload)
           .eq("id", editingGoalId)
           .eq("user_id", userData.user.id);
+
+        if (error && error.message && error.message.includes("target_date")) {
+          console.warn("[goals] target_date column not found, saving without date");
+          const { error: retryError } = await supabase
+            .from("investment_goals")
+            .update({ name: goalName, target_amount: Number(goalTarget) })
+            .eq("id", editingGoalId)
+            .eq("user_id", userData.user.id);
+          if (retryError) console.error("[goals] Update failed:", retryError);
+        } else if (error) {
+          console.error("[goals] Update failed:", error);
+        }
         setEditingGoalId(null);
       } else {
-        await supabase.from("investment_goals").insert({
+        const insertPayload = {
           user_id: userData.user.id,
           name: goalName,
           target_amount: Number(goalTarget),
-          target_date: goalDate,
           current_amount: 0,
           is_active: true,
-        });
+        };
+        if (goalDate) insertPayload.target_date = goalDate;
+
+        const { error } = await supabase.from("investment_goals").insert(insertPayload);
+        if (error) console.error("[goals] Insert failed:", error);
       }
 
       setGoalName("");

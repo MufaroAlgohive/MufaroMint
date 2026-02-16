@@ -305,7 +305,7 @@ const HomePage = ({
     try {
       let { data, error } = await supabase
         .from('investment_goals')
-        .select('id, name, target_amount, current_amount, invested_amount, progress_percent, linked_asset_name')
+        .select('id, name, target_amount, current_amount, invested_amount, progress_percent, linked_asset_name, target_date')
         .eq('user_id', profile.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
@@ -313,7 +313,7 @@ const HomePage = ({
       if (error && error.message && error.message.includes('does not exist')) {
         const fallback = await supabase
           .from('investment_goals')
-          .select('id, name, target_amount, current_amount, progress_percent')
+          .select('id, name, target_amount, current_amount, progress_percent, target_date')
           .eq('user_id', profile.id)
           .eq('is_active', true)
           .order('created_at', { ascending: false });
@@ -1116,9 +1116,16 @@ const HomePage = ({
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <p className="text-[10px] text-slate-400">
-                          R{Number(invested).toLocaleString()} of R{Number(target).toLocaleString()}
-                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] text-slate-400">
+                            R{Number(invested).toLocaleString()} of R{Number(target).toLocaleString()}
+                          </p>
+                          {goal.target_date && !isNaN(new Date(goal.target_date).getTime()) && (
+                            <p className="text-[10px] text-slate-400">
+                              • {new Date(goal.target_date).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                          )}
+                        </div>
                         {goal.linked_asset_name && (
                           <p className="text-[10px] text-violet-500 truncate ml-2">
                             {goal.linked_asset_name}
