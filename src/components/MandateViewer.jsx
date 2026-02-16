@@ -70,12 +70,19 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
   const scrollRef = useRef(null);
   const [checkedBoxes, setCheckedBoxes] = useState({});
   const [showErrors, setShowErrors] = useState(false);
+  const [discretionType, setDiscretionType] = useState(null);
 
   const toggleCheckbox = (id) => {
     setCheckedBoxes((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const REQUIRE_ALL_GROUPS = ["lim_exercise"];
+
+  const activeGroups = useCallback(() => {
+    if (!discretionType) return [];
+    const prefix = discretionType === "full" ? "full_" : "lim_";
+    return Object.keys(CHECKBOX_GROUPS).filter((key) => key.startsWith(prefix));
+  }, [discretionType]);
 
   const isGroupValid = useCallback((groupKey) => {
     const ids = CHECKBOX_GROUPS[groupKey];
@@ -86,10 +93,20 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
   }, [checkedBoxes]);
 
   const allGroupsValid = useCallback(() => {
-    return Object.keys(CHECKBOX_GROUPS).every((key) => isGroupValid(key));
-  }, [isGroupValid]);
+    const groups = activeGroups();
+    if (groups.length === 0) return false;
+    return groups.every((key) => isGroupValid(key));
+  }, [isGroupValid, activeGroups]);
 
-  const isMandateValid = initials.trim().length > 0 && allGroupsValid();
+  const isMandateValid = initials.trim().length > 0 && allGroupsValid() && discretionType !== null;
+
+  const getAddendumChecked = useCallback((sectionIndex, itemIndex) => {
+    if (!discretionType) return false;
+    const prefix = discretionType === "full" ? "full" : "lim";
+    const sectionKeys = ["lt", "mt", "st", "rp"];
+    const key = `${prefix}-${sectionKeys[sectionIndex]}-${itemIndex}`;
+    return !!checkedBoxes[key];
+  }, [checkedBoxes, discretionType]);
 
   useEffect(() => {
     if (onValidChange) onValidChange(isMandateValid);
@@ -243,8 +260,14 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
     fontWeight: "bold",
   };
 
+  const isActiveGroup = (groupKey) => {
+    if (!discretionType) return false;
+    const prefix = discretionType === "full" ? "full_" : "lim_";
+    return groupKey.startsWith(prefix);
+  };
+
   const groupErrorStyle = (groupKey) => ({
-    border: showErrors && !isGroupValid(groupKey) ? "1.5px solid #ef4444" : "1.5px solid transparent",
+    border: showErrors && isActiveGroup(groupKey) && !isGroupValid(groupKey) ? "1.5px solid #ef4444" : "1.5px solid transparent",
     borderRadius: "6px",
     padding: "4px 6px",
     marginBottom: "2px",
@@ -595,122 +618,193 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
     </div>
   );
 
+  const disabledOverlayStyle = {
+    opacity: 0.4,
+    pointerEvents: "none",
+    filter: "grayscale(100%)",
+  };
+
+  const selectorButtonStyle = (selected) => ({
+    flex: 1,
+    padding: "14px 12px",
+    fontSize: "12px",
+    fontWeight: selected ? "700" : "500",
+    color: selected ? "white" : "#555",
+    background: selected ? "hsl(270 50% 50%)" : "#f5f5f5",
+    border: selected ? "2px solid hsl(270 50% 45%)" : "2px solid #ddd",
+    borderRadius: "10px",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    textAlign: "center",
+  });
+
   const renderSchedules = () => (
     <div style={pageStyle}>
-      <h2 style={h2Style}>SCHEDULE – FULL DISCRETION</h2>
 
-      <div style={warningBoxStyle}>
-        This schedule delegates authority to ALGOHIVE to effect transactions in your name without limitation. If you wish for transactions to be entered into on your behalf to be limited or conditional in any way, this form should not be used. Refer to the limited discretion schedule.
+      {!discretionType && (
+        <div style={{
+          background: "hsl(270 30% 97%)",
+          border: "2px solid hsl(270 30% 85%)",
+          borderRadius: "12px",
+          padding: "24px 20px",
+          marginBottom: "24px",
+          textAlign: "center",
+        }}>
+          <p style={{ fontWeight: "bold", fontSize: "13px", marginBottom: "6px", color: "hsl(270 30% 30%)" }}>
+            Select Your Mandate Type
+          </p>
+          <p style={{ fontSize: "11px", color: "hsl(270 15% 50%)", marginBottom: "16px" }}>
+            Please choose whether you want full or limited discretion for managing your investments.
+          </p>
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button type="button" style={selectorButtonStyle(false)} onClick={() => setDiscretionType("full")}>
+              <strong>Full Discretion</strong>
+              <br />
+              <span style={{ fontSize: "10px", opacity: 0.8 }}>Unlimited authority to manage investments</span>
+            </button>
+            <button type="button" style={selectorButtonStyle(false)} onClick={() => setDiscretionType("limited")}>
+              <strong>Limited Discretion</strong>
+              <br />
+              <span style={{ fontSize: "10px", opacity: 0.8 }}>Restricted authority with conditions</span>
+            </button>
+          </div>
+          {showErrors && !discretionType && <p style={{ color: "#ef4444", fontSize: "10px", marginTop: "10px" }}>Please select a mandate type to continue</p>}
+        </div>
+      )}
+
+      {discretionType && (
+        <div style={{
+          display: "flex",
+          gap: "8px",
+          marginBottom: "20px",
+        }}>
+          <button type="button" style={selectorButtonStyle(discretionType === "full")} onClick={() => setDiscretionType("full")}>
+            Full Discretion
+          </button>
+          <button type="button" style={selectorButtonStyle(discretionType === "limited")} onClick={() => setDiscretionType("limited")}>
+            Limited Discretion
+          </button>
+        </div>
+      )}
+
+      <div style={discretionType === "limited" ? disabledOverlayStyle : {}}>
+        <h2 style={h2Style}>SCHEDULE – FULL DISCRETION</h2>
+
+        <div style={warningBoxStyle}>
+          This schedule delegates authority to ALGOHIVE to effect transactions in your name without limitation. If you wish for transactions to be entered into on your behalf to be limited or conditional in any way, this form should not be used. Refer to the limited discretion schedule.
+        </div>
+
+        <p style={pStyle}>I hereby authorise ALGOHIVE to manage my investments at its sole and full discretion in order to achieve my investment objectives as indicated below. This means that the Mandate is an unlimited Mandate for ALGOHIVE to exercise its full discretion with regards to the process of managing my investments and ALGOHIVE shall not need to obtain further authority or consent from me to effect any transactions in terms of the Mandate to which this is attached. ALGOHIVE may reinvest in terms of this schedule any amounts that have accrued to me in the form of interests, dividends and the proceeds of disposals.</p>
+
+        <p style={{ ...pStyle, marginTop: "15px" }}>I hereby authorised ALGOHIVE to manage my portfolio in respect of:</p>
+
+        <div style={groupErrorStyle("full_jurisdiction")}>
+          {[
+            { id: "full-local", label: "Local jurisdictions only" },
+            { id: "full-offshore", label: "Off-shore jurisdictions only" },
+            { id: "full-both", label: "Both local and off-shore jurisdictions" },
+          ].map(({ id, label }) => renderControlledCheckbox(id, label))}
+          {showErrors && discretionType === "full" && !isGroupValid("full_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ ...pStyle, marginTop: "15px" }}>The Client's investment objectives are specified as follows:</p>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Long Term (5 years or longer)</p>
+        <div style={groupErrorStyle("full_long_term")}>
+          {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-lt-${i}`, l))}
+          {showErrors && discretionType === "full" && !isGroupValid("full_long_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Medium Term (2 to 5 years)</p>
+        <div style={groupErrorStyle("full_medium_term")}>
+          {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-mt-${i}`, l))}
+          {showErrors && discretionType === "full" && !isGroupValid("full_medium_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Short Term (3 months to 2 years)</p>
+        <div style={groupErrorStyle("full_short_term")}>
+          {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-st-${i}`, l))}
+          {showErrors && discretionType === "full" && !isGroupValid("full_short_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Risk Preference*</p>
+        <div style={groupErrorStyle("full_risk")}>
+          {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => renderControlledCheckbox(`full-rp-${i}`, l))}
+          {showErrors && discretionType === "full" && !isGroupValid("full_risk") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
       </div>
-
-      <p style={pStyle}>I hereby authorise ALGOHIVE to manage my investments at its sole and full discretion in order to achieve my investment objectives as indicated below. This means that the Mandate is an unlimited Mandate for ALGOHIVE to exercise its full discretion with regards to the process of managing my investments and ALGOHIVE shall not need to obtain further authority or consent from me to effect any transactions in terms of the Mandate to which this is attached. ALGOHIVE may reinvest in terms of this schedule any amounts that have accrued to me in the form of interests, dividends and the proceeds of disposals.</p>
-
-      <p style={{ ...pStyle, marginTop: "15px" }}>I hereby authorised ALGOHIVE to manage my portfolio in respect of:</p>
-
-      <div style={groupErrorStyle("full_jurisdiction")}>
-        {[
-          { id: "full-local", label: "Local jurisdictions only" },
-          { id: "full-offshore", label: "Off-shore jurisdictions only" },
-          { id: "full-both", label: "Both local and off-shore jurisdictions" },
-        ].map(({ id, label }) => renderControlledCheckbox(id, label))}
-        {showErrors && !isGroupValid("full_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ ...pStyle, marginTop: "15px" }}>The Client's investment objectives are specified as follows:</p>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Long Term (5 years or longer)</p>
-      <div style={groupErrorStyle("full_long_term")}>
-        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-lt-${i}`, l))}
-        {showErrors && !isGroupValid("full_long_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Medium Term (2 to 5 years)</p>
-      <div style={groupErrorStyle("full_medium_term")}>
-        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-mt-${i}`, l))}
-        {showErrors && !isGroupValid("full_medium_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Short Term (3 months to 2 years)</p>
-      <div style={groupErrorStyle("full_short_term")}>
-        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-st-${i}`, l))}
-        {showErrors && !isGroupValid("full_short_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Risk Preference*</p>
-      <div style={groupErrorStyle("full_risk")}>
-        {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => renderControlledCheckbox(`full-rp-${i}`, l))}
-        {showErrors && !isGroupValid("full_risk") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
-      <h2 style={h2Style}>SCHEDULE – LIMITED DISCRETION</h2>
+      <div style={discretionType === "full" ? disabledOverlayStyle : {}}>
+        <h2 style={h2Style}>SCHEDULE – LIMITED DISCRETION</h2>
 
-      <div style={warningBoxStyle}>
-        This schedule delegates limited authority to ALGOHIVE to effect transactions in your name. If you wish for transactions to be entered into on your behalf, not to be limited or conditional in any way, this form should not be used. Refer to the full discretion schedule.
+        <div style={warningBoxStyle}>
+          This schedule delegates limited authority to ALGOHIVE to effect transactions in your name. If you wish for transactions to be entered into on your behalf, not to be limited or conditional in any way, this form should not be used. Refer to the full discretion schedule.
+        </div>
+
+        <p style={pStyle}>I hereby restrict ALGOHIVE's discretion in the management on my behalf. ALGOHIVE's right to purchase and sell investments on my behalf may only be exercised by ALGOHIVE:</p>
+
+        <div style={groupErrorStyle("lim_exercise")}>
+          {renderControlledCheckbox("lim-instruction", "On my instruction and prior consent")}
+          {renderControlledCheckbox("lim-advice", "Upon me receiving advice in respect of such investments from ALGOHIVE, and to which I have consented")}
+          {renderControlledCheckbox("lim-advisor", <span>On the instruction of my investment advisor [<strong style={{ fontSize: "11px" }}>Mint (Pty) Ltd platform (formally known as Algohive)</strong>], who is a financial services provider licensed in terms of section 8 of the FAIS Act.</span>)}
+          {showErrors && discretionType === "limited" && !isGroupValid("lim_exercise") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>All three options must be selected</p>}
+        </div>
+
+        <p style={{ ...pStyle, marginTop: "15px" }}>I hereby authorised ALGOHIVE to manage my portfolio in respect of:</p>
+
+        <div style={groupErrorStyle("lim_jurisdiction")}>
+          {[
+            { id: "lim-local", label: "Local jurisdictions only" },
+            { id: "lim-offshore", label: "Off-shore jurisdictions only" },
+            { id: "lim-both", label: "Both local and off-shore jurisdictions" },
+          ].map(({ id, label }) => renderControlledCheckbox(id, label))}
+          {showErrors && discretionType === "limited" && !isGroupValid("lim_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ ...pStyle, marginTop: "15px" }}>Unless instructed otherwise, all cash accruals received in respect of the investments including dividends and interest, shall be:</p>
+
+        <div style={groupErrorStyle("lim_cash")}>
+          {[
+            { id: "lim-reinvest", label: "Reinvested as and when they fall due and shall form part of the investments" },
+            { id: "lim-payout", label: "Paid out to the client into the indicated bank account" },
+          ].map(({ id, label }) => renderControlledCheckbox(id, label))}
+          {showErrors && discretionType === "limited" && !isGroupValid("lim_cash") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ ...pStyle, marginTop: "15px" }}>My investment objectives are specified as follows:</p>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Long Term (5 years or longer)</p>
+        <div style={groupErrorStyle("lim_long_term")}>
+          {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-lt-${i}`, l))}
+          {showErrors && discretionType === "limited" && !isGroupValid("lim_long_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Medium Term (2 to 5 years)</p>
+        <div style={groupErrorStyle("lim_medium_term")}>
+          {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-mt-${i}`, l))}
+          {showErrors && discretionType === "limited" && !isGroupValid("lim_medium_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Short Term (3 months to 2 years)</p>
+        <div style={groupErrorStyle("lim_short_term")}>
+          {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-st-${i}`, l))}
+          {showErrors && discretionType === "limited" && !isGroupValid("lim_short_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Risk Preference*</p>
+        <div style={groupErrorStyle("lim_risk")}>
+          {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => renderControlledCheckbox(`lim-rp-${i}`, l))}
+          {showErrors && discretionType === "limited" && !isGroupValid("lim_risk") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        </div>
+
+        <p style={{ marginTop: "15px", fontSize: "10px" }}>* Risk preference is determined considering the current set of information and circumstances of the Client but may change over time.</p>
+
+        <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
       </div>
-
-      <p style={pStyle}>I hereby restrict ALGOHIVE's discretion in the management on my behalf. ALGOHIVE's right to purchase and sell investments on my behalf may only be exercised by ALGOHIVE:</p>
-
-      <div style={groupErrorStyle("lim_exercise")}>
-        {renderControlledCheckbox("lim-instruction", "On my instruction and prior consent")}
-        {renderControlledCheckbox("lim-advice", "Upon me receiving advice in respect of such investments from ALGOHIVE, and to which I have consented")}
-        {renderControlledCheckbox("lim-advisor", <span>On the instruction of my investment advisor [<strong style={{ fontSize: "11px" }}>Mint (Pty) Ltd platform (formally known as Algohive)</strong>], who is a financial services provider licensed in terms of section 8 of the FAIS Act.</span>)}
-        {showErrors && !isGroupValid("lim_exercise") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>All three options must be selected</p>}
-      </div>
-
-      <p style={{ ...pStyle, marginTop: "15px" }}>I hereby authorised ALGOHIVE to manage my portfolio in respect of:</p>
-
-      <div style={groupErrorStyle("lim_jurisdiction")}>
-        {[
-          { id: "lim-local", label: "Local jurisdictions only" },
-          { id: "lim-offshore", label: "Off-shore jurisdictions only" },
-          { id: "lim-both", label: "Both local and off-shore jurisdictions" },
-        ].map(({ id, label }) => renderControlledCheckbox(id, label))}
-        {showErrors && !isGroupValid("lim_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ ...pStyle, marginTop: "15px" }}>Unless instructed otherwise, all cash accruals received in respect of the investments including dividends and interest, shall be:</p>
-
-      <div style={groupErrorStyle("lim_cash")}>
-        {[
-          { id: "lim-reinvest", label: "Reinvested as and when they fall due and shall form part of the investments" },
-          { id: "lim-payout", label: "Paid out to the client into the indicated bank account" },
-        ].map(({ id, label }) => renderControlledCheckbox(id, label))}
-        {showErrors && !isGroupValid("lim_cash") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ ...pStyle, marginTop: "15px" }}>My investment objectives are specified as follows:</p>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Long Term (5 years or longer)</p>
-      <div style={groupErrorStyle("lim_long_term")}>
-        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-lt-${i}`, l))}
-        {showErrors && !isGroupValid("lim_long_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Medium Term (2 to 5 years)</p>
-      <div style={groupErrorStyle("lim_medium_term")}>
-        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-mt-${i}`, l))}
-        {showErrors && !isGroupValid("lim_medium_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Short Term (3 months to 2 years)</p>
-      <div style={groupErrorStyle("lim_short_term")}>
-        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-st-${i}`, l))}
-        {showErrors && !isGroupValid("lim_short_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Risk Preference*</p>
-      <div style={groupErrorStyle("lim_risk")}>
-        {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => renderControlledCheckbox(`lim-rp-${i}`, l))}
-        {showErrors && !isGroupValid("lim_risk") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
-      </div>
-
-      <p style={{ marginTop: "15px", fontSize: "10px" }}>* Risk preference is determined considering the current set of information and circumstances of the Client but may change over time.</p>
-
-      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
@@ -735,7 +829,9 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
               {section.items.map((item, ii) => (
                 <tr key={ii}>
                   <td style={{ border: "1px solid #333", padding: "5px" }}>{item}</td>
-                  <td style={{ border: "1px solid #333", padding: "5px", width: "30px" }}><input type="checkbox" /></td>
+                  <td style={{ border: "1px solid #333", padding: "5px", width: "30px", textAlign: "center" }}>
+                    <input type="checkbox" checked={getAddendumChecked(si, ii)} readOnly style={{ pointerEvents: "none" }} />
+                  </td>
                 </tr>
               ))}
             </React.Fragment>
