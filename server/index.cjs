@@ -1011,13 +1011,17 @@ app.post("/api/sumsub/webhook", async (req, res) => {
 
       const { data: existingOnboarding } = await db
         .from("user_onboarding")
-        .select("id")
+        .select("id, kyc_status")
         .eq("user_id", externalUserId)
         .maybeSingle();
 
       if (existingOnboarding) {
+        if (existingOnboarding.kyc_status === "onboarding_complete" && onboardingKycStatus === "verified") {
+          delete onboardingUpdate.kyc_status;
+          console.log(`[Webhook] Preserving onboarding_complete status for user ${externalUserId} (not overwriting with verified)`);
+        }
         await db.from("user_onboarding").update(onboardingUpdate).eq("id", existingOnboarding.id).eq("user_id", externalUserId);
-        console.log(`[Webhook] Updated user_onboarding for user ${externalUserId} -> ${onboardingKycStatus}`);
+        console.log(`[Webhook] Updated user_onboarding for user ${externalUserId} -> ${onboardingUpdate.kyc_status || existingOnboarding.kyc_status}`);
       } else {
         const { error: insErr } = await db.from("user_onboarding").insert({
           user_id: externalUserId,

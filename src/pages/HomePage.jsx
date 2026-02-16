@@ -349,7 +349,7 @@ const HomePage = ({
         .order("created_at", { ascending: false })
         .limit(1);
       const record = data?.[0];
-      const complete = record?.kyc_status === "onboarding_complete";
+      const complete = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
       setOnboardingComplete(complete);
       setOnboardingChecked(true);
     } catch (err) {
