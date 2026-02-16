@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 
 const TAB_LABELS = [
   "Discretionary FSP Mandate",
@@ -6,7 +6,7 @@ const TAB_LABELS = [
   "Schedules & Annexures",
 ];
 
-const InitialsBox = ({ value, onChange, isFirst }) => (
+const InitialsBox = ({ value, onChange, isFirst, showError }) => (
   <div style={{
     display: "flex",
     justifyContent: "flex-end",
@@ -14,10 +14,12 @@ const InitialsBox = ({ value, onChange, isFirst }) => (
     paddingTop: "10px",
   }}>
     <div style={{
-      border: "1px solid #333",
+      border: showError && !value.trim() ? "1.5px solid #ef4444" : "1px solid #333",
       padding: "5px 8px",
       width: "120px",
       background: "white",
+      borderRadius: "4px",
+      transition: "border-color 0.2s ease",
     }}>
       <label style={{ fontSize: "9px", fontWeight: "bold", display: "block", marginBottom: "3px" }}>Initials:</label>
       <input
@@ -39,17 +41,63 @@ const InitialsBox = ({ value, onChange, isFirst }) => (
         }}
       />
       {isFirst && !value && (
-        <span style={{ fontSize: "8px", color: "#888", display: "block", marginTop: "2px" }}>
-          Enter once, fills all pages
+        <span style={{ fontSize: "8px", color: showError ? "#ef4444" : "#888", display: "block", marginTop: "2px" }}>
+          {showError ? "Initials required" : "Enter once, fills all pages"}
         </span>
       )}
     </div>
   </div>
 );
 
-const MandateViewer = ({ profile = {} }) => {
+const CHECKBOX_GROUPS = {
+  full_jurisdiction: ["full-local", "full-offshore", "full-both"],
+  full_long_term: ["full-lt-0", "full-lt-1"],
+  full_medium_term: ["full-mt-0", "full-mt-1"],
+  full_short_term: ["full-st-0", "full-st-1"],
+  full_risk: ["full-rp-0", "full-rp-1", "full-rp-2", "full-rp-3", "full-rp-4"],
+  lim_exercise: ["lim-instruction", "lim-advice", "lim-advisor"],
+  lim_jurisdiction: ["lim-local", "lim-offshore", "lim-both"],
+  lim_cash: ["lim-reinvest", "lim-payout"],
+  lim_long_term: ["lim-lt-0", "lim-lt-1"],
+  lim_medium_term: ["lim-mt-0", "lim-mt-1"],
+  lim_short_term: ["lim-st-0", "lim-st-1"],
+  lim_risk: ["lim-rp-0", "lim-rp-1", "lim-rp-2", "lim-rp-3", "lim-rp-4"],
+};
+
+const MandateViewer = ({ profile = {}, onValidChange }) => {
   const [activeTab, setActiveTab] = useState(0);
   const [initials, setInitials] = useState("");
+  const scrollRef = useRef(null);
+  const [checkedBoxes, setCheckedBoxes] = useState({});
+  const [showErrors, setShowErrors] = useState(false);
+
+  const toggleCheckbox = (id) => {
+    setCheckedBoxes((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const isGroupValid = useCallback((groupKey) => {
+    const ids = CHECKBOX_GROUPS[groupKey];
+    return ids.some((id) => checkedBoxes[id]);
+  }, [checkedBoxes]);
+
+  const allGroupsValid = useCallback(() => {
+    return Object.keys(CHECKBOX_GROUPS).every((key) => isGroupValid(key));
+  }, [isGroupValid]);
+
+  const isMandateValid = initials.trim().length > 0 && allGroupsValid();
+
+  useEffect(() => {
+    if (onValidChange) onValidChange(isMandateValid);
+  }, [isMandateValid, onValidChange]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+    if (activeTab === 2) {
+      setShowErrors(true);
+    }
+  }, [activeTab]);
 
   const {
     firstName = "",
@@ -190,6 +238,27 @@ const MandateViewer = ({ profile = {} }) => {
     fontWeight: "bold",
   };
 
+  const groupErrorStyle = (groupKey) => ({
+    border: showErrors && !isGroupValid(groupKey) ? "1.5px solid #ef4444" : "1.5px solid transparent",
+    borderRadius: "6px",
+    padding: "4px 6px",
+    marginBottom: "2px",
+    transition: "border-color 0.2s ease",
+  });
+
+  const renderControlledCheckbox = (id, label, extra) => (
+    <div key={id} style={checkboxContainerStyle}>
+      <input
+        type="checkbox"
+        id={id}
+        checked={!!checkedBoxes[id]}
+        onChange={() => toggleCheckbox(id)}
+        style={checkboxInputStyle}
+      />
+      <label htmlFor={id} style={checkboxLabelStyle}>{label}{extra}</label>
+    </div>
+  );
+
   const checkboxContainerStyle = {
     display: "flex",
     alignItems: "center",
@@ -314,7 +383,7 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={{ textAlign: "center", marginTop: "20px" }}>(hereinafter referred to as the <strong>Client</strong>)</p>
 
-      <InitialsBox value={initials} onChange={setInitials} isFirst={true} />
+      <InitialsBox value={initials} onChange={setInitials} isFirst={true} showError={showErrors} />
     </div>
   );
 
@@ -372,7 +441,7 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={pStyle}><span style={sectionNumStyle}>1.4</span> Prior to entering into this Mandate ALGOHIVE obtained from the Client information, with regards to the Client's financial circumstances, needs and objectives and such other information necessary to enable ALGOHIVE to render suitable intermediary services to the Client in terms hereof. Alternatively, ALGOHIVE has ascertained that such information was obtained from the Client's financial advisor and has checked that the advisor is licensed in terms of the FAIS Act.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <h3 style={h3Style}>2. AUTHORISATION</h3>
 
@@ -394,7 +463,7 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={pStyle}><span style={sectionNumStyle}>4.3</span> The Client acknowledges that it has been made aware by ALGOHIVE of risks pertaining to the investments which may result in financial loss to it and acknowledges that it accepts such risks and ALGOHIVE or its staff will not be liable or responsible for any financial losses.</p>
       <p style={pStyle}><span style={sectionNumStyle}>4.4</span> The Client hereby irrevocably indemnifies ALGOHIVE and holds it harmless against all and any claims of whatsoever nature that might be made against it howsoever arising from its management of the investments including but not limited to any loss or damage which might be suffered by the Client in consequence of any depreciation in the value of the investments from whatsoever cause arising.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <p style={pStyle}><span style={sectionNumStyle}>4.5</span> When investing in foreign investment products, it is important to be aware of the following risks:</p>
 
@@ -410,7 +479,7 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={pStyle}><span style={sectionNumStyle}>4.7</span> Any jurisdiction restrictions in respect of the client's portfolio are specified in the schedule that is attached to this Mandate.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <h3 style={h3Style}>5. REGISTRATION OF INVESTMENTS</h3>
 
@@ -433,7 +502,7 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={pStyle}><span style={sectionNumStyle}>7.1</span> ALGOHIVE may vote on behalf of the Client in respect of a ballot conducted by collective investment scheme in so far as the ballot relates to the investments managed by ALGOHIVE on behalf of the Client.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <h3 style={h3Style}>8. INFORMATION TO BE DISCLOSED BY PRODUCT PROVIDERS</h3>
 
@@ -461,7 +530,7 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={pStyle}><span style={sectionNumStyle}>11.4</span> ALGOHIVE shall, on request in a comprehensible and timely manner, provide to the Client any reasonable information regarding the investments, market practices and the risks inherent in the different markets and products.</p>
       <p style={pStyle}><span style={sectionNumStyle}>11.5</span> Reports will include details of portfolio holdings, transactions, and where applicable, performance attribution relative to the selected strategist model.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <h3 style={h3Style}>12. REMUNERATION</h3>
 
@@ -493,7 +562,7 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={pStyle}><span style={sectionNumStyle}>13.3</span> The parties agree to keep the arbitration, its subject matter and evidence heard during the arbitration confidential and not to disclose it to any other person.</p>
       <p style={pStyle}><span style={sectionNumStyle}>13.4</span> The decision of the arbitrator shall be final and binding upon the parties and not subject to appeal.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <p style={pStyle}><span style={sectionNumStyle}>13.5</span> The arbitrator shall include in his award an order as to the costs of the arbitration and who shall bear them.</p>
       <p style={pStyle}><span style={sectionNumStyle}>13.6</span> The arbitrator shall at his sole discretion decide on the formulation of the dispute for arbitration but shall at all times be guided by the requirements of the Financial Advisory and Intermediary Services Act 2002 and all applicable ancillary legislation.</p>
@@ -517,7 +586,7 @@ const MandateViewer = ({ profile = {} }) => {
       <p style={pStyle}><span style={sectionNumStyle}>16.2</span> Any amendment of any provision of this mandate shall be in writing and shall be by means of a supplementary or new agreement between ALGOHIVE and the Client.</p>
       <p style={pStyle}><span style={sectionNumStyle}>16.3</span> ALGOHIVE may make use of the services of its staff and/or that of another authorised financial services provider to execute certain administrative functions in the course of rendering intermediary services to the Client.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
     </div>
   );
 
@@ -533,52 +602,42 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={{ ...pStyle, marginTop: "15px" }}>I hereby authorised ALGOHIVE to manage my portfolio in respect of:</p>
 
-      {[
-        { id: "full-local", label: "Local jurisdictions only" },
-        { id: "full-offshore", label: "Off-shore jurisdictions only" },
-        { id: "full-both", label: "Both local and off-shore jurisdictions" },
-      ].map(({ id, label }) => (
-        <div key={id} style={checkboxContainerStyle}>
-          <input type="checkbox" id={id} style={checkboxInputStyle} />
-          <label htmlFor={id} style={checkboxLabelStyle}>{label}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("full_jurisdiction")}>
+        {[
+          { id: "full-local", label: "Local jurisdictions only" },
+          { id: "full-offshore", label: "Off-shore jurisdictions only" },
+          { id: "full-both", label: "Both local and off-shore jurisdictions" },
+        ].map(({ id, label }) => renderControlledCheckbox(id, label))}
+        {showErrors && !isGroupValid("full_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ ...pStyle, marginTop: "15px" }}>The Client's investment objectives are specified as follows:</p>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Long Term (5 years or longer)</p>
-      {["Capital Growth", "Income Generation"].map((l, i) => (
-        <div key={i} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("full_long_term")}>
+        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-lt-${i}`, l))}
+        {showErrors && !isGroupValid("full_long_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Medium Term (2 to 5 years)</p>
-      {["Capital Growth", "Income Generation"].map((l, i) => (
-        <div key={i} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("full_medium_term")}>
+        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-mt-${i}`, l))}
+        {showErrors && !isGroupValid("full_medium_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Short Term (3 months to 2 years)</p>
-      {["Capital Growth", "Income Generation"].map((l, i) => (
-        <div key={i} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("full_short_term")}>
+        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`full-st-${i}`, l))}
+        {showErrors && !isGroupValid("full_short_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Risk Preference*</p>
-      {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => (
-        <div key={i} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("full_risk")}>
+        {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => renderControlledCheckbox(`full-rp-${i}`, l))}
+        {showErrors && !isGroupValid("full_risk") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
@@ -590,85 +649,74 @@ const MandateViewer = ({ profile = {} }) => {
 
       <p style={pStyle}>I hereby restrict ALGOHIVE's discretion in the management on my behalf. ALGOHIVE's right to purchase and sell investments on my behalf may only be exercised by ALGOHIVE:</p>
 
-      {[
-        { id: "lim-instruction", label: "On my instruction and prior consent" },
-        { id: "lim-advice", label: "Upon me receiving advice in respect of such investments from ALGOHIVE, and to which I have consented" },
-      ].map(({ id, label }) => (
-        <div key={id} style={checkboxContainerStyle}>
-          <input type="checkbox" id={id} style={checkboxInputStyle} />
-          <label htmlFor={id} style={checkboxLabelStyle}>{label}</label>
+      <div style={groupErrorStyle("lim_exercise")}>
+        {renderControlledCheckbox("lim-instruction", "On my instruction and prior consent")}
+        {renderControlledCheckbox("lim-advice", "Upon me receiving advice in respect of such investments from ALGOHIVE, and to which I have consented")}
+        <div style={checkboxContainerStyle}>
+          <input
+            type="checkbox"
+            id="lim-advisor"
+            checked={!!checkedBoxes["lim-advisor"]}
+            onChange={() => toggleCheckbox("lim-advisor")}
+            style={checkboxInputStyle}
+          />
+          <label htmlFor="lim-advisor" style={checkboxLabelStyle}>
+            On the instruction of my investment advisor [<input type="text" style={{ width: "200px", borderBottom: "1px solid #333", border: "none", fontSize: "11px" }} />], who is a financial services provider licensed in terms of section 8 of the FAIS Act.
+          </label>
         </div>
-      ))}
-
-      <div style={checkboxContainerStyle}>
-        <input type="checkbox" id="lim-advisor" style={checkboxInputStyle} />
-        <label htmlFor="lim-advisor" style={checkboxLabelStyle}>
-          On the instruction of my investment advisor [<input type="text" style={{ width: "200px", borderBottom: "1px solid #333", border: "none", fontSize: "11px" }} />], who is a financial services provider licensed in terms of section 8 of the FAIS Act.
-        </label>
+        {showErrors && !isGroupValid("lim_exercise") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
       </div>
 
       <p style={{ ...pStyle, marginTop: "15px" }}>I hereby authorised ALGOHIVE to manage my portfolio in respect of:</p>
 
-      {[
-        { id: "lim-local", label: "Local jurisdictions only" },
-        { id: "lim-offshore", label: "Off-shore jurisdictions only" },
-        { id: "lim-both", label: "Both local and off-shore jurisdictions" },
-      ].map(({ id, label }) => (
-        <div key={id} style={checkboxContainerStyle}>
-          <input type="checkbox" id={id} style={checkboxInputStyle} />
-          <label htmlFor={id} style={checkboxLabelStyle}>{label}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("lim_jurisdiction")}>
+        {[
+          { id: "lim-local", label: "Local jurisdictions only" },
+          { id: "lim-offshore", label: "Off-shore jurisdictions only" },
+          { id: "lim-both", label: "Both local and off-shore jurisdictions" },
+        ].map(({ id, label }) => renderControlledCheckbox(id, label))}
+        {showErrors && !isGroupValid("lim_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ ...pStyle, marginTop: "15px" }}>Unless instructed otherwise, all cash accruals received in respect of the investments including dividends and interest, shall be:</p>
 
-      {[
-        { id: "lim-reinvest", label: "Reinvested as and when they fall due and shall form part of the investments" },
-        { id: "lim-payout", label: "Paid out to the client into the indicated bank account" },
-      ].map(({ id, label }) => (
-        <div key={id} style={checkboxContainerStyle}>
-          <input type="checkbox" id={id} style={checkboxInputStyle} />
-          <label htmlFor={id} style={checkboxLabelStyle}>{label}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("lim_cash")}>
+        {[
+          { id: "lim-reinvest", label: "Reinvested as and when they fall due and shall form part of the investments" },
+          { id: "lim-payout", label: "Paid out to the client into the indicated bank account" },
+        ].map(({ id, label }) => renderControlledCheckbox(id, label))}
+        {showErrors && !isGroupValid("lim_cash") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ ...pStyle, marginTop: "15px" }}>My investment objectives are specified as follows:</p>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Long Term (5 years or longer)</p>
-      {["Capital Growth", "Income Generation"].map((l, i) => (
-        <div key={`lim-lt-${i}`} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("lim_long_term")}>
+        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-lt-${i}`, l))}
+        {showErrors && !isGroupValid("lim_long_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Medium Term (2 to 5 years)</p>
-      {["Capital Growth", "Income Generation"].map((l, i) => (
-        <div key={`lim-mt-${i}`} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("lim_medium_term")}>
+        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-mt-${i}`, l))}
+        {showErrors && !isGroupValid("lim_medium_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Short Term (3 months to 2 years)</p>
-      {["Capital Growth", "Income Generation"].map((l, i) => (
-        <div key={`lim-st-${i}`} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("lim_short_term")}>
+        {["Capital Growth", "Income Generation"].map((l, i) => renderControlledCheckbox(`lim-st-${i}`, l))}
+        {showErrors && !isGroupValid("lim_short_term") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ fontWeight: "bold", marginTop: "10px", marginBottom: "4px" }}>Risk Preference*</p>
-      {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => (
-        <div key={`lim-rp-${i}`} style={checkboxContainerStyle}>
-          <input type="checkbox" style={checkboxInputStyle} />
-          <label style={checkboxLabelStyle}>{l}</label>
-        </div>
-      ))}
+      <div style={groupErrorStyle("lim_risk")}>
+        {["Very Conservative", "Conservative", "Moderate", "Aggressive", "Very Aggressive"].map((l, i) => renderControlledCheckbox(`lim-rp-${i}`, l))}
+        {showErrors && !isGroupValid("lim_risk") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+      </div>
 
       <p style={{ marginTop: "15px", fontSize: "10px" }}>* Risk preference is determined considering the current set of information and circumstances of the Client but may change over time.</p>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
@@ -701,7 +749,7 @@ const MandateViewer = ({ profile = {} }) => {
         </tbody>
       </table>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
 
       <hr style={{ margin: "30px 0", border: "none", borderTop: "2px solid #ccc" }} />
 
@@ -723,7 +771,7 @@ const MandateViewer = ({ profile = {} }) => {
         </tbody>
       </table>
 
-      <InitialsBox value={initials} onChange={setInitials} />
+      <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
     </div>
   );
 
@@ -743,7 +791,12 @@ const MandateViewer = ({ profile = {} }) => {
           <button
             key={idx}
             type="button"
-            onClick={() => setActiveTab(idx)}
+            onClick={() => {
+              if (activeTab === 2 && !allGroupsValid()) {
+                setShowErrors(true);
+              }
+              setActiveTab(idx);
+            }}
             style={{
               flex: 1,
               padding: "12px 8px",
@@ -765,13 +818,16 @@ const MandateViewer = ({ profile = {} }) => {
         ))}
       </div>
 
-      <div style={{
-        maxHeight: "60vh",
-        overflowY: "auto",
-        background: "white",
-        borderRadius: "0 0 12px 12px",
-        WebkitOverflowScrolling: "touch",
-      }}>
+      <div
+        ref={scrollRef}
+        style={{
+          maxHeight: "60vh",
+          overflowY: "auto",
+          background: "white",
+          borderRadius: "0 0 12px 12px",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
         {tabSections[activeTab]()}
       </div>
 
@@ -786,7 +842,12 @@ const MandateViewer = ({ profile = {} }) => {
           <button
             key={idx}
             type="button"
-            onClick={() => setActiveTab(idx)}
+            onClick={() => {
+              if (activeTab === 2 && !allGroupsValid()) {
+                setShowErrors(true);
+              }
+              setActiveTab(idx);
+            }}
             style={{
               width: activeTab === idx ? "24px" : "8px",
               height: "8px",

@@ -112,6 +112,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [existingOnboardingId, setExistingOnboardingId] = useState(null);
   const [agreedRiskDisclosure, setAgreedRiskDisclosure] = useState(false);
   const [agreedMandate, setAgreedMandate] = useState(false);
+  const [mandateValid, setMandateValid] = useState(false);
   const [sourceOfFunds, setSourceOfFunds] = useState("");
   const [sourceOfFundsOther, setSourceOfFundsOther] = useState("");
   const [expectedMonthlyInvestment, setExpectedMonthlyInvestment] = useState("");
@@ -858,7 +859,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 boxShadow: '0 4px 20px rgba(100, 60, 140, 0.08)',
                 background: 'white',
               }}>
-                <MandateViewer profile={profile} />
+                <MandateViewer profile={profile} onValidChange={setMandateValid} />
               </div>
 
               <div className="checkbox-container animate-fade-in delay-3" style={{ display: 'block' }}>
@@ -874,11 +875,17 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </label>
               </div>
 
+              {!mandateValid && agreedMandate && (
+                <p className="text-center animate-fade-in" style={{ color: "#ef4444", fontSize: "12px", marginTop: "8px" }}>
+                  Please enter your initials and select at least one option under each checkbox group in the Schedules section before continuing.
+                </p>
+              )}
+
               <div className="text-center mt-8 animate-fade-in delay-4">
                 <button
                   type="button"
-                  className={`continue-button agreement-continue ${agreedMandate ? "enabled" : ""}`}
-                  disabled={!agreedMandate}
+                  className={`continue-button agreement-continue ${agreedMandate && mandateValid ? "enabled" : ""}`}
+                  disabled={!agreedMandate || !mandateValid}
                   onClick={() => goToStep(4)}
                 >
                   Continue to Risk Disclosure
