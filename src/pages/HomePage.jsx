@@ -562,6 +562,7 @@ const HomePage = ({
     });
     setEditingGoalId(goal.id);
     setIsCreatingGoal(true);
+    setShowGoalsModal(true);
   };
 
   const handleUpdateGoal = async (e) => {
@@ -1045,6 +1046,104 @@ const HomePage = ({
                 className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
               >
                 Browse Strategies
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* Investment Goals Table */}
+        <section>
+          <div className="flex items-end justify-between px-5 mb-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">
+                Investment Goals
+              </p>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
+                  <Target className="h-3 w-3" />
+                </span>
+                <span>Track progress towards your goals</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowGoalsModal(true)}
+              className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
+            >
+              Manage
+            </button>
+          </div>
+
+          {loadingGoals ? (
+            <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
+              {[0, 1].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+                  <Skeleton className="h-10 w-10 rounded-2xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-1.5 w-full rounded-full" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : goals.length > 0 ? (
+            <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
+              {goals.map((goal) => {
+                const invested = goal.invested_amount || goal.current_amount || 0;
+                const target = goal.target_amount || 0;
+                const progress = goal.progress_percent != null ? goal.progress_percent : (target > 0 ? Math.min(100, (invested / target) * 100) : 0);
+                return (
+                  <button
+                    key={goal.id}
+                    type="button"
+                    onClick={() => handleEditClick(goal)}
+                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-slate-50"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 flex-shrink-0">
+                      <Target className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-semibold text-slate-900 truncate">{goal.name}</p>
+                        <p className="text-xs font-semibold text-slate-600 ml-2 flex-shrink-0">
+                          {Math.round(progress)}%
+                        </p>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden mb-1">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-violet-500 to-purple-600 transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] text-slate-400">
+                          R{Number(invested).toLocaleString()} of R{Number(target).toLocaleString()}
+                        </p>
+                        {goal.linked_asset_name && (
+                          <p className="text-[10px] text-violet-500 truncate ml-2">
+                            {goal.linked_asset_name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-slate-300 flex-shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
+                <Target className="h-8 w-8" />
+              </div>
+              <p className="text-sm font-semibold text-slate-900 mb-1">No goals yet</p>
+              <p className="text-xs text-slate-500 mb-4">Set investment goals to track your progress</p>
+              <button
+                type="button"
+                onClick={() => setShowGoalsModal(true)}
+                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
+              >
+                Create your first goal
               </button>
             </div>
           )}

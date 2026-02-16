@@ -32,15 +32,28 @@ const GoalLinkModal = ({ isOpen, onClose, onConfirm, investmentAmount, assetName
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) return;
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("investment_goals")
         .select("id, name, target_amount, current_amount, invested_amount, linked_asset_name, is_active")
         .eq("user_id", session.user.id)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
+      if (error && error.message && error.message.includes('does not exist')) {
+        const fallback = await supabase
+          .from("investment_goals")
+          .select("id, name, target_amount, current_amount, is_active")
+          .eq("user_id", session.user.id)
+          .eq("is_active", true)
+          .order("created_at", { ascending: false });
+        data = fallback.data;
+        error = fallback.error;
+      }
+
       if (!error) {
         setGoals(data || []);
+      } else {
+        console.error("Error fetching goals:", error);
       }
     } catch (e) {
       console.error("Error fetching goals:", e);
