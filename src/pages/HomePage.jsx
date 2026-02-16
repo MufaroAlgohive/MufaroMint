@@ -623,14 +623,15 @@ const HomePage = ({
     }
   };
 
-  const getKycStatus = () => {
-    if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
+  const getIdentityStatusForHome = () => {
+    if (onboardingComplete) return { text: "Verified", style: "bg-green-100 text-green-600" };
     if (kycNeedsResubmission) return { text: "Needs Attention", style: "bg-amber-100 text-amber-700" };
     if (kycPending) return { text: "Pending", style: "bg-blue-100 text-blue-600" };
-    return { text: "Not Verified", style: "bg-slate-100 text-slate-500" };
+    if (kycVerified) return { text: "Required", style: "bg-slate-100 text-slate-500" };
+    return { text: "Required", style: "bg-slate-100 text-slate-500" };
   };
 
-  const kycStatus = getKycStatus();
+  const identityStatusHome = getIdentityStatusForHome();
 
   const actionsData = [
     {
@@ -642,8 +643,8 @@ const HomePage = ({
         ? "Identity and onboarding complete"
         : "Verify your identity and complete onboarding",
       priority: 1,
-      status: onboardingComplete ? "Complete" : kycStatus.text,
-      statusStyle: onboardingComplete ? "bg-green-100 text-green-600" : kycStatus.style,
+      status: identityStatusHome.text,
+      statusStyle: identityStatusHome.style,
       icon: ShieldCheck,
       routeName: "actions",
       isComplete: onboardingComplete,
