@@ -113,8 +113,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [agreedRiskDisclosure, setAgreedRiskDisclosure] = useState(false);
   const [agreedMandate, setAgreedMandate] = useState(false);
   const [mandateValid, setMandateValid] = useState(false);
-  const [savedMandateData, setSavedMandateData] = useState(null);
-  const [mandateLoaded, setMandateLoaded] = useState(false);
   const mandateDataRef = useRef(null);
   const [sourceOfFunds, setSourceOfFunds] = useState("");
   const [sourceOfFundsOther, setSourceOfFundsOther] = useState("");
@@ -326,32 +324,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   }, []);
 
   useEffect(() => {
-    const loadMandateData = async () => {
-      if (!supabase || mandateLoaded) return;
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token;
-        if (!token) return;
-        const res = await fetch("/api/onboarding/mandate", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const result = await res.json();
-        if (result.success && result.mandate_data) {
-          setSavedMandateData(result.mandate_data);
-          if (result.mandate_data.agreedMandate) {
-            setAgreedMandate(true);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to load mandate data:", e);
-      } finally {
-        setMandateLoaded(true);
-      }
-    };
-    loadMandateData();
-  }, [mandateLoaded]);
-
-  useEffect(() => {
     if (step !== 2) {
       setShowProceed(false);
     }
@@ -403,6 +375,21 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (token) {
+        if (mandateDataRef.current) {
+          const savePayload = { ...mandateDataRef.current, agreedMandate };
+          try {
+            const mandateRes = await fetch("/api/onboarding/save-mandate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ mandate_data: savePayload, existing_onboarding_id: existingOnboardingId || null }),
+            });
+            const mandateResult = await mandateRes.json();
+            if (mandateResult.onboarding_id) setExistingOnboardingId(mandateResult.onboarding_id);
+          } catch (e) {
+            console.error("Mandate save error during completion:", e);
+          }
+        }
+
         const res = await fetch("/api/onboarding/complete", {
           method: "POST",
           headers: {
@@ -892,7 +879,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   profile={profile}
                   onValidChange={setMandateValid}
                   onDataChange={(data) => { mandateDataRef.current = data; }}
-                  savedData={savedMandateData}
                 />
               </div>
 
@@ -925,34 +911,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 <button
                   type="button"
                   className={`continue-button agreement-continue ${agreedMandate && mandateValid ? "enabled" : ""}`}
-                  disabled={!agreedMandate || !mandateValid || isSubmitting}
-                  onClick={async () => {
-                    if (!mandateDataRef.current) { goToStep(4); return; }
-                    setIsSubmitting(true);
-                    setSubmitError("");
-                    try {
-                      const { data: { session } } = await supabase.auth.getSession();
-                      const token = session?.access_token;
-                      if (!token) { setSubmitError("You must be signed in to continue."); setIsSubmitting(false); return; }
-                      const savePayload = { ...mandateDataRef.current, agreedMandate };
-                      const res = await fetch("/api/onboarding/save-mandate", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ mandate_data: savePayload, existing_onboarding_id: existingOnboardingId || null }),
-                      });
-                      const result = await res.json();
-                      if (!res.ok || !result.success) {
-                        setSubmitError(result.error || "Failed to save mandate data.");
-                        setIsSubmitting(false);
-                        return;
-                      }
-                      if (result.onboarding_id) setExistingOnboardingId(result.onboarding_id);
-                      goToStep(4);
-                    } catch (e) {
-                      console.error("Mandate save error:", e);
-                      setSubmitError("Failed to save mandate data. Please try again.");
-                    } finally { setIsSubmitting(false); }
-                  }}
+                  disabled={!agreedMandate || !mandateValid}
+                  onClick={() => goToStep(4)}
                 >
                   Continue to Risk Disclosure
                 </button>
