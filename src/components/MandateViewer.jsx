@@ -75,7 +75,7 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
     setCheckedBoxes((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const REQUIRE_ALL_GROUPS = ["lim_exercise"];
+  const REQUIRE_ALL_GROUPS = ["full_jurisdiction"];
 
   const isGroupValid = useCallback((groupKey) => {
     const ids = CHECKBOX_GROUPS[groupKey];
@@ -613,7 +613,7 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
           { id: "full-offshore", label: "Off-shore jurisdictions only" },
           { id: "full-both", label: "Both local and off-shore jurisdictions" },
         ].map(({ id, label }) => renderControlledCheckbox(id, label))}
-        {showErrors && !isGroupValid("full_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
+        {showErrors && !isGroupValid("full_jurisdiction") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>All three options must be selected</p>}
       </div>
 
       <p style={{ ...pStyle, marginTop: "15px" }}>The Client's investment objectives are specified as follows:</p>
@@ -658,7 +658,7 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
         {renderControlledCheckbox("lim-instruction", "On my instruction and prior consent")}
         {renderControlledCheckbox("lim-advice", "Upon me receiving advice in respect of such investments from ALGOHIVE, and to which I have consented")}
         {renderControlledCheckbox("lim-advisor", <span>On the instruction of my investment advisor [<strong style={{ fontSize: "11px" }}>Mint (Pty) Ltd platform (formally known as Algohive)</strong>], who is a financial services provider licensed in terms of section 8 of the FAIS Act.</span>)}
-        {showErrors && !isGroupValid("lim_exercise") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>All three options must be selected</p>}
+        {showErrors && !isGroupValid("lim_exercise") && <p style={{ color: "#ef4444", fontSize: "9px", margin: "2px 0 0 26px" }}>Please select at least one option</p>}
       </div>
 
       <p style={{ ...pStyle, marginTop: "15px" }}>I hereby authorised ALGOHIVE to manage my portfolio in respect of:</p>
