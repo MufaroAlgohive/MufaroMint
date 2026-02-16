@@ -143,9 +143,15 @@ export default async function handler(req, res) {
       status = "needs_resubmission";
     } else if (reviewStatus === "onHold") {
       status = "needs_resubmission";
+    } else if (hasIncompleteSteps && hasAnySubmittedSteps) {
+      status = "needs_resubmission";
+    } else if (hasIncompleteSteps && !hasAnySubmittedSteps) {
+      status = "not_verified";
+    } else if (!allStepsGreen) {
+      status = "needs_resubmission";
     } else if (reviewStatus === "pending" || reviewStatus === "queued") {
       status = "pending";
-    } else if (hasAnySubmittedSteps) {
+    } else if (hasAnySubmittedSteps && !hasIncompleteSteps) {
       status = "pending";
     } else {
       status = "not_verified";
