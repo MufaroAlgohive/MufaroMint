@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Pencil } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { useInvestments } from "../lib/useFinancialData";
 import { supabase } from "../lib/supabase";
@@ -14,13 +14,16 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
     portfolioMix, 
     goals, 
     hasInvestments,
-    loading: investmentsLoading 
+    loading: investmentsLoading,
+    refetch
   } = useInvestments();
   const [allocations, setAllocations] = useState([]);
   const [customGoals, setCustomGoals] = useState([]);
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
   const [goalDate, setGoalDate] = useState("");
+  const [editingGoalId, setEditingGoalId] = useState(null);
+  const [savingGoal, setSavingGoal] = useState(false);
   
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -80,26 +83,56 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
   const displayPortfolioMix = portfolioMix.length > 0 ? portfolioMix : defaultPortfolioMix;
   const hasAllocations = allocations.length > 0;
   const displayGoals = [...goals, ...customGoals];
-  const handleAddGoal = (event) => {
+
+  const handleGoalSubmit = async (event) => {
     event.preventDefault();
     if (!goalName || !goalTarget || !goalDate) return;
-    const formattedTarget = `Target R${Number(goalTarget).toLocaleString()}`;
-    const formattedDate = new Date(goalDate).toLocaleDateString("en-ZA", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-    setCustomGoals((prev) => [
-      ...prev,
-      {
-        label: goalName,
-        progress: "0%",
-        value: `${formattedTarget} • ${formattedDate}`,
-      },
-    ]);
-    setGoalName("");
-    setGoalTarget("");
-    setGoalDate("");
+    setSavingGoal(true);
+
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user) return;
+
+      if (editingGoalId) {
+        await supabase
+          .from("investment_goals")
+          .update({
+            name: goalName,
+            target_amount: Number(goalTarget),
+            target_date: goalDate,
+          })
+          .eq("id", editingGoalId)
+          .eq("user_id", userData.user.id);
+        setEditingGoalId(null);
+      } else {
+        await supabase.from("investment_goals").insert({
+          user_id: userData.user.id,
+          name: goalName,
+          target_amount: Number(goalTarget),
+          target_date: goalDate,
+          current_amount: 0,
+          is_active: true,
+        });
+      }
+
+      setGoalName("");
+      setGoalTarget("");
+      setGoalDate("");
+      if (refetch) refetch();
+    } catch (err) {
+      console.error("Failed to save goal:", err);
+    } finally {
+      setSavingGoal(false);
+    }
+  };
+
+  const handleEditGoal = (goal) => {
+    setEditingGoalId(goal.id);
+    setGoalName(goal.label || "");
+    setGoalTarget(goal.targetAmount || "");
+    setGoalDate(goal.targetDate || "");
+    const formEl = document.getElementById("goal-form-section");
+    if (formEl) formEl.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
@@ -182,12 +215,30 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
               <div className="mt-4 space-y-4">
                 {displayGoals.length > 0 ? (
                   displayGoals.map((goal) => (
-                    <div key={goal.label} className="rounded-2xl bg-slate-50 px-4 py-3">
+                    <div key={goal.id || goal.label} className="rounded-2xl bg-slate-50 px-4 py-3">
                       <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
                         <span>{goal.label}</span>
-                        <span>{goal.progress}</span>
+                        <div className="flex items-center gap-2">
+                          <span>{goal.progress}</span>
+                          {goal.id && (
+                            <button
+                              type="button"
+                              onClick={() => handleEditGoal(goal)}
+                              className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-200 hover:text-violet-600 active:bg-slate-300"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <p className="mt-1 text-xs text-slate-400">{goal.value}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-xs text-slate-400">{goal.value}</p>
+                        {goal.targetDate && !isNaN(new Date(goal.targetDate).getTime()) && (
+                          <p className="text-xs text-slate-400">
+                            • {new Date(goal.targetDate).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
+                          </p>
+                        )}
+                      </div>
                       <div className="mt-3 h-2 w-full rounded-full bg-slate-200">
                         <div
                           className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-emerald-300"
@@ -205,10 +256,10 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
               </div>
             </section>
 
-            <section className="rounded-3xl bg-white px-4 py-5 shadow-md">
-              <p className="text-sm font-semibold text-slate-700">Add an investment goal</p>
+            <section id="goal-form-section" className="rounded-3xl bg-white px-4 py-5 shadow-md">
+              <p className="text-sm font-semibold text-slate-700">{editingGoalId ? "Edit investment goal" : "Add an investment goal"}</p>
               <p className="mt-1 text-xs text-slate-400">Set your target amount and date.</p>
-              <form className="mt-4 space-y-4" onSubmit={handleAddGoal}>
+              <form className="mt-4 space-y-4" onSubmit={handleGoalSubmit}>
                 <input
                   type="text"
                   value={goalName}
@@ -233,12 +284,24 @@ const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm outline-none focus:border-violet-400"
                   required
                 />
-                <button
-                  type="submit"
-                  className="w-full rounded-2xl bg-gradient-to-r from-black to-purple-600 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg transition-all active:scale-95"
-                >
-                  Add goal
-                </button>
+                <div className="flex gap-3">
+                  {editingGoalId && (
+                    <button
+                      type="button"
+                      onClick={() => { setEditingGoalId(null); setGoalName(""); setGoalTarget(""); setGoalDate(""); }}
+                      className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-600 transition-all active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={savingGoal}
+                    className="flex-1 rounded-2xl bg-gradient-to-r from-black to-purple-600 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {savingGoal ? "Saving..." : editingGoalId ? "Update goal" : "Add goal"}
+                  </button>
+                </div>
               </form>
             </section>
           </>

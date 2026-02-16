@@ -401,6 +401,7 @@ export const useInvestments = () => {
           currentAmount: currentValue,
           investedAmount: invested,
           targetAmount: target,
+          targetDate: g.target_date || null,
           linkedAssetName: g.linked_asset_name || null,
           linkedStrategyId: g.linked_strategy_id || null,
           linkedSecurityId: g.linked_security_id || null,
