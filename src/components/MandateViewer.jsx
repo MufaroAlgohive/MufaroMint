@@ -708,7 +708,7 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
         </div>
       )}
 
-      {discretionType && (
+      {discretionType && (<>
         <div style={{
           display: "flex",
           gap: "8px",
@@ -721,7 +721,6 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
             Limited Discretion
           </button>
         </div>
-      )}
 
       <div ref={fullRef} style={discretionType === "limited" ? disabledOverlayStyle : {}}>
         <h2 style={h2Style}>SCHEDULE – FULL DISCRETION</h2>
@@ -898,6 +897,7 @@ const MandateViewer = ({ profile = {}, onValidChange }) => {
       </table>
 
       <InitialsBox value={initials} onChange={setInitials} showError={showErrors} />
+      </>)}
     </div>
   );
 
