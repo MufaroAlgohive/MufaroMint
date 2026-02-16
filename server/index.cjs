@@ -3116,7 +3116,7 @@ app.post("/api/onboarding/save-mandate", async (req, res) => {
     } else {
       const { data, error } = await db
         .from("user_onboarding")
-        .insert({ user_id: user.id, sumsub_raw: mergedRaw })
+        .insert({ user_id: user.id, employment_status: "not_provided", sumsub_raw: mergedRaw })
         .select("id")
         .single();
       if (error) {
@@ -3214,19 +3214,6 @@ app.post("/api/onboarding/complete", async (req, res) => {
       console.warn("[Onboarding] required_actions update failed (non-critical):", actionErr?.message);
     }
 
-    const onboardingPayload = {
-      user_id: userId,
-      kyc_status: "onboarding_complete",
-    };
-
-    const extraFields = {};
-    if (risk_disclosure_agreed !== undefined) extraFields.risk_disclosure_agreed = risk_disclosure_agreed || false;
-    if (source_of_funds !== undefined) extraFields.source_of_funds = source_of_funds || null;
-    if (source_of_funds_other !== undefined) extraFields.source_of_funds_other = source_of_funds === "other" ? (source_of_funds_other || null) : null;
-    if (expected_monthly_investment !== undefined) extraFields.expected_monthly_investment = expected_monthly_investment || null;
-
-    const fullPayload = { ...onboardingPayload, ...extraFields };
-
     let onboardingId = existing_onboarding_id;
     if (!onboardingId) {
       const { data: latest } = await db
@@ -3239,59 +3226,45 @@ app.post("/api/onboarding/complete", async (req, res) => {
       if (latest?.id) onboardingId = latest.id;
     }
 
+    const updatePayload = { kyc_status: "onboarding_complete" };
+    const insertPayload = {
+      user_id: userId,
+      kyc_status: "onboarding_complete",
+      employment_status: "not_provided",
+    };
+
     let saved = false;
 
     if (onboardingId) {
       const { data: updated, error } = await db
         .from("user_onboarding")
-        .update(fullPayload)
+        .update(updatePayload)
         .eq("id", onboardingId)
         .eq("user_id", userId)
         .select("id");
 
       if (error) {
-        console.warn("[Onboarding] Full update failed, trying minimal:", error.message);
-        const { data: minUpdated, error: minErr } = await db
-          .from("user_onboarding")
-          .update(onboardingPayload)
-          .eq("id", onboardingId)
-          .eq("user_id", userId)
-          .select("id");
-        if (minErr) {
-          console.error("[Onboarding] Minimal update also failed:", minErr.message);
-        } else if (minUpdated && minUpdated.length > 0) {
-          saved = true;
-        }
+        console.error("[Onboarding] Update failed:", error.message);
       } else if (updated && updated.length > 0) {
         saved = true;
       }
-
-      if (!saved) {
-        const { error: insErr } = await db.from("user_onboarding").insert(fullPayload);
-        if (insErr) {
-          const { error: minInsErr } = await db.from("user_onboarding").insert(onboardingPayload);
-          if (minInsErr) {
-            console.error("[Onboarding] Complete insert fallback error:", minInsErr.message);
-            return res.status(500).json({ success: false, error: minInsErr.message });
-          }
-        }
-        saved = true;
-      }
-    } else {
-      const { error } = await db.from("user_onboarding").insert(fullPayload);
-      if (error) {
-        console.warn("[Onboarding] Full insert failed, trying minimal:", error.message);
-        const { error: minErr } = await db.from("user_onboarding").insert(onboardingPayload);
-        if (minErr) {
-          console.error("[Onboarding] Complete insert error:", minErr.message);
-          return res.status(500).json({ success: false, error: minErr.message });
-        }
-      }
-      saved = true;
     }
 
-    console.log(`[Onboarding] Completed for user ${userId}`);
-    res.json({ success: true });
+    if (!saved) {
+      const { data: inserted, error: insErr } = await db
+        .from("user_onboarding")
+        .insert(insertPayload)
+        .select("id");
+      if (insErr) {
+        console.error("[Onboarding] Insert failed:", insErr.message);
+        return res.status(500).json({ success: false, error: insErr.message });
+      }
+      saved = true;
+      if (inserted?.[0]?.id) onboardingId = inserted[0].id;
+    }
+
+    console.log(`[Onboarding] Completed for user ${userId}, onboarding_id: ${onboardingId}`);
+    res.json({ success: true, onboarding_id: onboardingId });
   } catch (error) {
     console.error("[Onboarding] Complete error:", error);
     res.status(500).json({ success: false, error: error.message });

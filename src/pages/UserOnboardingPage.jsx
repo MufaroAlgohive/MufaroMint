@@ -439,7 +439,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               } else {
                 await supabase
                   .from("user_onboarding")
-                  .insert({ user_id: userId, kyc_status: "onboarding_complete" });
+                  .insert({ user_id: userId, kyc_status: "onboarding_complete", employment_status: "not_provided" });
               }
               completionSuccess = true;
             }
