@@ -12,6 +12,7 @@ const emptyProfile = {
   gender: "",
   address: "",
   idNumber: "",
+  mintNumber: "",
   watchlist: [],
 };
 
@@ -28,6 +29,7 @@ const buildProfile = ({ user, row }) => {
     gender: row?.gender || metadata.gender || "",
     address: row?.address || metadata.address || "",
     idNumber: row?.id_number || metadata.id_number || "",
+    mintNumber: row?.mint_number || "",
     watchlist: row?.watchlist || [],
   };
 };
@@ -57,17 +59,58 @@ export const useProfile = () => {
         }
 
         const user = userData.user;
-        const { data: rowData, error: rowError } = await supabase
+        let rowData = null;
+        let rowError = null;
+
+        const { data: d1, error: e1 } = await supabase
           .from("profiles")
           .select(
-            "id, first_name, last_name, email, avatar_url, phone_number, date_of_birth, gender, address, id_number, watchlist"
+            "id, first_name, last_name, email, avatar_url, phone_number, date_of_birth, gender, address, id_number, mint_number, watchlist"
           )
           .eq("id", user.id)
           .maybeSingle();
 
+        if (!e1) {
+          rowData = d1;
+        } else if (e1.message?.includes('mint_number')) {
+          const { data: d2, error: e2 } = await supabase
+            .from("profiles")
+            .select(
+              "id, first_name, last_name, email, avatar_url, phone_number, date_of_birth, gender, address, id_number, watchlist"
+            )
+            .eq("id", user.id)
+            .maybeSingle();
+          rowData = e2 ? null : d2;
+          rowError = e2;
+        } else {
+          rowError = e1;
+        }
+
         if (isMounted) {
-          setProfile(buildProfile({ user, row: rowError ? null : rowData }));
+          const built = buildProfile({ user, row: rowError ? null : rowData });
+          setProfile(built);
           setLoading(false);
+
+          if (!built.mintNumber && user.id) {
+            try {
+              const { data: sess } = await supabase.auth.getSession();
+              const token = sess?.session?.access_token;
+              if (token) {
+                const resp = await fetch('/api/user/ensure-mint-number', {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                if (resp.ok) {
+                  const result = await resp.json();
+                  if (result.mint_number && isMounted) {
+                    setProfile(prev => ({ ...prev, mintNumber: result.mint_number }));
+                  }
+                }
+              }
+            } catch (mintErr) {
+              console.log('Mint number generation deferred');
+            }
+          }
         }
       } catch (error) {
         console.error("Failed to load profile", error);

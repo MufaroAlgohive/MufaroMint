@@ -25,7 +25,7 @@ const formatKMB = (value) => {
 
 const TIMEFRAME_DAYS = { "1m": 45, "3m": 110, "6m": 220 };
 
-const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => {
+const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintNumber }) => {
   const [activeTab, setActiveTab] = useState("1m");
   const [isOpen, setIsOpen] = useState(false);
   const { lastUpdated, isConnected } = useRealtimePrices();
@@ -264,39 +264,44 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
   const masked = "••••";
 
   if (loading && userId) return (
-    <div className="w-full aspect-[1.7/1] rounded-[28px] bg-white/5 p-4 flex">
-      <div className="w-[50%] flex flex-col justify-between border-r border-white/5 pr-4">
-        <div className="space-y-3">
-          <div>
-            <Skeleton className="h-2.5 w-20 bg-white/10 mb-2" />
-            <Skeleton className="h-5 w-24 bg-white/20 mb-2" />
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-4 w-16 bg-white/10" />
-              <Skeleton className="h-4 w-10 rounded-full bg-white/10" />
+    <div className="w-full h-full rounded-[28px] bg-slate-50 p-4 flex flex-col">
+      <div className="flex flex-1">
+        <div className="w-[50%] flex flex-col justify-between border-r border-slate-200 pr-4">
+          <div className="space-y-3">
+            <div>
+              <Skeleton className="h-2.5 w-20 bg-slate-200 mb-2" />
+              <Skeleton className="h-5 w-24 bg-slate-200 mb-2" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-16 bg-slate-200" />
+                <Skeleton className="h-4 w-10 rounded-full bg-slate-200" />
+              </div>
+            </div>
+            <div>
+              <Skeleton className="h-2.5 w-16 bg-slate-200 mb-2" />
+              <div className="flex gap-1">
+                <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
+                <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
+                <Skeleton className="h-5 w-10 rounded-full bg-slate-200" />
+              </div>
             </div>
           </div>
-          <div>
-            <Skeleton className="h-2.5 w-16 bg-white/10 mb-2" />
-            <div className="flex gap-1">
-              <Skeleton className="h-5 w-14 rounded-full bg-white/10" />
-              <Skeleton className="h-5 w-14 rounded-full bg-white/10" />
-              <Skeleton className="h-5 w-10 rounded-full bg-white/10" />
-            </div>
+        </div>
+        <div className="w-[50%] flex flex-col justify-between pl-4">
+          <div className="flex gap-1.5">
+            <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
+            <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
+            <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
           </div>
+          <div className="flex-1 flex items-end gap-1 py-3">
+            {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
+              <Skeleton key={i} className="flex-1 rounded-sm bg-slate-200" style={{ height: `${h}%` }} />
+            ))}
+          </div>
+          <Skeleton className="h-8 w-full rounded-xl bg-slate-200" />
         </div>
       </div>
-      <div className="w-[50%] flex flex-col justify-between pl-4">
-        <div className="flex gap-1.5">
-          <Skeleton className="h-5 w-8 rounded-full bg-white/10" />
-          <Skeleton className="h-5 w-8 rounded-full bg-white/10" />
-          <Skeleton className="h-5 w-8 rounded-full bg-white/10" />
-        </div>
-        <div className="flex-1 flex items-end gap-1 py-3">
-          {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
-            <Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />
-          ))}
-        </div>
-        <Skeleton className="h-8 w-full rounded-xl bg-white/10" />
+      <div className="mt-2 flex justify-start">
+        <Skeleton className="h-3 w-32 bg-slate-200" />
       </div>
     </div>
   );
@@ -339,8 +344,9 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
           `}</style>
         </div>
       )}
-      <div className="relative z-10 flex h-full text-slate-700">
-        <div className="w-[50%] p-4 flex flex-col justify-between border-r border-slate-200">
+      <div className="relative z-10 flex flex-col h-full text-slate-700">
+        <div className="flex flex-1 min-h-0">
+        <div className="w-[50%] p-4 pb-1 flex flex-col justify-between border-r border-slate-200">
           <div className="space-y-3">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5">
@@ -396,7 +402,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
           </div>
         </div>
 
-        <div className="w-[50%] p-4 flex flex-col">
+        <div className="w-[50%] p-4 pb-1 flex flex-col">
           <div className="flex justify-end mb-2">
             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
               {["1m", "3m", "6m"].map((tab) => (
@@ -435,6 +441,24 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible }) => 
             {isOpen ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
           </button>
         </div>
+        </div>
+
+        {mintNumber && mintNumber.length >= 13 && (
+          <div className="px-4 pb-2 flex items-center justify-start">
+            <p className="text-[9px] uppercase tracking-[0.15em] text-slate-400 font-medium" style={{ fontFamily: "'SF Mono', 'Fira Code', monospace" }}>
+              <span className="text-slate-500 mr-1">MINT</span>
+              {mintNumber.substring(0, 3)}{' '}{mintNumber.substring(3, 7)}{' '}{mintNumber.substring(7, 13)}
+            </p>
+          </div>
+        )}
+        {mintNumber && mintNumber.length > 0 && mintNumber.length < 13 && (
+          <div className="px-4 pb-2 flex items-center justify-start">
+            <p className="text-[9px] uppercase tracking-[0.15em] text-slate-400 font-medium" style={{ fontFamily: "'SF Mono', 'Fira Code', monospace" }}>
+              <span className="text-slate-500 mr-1">MINT</span>
+              {mintNumber}
+            </p>
+          </div>
+        )}
       </div>
 
       {isOpen && (

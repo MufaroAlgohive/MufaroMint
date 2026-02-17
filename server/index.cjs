@@ -325,6 +325,90 @@ async function migrateGoalColumns() {
 }
 migrateGoalColumns();
 
+function generateMintNumber(firstName, idNumber, createdAt) {
+  const namePart = (firstName || 'MNT').toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X').substring(0, 3);
+
+  let idPart = '0000';
+  if (idNumber && idNumber.length >= 10) {
+    idPart = idNumber.substring(6, 10);
+  }
+
+  let datePart = '000000';
+  if (createdAt) {
+    const d = new Date(createdAt);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = String(d.getFullYear()).slice(-2);
+      datePart = dd + mm + yy;
+    }
+  }
+
+  return namePart + idPart + datePart;
+}
+
+let mintColumnAvailable = false;
+
+async function ensureMintNumberColumn() {
+  const db = supabaseAdmin || supabase;
+  if (!db) return;
+  try {
+    const { data: test, error: testErr } = await db.from('profiles').select('mint_number').limit(1);
+    if (!testErr) {
+      console.log('[mint] mint_number column exists');
+      mintColumnAvailable = true;
+      return;
+    }
+    console.log('[mint] mint_number column not available via PostgREST. Please add it via Supabase SQL Editor:');
+    console.log('[mint] ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mint_number TEXT;');
+    console.log('[mint] Then reload the PostgREST schema from Supabase dashboard (Settings > API > Reload schema)');
+    mintColumnAvailable = false;
+  } catch (e) {
+    console.log('[mint] Column check error:', e.message);
+    mintColumnAvailable = false;
+  }
+}
+
+async function populateMintNumbers() {
+  const db = supabaseAdmin || supabase;
+  if (!db) return;
+
+  try {
+    await ensureMintNumberColumn();
+
+    if (!mintColumnAvailable) {
+      console.log('[mint] Skipping population - column not available');
+      return;
+    }
+
+    const { data: profiles, error } = await db
+      .from('profiles')
+      .select('id, first_name, id_number, created_at, mint_number')
+      .is('mint_number', null);
+    if (!profiles || profiles.length === 0) {
+      console.log('[mint] All profiles already have mint numbers');
+      return;
+    }
+
+    console.log(`[mint] Generating mint numbers for ${profiles.length} profiles...`);
+    for (const p of profiles) {
+      const mintNum = generateMintNumber(p.first_name, p.id_number, p.created_at);
+      const { error: updateErr } = await db
+        .from('profiles')
+        .update({ mint_number: mintNum })
+        .eq('id', p.id);
+      if (updateErr) {
+        console.log(`[mint] Failed to update profile ${p.id}:`, updateErr.message);
+      }
+    }
+    console.log('[mint] Mint number population complete');
+  } catch (e) {
+    console.log('[mint] Error populating mint numbers:', e.message);
+  }
+}
+
+populateMintNumbers();
+
 function deriveSettlementStatus(record) {
   if (record.settlement_status) {
     return record.settlement_status;
@@ -2029,6 +2113,51 @@ app.post("/api/record-investment", async (req, res) => {
   } catch (error) {
     console.error("[record-investment] === UNCAUGHT ERROR ===", error);
     res.status(500).json({ success: false, error: error.message || "Failed to record investment" });
+  }
+});
+
+app.post("/api/user/ensure-mint-number", async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: "Database not connected" });
+    }
+    if (!mintColumnAvailable) {
+      return res.json({ success: true, mint_number: null });
+    }
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: authError || "Unauthorized" });
+    }
+    const db = getAuthenticatedDb(req.headers.authorization?.replace('Bearer ', ''));
+    const { data: profile, error: profileError } = await db
+      .from('profiles')
+      .select('id, first_name, id_number, created_at, mint_number')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profileError || !profile) {
+      return res.json({ success: true, mint_number: null });
+    }
+
+    if (profile.mint_number) {
+      return res.json({ success: true, mint_number: profile.mint_number });
+    }
+
+    const mintNum = generateMintNumber(profile.first_name, profile.id_number, profile.created_at);
+    const { error: updateErr } = await db
+      .from('profiles')
+      .update({ mint_number: mintNum })
+      .eq('id', user.id);
+
+    if (updateErr) {
+      console.log('[mint] Error setting mint number:', updateErr.message);
+      return res.json({ success: true, mint_number: mintNum });
+    }
+
+    return res.json({ success: true, mint_number: mintNum });
+  } catch (e) {
+    console.error('[mint] ensure-mint-number error:', e.message);
+    return res.status(500).json({ success: false, error: e.message });
   }
 });
 
