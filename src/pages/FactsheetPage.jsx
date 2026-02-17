@@ -117,9 +117,6 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
             .eq("strategy_id", resolvedId)
             .maybeSingle();
 
-          console.log("[FactsheetPage] Analytics query result:", { analyticsRow, analyticsFetchError, resolvedId });
-          console.log("[FactsheetPage] Curves keys:", analyticsRow?.curves ? Object.keys(analyticsRow.curves) : "no curves");
-          console.log("[FactsheetPage] Error field:", analyticsRow?.error);
           if (analyticsFetchError) {
             if (isMounted) {
               setAnalytics(null);
