@@ -1,8 +1,14 @@
 import React, { useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { formatCurrency } from "../lib/formatCurrency";
+
+const BROKER_FEE_RATE = 0.0025;
+const ISIN_FEE_PER_ASSET = 62;
+const PAYSTACK_FEE_RATE = 0.029;
 
 const StockBuyPage = ({ security, onBack, onContinue }) => {
   const [shares, setShares] = useState(1);
+  const [feeExpanded, setFeeExpanded] = useState(false);
 
   const { displayCurrency, priceValue } = useMemo(() => {
     const currency = security?.currency || "R";
@@ -19,6 +25,18 @@ const StockBuyPage = ({ security, onBack, onContinue }) => {
     const total = Number(shares || 0) * priceValue;
     return Number.isFinite(total) ? total : 0;
   }, [shares, priceValue]);
+
+  const numAssets = Number(shares || 0) > 0 ? 1 : 0;
+
+  const fees = useMemo(() => {
+    const brokerAmount = totalAmount * BROKER_FEE_RATE;
+    const afterBroker = totalAmount + brokerAmount;
+    const isinTotal = ISIN_FEE_PER_ASSET * numAssets;
+    const afterIsin = afterBroker + isinTotal;
+    const paystackAmount = afterIsin * PAYSTACK_FEE_RATE;
+    const totalCost = afterIsin + paystackAmount;
+    return { brokerAmount, isinTotal, paystackAmount, totalCost };
+  }, [totalAmount, numAssets]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -66,10 +84,41 @@ const StockBuyPage = ({ security, onBack, onContinue }) => {
 
           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
             <div className="flex items-center justify-between">
-              <span>Total</span>
+              <span>Investment Amount</span>
               <span className="font-semibold text-slate-900">
-                {displayCurrency}{totalAmount.toFixed(2)}
+                {displayCurrency} {totalAmount.toFixed(2)}
               </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setFeeExpanded(!feeExpanded)}
+              className="w-full flex items-center justify-between px-4 py-3"
+            >
+              <span className="text-xs font-semibold text-slate-600">Fee Breakdown</span>
+              {feeExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+            </button>
+            {feeExpanded && (
+              <div className="px-4 pb-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-600">Broker Fee (0.25%)</p>
+                  <p className="text-xs font-semibold text-slate-900">{formatCurrency(fees.brokerAmount, displayCurrency)}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-600">ISIN Fee ({formatCurrency(ISIN_FEE_PER_ASSET, displayCurrency)} × {numAssets} asset{numAssets !== 1 ? "s" : ""})</p>
+                  <p className="text-xs font-semibold text-slate-900">{formatCurrency(fees.isinTotal, displayCurrency)}</p>
+                </div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-slate-600">Paystack Fee (2.9%)</p>
+                  <p className="text-xs font-semibold text-slate-900">{formatCurrency(fees.paystackAmount, displayCurrency)}</p>
+                </div>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-700">Total Cost</p>
+              <p className="text-sm font-bold text-slate-900">{formatCurrency(fees.totalCost, displayCurrency)}</p>
             </div>
           </div>
 

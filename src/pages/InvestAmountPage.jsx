@@ -1,6 +1,10 @@
-import React, { useState } from "react";
-import { ArrowLeft, Info, Plus, Minus } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { ArrowLeft, Info, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
 import { formatCurrency } from "../lib/formatCurrency";
+
+const BROKER_FEE_RATE = 0.0025;
+const ISIN_FEE_PER_ASSET = 62;
+const PAYSTACK_FEE_RATE = 0.029;
 
 const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
   const currentStrategy = strategy || {
@@ -14,9 +18,21 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
   
   const [amount, setAmount] = useState(minimumInvestment || 0);
   const [agreementChecked, setAgreementChecked] = useState(false);
+  const [feeExpanded, setFeeExpanded] = useState(false);
 
   const holdingsData = currentStrategy.holdingsWithLogos || currentStrategy.holdings || [];
+  const numAssets = holdingsData.length || 1;
   const extraHoldings = holdingsData.length > 3 ? holdingsData.length - 3 : 0;
+
+  const fees = useMemo(() => {
+    const brokerAmount = amount * BROKER_FEE_RATE;
+    const afterBroker = amount + brokerAmount;
+    const isinTotal = ISIN_FEE_PER_ASSET * numAssets;
+    const afterIsin = afterBroker + isinTotal;
+    const paystackAmount = afterIsin * PAYSTACK_FEE_RATE;
+    const totalCost = afterIsin + paystackAmount;
+    return { brokerAmount, isinTotal, paystackAmount, totalCost };
+  }, [amount, numAssets]);
 
   const step = minimumInvestment || 0;
 
@@ -135,21 +151,38 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
         </section>
 
         {/* Fee Breakdown */}
-        <section className="mb-6 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <h3 className="text-xs font-semibold text-slate-600 mb-3">Fee Breakdown</h3>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-600">Brokerage Fee</p>
-              <p className="text-xs font-semibold text-slate-900">0.25%</p>
+        <section className="mb-6 rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setFeeExpanded(!feeExpanded)}
+            className="w-full flex items-center justify-between p-4"
+          >
+            <h3 className="text-xs font-semibold text-slate-600">Fee Breakdown</h3>
+            {feeExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </button>
+          {feeExpanded && (
+            <div className="px-4 pb-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-600">Investment Amount</p>
+                <p className="text-xs font-semibold text-slate-900">{formatCurrency(amount, currency)}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-600">Broker Fee (0.25%)</p>
+                <p className="text-xs font-semibold text-slate-900">{formatCurrency(fees.brokerAmount, currency)}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-600">ISIN Fee ({formatCurrency(ISIN_FEE_PER_ASSET, currency)} × {numAssets} asset{numAssets !== 1 ? "s" : ""})</p>
+                <p className="text-xs font-semibold text-slate-900">{formatCurrency(fees.isinTotal, currency)}</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-600">Paystack Fee (2.9%)</p>
+                <p className="text-xs font-semibold text-slate-900">{formatCurrency(fees.paystackAmount, currency)}</p>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-slate-600">Custody Fee</p>
-              <p className="text-xs font-semibold text-slate-900">0.005%</p>
-            </div>
-            <div className="flex items-center justify-between border-t border-slate-100 pt-2">
-              <p className="text-xs text-slate-600">Transaction Fee</p>
-              <p className="text-xs font-semibold text-slate-900">2.9%</p>
-            </div>
+          )}
+          <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-t border-slate-100">
+            <p className="text-xs font-semibold text-slate-700">Total Cost</p>
+            <p className="text-sm font-bold text-slate-900">{formatCurrency(fees.totalCost, currency)}</p>
           </div>
         </section>
 
