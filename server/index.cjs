@@ -833,19 +833,48 @@ app.post("/api/sumsub/check-status", async (req, res) => {
 
 app.post("/api/sumsub/status", async (req, res) => {
   try {
-    if (!SUMSUB_APP_TOKEN || !SUMSUB_SECRET_KEY) {
-      return res.status(500).json({
-        success: false,
-        error: { message: "Sumsub credentials not configured" }
-      });
-    }
-
     const { userId } = req.body;
     
     if (!userId) {
       return res.status(400).json({
         success: false,
         error: { message: "userId is required" }
+      });
+    }
+
+    const db = supabaseAdmin || supabase;
+    if (db) {
+      try {
+        const { data: packRecord } = await db
+          .from("user_onboarding_pack_details")
+          .select("user_id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (packRecord) {
+          console.log(`[Sumsub] User ${userId} already verified (found in user_onboarding_pack_details), skipping Sumsub API`);
+          return res.json({
+            success: true,
+            status: "verified",
+            applicantId: null,
+            reviewStatus: "completed",
+            reviewAnswer: "GREEN",
+            rejectLabels: [],
+            hasIncompleteSteps: false,
+            hasRejectedSteps: false,
+            allStepsGreen: true,
+            createdAt: null
+          });
+        }
+      } catch (dbErr) {
+        console.error("[Sumsub] Error checking user_onboarding_pack_details:", dbErr.message);
+      }
+    }
+
+    if (!SUMSUB_APP_TOKEN || !SUMSUB_SECRET_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: { message: "Sumsub credentials not configured" }
       });
     }
 
