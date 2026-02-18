@@ -169,6 +169,60 @@ export default async function handler(req, res) {
 
     if (allStepsGreen && reviewAnswer === "GREEN") {
       status = "verified";
+
+      const db = supabaseAdmin || supabase;
+      if (db) {
+        try {
+          const { data: existingPack } = await db
+            .from("user_onboarding_pack_details")
+            .select("user_id")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (!existingPack) {
+            await db
+              .from("user_onboarding_pack_details")
+              .insert({ user_id: userId, pack_details: applicant, updated_at: new Date().toISOString() });
+            console.log(`[Status] Created user_onboarding_pack_details for user ${userId}`);
+          }
+
+          const onboardingUpdate = {
+            sumsub_external_user_id: userId,
+            sumsub_applicant_id: applicant.id,
+            sumsub_review_status: reviewStatus || "completed",
+            sumsub_review_answer: reviewAnswer,
+            kyc_checked_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+
+          const { data: existingOnboarding } = await db
+            .from("user_onboarding")
+            .select("id, kyc_status")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (existingOnboarding) {
+            if (existingOnboarding.kyc_status !== "onboarding_complete") {
+              onboardingUpdate.kyc_status = "verified";
+            }
+            onboardingUpdate.kyc_verified_at = new Date().toISOString();
+            await db.from("user_onboarding").update(onboardingUpdate).eq("id", existingOnboarding.id).eq("user_id", userId);
+            console.log(`[Status] Updated user_onboarding for user ${userId}`);
+          }
+
+          const { data: existingAction } = await db
+            .from("required_actions")
+            .select("id")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+          if (existingAction) {
+            await db.from("required_actions").update({ kyc_verified: true, kyc_pending: false, kyc_needs_resubmission: false }).eq("user_id", userId);
+          }
+        } catch (dbErr) {
+          console.error(`[Status] Error updating onboarding for ${userId}:`, dbErr.message);
+        }
+      }
     } else if (hasRejectedSteps || reviewAnswer === "RED") {
       status = "needs_resubmission";
     } else if (reviewStatus === "onHold") {
