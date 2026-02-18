@@ -1115,6 +1115,32 @@ app.post("/api/sumsub/webhook", async (req, res) => {
         console.log(`[Webhook] User ${externalUserId} KYC verified successfully`);
         kycUpdate = { kyc_verified: true, kyc_pending: false, kyc_needs_resubmission: false };
         onboardingKycStatus = "verified";
+
+        try {
+          const applicantData = await getSumsubApplicantByExternalId(externalUserId);
+          if (applicantData) {
+            const { data: existingPack } = await db
+              .from("user_onboarding_pack_details")
+              .select("user_id")
+              .eq("user_id", externalUserId)
+              .maybeSingle();
+
+            if (existingPack) {
+              await db
+                .from("user_onboarding_pack_details")
+                .update({ pack_details: applicantData, updated_at: new Date().toISOString() })
+                .eq("user_id", externalUserId);
+              console.log(`[Webhook] Updated user_onboarding_pack_details for user ${externalUserId}`);
+            } else {
+              await db
+                .from("user_onboarding_pack_details")
+                .insert({ user_id: externalUserId, pack_details: applicantData, updated_at: new Date().toISOString() });
+              console.log(`[Webhook] Created user_onboarding_pack_details for user ${externalUserId}`);
+            }
+          }
+        } catch (packErr) {
+          console.error(`[Webhook] Failed to save pack_details for ${externalUserId}:`, packErr.message);
+        }
       } else if (reviewAnswer === "RED") {
         const canResubmit = rejectLabels.some(label => 
           ["DOCUMENT_PAGE_MISSING", "INCOMPLETE_DOCUMENT", "UNSATISFACTORY_PHOTOS", 
