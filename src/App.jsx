@@ -94,6 +94,8 @@ const App = () => {
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [pendingGoalFlow, setPendingGoalFlow] = useState(null);
   const [selectedGoalId, setSelectedGoalId] = useState(null);
+  const selectedGoalIdRef = useRef(null);
+  const goalInvestAmountRef = useRef(0);
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications } = useNotificationsContext();
   const [showPinLock, setShowPinLock] = useState(false);
@@ -1083,9 +1085,11 @@ const App = () => {
         />
         <GoalLinkModal
           isOpen={showGoalModal && pendingGoalFlow?.type === "stock"}
-          onClose={() => { setShowGoalModal(false); setPendingGoalFlow(null); setSelectedGoalId(null); }}
+          onClose={() => { setShowGoalModal(false); setPendingGoalFlow(null); setSelectedGoalId(null); selectedGoalIdRef.current = null; goalInvestAmountRef.current = 0; }}
           onConfirm={(goalId) => {
             setSelectedGoalId(goalId);
+            selectedGoalIdRef.current = goalId;
+            goalInvestAmountRef.current = pendingGoalFlow?.baseAmount || pendingGoalFlow?.amount || stockCheckout.amount;
             setShowGoalModal(false);
             setPendingGoalFlow(null);
             navigateTo("stockPayment");
@@ -1111,19 +1115,23 @@ const App = () => {
           amount={stockCheckout.amount}
           onSuccess={async (response) => {
             console.log("Payment successful:", response);
-            if (selectedGoalId && supabase) {
+            const goalId = selectedGoalIdRef.current;
+            const goalAmount = goalInvestAmountRef.current;
+            if (goalId && supabase) {
               try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user) {
-                  const { data: goal } = await supabase
+                  const { data: goal, error: fetchErr } = await supabase
                     .from("investment_goals")
-                    .select("invested_amount, target_amount")
-                    .eq("id", selectedGoalId)
+                    .select("invested_amount, current_amount, target_amount")
+                    .eq("id", goalId)
                     .single();
+                  if (fetchErr) console.error("Error fetching goal for update:", fetchErr);
                   if (goal) {
-                    const newInvested = (goal.invested_amount || 0) + (stockCheckout.amount || 0);
+                    const prevInvested = goal.invested_amount || goal.current_amount || 0;
+                    const newInvested = prevInvested + (goalAmount || 0);
                     const progress = goal.target_amount > 0 ? Math.min(100, (newInvested / goal.target_amount) * 100) : 0;
-                    await supabase
+                    let { error: updateErr } = await supabase
                       .from("investment_goals")
                       .update({
                         invested_amount: newInvested,
@@ -1132,13 +1140,26 @@ const App = () => {
                         linked_security_id: stockCheckout.security?.id || null,
                         linked_asset_name: stockCheckout.security?.name || stockCheckout.security?.symbol || null,
                       })
-                      .eq("id", selectedGoalId);
+                      .eq("id", goalId);
+                    if (updateErr) {
+                      console.warn("Goal update with all columns failed, retrying with core columns:", updateErr.message);
+                      const retry = await supabase
+                        .from("investment_goals")
+                        .update({ current_amount: newInvested })
+                        .eq("id", goalId);
+                      if (retry.error) console.error("Goal fallback update failed:", retry.error);
+                      else console.log("Goal updated (fallback):", { goalId, newInvested });
+                    } else {
+                      console.log("Goal updated successfully:", { goalId, newInvested, progress });
+                    }
                   }
                 }
               } catch (e) {
                 console.error("Error updating goal:", e);
               }
             }
+            selectedGoalIdRef.current = null;
+            goalInvestAmountRef.current = 0;
             setSelectedGoalId(null);
             navigationHistory.current = [];
             setPreviousPageName(null);
@@ -1211,9 +1232,11 @@ const App = () => {
         />
         <GoalLinkModal
           isOpen={showGoalModal && pendingGoalFlow?.type === "strategy"}
-          onClose={() => { setShowGoalModal(false); setPendingGoalFlow(null); setSelectedGoalId(null); }}
+          onClose={() => { setShowGoalModal(false); setPendingGoalFlow(null); setSelectedGoalId(null); selectedGoalIdRef.current = null; goalInvestAmountRef.current = 0; }}
           onConfirm={(goalId) => {
             setSelectedGoalId(goalId);
+            selectedGoalIdRef.current = goalId;
+            goalInvestAmountRef.current = pendingGoalFlow?.baseAmount || pendingGoalFlow?.amount || investmentAmount;
             setShowGoalModal(false);
             setPendingGoalFlow(null);
             navigateTo("payment");
@@ -1234,19 +1257,23 @@ const App = () => {
           amount={investmentAmount}
           onSuccess={async (response) => {
             console.log("Payment successful:", response);
-            if (selectedGoalId && supabase) {
+            const goalId = selectedGoalIdRef.current;
+            const goalAmount = goalInvestAmountRef.current;
+            if (goalId && supabase) {
               try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session?.user) {
-                  const { data: goal } = await supabase
+                  const { data: goal, error: fetchErr } = await supabase
                     .from("investment_goals")
-                    .select("invested_amount, target_amount")
-                    .eq("id", selectedGoalId)
+                    .select("invested_amount, current_amount, target_amount")
+                    .eq("id", goalId)
                     .single();
+                  if (fetchErr) console.error("Error fetching goal for update:", fetchErr);
                   if (goal) {
-                    const newInvested = (goal.invested_amount || 0) + (investmentAmount || 0);
+                    const prevInvested = goal.invested_amount || goal.current_amount || 0;
+                    const newInvested = prevInvested + (goalAmount || 0);
                     const progress = goal.target_amount > 0 ? Math.min(100, (newInvested / goal.target_amount) * 100) : 0;
-                    await supabase
+                    let { error: updateErr } = await supabase
                       .from("investment_goals")
                       .update({
                         invested_amount: newInvested,
@@ -1255,13 +1282,26 @@ const App = () => {
                         linked_strategy_id: selectedStrategy?.id || selectedStrategy?.strategyId || null,
                         linked_asset_name: selectedStrategy?.name || null,
                       })
-                      .eq("id", selectedGoalId);
+                      .eq("id", goalId);
+                    if (updateErr) {
+                      console.warn("Goal update with all columns failed, retrying with core columns:", updateErr.message);
+                      const retry = await supabase
+                        .from("investment_goals")
+                        .update({ current_amount: newInvested })
+                        .eq("id", goalId);
+                      if (retry.error) console.error("Goal fallback update failed:", retry.error);
+                      else console.log("Goal updated (fallback):", { goalId, newInvested });
+                    } else {
+                      console.log("Goal updated successfully:", { goalId, newInvested, progress });
+                    }
                   }
                 }
               } catch (e) {
                 console.error("Error updating goal:", e);
               }
             }
+            selectedGoalIdRef.current = null;
+            goalInvestAmountRef.current = 0;
             setSelectedGoalId(null);
             navigationHistory.current = [];
             setPreviousPageName(null);

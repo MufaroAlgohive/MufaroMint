@@ -311,6 +311,7 @@ async function migrateGoalColumns() {
       "ALTER TABLE investment_goals ADD COLUMN IF NOT EXISTS invested_amount numeric DEFAULT 0",
       "ALTER TABLE investment_goals ADD COLUMN IF NOT EXISTS linked_asset_name text",
       "ALTER TABLE investment_goals ADD COLUMN IF NOT EXISTS target_date date",
+      "ALTER TABLE investment_goals ADD COLUMN IF NOT EXISTS progress_percent numeric DEFAULT 0",
     ];
     for (const sql of cols) {
       try {
