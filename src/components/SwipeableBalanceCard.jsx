@@ -55,6 +55,18 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
   const holdingsScrollRef = useRef(null);
   const scrollTimerRef = useRef(null);
 
+  const scrollToHoldingIndex = (index) => {
+    const container = holdingsScrollRef.current;
+    if (!container) return;
+    const item = container.querySelector(`[data-holding-index="${index}"]`);
+    if (item) {
+      const containerRect = container.getBoundingClientRect();
+      const itemRect = item.getBoundingClientRect();
+      const scrollLeft = container.scrollLeft + (itemRect.left - containerRect.left) - (containerRect.width / 2) + (itemRect.width / 2);
+      container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+    }
+  };
+
   const handleHoldingsScroll = () => {
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     scrollTimerRef.current = setTimeout(() => {
@@ -514,12 +526,12 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
       {isOpen && (
         <div className="absolute bottom-0 right-0 w-[55%] max-h-[70%] bg-white rounded-xl z-[120] overflow-hidden border border-slate-200 shadow-lg">
           <div className="py-1 overflow-y-auto max-h-[140px]">
-            <button onClick={() => { setSelectedAsset(null); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${!selectedAsset ? 'bg-slate-100' : 'hover:bg-slate-50'}`}>
+            <button onClick={() => { setSelectedAsset(null); setIsOpen(false); scrollToHoldingIndex(-1); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${!selectedAsset ? 'bg-slate-100' : 'hover:bg-slate-50'}`}>
               <LayoutGrid size={10} className="text-violet-400 shrink-0" />
               <span className="text-[9px] font-medium text-slate-700 truncate">All Investments</span>
             </button>
             {dbData.holdings.map((item, idx) => (
-              <button key={idx} onClick={() => { setSelectedAsset(item); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? 'bg-slate-100' : 'hover:bg-slate-50'}`}>
+              <button key={idx} onClick={() => { setSelectedAsset(item); setIsOpen(false); scrollToHoldingIndex(idx); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? 'bg-slate-100' : 'hover:bg-slate-50'}`}>
                 <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-100 shrink-0">
                   {item.isStrategy && item.topLogos?.length > 0 ? (
                     <div className="flex -space-x-1 h-full items-center justify-center">
