@@ -2213,11 +2213,6 @@ app.post("/api/record-investment", async (req, res) => {
           unrealized_pnl: 0,
           as_of_date: new Date().toISOString().split("T")[0],
           Status: "active",
-          settlement_status: settlementConfig.isFullyIntegrated
-            ? SETTLEMENT_STATUSES.CONFIRMED
-            : !settlementConfig.csdpEnabled
-              ? SETTLEMENT_STATUSES.PENDING_CSDP
-              : SETTLEMENT_STATUSES.PENDING_BROKER,
         };
         console.log("[record-investment] Insert data:", JSON.stringify(holdingData));
         const { data, error } = await db
@@ -2243,31 +2238,79 @@ app.post("/api/record-investment", async (req, res) => {
       : `Purchased ${(holdingResult.data ? "shares" : "units")} of ${name || symbol || "Unknown"}`;
     
     console.log("[record-investment] Creating transaction record...");
-    const { data: txData, error: txError } = await db
-      .from("transactions")
-      .insert({
-        user_id: userId,
-        direction: "debit",
-        name: isStrategyInvestment ? `Strategy Investment: ${name || symbol || "Strategy"}` : `Purchased ${name || symbol || "Stock"}`,
-        description: descriptionText,
-        amount: Math.round(amount * 100),
-        store_reference: paymentReference || null,
-        currency: "ZAR",
-        status: "posted",
-        settlement_status: settlementConfig.isFullyIntegrated
-          ? SETTLEMENT_STATUSES.CONFIRMED
-          : !settlementConfig.csdpEnabled
-            ? SETTLEMENT_STATUSES.PENDING_CSDP
-            : SETTLEMENT_STATUSES.PENDING_BROKER,
-        transaction_date: new Date().toISOString(),
-        created_at: new Date().toISOString(),
-      })
-      .select();
+    const txPayload = {
+      user_id: userId,
+      direction: "debit",
+      name: isStrategyInvestment ? `Strategy Investment: ${name || symbol || "Strategy"}` : `Purchased ${name || symbol || "Stock"}`,
+      description: descriptionText,
+      amount: Math.round(amount * 100),
+      store_reference: paymentReference || null,
+      currency: "ZAR",
+      status: "posted",
+      transaction_date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    };
+
+    let txData, txError;
+    const txResult1 = await db.from("transactions").insert(txPayload).select();
+    txData = txResult1.data;
+    txError = txResult1.error;
+
+    if (txError && txError.message && txError.message.includes("settlement_status")) {
+      console.log("[record-investment] Retrying transaction insert without settlement_status...");
+      const txResult2 = await db.from("transactions").insert(txPayload).select();
+      txData = txResult2.data;
+      txError = txResult2.error;
+    }
 
     if (txError) {
       console.error("[record-investment] TRANSACTION INSERT ERROR:", JSON.stringify(txError));
     } else {
       console.log("[record-investment] Transaction created OK:", JSON.stringify(txData));
+    }
+
+    if (isStrategyInvestment) {
+      console.log("[record-investment] Upserting user_strategies record for strategy:", strategyId);
+      try {
+        const { data: existingUS } = await db
+          .from("user_strategies")
+          .select("id, invested_amount")
+          .eq("user_id", userId)
+          .eq("strategy_id", strategyId)
+          .maybeSingle();
+
+        if (existingUS) {
+          const newInvested = (existingUS.invested_amount || 0) + Math.round(amount * 100);
+          const { error: usUpdateErr } = await db
+            .from("user_strategies")
+            .update({ invested_amount: newInvested, updated_at: new Date().toISOString() })
+            .eq("id", existingUS.id);
+          if (usUpdateErr) {
+            console.error("[record-investment] user_strategies UPDATE error:", JSON.stringify(usUpdateErr));
+          } else {
+            console.log("[record-investment] user_strategies updated, new invested_amount:", newInvested);
+          }
+        } else {
+          const usPayload = {
+            user_id: userId,
+            strategy_id: strategyId,
+            invested_amount: Math.round(amount * 100),
+            status: "active",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          };
+          const { error: usInsertErr } = await db
+            .from("user_strategies")
+            .insert(usPayload);
+          if (usInsertErr) {
+            console.error("[record-investment] user_strategies INSERT error:", JSON.stringify(usInsertErr));
+          } else {
+            console.log("[record-investment] user_strategies created for strategy:", strategyId);
+          }
+        }
+      } catch (usErr) {
+        console.error("[record-investment] user_strategies upsert failed:", usErr.message);
+      }
     }
 
     console.log("[record-investment] === SUCCESS === Holding:", JSON.stringify(holdingResult.data));
