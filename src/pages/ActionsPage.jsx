@@ -30,7 +30,7 @@ const ActionsPage = ({ onBack, onNavigate }) => {
         }
         const { data } = await supabase
           .from("user_onboarding")
-          .select("kyc_status, employment_status")
+          .select("kyc_status, employment_status, sumsub_raw")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(1);
@@ -51,7 +51,15 @@ const ActionsPage = ({ onBack, onNavigate }) => {
   const employmentDone = hasOnboardingRecord && onboardingData.employment_status && onboardingData.employment_status !== "not_provided";
   const onboardingMarkedComplete = onboardingData?.kyc_status === "onboarding_complete" || onboardingData?.kyc_status === "verified";
   const identityComplete = kycVerified && (employmentDone || onboardingMarkedComplete);
-  const allOnboardingComplete = onboardingMarkedComplete;
+
+  let mandateAgreed = false;
+  if (onboardingData?.sumsub_raw) {
+    try {
+      const raw = typeof onboardingData.sumsub_raw === "string" ? JSON.parse(onboardingData.sumsub_raw) : onboardingData.sumsub_raw;
+      mandateAgreed = !!raw?.mandate_data?.agreedMandate;
+    } catch {}
+  }
+  const allOnboardingComplete = onboardingMarkedComplete && mandateAgreed;
 
   const getIdentityStatus = () => {
     if (identityComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
@@ -91,6 +99,13 @@ const ActionsPage = ({ onBack, onNavigate }) => {
 
   const onboardingStatus = getOnboardingStatus();
 
+  const getMandateStatus = () => {
+    if (!identityComplete) return { text: "Awaiting Identity", style: "bg-slate-100 text-slate-500" };
+    if (mandateAgreed) return { text: "Complete", style: "bg-green-100 text-green-600" };
+    return { text: "Action Required", style: "bg-red-50 text-red-600" };
+  };
+  const mandateStatus = getMandateStatus();
+
   const allActions = [
     {
       id: "identity",
@@ -101,6 +116,19 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       icon: BadgeCheck,
       completed: identityComplete,
       navigateTo: "identityCheck",
+    },
+    {
+      id: "mandate",
+      title: "Sign discretionary mandate",
+      description: mandateAgreed
+        ? "Investment mandate signed and agreed"
+        : "Review and accept the FSP investment mandate",
+      status: mandateStatus.text,
+      statusStyle: mandateStatus.style,
+      icon: FileText,
+      completed: mandateAgreed,
+      navigateTo: "identityCheck",
+      disabled: !identityComplete,
     },
     {
       id: "onboarding",
