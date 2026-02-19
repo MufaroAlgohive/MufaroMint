@@ -203,7 +203,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, name, logo_url, last_price, security_metrics(r_1d)")
+          .select("symbol, name, logo_url, last_price, change_percentage, change_percent")
           .in("symbol", tickers);
 
         if (error) throw error;
@@ -337,18 +337,20 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
     const holdingsList = holdings.map((holding) => {
       const symbol = holding.ticker || holding.symbol || holding;
       const security = holdingsSecurities.find((s) => s.symbol === symbol);
-      const metrics = Array.isArray(security?.security_metrics)
-        ? security.security_metrics[0]
-        : security?.security_metrics;
       const rawWeight = Number(holding.weight) || 0;
       const weightNorm = totalWeight > 0 ? rawWeight / totalWeight : null;
+      const securityDailyChange = security?.change_percentage != null
+        ? Number(security.change_percentage)
+        : security?.change_percent != null
+          ? Number(security.change_percent)
+          : null;
       return {
         symbol,
         name: holding.name || security?.name || symbol,
         weight: rawWeight,
         weightNorm,
         logoUrl: security?.logo_url,
-        dailyChange: metrics?.r_1d ?? null,
+        dailyChange: securityDailyChange,
       };
     });
 
