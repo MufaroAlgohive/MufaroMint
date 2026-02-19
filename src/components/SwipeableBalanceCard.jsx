@@ -365,26 +365,26 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
                 </span>
               </div>
             </div>
-            <div>
+            <div className="overflow-hidden">
               <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5">
                 holdings ({dbData.holdingsCount})
               </p>
               {dbData.holdings.length > 0 ? (
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-col gap-1 max-h-[52px] overflow-hidden">
                   {dbData.holdings.slice(0, 3).map((h, i) => (
-                    <div key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200">
+                    <div key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 w-fit max-w-full truncate">
                       {h.isStrategy && h.topLogos?.length > 0 ? (
-                        <div className="flex -space-x-1">
+                        <div className="flex -space-x-1 shrink-0">
                           {h.topLogos.slice(0, 3).map((logo, li) => (
                             <img key={li} src={logo} className="w-3 h-3 rounded-full object-cover border border-white/25" />
                           ))}
                         </div>
                       ) : h.logo_url ? (
-                        <img src={h.logo_url} className="w-3 h-3 rounded-full object-cover" />
+                        <img src={h.logo_url} className="w-3 h-3 rounded-full object-cover shrink-0" />
                       ) : (
-                        <span className="text-[6px] text-slate-500">{h.symbol?.substring(0, 2)}</span>
+                        <span className="text-[6px] text-slate-500 shrink-0">{h.symbol?.substring(0, 2)}</span>
                       )}
-                      <span className="text-[8px] font-medium text-slate-600">{h.isStrategy ? h.symbol : h.symbol?.replace('.JO', '')}</span>
+                      <span className="text-[8px] font-medium text-slate-600 truncate">{h.isStrategy ? h.symbol : h.symbol?.replace('.JO', '')}</span>
                       {(() => {
                         const s = h.settlement_status || holdingSettlementStatus;
                         return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
@@ -392,7 +392,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
                     </div>
                   ))}
                   {dbData.holdings.length > 3 && (
-                    <span className="text-[8px] text-slate-500 self-center">+{dbData.holdings.length - 3}</span>
+                    <span className="text-[8px] text-slate-500">+{dbData.holdings.length - 3} more</span>
                   )}
                 </div>
               ) : (
