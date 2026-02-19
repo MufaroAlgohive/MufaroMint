@@ -345,13 +345,20 @@ const HomePage = ({
     try {
       const { data, error } = await supabase
         .from("user_onboarding")
-        .select("kyc_status")
+        .select("kyc_status, sumsub_raw")
         .eq("user_id", profile.id)
         .order("created_at", { ascending: false })
         .limit(1);
       const record = data?.[0];
-      const complete = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
-      setOnboardingComplete(complete);
+      const kycDone = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
+      let mandateAgreed = false;
+      if (record?.sumsub_raw) {
+        try {
+          const raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : record.sumsub_raw;
+          mandateAgreed = !!raw?.mandate_data?.agreedMandate;
+        } catch {}
+      }
+      setOnboardingComplete(kycDone && mandateAgreed);
       setOnboardingChecked(true);
     } catch (err) {
       console.error("[Onboarding Check] Error:", err);
