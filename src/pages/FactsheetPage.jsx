@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import { ArrowLeft, X, Info, Heart } from "lucide-react";
+import { ArrowLeft, X, Info, Heart, Wallet } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { formatChangePct, getChangeColor } from "../lib/strategyData.js";
 import { buildHoldingsBySymbol, calculateMinInvestment } from "../lib/strategyUtils";
@@ -203,7 +203,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, name, logo_url, last_price, change_percentage, change_percent")
+          .select("symbol, name, logo_url, last_price, change_percent")
           .in("symbol", tickers);
 
         if (error) throw error;
@@ -339,11 +339,9 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
       const security = holdingsSecurities.find((s) => s.symbol === symbol);
       const rawWeight = Number(holding.weight) || 0;
       const weightNorm = totalWeight > 0 ? rawWeight / totalWeight : null;
-      const securityDailyChange = security?.change_percentage != null
-        ? Number(security.change_percentage)
-        : security?.change_percent != null
-          ? Number(security.change_percent)
-          : null;
+      const securityDailyChange = security?.change_percent != null
+        ? Number(security.change_percent)
+        : null;
       return {
         symbol,
         name: holding.name || security?.name || symbol,
@@ -609,6 +607,8 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
                             alt={holding.symbol}
                             className="h-full w-full object-cover"
                           />
+                        ) : String(holding.symbol || "").toUpperCase() === "CASH" ? (
+                          <Wallet className="h-4 w-4 text-slate-500" />
                         ) : (
                           <span className="text-[10px] font-semibold text-slate-500">
                             {holding.symbol?.slice(0, 2)}
@@ -758,6 +758,8 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
                           alt={holding.name || holding.symbol}
                           className="h-full w-full object-cover"
                         />
+                      ) : String(holding.symbol || "").toUpperCase() === "CASH" ? (
+                        <Wallet className="h-4 w-4 text-slate-500" />
                       ) : (
                         <span className="text-xs font-semibold text-slate-400">{holding.symbol ? holding.symbol.slice(0, 2) : "—"}</span>
                       )}
