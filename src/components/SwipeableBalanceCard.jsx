@@ -365,12 +365,12 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
                 </span>
               </div>
             </div>
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden mb-3">
               <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5 shrink-0">
                 holdings ({dbData.holdingsCount})
               </p>
               {dbData.holdings.length > 0 ? (
-                <div className="flex-1 min-h-0 overflow-y-auto pr-0.5" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}>
+                <div className="flex-1 min-h-0 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
                   <div className="flex flex-wrap gap-1">
                     {dbData.holdings.map((h, i) => (
                       <div key={i} className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-100 border border-slate-200 max-w-full">
