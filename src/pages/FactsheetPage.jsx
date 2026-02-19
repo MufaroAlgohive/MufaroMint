@@ -46,12 +46,6 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
     return `${(Number(value) * 100).toFixed(2)}%`;
   };
 
-  const formatDirectPercentage = (value) => {
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) return "Data unavailable";
-    return `${numericValue >= 0 ? "+" : ""}${numericValue.toFixed(2)}%`;
-  };
-
   const formatCurrencyAmount = (amount, currencyCode = "ZAR") => {
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount)) return null;
@@ -629,7 +623,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
                     <div className="mt-3 space-y-1">
                       {holding.dailyChange != null ? (
                         <p className={`text-sm font-semibold ${holding.dailyChange > 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                          {formatDirectPercentage(holding.dailyChange)}
+                          {holding.dailyChange > 0 ? "+" : ""}{Number(holding.dailyChange).toFixed(2)}%
                         </p>
                       ) : (
                         <p className="text-sm font-semibold text-slate-400">Data unavailable</p>
