@@ -375,7 +375,7 @@ export const useInvestments = () => {
       }));
 
       const formattedGoals = goals.map((g) => {
-        const invested = g.invested_amount || g.current_amount || 0;
+        const invested = g.current_amount || 0;
         let currentValue = invested;
 
         if (g.linked_security_id || g.linked_strategy_id) {

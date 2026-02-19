@@ -307,21 +307,10 @@ const HomePage = ({
     try {
       let { data, error } = await supabase
         .from('investment_goals')
-        .select('id, name, target_amount, current_amount, invested_amount, progress_percent, linked_asset_name, target_date')
+        .select('id, name, target_amount, current_amount, is_active, target_date')
         .eq('user_id', profile.id)
         .eq('is_active', true)
         .order('created_at', { ascending: false });
-
-      if (error && error.message && error.message.includes('does not exist')) {
-        const fallback = await supabase
-          .from('investment_goals')
-          .select('id, name, target_amount, current_amount, progress_percent, target_date')
-          .eq('user_id', profile.id)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
-        data = fallback.data;
-        error = fallback.error;
-      }
 
       if (error) throw error;
       setGoals(data || []);
@@ -1104,9 +1093,9 @@ const HomePage = ({
           ) : goals.length > 0 ? (
             <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
               {goals.map((goal) => {
-                const invested = goal.invested_amount || goal.current_amount || 0;
+                const invested = goal.current_amount || 0;
                 const target = goal.target_amount || 0;
-                const progress = goal.progress_percent != null ? goal.progress_percent : (target > 0 ? Math.min(100, (invested / target) * 100) : 0);
+                const progress = target > 0 ? Math.min(100, (invested / target) * 100) : 0;
                 return (
                   <button
                     key={goal.id}
@@ -1510,13 +1499,13 @@ const HomePage = ({
                         
                         <div className="space-y-2">
                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span className="text-violet-600">{Math.round(goal.progress_percent || 0)}% Complete</span>
-                            <span className="text-slate-300">R{(goal.target_amount - (goal.current_amount || 0)).toLocaleString()} Left</span>
+                            <span className="text-violet-600">{Math.round(goal.target_amount > 0 ? Math.min(100, ((goal.current_amount || 0) / goal.target_amount) * 100) : 0)}% Complete</span>
+                            <span className="text-slate-300">R{Math.max(0, (goal.target_amount || 0) - (goal.current_amount || 0)).toLocaleString()} Left</span>
                           </div>
                           <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
                             <div
                               className="h-full bg-gradient-to-r from-violet-600 to-purple-500 rounded-full transition-all duration-1000"
-                              style={{ width: `${goal.progress_percent || 0}%` }}
+                              style={{ width: `${goal.target_amount > 0 ? Math.min(100, ((goal.current_amount || 0) / goal.target_amount) * 100) : 0}%` }}
                             />
                           </div>
                         </div>

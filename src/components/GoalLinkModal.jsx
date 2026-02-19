@@ -34,21 +34,10 @@ const GoalLinkModal = ({ isOpen, onClose, onConfirm, investmentAmount, assetName
 
       let { data, error } = await supabase
         .from("investment_goals")
-        .select("id, name, target_amount, current_amount, invested_amount, linked_asset_name, is_active")
+        .select("id, name, target_amount, current_amount, is_active")
         .eq("user_id", session.user.id)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
-
-      if (error && error.message && error.message.includes('does not exist')) {
-        const fallback = await supabase
-          .from("investment_goals")
-          .select("id, name, target_amount, current_amount, is_active")
-          .eq("user_id", session.user.id)
-          .eq("is_active", true)
-          .order("created_at", { ascending: false });
-        data = fallback.data;
-        error = fallback.error;
-      }
 
       if (!error) {
         setGoals(data || []);
@@ -116,10 +105,10 @@ const GoalLinkModal = ({ isOpen, onClose, onConfirm, investmentAmount, assetName
 
   const selectedGoal = goals.find((g) => g.id === selectedGoalId);
   const remainingAfterInvest = selectedGoal
-    ? Math.max(0, (selectedGoal.target_amount || 0) - (selectedGoal.invested_amount || 0) - (investmentAmount || 0))
+    ? Math.max(0, (selectedGoal.target_amount || 0) - (selectedGoal.current_amount || 0) - (investmentAmount || 0))
     : 0;
   const progressAfterInvest = selectedGoal && selectedGoal.target_amount > 0
-    ? Math.min(100, (((selectedGoal.invested_amount || 0) + (investmentAmount || 0)) / selectedGoal.target_amount) * 100)
+    ? Math.min(100, (((selectedGoal.current_amount || 0) + (investmentAmount || 0)) / selectedGoal.target_amount) * 100)
     : 0;
 
   return (
@@ -190,7 +179,7 @@ const GoalLinkModal = ({ isOpen, onClose, onConfirm, investmentAmount, assetName
                       <div className="space-y-2">
                         {goals.map((goal) => {
                           const isSelected = selectedGoalId === goal.id;
-                          const invested = goal.invested_amount || 0;
+                          const invested = goal.current_amount || 0;
                           const progress = goal.target_amount > 0 ? Math.min(100, (invested / goal.target_amount) * 100) : 0;
                           return (
                             <button

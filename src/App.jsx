@@ -1123,32 +1123,20 @@ const App = () => {
                 if (session?.user) {
                   const { data: goal, error: fetchErr } = await supabase
                     .from("investment_goals")
-                    .select("invested_amount, current_amount, target_amount")
+                    .select("current_amount, target_amount")
                     .eq("id", goalId)
                     .single();
                   if (fetchErr) console.error("Error fetching goal for update:", fetchErr);
                   if (goal) {
-                    const prevInvested = goal.invested_amount || goal.current_amount || 0;
+                    const prevInvested = goal.current_amount || 0;
                     const newInvested = prevInvested + (goalAmount || 0);
                     const progress = goal.target_amount > 0 ? Math.min(100, (newInvested / goal.target_amount) * 100) : 0;
-                    let { error: updateErr } = await supabase
+                    const { error: updateErr } = await supabase
                       .from("investment_goals")
-                      .update({
-                        invested_amount: newInvested,
-                        current_amount: newInvested,
-                        progress_percent: progress,
-                        linked_security_id: stockCheckout.security?.id || null,
-                        linked_asset_name: stockCheckout.security?.name || stockCheckout.security?.symbol || null,
-                      })
+                      .update({ current_amount: newInvested })
                       .eq("id", goalId);
                     if (updateErr) {
-                      console.warn("Goal update with all columns failed, retrying with core columns:", updateErr.message);
-                      const retry = await supabase
-                        .from("investment_goals")
-                        .update({ current_amount: newInvested })
-                        .eq("id", goalId);
-                      if (retry.error) console.error("Goal fallback update failed:", retry.error);
-                      else console.log("Goal updated (fallback):", { goalId, newInvested });
+                      console.error("Goal update failed:", updateErr);
                     } else {
                       console.log("Goal updated successfully:", { goalId, newInvested, progress });
                     }
@@ -1265,32 +1253,20 @@ const App = () => {
                 if (session?.user) {
                   const { data: goal, error: fetchErr } = await supabase
                     .from("investment_goals")
-                    .select("invested_amount, current_amount, target_amount")
+                    .select("current_amount, target_amount")
                     .eq("id", goalId)
                     .single();
                   if (fetchErr) console.error("Error fetching goal for update:", fetchErr);
                   if (goal) {
-                    const prevInvested = goal.invested_amount || goal.current_amount || 0;
+                    const prevInvested = goal.current_amount || 0;
                     const newInvested = prevInvested + (goalAmount || 0);
                     const progress = goal.target_amount > 0 ? Math.min(100, (newInvested / goal.target_amount) * 100) : 0;
-                    let { error: updateErr } = await supabase
+                    const { error: updateErr } = await supabase
                       .from("investment_goals")
-                      .update({
-                        invested_amount: newInvested,
-                        current_amount: newInvested,
-                        progress_percent: progress,
-                        linked_strategy_id: selectedStrategy?.id || selectedStrategy?.strategyId || null,
-                        linked_asset_name: selectedStrategy?.name || null,
-                      })
+                      .update({ current_amount: newInvested })
                       .eq("id", goalId);
                     if (updateErr) {
-                      console.warn("Goal update with all columns failed, retrying with core columns:", updateErr.message);
-                      const retry = await supabase
-                        .from("investment_goals")
-                        .update({ current_amount: newInvested })
-                        .eq("id", goalId);
-                      if (retry.error) console.error("Goal fallback update failed:", retry.error);
-                      else console.log("Goal updated (fallback):", { goalId, newInvested });
+                      console.error("Goal update failed:", updateErr);
                     } else {
                       console.log("Goal updated successfully:", { goalId, newInvested, progress });
                     }
