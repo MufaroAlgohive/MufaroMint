@@ -80,6 +80,7 @@ const GoalLinkModal = ({ isOpen, onClose, onConfirm, investmentAmount, assetName
           target_date: newGoalDate || null,
           current_amount: 0,
           invested_amount: 0,
+          is_active: true,
         })
         .select()
         .single();

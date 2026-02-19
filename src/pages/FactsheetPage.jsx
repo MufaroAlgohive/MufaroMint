@@ -37,6 +37,9 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState(null);
   const marqueeRef = useRef(null);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [investChecking, setInvestChecking] = useState(false);
 
   const strategyId = strategy?.id || strategy?.strategy_id || strategyData?.id || null;
   const strategySlug = strategy?.slug || strategyData?.slug || null;
@@ -872,22 +875,144 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
         </div>
       )}
 
+      {showOnboardingModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowOnboardingModal(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex h-14 w-14 mx-auto items-center justify-center rounded-full bg-amber-100 text-amber-600 mb-4">
+              <Info className="h-7 w-7" />
+            </div>
+            <h3 className="text-center text-lg font-semibold text-slate-900 mb-2">Complete Your Onboarding</h3>
+            <p className="text-center text-sm text-slate-600 mb-6">
+              You need to complete your identity verification and onboarding before you can start investing. This helps us keep your account secure.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowOnboardingModal(false)}
+              className="w-full rounded-2xl bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] py-3 text-sm font-semibold text-white shadow-lg"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowUpgradeModal(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 opacity-20 animate-pulse" />
+              <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8 text-violet-600 relative z-10">
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor" />
+              </svg>
+            </div>
+            <h3 className="text-center text-lg font-bold text-slate-900 mb-1">Upgrade to Premium</h3>
+            <p className="text-center text-xs font-semibold text-violet-600 mb-3">Access More Than 1 Strategy</p>
+            <p className="text-center text-sm text-slate-600 mb-2">
+              Free accounts are limited to 1 active strategy. Upgrade to Premium to unlock unlimited strategies and diversify your portfolio.
+            </p>
+            <div className="mb-5 rounded-2xl bg-violet-50 border border-violet-100 p-4">
+              <p className="text-xs font-semibold text-violet-700 mb-2">Premium Benefits</p>
+              <ul className="space-y-1.5 text-xs text-slate-700">
+                <li className="flex items-center gap-2"><span className="text-violet-600">&#10003;</span> Unlimited strategies</li>
+                <li className="flex items-center gap-2"><span className="text-violet-600">&#10003;</span> Advanced analytics</li>
+                <li className="flex items-center gap-2"><span className="text-violet-600">&#10003;</span> Priority support</li>
+              </ul>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowUpgradeModal(false)}
+              className="w-full rounded-2xl bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200/60 mb-2"
+            >
+              Upgrade Now
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUpgradeModal(false)}
+              className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-600"
+            >
+              Maybe Later
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="sticky bottom-0 bg-slate-50 px-4 pb-6 pt-2">
         <button
           type="button"
-          onClick={() => {
-            const hMap = buildHoldingsBySymbol(holdingsSecurities);
-            const calcMin = calculateMinInvestment(currentStrategy, hMap);
-            const holdingsWithLogos = (currentStrategy.holdings || []).map(h => {
-              const sym = h.ticker || h.symbol || h;
-              const sec = holdingsSecurities.find(s => s.symbol === sym);
-              return { ...h, logo_url: sec?.logo_url || null };
-            });
-            onOpenInvest?.({ ...currentStrategy, calculatedMinInvestment: calcMin, holdingsWithLogos });
+          disabled={investChecking}
+          onClick={async () => {
+            setInvestChecking(true);
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session?.user) { setInvestChecking(false); return; }
+
+              const { data: onboarding, error: onboardingErr } = await supabase
+                .from("user_onboarding")
+                .select("kyc_status")
+                .eq("user_id", session.user.id)
+                .order("created_at", { ascending: false })
+                .limit(1);
+
+              if (!onboardingErr) {
+                const record = onboarding?.[0];
+                const isComplete = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
+
+                if (!isComplete) {
+                  setShowOnboardingModal(true);
+                  setInvestChecking(false);
+                  return;
+                }
+              }
+
+              const currentStrategyId = currentStrategy?.id || currentStrategy?.strategy_id || null;
+
+              const { data: userStrategies } = await supabase
+                .from("user_strategies")
+                .select("strategy_id")
+                .eq("user_id", session.user.id);
+
+              const existingIds = (userStrategies || []).map(s => s.strategy_id);
+              const alreadyInvested = currentStrategyId && existingIds.includes(currentStrategyId);
+
+              if (!alreadyInvested && existingIds.length >= 1) {
+                let isPremium = false;
+                try {
+                  const { data: sub, error: subErr } = await supabase
+                    .from("subscriptions")
+                    .select("plan")
+                    .eq("user_id", session.user.id)
+                    .eq("status", "active")
+                    .maybeSingle();
+
+                  if (!subErr) {
+                    isPremium = sub?.plan === "premium" || sub?.plan === "pro";
+                  }
+                } catch (_) {}
+
+                if (!isPremium) {
+                  setShowUpgradeModal(true);
+                  setInvestChecking(false);
+                  return;
+                }
+              }
+
+              const hMap = buildHoldingsBySymbol(holdingsSecurities);
+              const calcMin = calculateMinInvestment(currentStrategy, hMap);
+              const holdingsWithLogos = (currentStrategy.holdings || []).map(h => {
+                const sym = h.ticker || h.symbol || h;
+                const sec = holdingsSecurities.find(s => s.symbol === sym);
+                return { ...h, logo_url: sec?.logo_url || null };
+              });
+              onOpenInvest?.({ ...currentStrategy, calculatedMinInvestment: calcMin, holdingsWithLogos });
+            } catch (e) {
+              console.error("Invest check error:", e);
+            } finally {
+              setInvestChecking(false);
+            }
           }}
-          className="w-full rounded-2xl bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200/60"
+          className="w-full rounded-2xl bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200/60 disabled:opacity-70"
         >
-          Invest in {currentStrategy.name}
+          {investChecking ? "Checking..." : `Invest in ${currentStrategy.name}`}
         </button>
       </div>
     </div>

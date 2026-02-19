@@ -730,7 +730,7 @@ const HomePage = ({
               <div className="flex items-center rounded-full bg-white/10 p-1 backdrop-blur-md">
                 {[
                   { id: "balance", label: "Balance", disabled: !isBalanceEnabled, action: () => { if (isBalanceEnabled) { setHomeTab("balance"); if (cardNormalizedIndex !== 0) { setIsCardAnimating(true); setCardRotation(0); setTimeout(() => setIsCardAnimating(false), 700); } } } },
-                  { id: "invest", label: "Invest", disabled: false, action: () => { setHomeTab("invest"); if (isBalanceEnabled && cardNormalizedIndex !== 1) { setIsCardAnimating(true); setCardRotation(-180); setTimeout(() => setIsCardAnimating(false), 700); } } },
+                  { id: "invest", label: "Wealth", disabled: false, action: () => { setHomeTab("invest"); if (isBalanceEnabled && cardNormalizedIndex !== 1) { setIsCardAnimating(true); setCardRotation(-180); setTimeout(() => setIsCardAnimating(false), 700); } } },
                 ].map((tab) => (
                   <button
                     key={tab.id}
