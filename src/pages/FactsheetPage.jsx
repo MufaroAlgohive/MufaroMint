@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { ArrowLeft, X, Info, Heart, Wallet } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 import { formatChangePct, getChangeColor } from "../lib/strategyData.js";
 import { buildHoldingsBySymbol, calculateMinInvestment } from "../lib/strategyUtils";
 import {
@@ -946,22 +947,11 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest }) => {
               const { data: { session } } = await supabase.auth.getSession();
               if (!session?.user) { setInvestChecking(false); return; }
 
-              const { data: onboarding, error: onboardingErr } = await supabase
-                .from("user_onboarding")
-                .select("kyc_status")
-                .eq("user_id", session.user.id)
-                .order("created_at", { ascending: false })
-                .limit(1);
-
-              if (!onboardingErr) {
-                const record = onboarding?.[0];
-                const isComplete = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
-
-                if (!isComplete) {
-                  setShowOnboardingModal(true);
-                  setInvestChecking(false);
-                  return;
-                }
+              const isOnboarded = await checkOnboardingComplete();
+              if (!isOnboarded) {
+                setShowOnboardingModal(true);
+                setInvestChecking(false);
+                return;
               }
 
               const currentStrategyId = currentStrategy?.id || currentStrategy?.strategy_id || null;

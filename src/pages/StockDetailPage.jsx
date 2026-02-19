@@ -3,11 +3,14 @@ import { ArrowLeft, TrendingUp, TrendingDown, Star, Check } from "lucide-react";
 import { getSecurityBySymbol, getSecurityPrices, normalizePriceSeries } from "../lib/marketData.js";
 import { supabase } from "../lib/supabase.js";
 import { useProfile } from "../lib/useProfile";
+import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 
 const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
   const { profile } = useProfile();
   const [selectedPeriod, setSelectedPeriod] = useState("1M");
   const [security, setSecurity] = useState(initialSecurity);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [buyChecking, setBuyChecking] = useState(false);
   const [priceHistory, setPriceHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [watchlist, setWatchlist] = useState([]);
@@ -489,10 +492,23 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
         <div className="mt-8 grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={onOpenBuy}
-            className="rounded-2xl bg-gradient-to-r from-black to-purple-600 py-4 font-semibold text-white shadow-lg transition-all active:scale-95"
+            disabled={buyChecking}
+            onClick={async () => {
+              setBuyChecking(true);
+              try {
+                const isOnboarded = await checkOnboardingComplete();
+                if (!isOnboarded) {
+                  setShowOnboardingModal(true);
+                  return;
+                }
+                onOpenBuy?.();
+              } finally {
+                setBuyChecking(false);
+              }
+            }}
+            className="rounded-2xl bg-gradient-to-r from-black to-purple-600 py-4 font-semibold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
           >
-            Buy
+            {buyChecking ? "Checking…" : "Buy"}
           </button>
           <button
             onClick={toggleWatchlist}
@@ -518,6 +534,26 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
           </button>
         </div>
       </div>
+
+      {showOnboardingModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowOnboardingModal(false)}>
+          <div className="mx-6 w-full max-w-sm rounded-3xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-50 mx-auto mb-4">
+              <Star className="h-7 w-7 text-violet-600" />
+            </div>
+            <h3 className="text-center text-lg font-semibold text-slate-900 mb-2">Complete Your Onboarding</h3>
+            <p className="text-center text-sm text-slate-500 mb-6">
+              You need to complete your identity verification and onboarding before you can start investing. This helps us keep your account secure.
+            </p>
+            <button
+              onClick={() => setShowOnboardingModal(false)}
+              className="w-full rounded-2xl bg-gradient-to-r from-black to-purple-600 py-3 text-sm font-semibold text-white shadow-lg"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
