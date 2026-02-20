@@ -41,7 +41,7 @@ const StockBuyPage = ({ security, onBack, onContinue }) => {
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!security || !shares || shares <= 0) return;
-    onContinue?.(fees.totalCost, security, totalAmount);
+    onContinue?.(fees.totalCost, security, totalAmount, shares);
   };
 
   return (

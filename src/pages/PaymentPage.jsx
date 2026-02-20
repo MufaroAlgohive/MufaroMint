@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 
-const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
+const PaymentPage = ({ onBack, strategy, amount, shareCount, onSuccess, onCancel }) => {
   const { profile } = useProfile();
   const [paymentStatus, setPaymentStatus] = useState("initializing");
   const [errorMessage, setErrorMessage] = useState("");
@@ -69,6 +69,7 @@ const PaymentPage = ({ onBack, strategy, amount, onSuccess, onCancel }) => {
             amount: amount,
             strategyId: stratId,
             paymentReference: response?.reference || "",
+            ...(shareCount ? { shareCount: Number(shareCount) } : {}),
           };
           const headers = { "Content-Type": "application/json" };
           if (token) {

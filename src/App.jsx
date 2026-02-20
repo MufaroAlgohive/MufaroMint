@@ -1071,8 +1071,8 @@ const App = () => {
         <StockBuyPage
           security={selectedSecurity}
           onBack={goBack}
-          onContinue={(amount, security, baseAmount) => {
-            setStockCheckout({ security, amount });
+          onContinue={(amount, security, baseAmount, shareCount) => {
+            setStockCheckout({ security, amount, shareCount });
             setPendingGoalFlow({
               type: "stock",
               amount,
@@ -1113,6 +1113,7 @@ const App = () => {
           onBack={goBack}
           strategy={paymentItem}
           amount={stockCheckout.amount}
+          shareCount={stockCheckout.shareCount}
           onSuccess={async (response) => {
             console.log("Payment successful:", response);
             const goalId = selectedGoalIdRef.current;

@@ -2088,8 +2088,8 @@ app.post("/api/record-investment", async (req, res) => {
     const db = supabaseAdmin || supabase;
     console.log("[record-investment] Using DB client:", supabaseAdmin ? "admin (service role)" : "anon");
 
-    const { securityId, symbol, name, amount, strategyId, paymentReference } = req.body;
-    console.log("[record-investment] Parsed fields - securityId:", securityId, "symbol:", symbol, "name:", name, "amount:", amount, "strategyId:", strategyId, "paymentReference:", paymentReference);
+    const { securityId, symbol, name, amount, strategyId, paymentReference, shareCount } = req.body;
+    console.log("[record-investment] Parsed fields - securityId:", securityId, "symbol:", symbol, "name:", name, "amount:", amount, "strategyId:", strategyId, "paymentReference:", paymentReference, "shareCount:", shareCount);
 
     if (!securityId || !amount || !paymentReference) {
       console.log("[record-investment] MISSING FIELDS - securityId:", !!securityId, "amount:", !!amount, "paymentReference:", !!paymentReference);
@@ -2165,7 +2165,7 @@ app.post("/api/record-investment", async (req, res) => {
       }
 
       const currentPriceRands = currentPriceCents ? currentPriceCents / 100 : amount;
-      const quantity = currentPriceRands > 0 ? amount / currentPriceRands : 1;
+      const quantity = shareCount && Number(shareCount) > 0 ? Number(shareCount) : (currentPriceRands > 0 ? amount / currentPriceRands : 1);
       const avgFillCents = currentPriceCents || Math.round(amount * 100);
       const marketValueCents = Math.round(quantity * (currentPriceCents || amount * 100));
       console.log("[record-investment] Calculated - currentPriceRands:", currentPriceRands, "quantity:", quantity, "avgFillCents:", avgFillCents, "marketValueCents:", marketValueCents);
