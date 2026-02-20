@@ -30,7 +30,7 @@ import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import { useRealtimePrices } from "../lib/useRealtimePrices";
-import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
+import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, getStrategyCurrentValue } from "../lib/strategyUtils";
 import { formatZar } from "../lib/formatCurrency";
 import HomeSkeleton from "../components/HomeSkeleton";
 import Skeleton from "../components/Skeleton";
@@ -242,12 +242,18 @@ const HomePage = ({
           .filter(h => securitiesMap[h.security_id])
           .map(h => {
             const sec = securitiesMap[h.security_id];
+            const marketVal = (h.market_value || 0) / 100;
+            const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
+            const pnlRands = marketVal - costBasis;
+            const pnlPct = costBasis > 0 ? ((pnlRands / costBasis) * 100) : 0;
             return {
               symbol: sec.symbol,
               name: sec.name,
               logo: sec.logo_url,
-              value: (h.market_value || 0) / 100,
+              value: marketVal,
               change: metricsMap[h.security_id] || 0,
+              pnlRands,
+              pnlPct,
             };
           });
 
@@ -449,20 +455,30 @@ const HomePage = ({
           return;
         }
 
-        const formatted = serverStrategies.map(s => ({
-          id: s.id,
-          name: s.name,
-          short_name: s.shortName,
-          description: s.description,
-          risk_level: s.riskLevel,
-          sector: s.sector,
-          icon_url: s.iconUrl,
-          image_url: s.imageUrl,
-          holdings: s.holdings || [],
-          investedAmount: s.investedAmount,
-          change_pct: s.metrics?.change_pct || 0,
-          strategy_metrics: s.metrics ? [s.metrics] : [],
-        }));
+        const formatted = serverStrategies.map(s => {
+          const invested = s.investedAmount || 0;
+          const metrics = s.metrics || {};
+          const currentValue = getStrategyCurrentValue(invested, metrics);
+          const stratPnlRands = currentValue - invested;
+          const stratPnlPct = invested > 0 ? ((stratPnlRands / invested) * 100) : 0;
+          return {
+            id: s.id,
+            name: s.name,
+            short_name: s.shortName,
+            description: s.description,
+            risk_level: s.riskLevel,
+            sector: s.sector,
+            icon_url: s.iconUrl,
+            image_url: s.imageUrl,
+            holdings: s.holdings || [],
+            investedAmount: invested,
+            currentValue,
+            change_pct: metrics.change_pct || 0,
+            pnlRands: stratPnlRands,
+            pnlPct: stratPnlPct,
+            strategy_metrics: s.metrics ? [s.metrics] : [],
+          };
+        });
 
         const sorted = formatted
           .sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
@@ -921,11 +937,17 @@ const HomePage = ({
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-slate-900">
-                      R{typeof asset.value === 'number' ? asset.value.toLocaleString() : (asset.value || 0)}
+                      R{typeof asset.value === 'number' ? asset.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (asset.value || 0)}
                     </p>
-                    <p className={`text-xs font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {asset.change >= 0 ? '+' : ''}{typeof asset.change === 'number' ? asset.change.toFixed(2) : (asset.change || '0.00')}%
-                    </p>
+                    {asset.pnlRands != null ? (
+                      <p className={`text-xs font-semibold ${asset.pnlRands >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {asset.pnlRands >= 0 ? '+' : ''}R{Math.abs(asset.pnlRands).toFixed(2)} ({asset.pnlPct >= 0 ? '+' : ''}{asset.pnlPct.toFixed(2)}%)
+                      </p>
+                    ) : (
+                      <p className={`text-xs font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {asset.change >= 0 ? '+' : ''}{typeof asset.change === 'number' ? asset.change.toFixed(2) : (asset.change || '0.00')}%
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -994,11 +1016,17 @@ const HomePage = ({
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-sm font-semibold text-slate-900">
-                            {strategy.last_close ? `R${strategy.last_close.toFixed(2)}` : '—'}
+                            {strategy.currentValue ? `R${strategy.currentValue.toFixed(2)}` : strategy.investedAmount ? `R${strategy.investedAmount.toFixed(2)}` : '—'}
                           </p>
-                          <p className={`text-xs font-semibold ${pct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                            {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
-                          </p>
+                          {strategy.pnlRands != null && strategy.investedAmount > 0 ? (
+                            <p className={`text-xs font-semibold ${strategy.pnlRands >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {strategy.pnlRands >= 0 ? '+' : ''}R{Math.abs(strategy.pnlRands).toFixed(2)} ({strategy.pnlPct >= 0 ? '+' : ''}{strategy.pnlPct.toFixed(2)}%)
+                            </p>
+                          ) : (
+                            <p className={`text-xs font-semibold ${pct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                              {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
