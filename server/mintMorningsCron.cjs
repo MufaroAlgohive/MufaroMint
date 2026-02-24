@@ -3,16 +3,26 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function formatBodyHtml(rawText) {
+  if (!rawText) return '';
+  let text = rawText;
+  text = text.replace(/----------\s*([A-Z][A-Z &/\-]+[A-Z])\s*----------/g, (_, label) => {
+    return `<br/><br/><strong style="color:#7B8194;font-size:13px;font-weight:700;letter-spacing:0.5px;">${label.trim()}</strong><br/>`;
+  });
+  text = text.replace(/\n/g, '<br/>');
+  return text;
+}
+
 function buildMintMorningsHtml(articles) {
   const F = 'Inter,Segoe UI,Arial,sans-serif';
   const heroArticle = articles[0];
   const restArticles = articles.slice(1);
-  const heroBody = heroArticle.body_text || heroArticle.body || '';
+  const heroBody = formatBodyHtml(heroArticle.body_text || heroArticle.body || '');
   const heroSource = heroArticle.source || 'Alliance News South Africa';
   const heroAuthor = heroArticle.author || '';
 
   const restCards = restArticles.map((article) => {
-    const body = article.body_text || article.body || '';
+    const body = formatBodyHtml(article.body_text || article.body || '');
     return `
             <!-- Article card -->
 <tr>
