@@ -185,7 +185,7 @@ try {
   console.warn('Supabase client not available:', e.message);
 }
 
-const { startMintMorningsCron, sendMintMorningsEmail } = require('./mintMorningsCron.cjs');
+const { startMintMorningsCron, sendMintMorningsEmail, sendTestEmail } = require('./mintMorningsCron.cjs');
 if (supabaseAdmin) {
   startMintMorningsCron(supabaseAdmin);
 }
@@ -3964,6 +3964,20 @@ app.post("/api/webhooks/broker", async (req, res) => {
     res.json({ received: true, processed: true });
   } catch (error) {
     console.error("[Broker Webhook] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/test-mint-mornings-single', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.status(500).json({ error: 'No database connection' });
+    const result = await sendTestEmail(db, email);
+    res.json(result);
+  } catch (error) {
+    console.error('[MINT MORNINGS] Test single error:', error);
     res.status(500).json({ error: error.message });
   }
 });

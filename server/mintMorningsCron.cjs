@@ -231,4 +231,76 @@ function startMintMorningsCron(supabaseAdmin) {
   console.log('[MINT MORNINGS] Cron scheduled: daily at 07:00 SAST (Africa/Johannesburg)');
 }
 
-module.exports = { startMintMorningsCron, sendMintMorningsEmail };
+async function sendTestEmail(supabaseAdmin, testEmail) {
+  if (!supabaseAdmin) {
+    console.error('[MINT MORNINGS TEST] No Supabase admin client available');
+    return { success: false, error: 'No database connection' };
+  }
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[MINT MORNINGS TEST] No RESEND_API_KEY configured');
+    return { success: false, error: 'No RESEND_API_KEY' };
+  }
+
+  console.log(`[MINT MORNINGS TEST] Sending test email to ${testEmail}...`);
+
+  const today = new Date();
+  const oneDayAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+  const { data: articles, error: articlesError } = await supabaseAdmin
+    .from('News_articles')
+    .select('*')
+    .gte('published_at', oneDayAgo.toISOString())
+    .order('published_at', { ascending: false });
+
+  if (articlesError) {
+    console.error('[MINT MORNINGS TEST] Error fetching articles:', articlesError.message);
+    return { success: false, error: articlesError.message };
+  }
+
+  if (!articles || articles.length === 0) {
+    const { data: recentArticles, error: recentError } = await supabaseAdmin
+      .from('News_articles')
+      .select('*')
+      .order('published_at', { ascending: false })
+      .limit(5);
+
+    if (recentError || !recentArticles || recentArticles.length === 0) {
+      return { success: false, error: 'No articles found in the database at all' };
+    }
+
+    console.log(`[MINT MORNINGS TEST] No articles in last 24h, using ${recentArticles.length} most recent articles instead`);
+    const html = buildMintMorningsHtml(recentArticles);
+
+    try {
+      await resend.emails.send({
+        from: 'MINT MORNINGS <mornings@thealgohive.com>',
+        to: [testEmail],
+        subject: `MINT MORNINGS — ${recentArticles[0].title}`,
+        html: html,
+      });
+      console.log(`[MINT MORNINGS TEST] Test email sent to ${testEmail}`);
+      return { success: true, articlesCount: recentArticles.length, note: 'Used most recent articles (none in last 24h)' };
+    } catch (err) {
+      console.error(`[MINT MORNINGS TEST] Failed:`, err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
+  const html = buildMintMorningsHtml(articles);
+
+  try {
+    await resend.emails.send({
+      from: 'MINT MORNINGS <mornings@thealgohive.com>',
+      to: [testEmail],
+      subject: `MINT MORNINGS — ${articles[0].title}`,
+      html: html,
+    });
+    console.log(`[MINT MORNINGS TEST] Test email sent to ${testEmail}`);
+    return { success: true, articlesCount: articles.length };
+  } catch (err) {
+    console.error(`[MINT MORNINGS TEST] Failed:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+module.exports = { startMintMorningsCron, sendMintMorningsEmail, sendTestEmail };
