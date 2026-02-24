@@ -4,149 +4,163 @@ const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function buildMintMorningsHtml(articles) {
-  const articleCards = articles.map((article, index) => {
-    const bodyContent = article.body_text || article.body || '';
-    const source = article.source || 'Alliance News South Africa';
-    const author = article.author || '';
+  const F = 'Inter,Segoe UI,Arial,sans-serif';
+  const heroArticle = articles[0];
+  const restArticles = articles.slice(1);
+  const heroBody = heroArticle.body_text || heroArticle.body || '';
+  const heroSource = heroArticle.source || 'Alliance News South Africa';
+  const heroAuthor = heroArticle.author || '';
 
+  const restCards = restArticles.map((article) => {
+    const body = article.body_text || article.body || '';
     return `
-                                        <tr>
-                                          <td class="px" style="padding:${index === 0 ? '0' : '16px'} 24px 0 24px;">
-                                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,${index === 0 ? '0.10' : '0.08'});overflow:hidden;">
-                                              <tbody>
-                                                <tr>
-                                                  <td style="padding:${index === 0 ? '20px 20px 14px 20px' : '18px 20px'};">
-                                                    <div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;color:#7B8194;">
-                                                      ${source}, formatted for Mint
-                                                    </div>
+            <!-- Article card -->
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:${F};font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        ${article.title}
+</div>
 
-                                                    <div class="${index === 0 ? 'h1' : 'h2'}" style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:${index === 0 ? '26' : '18'}px;line-height:${index === 0 ? '32' : '24'}px;color:#121526;font-weight:800;">
-                                                      ${article.title}
-                                                    </div>
+                      <div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
+                        ${body}
+</div>
 
-                                                    <div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
-                                                      ${bodyContent}
-                                                    </div>
+                      <div style="margin-top:14px;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>`;
+  }).join('\n');
 
-                                                    ${author ? `<div style="margin-top:14px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;">
-                                                      By ${author}
-                                                    </div>` : ''}
-
-                                                    <div style="margin-top:16px;">
-                                                      <a href="https://www.mymint.co.za" class="btn" style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
-                                                        Read more on Mint
-                                                      </a>
-                                                    </div>
-                                                  </td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                          </td>
-                                        </tr>`;
-  }).join('');
-
-  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html dir="ltr" lang="en">
-
+  return `<!doctype html>
+<html lang="en">
 <head>
-  <meta content="width=device-width" name="viewport" />
-  <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
-  <meta name="x-apple-disable-message-reformatting" />
-  <meta content="IE=edge" http-equiv="X-UA-Compatible" />
-  <meta name="x-apple-disable-message-reformatting" />
-  <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>Mint News</title>
+<style>
+      @media (max-width: 620px) {
+        .container { width: 100% !important; }
+        .px { padding-left: 16px !important; padding-right: 16px !important; }
+        .card { border-radius: 20px !important; }
+        .h1 { font-size: 22px !important; line-height: 28px !important; }
+        .h2 { font-size: 16px !important; line-height: 22px !important; }
+        .muted { font-size: 13px !important; }
+        .btn { display: block !important; width: 100% !important; }
+      }
+</style>
 </head>
 
-<body>
-  <table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" align="center">
-    <tbody>
-      <tr>
-        <td>
-          <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="font-family:-apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Roboto&#x27;, &#x27;Oxygen&#x27;, &#x27;Ubuntu&#x27;, &#x27;Cantarell&#x27;, &#x27;Fira Sans&#x27;, &#x27;Droid Sans&#x27;, &#x27;Helvetica Neue&#x27;, sans-serif;font-size:1.0769230769230769em;min-height:100%;line-height:155%">
-            <tbody>
-              <tr>
-                <td>
-                  <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="align:center;padding-left:0px;padding-right:0px;line-height:155%;width:100%;font-family:-apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Roboto&#x27;, &#x27;Oxygen&#x27;, &#x27;Ubuntu&#x27;, &#x27;Cantarell&#x27;, &#x27;Fira Sans&#x27;, &#x27;Droid Sans&#x27;, &#x27;Helvetica Neue&#x27;, sans-serif">
-                    <tbody>
-                      <tr>
-                        <td>
-                          <div>
-                            <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
-                              Johannesburg market preview, SA news, global headlines.
-                            </div>
+  <body style="margin:0;padding:0;background:#F6F7FB;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      Johannesburg market preview, SA news, global headlines.
+</div>
 
-                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F6F7FB;">
-                              <tbody>
-                                <tr>
-                                  <td align="center" style="padding:24px 12px;">
-                                    <table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;">
-                                      <tbody>
-                                        <tr>
-                                          <td class="px" style="padding:6px 24px 14px 24px;">
-                                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                              <tbody>
-                                                <tr>
-                                                  <td align="left" style="padding:0;">
-                                                    <img src="https://www.mymint.co.za/assets/mint-logo.svg" width="110" alt="Mint" style="display:block;border:0;outline:none;text-decoration:none;height:auto;" />
-                                                  </td>
-                                                  <td align="right" style="padding:0;">
-                                                    <span style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;">
-                                                      Market Brief
-                                                    </span>
-                                                  </td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                          </td>
-                                        </tr>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F6F7FB;">
+<tr>
+<td align="center" style="padding:24px 12px;">
+<table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;">
 
-${articleCards}
+            <!-- Header -->
+<tr>
+<td class="px" style="padding:6px 24px 14px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td align="left" style="padding:0;">
+<img
+                        src="https://www.mymint.co.za/assets/mint-logo.svg"
+                        width="110"
+                        alt="Mint"
+                        style="display:block;border:0;outline:none;text-decoration:none;height:auto;"
+                      />
+</td>
+<td align="right" style="padding:0;">
+<span style="font-family:${F};font-size:13px;color:#7B8194;">
+                        Market Brief
+</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
 
-                                        <tr>
-                                          <td class="px" style="padding:18px 24px 28px 24px;">
-                                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                                              <tbody>
-                                                <tr>
-                                                  <td style="padding:16px 18px;background:#FFFFFF;border:1px solid #F0F1F6;border-radius:22px;">
-                                                    <div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;line-height:17px;color:#7B8194;">
-                                                      Alliance News South Africa covers every actively traded company listed on the Johannesburg Stock Exchange, large and small, and the global influences upon South African markets and the local economy.
-                                                      <br /><br />
-                                                      Copyright &copy; ${new Date().getFullYear()} Alliance News Ltd. All rights reserved.
-                                                    </div>
-                                                    <div style="margin-top:12px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;color:#7B8194;">
-                                                      You're receiving this on Mint.
-                                                      <a href="https://www.mymint.co.za" style="color:#6D28FF;text-decoration:none;font-weight:700;">Open Mint</a>
-                                                    </div>
-                                                  </td>
-                                                </tr>
-                                              </tbody>
-                                            </table>
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                          <p style="margin:0;padding:0;font-size:1em;padding-top:0.5em;padding-bottom:0.5em">
-                            <br />
-                          </p>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </td>
-              </tr>
-            </tbody>
+            <!-- Hero -->
+<tr>
+<td class="px" style="padding:0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.10);overflow:hidden;">
+<tr>
+<td style="padding:20px 20px 14px 20px;">
+<div style="font-family:${F};font-size:12px;color:#7B8194;">
+                        ${heroSource}, formatted for Mint
+</div>
+
+                      <div class="h1" style="margin-top:10px;font-family:${F};font-size:26px;line-height:32px;color:#121526;font-weight:800;">
+                        ${heroArticle.title}
+</div>
+
+                      <div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
+                        ${heroBody}
+</div>
+
+                      ${heroAuthor ? `<div style="margin-top:14px;font-family:${F};font-size:13px;color:#7B8194;">
+                        By ${heroAuthor}
+</div>` : ''}
+</td>
+</tr>
+
+                  <tr>
+<td style="padding:0 20px 18px 20px;">
+<div style="margin-top:0;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+${restCards}
+
+            <!-- Footer -->
+<tr>
+<td class="px" style="padding:18px 24px 28px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td style="padding:16px 18px;background:#FFFFFF;border:1px solid #F0F1F6;border-radius:22px;">
+<div style="font-family:${F};font-size:12px;line-height:17px;color:#7B8194;">
+                        Alliance News South Africa covers every actively traded company listed on the Johannesburg Stock Exchange, large and small, and the global influences upon South African markets and the local economy.
+<br/><br/>
+                        Copyright &copy; ${new Date().getFullYear()} Alliance News Ltd. All rights reserved.
+</div>
+<div style="margin-top:12px;font-family:${F};font-size:12px;color:#7B8194;">
+                        You're receiving this on Mint. <a href="https://www.mymint.co.za" style="color:#6D28FF;text-decoration:none;font-weight:700;">Open Mint</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
           </table>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+</td>
+</tr>
+</table>
 </body>
-
 </html>`;
 }
 

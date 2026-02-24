@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>Mint News</title>
+<style>
+      @media (max-width: 620px) {
+        .container { width: 100% !important; }
+        .px { padding-left: 16px !important; padding-right: 16px !important; }
+        .card { border-radius: 20px !important; }
+        .h1 { font-size: 22px !important; line-height: 28px !important; }
+        .h2 { font-size: 16px !important; line-height: 22px !important; }
+        .muted { font-size: 13px !important; }
+        .btn { display: block !important; width: 100% !important; }
+      }
+</style>
+</head>
+ 
+  <body style="margin:0;padding:0;background:#F6F7FB;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      Johannesburg market preview, SA news, global headlines.
+</div>
+ 
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F6F7FB;">
+<tr>
+<td align="center" style="padding:24px 12px;">
+<table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;">
+ 
+            <!-- Header -->
+<tr>
+<td class="px" style="padding:6px 24px 14px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td align="left" style="padding:0;">
+<img
+                        src="https://www.mymint.co.za/assets/mint-logo.svg"
+                        width="110"
+                        alt="Mint"
+                        style="display:block;border:0;outline:none;text-decoration:none;height:auto;"
+                      />
+</td>
+<td align="right" style="padding:0;">
+<span style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;">
+                        Market Brief
+</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+ 
+            <!-- Hero -->
+<tr>
+<td class="px" style="padding:0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.10);overflow:hidden;">
+<tr>
+<td style="padding:20px 20px 14px 20px;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;color:#7B8194;">
+                        Alliance News South Africa, formatted for Mint
+</div>
+ 
+                      <div class="h1" style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:26px;line-height:32px;color:#121526;font-weight:800;">
+                        Goodman profit rises despite fall in revenue
+</div>
+ 
+                      <div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+                        Stocks are called lower after the Federal Reserve minutes showed some policymakers think rate hikes should remain on the table if inflation stays too high.
+</div>
+ 
+                      <div style="margin-top:14px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;">
+                        By Artwell Dlamini, Alliance News senior reporter South Africa
+</div>
+</td>
+</tr>
+ 
+                  <tr>
+<td style="padding:0 20px 18px 20px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td style="padding:14px 14px;border-radius:18px;background:#F4F2FF;border:1px solid #E8E5FF;">
+<div class="h2" style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:17px;line-height:22px;color:#121526;font-weight:800;">
+                              Top side headlines
+</div>
+<div style="margin-top:8px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+                              Australia's unemployment rate holds steady<br/>
+                              Wesfarmers hikes dividend on stronger first half<br/>
+                              Vinci airport traffic edges up in January
+</div>
+ 
+                            <div style="margin-top:14px;">
+<a href="https://www.mymint.co.za" class="btn"
+                                style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                                Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+ 
+            <!-- Before JSE open -->
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        Before the Johannesburg market open
+</div>
+<div class="muted" style="margin-top:6px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;line-height:18px;color:#7B8194;">
+                        Key levels and overnight moves
+</div>
+ 
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+<tr>
+<td style="padding:12px 12px;border-radius:18px;background:#FAFAFF;border:1px solid #ECEBFF;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;font-weight:700;">
+                              MARKETS
+</div>
+ 
+                            <div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#121526;">
+<strong>FTSE JSE Top 40</strong> called down 68.87 points to 114,268.00
+<br/><br/>
+<strong>FTSE 100</strong> called down 4.18 points to 10,682.20
+<br/><br/>
+<strong>Chinese New Year</strong> Financial markets in Shanghai and Hong Kong closed.
+<br/><br/>
+<strong>S&P/ASX 200</strong> up 0.9%
+<br/>
+<span style="color:#4B5166;">BHP Group up 2.7%</span>
+<br/><br/>
+<strong>DJIA</strong> closed up 0.3% to 49,662.66
+<br/>
+<strong>S&P 500</strong> closed up 0.6% to 6,881.31
+<br/>
+<strong>Nasdaq Composite</strong> closed up 0.8% to 22,753.64
+<br/><br/>
+<strong>US 10 year Treasury</strong> 4.10% (4.08%)
+<br/>
+<strong>US 30 year Treasury</strong> 4.72% (4.70%)
+<br/><br/>
+<strong>USD</strong> ZAR16.06 (ZAR16.05)
+<br/>
+<strong>Bond R2035</strong> 7.93% (7.93%)
+<br/>
+<strong>Gold</strong> USD4,985.08 (USD4,999.11)
+</div>
+ 
+                            <div style="margin-top:14px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;line-height:17px;color:#7B8194;">
+                              Figures reflect changes since the prior Johannesburg equities close.
+</div>
+</td>
+</tr>
+</table>
+ 
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+<tr>
+<td style="padding:12px 12px;border-radius:18px;background:#FFFFFF;border:1px solid #F0F1F6;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;font-weight:700;">
+                              COMPANY CALENDAR
+</div>
+<div style="margin-top:8px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#121526;">
+                              City Lodge Hotels Ltd half year results<br/>
+                              Gold Fields Ltd full year results<br/>
+                              Kumba Iron Ore Ltd full year results<br/>
+                              Life Healthcare Group Holdings Ltd AGM<br/>
+                              Numeral Ltd GM re share consolidation<br/>
+                              Telemasters Holdings Ltd AGM<br/>
+                              We Buy Cars Holdings Ltd AGM
+</div>
+ 
+                            <div style="margin-top:14px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;font-weight:700;">
+                              ECONOMIC CALENDAR
+</div>
+<div style="margin-top:8px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#121526;">
+                              12:00 SAST eurozone construction output<br/>
+                              17:00 SAST eurozone consumer confidence<br/>
+                              11:00 SAST eurozone current account<br/>
+                              13:30 SAST ECB vice-president Luis de Guindos speaks<br/>
+                              13:00 SAST South Africa building permits<br/>
+                              15:30 SAST US initial jobless claims<br/>
+                              15:30 SAST US Philadelphia Fed manufacturing index<br/>
+                              15:30 SAST US trade balance<br/>
+                              15:30 SAST US wholesale inventories<br/>
+                              15:30 SAST US Fed Governor Michelle Bowman speaks<br/>
+                              19:00 SAST US EIA crude oil stocks
+</div>
+</td>
+</tr>
+</table>
+ 
+                      <div style="margin-top:16px;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+ 
+            <!-- SA News -->
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        South Africa
+</div>
+ 
+                      <div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+<strong>Aveng:</strong> Aveng expects its loss per share to narrow to 1.0 to 1.3 Australian cents for the six months ended December 31, from 25.4 cents a year earlier. It guided headline earnings per share of 0.1 to 0.3 cents, swinging from a headline loss per share of 26.7 cents.
+</div>
+ 
+                      <div style="margin-top:14px;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+ 
+            <!-- Global News -->
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        Global headlines
+</div>
+ 
+                      <div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+<strong>US and Iran:</strong> The White House said Iran would be wise to make a deal with the US as President Donald Trump again hinted at military action. Trump posted that the US might strike Iran while a military buildup continues in the Middle East. A prior negotiation attempt reportedly collapsed after Israel launched strikes on Iran last June, starting a 12 day war that the US briefly joined with attacks on Iranian nuclear sites.
+<br/><br/>
+<strong>Chagos Islands:</strong> Trump urged UK Prime Minister Keir Starmer not to hand the Chagos Islands to Mauritius, calling it a big mistake even after the US indicated approval of the plan. The islands include Diego Garcia, home to a joint US UK military base, with reports that the UK would lease the base from Mauritius at a cost of GBP35 billion over the next century.
+<br/><br/>
+<strong>Fed minutes:</strong> Minutes from the Fed’s latest meeting showed several policymakers would have supported language that keeps the possibility of rate hikes open if inflation remains above target. The Fed held rates at 3.50% to 3.75% last month.
+<br/><br/>
+<strong>Tariffs study dispute:</strong> White House adviser Kevin Hassett criticised a New York Fed study that found US companies and consumers carry most of the economic cost from tariffs.
+<br/><br/>
+<strong>IEA focus:</strong> US Energy Secretary Chris Wright called on the International Energy Agency to step back from climate change work and refocus on energy security, and referenced earlier threats to pull the US out if reforms are not made.
+<br/><br/>
+<strong>Ukraine outlook:</strong> German Chancellor Friedrich Merz said he does not see a quick negotiated end to the war in Ukraine and believes it will end only when one side is exhausted, militarily or economically.
+<br/><br/>
+<strong>Australia jobs:</strong> Australia’s unemployment rate stayed at 4.1% in January, better than expectations for 4.2%. Employment rose slightly to 14.70 million and the number of unemployed fell to 624,700.
+<br/><br/>
+<strong>Wesfarmers:</strong> Wesfarmers reported first half net profit up 9.3% to AUD1.60 billion and lifted its interim dividend 7.4% to 102 cents. Revenue rose 3.1% to AUD24.21 billion while capex fell sharply.
+<br/><br/>
+<strong>Goodman:</strong> Goodman posted a 3.1% rise in profit to AUD824.7 million, even though revenue dropped 18% to AUD1.10 billion. It said lower development spending and finance costs helped the bottom line.
+<br/><br/>
+<strong>Telstra:</strong> Telstra lifted its interim dividend to 10.5 cents and expanded its share buyback plan up to AUD1.25 billion in FY26, after first half profit rose 9.4% to AUD1.12 billion on cost savings.
+<br/><br/>
+<strong>Vinci:</strong> Vinci said autoroute traffic fell 1.9% in January year on year, while Vinci Airports passenger traffic grew 1.0%. Traffic declines were led by the US, Kansai in Japan and Chile, while Cabo Verde, Brazil and Costa Rica showed growth.
+<br/><br/>
+<strong>Salesforce:</strong> Salesforce signed a definitive deal to acquire Momentum Technologies to boost conversational insights and revenue orchestration for Agentforce 360 and Slackbot, aiming to ingest and analyse unstructured voice and video data from tools like Zoom and Google Meet. Closing is expected in Salesforce’s FY27 Q1, subject to conditions.
+<br/><br/>
+<strong>Transurban:</strong> Transurban reaffirmed full year guidance and swung to profit in the first half, with net profit AUD343 million versus a prior loss. Revenue rose 8.2% to AUD1.98 billion.
+<br/><br/>
+<strong>Brambles:</strong> Brambles raised its interim dividend to 23.0 US cents after profit rose 14% and revenue grew 4.8%. It trimmed its FY26 sales growth outlook slightly but upgraded its free cash flow guidance.
+</div>
+ 
+                      <div style="margin-top:16px;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+ 
+            <!-- Footer -->
+<tr>
+<td class="px" style="padding:18px 24px 28px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td style="padding:16px 18px;background:#FFFFFF;border:1px solid #F0F1F6;border-radius:22px;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;line-height:17px;color:#7B8194;">
+                        Alliance News South Africa covers every actively traded company listed on the Johannesburg Stock Exchange, large and small, and the global influences upon South African markets and the local economy.
+<br/><br/>
+                        Copyright © 2026 Alliance News Ltd. All rights reserved.
+</div>
+<div style="margin-top:12px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;color:#7B8194;">
+                        You’re receiving this on Mint. <a href="https://www.mymint.co.za" style="color:#6D28FF;text-decoration:none;font-weight:700;">Open Mint</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+ 
+          </table>
+</td>
+</tr>
+</table>
+</body>
+</html>
