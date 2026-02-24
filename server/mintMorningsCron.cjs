@@ -194,7 +194,7 @@ async function sendMintMorningsEmail(supabaseAdmin) {
       const emailPromises = batch.map(async (user) => {
         try {
           await resend.emails.send({
-            from: 'MINT MORNINGS <mornings@mintinvest.co.za>',
+            from: 'MINT MORNINGS <mornings@thealgohive.com>',
             to: [user.email],
             subject: `MINT MORNINGS — ${articles[0].title}`,
             html: html,

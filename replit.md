@@ -46,7 +46,7 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
 - **Data Source**: Fetches articles published in the last 24 hours from the `News_articles` Supabase table
 - **Recipients**: All confirmed users (email_confirmed_at set) from Supabase auth
 - **Email Service**: Resend (API key stored as RESEND_API_KEY secret). Resend integration was dismissed; using direct API key instead.
-- **Sender**: `MINT MORNINGS <mornings@mintinvest.co.za>`
+- **Sender**: `MINT MORNINGS <mornings@thealgohive.com>`
 - **Template**: HTML email matching the app's article page style with Mint branding, source/channel badges, and topic tags
 - **Batching**: Sends in batches of 50 with 1-second delay between batches
 - **Test Endpoint**: `POST /api/test-mint-mornings` (admin-only, requires Bearer token + admin role in profiles)
