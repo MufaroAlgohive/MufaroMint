@@ -185,6 +185,11 @@ try {
   console.warn('Supabase client not available:', e.message);
 }
 
+const { startMintMorningsCron, sendMintMorningsEmail } = require('./mintMorningsCron.cjs');
+if (supabaseAdmin) {
+  startMintMorningsCron(supabaseAdmin);
+}
+
 function getAuthenticatedDb(token) {
   if (supabaseAdmin) return supabaseAdmin;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !token) return supabase;
@@ -3959,6 +3964,35 @@ app.post("/api/webhooks/broker", async (req, res) => {
     res.json({ received: true, processed: true });
   } catch (error) {
     console.error("[Broker Webhook] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/test-mint-mornings', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.status(500).json({ error: 'No database connection' });
+
+    const { data: { user }, error: authError } = await db.auth.getUser(token);
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).single();
+    if (!profile || profile.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    console.log(`[MINT MORNINGS] Manual test trigger by admin ${user.email}`);
+    await sendMintMorningsEmail(db);
+    res.json({ success: true, message: 'MINT MORNINGS email send triggered' });
+  } catch (error) {
+    console.error('[MINT MORNINGS] Test trigger error:', error);
     res.status(500).json({ error: error.message });
   }
 });

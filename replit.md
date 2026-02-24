@@ -40,6 +40,17 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
 - **Settings**: Biometric toggles, change password, session timeout configuration, and active session management.
 - **Navigation Menu**: Comprehensive menu including Profile Details, Settings, Help & FAQs, Legal, Privacy, Subscriptions, and Logout.
 
+### MINT MORNINGS Daily Email
+- **File**: `server/mintMorningsCron.cjs` — scheduled daily email newsletter
+- **Schedule**: Runs at 07:00 AM SAST (Africa/Johannesburg timezone) via `node-cron`
+- **Data Source**: Fetches articles published in the last 24 hours from the `News_articles` Supabase table
+- **Recipients**: All confirmed users (email_confirmed_at set) from Supabase auth
+- **Email Service**: Resend (API key stored as RESEND_API_KEY secret). Resend integration was dismissed; using direct API key instead.
+- **Sender**: `MINT MORNINGS <mornings@mintinvest.co.za>`
+- **Template**: HTML email matching the app's article page style with Mint branding, source/channel badges, and topic tags
+- **Batching**: Sends in batches of 50 with 1-second delay between batches
+- **Test Endpoint**: `POST /api/test-mint-mornings` (admin-only, requires Bearer token + admin role in profiles)
+
 ## External Dependencies
 
 - **Supabase**: Backend-as-a-Service for user authentication (signup, login, email verification, password reset), database services for user data, onboarding information, and real-time subscriptions for notifications and market data.
