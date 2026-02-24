@@ -390,7 +390,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
       )}
       <div className="relative z-10 flex flex-col h-full text-slate-700">
         <div className="flex flex-1 min-h-0">
-        <div className="w-[50%] p-4 pb-1 flex flex-col border-r border-slate-200">
+        <div className="w-[50%] p-4 pb-3 flex flex-col border-r border-slate-200">
           <div className="flex flex-col flex-1 min-h-0 gap-2">
             <div className="shrink-0">
               <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5">
@@ -409,6 +409,18 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
                 </span>
               </div>
             </div>
+            {mintNumber && mintNumber.length > 0 && (
+              <div className="mt-auto pt-2">
+                <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5" style={{ fontFamily: "-apple-system, 'Inter', 'Helvetica Neue', sans-serif" }}>
+                  Mint Number
+                </p>
+                <p className="text-[13px] tracking-[0.15em] text-slate-700 font-semibold" style={{ fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace", letterSpacing: '0.15em' }}>
+                  {mintNumber.length >= 13
+                    ? `${mintNumber.substring(0, 3)} ${mintNumber.substring(3, 7)} ${mintNumber.substring(7, 13)}`
+                    : mintNumber}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -452,19 +464,6 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
           </button>
         </div>
         </div>
-
-        {mintNumber && mintNumber.length > 0 && (
-          <div className="px-4 pb-3 pt-1">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-1" style={{ fontFamily: "-apple-system, 'Inter', 'Helvetica Neue', sans-serif" }}>
-              Mint Number
-            </p>
-            <p className="text-[14px] tracking-[0.18em] text-slate-700 font-semibold" style={{ fontFamily: "'SF Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace", letterSpacing: '0.18em' }}>
-              {mintNumber.length >= 13
-                ? `${mintNumber.substring(0, 3)} ${mintNumber.substring(3, 7)} ${mintNumber.substring(7, 13)}`
-                : mintNumber}
-            </p>
-          </div>
-        )}
       </div>
 
       {isOpen && (
