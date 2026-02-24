@@ -410,7 +410,7 @@ const SwipeableBalanceCard = ({ userId, isBackFacing = true, forceVisible, mintN
               </div>
             </div>
             {mintNumber && mintNumber.length > 0 && (
-              <div className="mt-auto pt-2">
+              <div className="mt-3">
                 <p className="text-[9px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5" style={{ fontFamily: "-apple-system, 'Inter', 'Helvetica Neue', sans-serif" }}>
                   Mint Number
                 </p>
