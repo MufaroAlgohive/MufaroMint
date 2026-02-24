@@ -195,10 +195,97 @@ ${calendarBox}
 </td>
 </tr>`;
 
-  const restArticleCards = articles.slice(1).map((article) => {
-    const body = textToHtml(article.body_text || article.body || '');
-    return `
-            <!-- Article card -->
+  function buildArticleCards(article) {
+    const articleBody = article.body_text || article.body || '';
+    const articleParsed = parseArticleSections(articleBody);
+    const articleSource = article.source || 'Alliance News South Africa';
+    const articleAuthor = article.author || '';
+
+    const artMarketData = articleParsed.sections.filter(s => marketSections.includes(s.name));
+    const artCalendarData = articleParsed.sections.filter(s => calendarSections.includes(s.name));
+    const artEconomicsData = articleParsed.sections.filter(s => s.name === 'ECONOMICS');
+    const artNewsSections = articleParsed.sections.filter(s => !marketOpenSections.includes(s.name));
+    const artHasMarketOpen = artMarketData.length > 0 || artCalendarData.length > 0;
+
+    let cards = '';
+
+    cards += `
+            <!-- Article Hero -->
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:20px 20px 14px 20px;">
+<div style="font-family:${F};font-size:12px;color:#7B8194;">
+                        ${articleSource}, formatted for Mint
+</div>
+
+                      <div class="h2" style="margin-top:10px;font-family:${F};font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        ${article.title}
+</div>
+
+                      <div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
+                        ${textToHtml(articleParsed.intro)}
+</div>
+
+                      ${articleAuthor ? `<div style="margin-top:14px;font-family:${F};font-size:13px;color:#7B8194;">
+                        By ${articleAuthor}
+</div>` : ''}
+</td>
+</tr>
+<tr>
+<td style="padding:0 20px 18px 20px;">
+<div>
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>`;
+
+    if (artHasMarketOpen) {
+      let artMarketsBox = '';
+      if (artMarketData.length > 0) {
+        artMarketsBox = `
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+<tr>
+<td style="padding:12px 12px;border-radius:18px;background:#FAFAFF;border:1px solid #ECEBFF;">
+<div style="font-family:${F};font-size:13px;color:#7B8194;font-weight:700;">MARKETS</div>
+<div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#121526;">
+                              ${textToHtml(artMarketData[0].content)}
+</div>
+<div style="margin-top:14px;font-family:${F};font-size:12px;line-height:17px;color:#7B8194;">
+                              Figures reflect changes since the prior close.
+</div>
+</td>
+</tr>
+</table>`;
+      }
+
+      let artCalendarBox = '';
+      if (artCalendarData.length > 0 || artEconomicsData.length > 0) {
+        const artCalItems = [...artCalendarData, ...artEconomicsData].map(s => {
+          return `
+<div style="margin-top:14px;font-family:${F};font-size:13px;color:#7B8194;font-weight:700;">${s.name}</div>
+<div style="margin-top:8px;font-family:${F};font-size:14px;line-height:20px;color:#121526;">${textToHtml(s.content)}</div>`;
+        }).join('');
+
+        artCalendarBox = `
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+<tr>
+<td style="padding:12px 12px;border-radius:18px;background:#FFFFFF;border:1px solid #F0F1F6;">
+${artCalItems}
+</td>
+</tr>
+</table>`;
+      }
+
+      cards += `
 <tr>
 <td class="px" style="padding:16px 24px 0 24px;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
@@ -206,13 +293,40 @@ ${calendarBox}
 <tr>
 <td style="padding:18px 20px;">
 <div class="h2" style="font-family:${F};font-size:18px;line-height:24px;color:#121526;font-weight:800;">
-                        ${article.title}
+                        Before the market open
 </div>
-
-                      <div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
-                        ${body}
+<div class="muted" style="margin-top:6px;font-family:${F};font-size:13px;line-height:18px;color:#7B8194;">
+                        Key levels and overnight moves
 </div>
+${artMarketsBox}
+${artCalendarBox}
+                      <div style="margin-top:16px;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>`;
+    }
 
+    artNewsSections.forEach((section) => {
+      cards += `
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:${F};font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        ${section.name.charAt(0) + section.name.slice(1).toLowerCase().replace(/\\b\\w/g, c => c.toUpperCase())}
+</div>
+<div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
+                        ${textToHtml(section.content)}
+</div>
                       <div style="margin-top:14px;">
 <a href="https://www.mymint.co.za" class="btn"
                           style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
@@ -224,7 +338,12 @@ ${calendarBox}
 </table>
 </td>
 </tr>`;
-  }).join('\n');
+    });
+
+    return cards;
+  }
+
+  const restArticleCards = articles.slice(1).map(buildArticleCards).join('\n');
 
   return `<!doctype html>
 <html lang="en">
