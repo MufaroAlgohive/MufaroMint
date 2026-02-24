@@ -185,9 +185,9 @@ try {
   console.warn('Supabase client not available:', e.message);
 }
 
-const { startMintMorningsCron, sendMintMorningsEmail, sendTestEmail } = require('./mintMorningsCron.cjs');
+const { startMintMorningsListener, sendTestEmail } = require('./mintMorningsCron.cjs');
 if (supabaseAdmin) {
-  startMintMorningsCron(supabaseAdmin);
+  startMintMorningsListener(supabaseAdmin);
 }
 
 function getAuthenticatedDb(token) {
@@ -4003,8 +4003,8 @@ app.post('/api/test-mint-mornings', async (req, res) => {
     }
 
     console.log(`[MINT MORNINGS] Manual test trigger by admin ${user.email}`);
-    await sendMintMorningsEmail(db);
-    res.json({ success: true, message: 'MINT MORNINGS email send triggered' });
+    const result = await sendTestEmail(db, user.email);
+    res.json({ success: true, message: 'MINT MORNINGS test email sent to admin', result });
   } catch (error) {
     console.error('[MINT MORNINGS] Test trigger error:', error);
     res.status(500).json({ error: error.message });

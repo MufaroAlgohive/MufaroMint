@@ -1,7 +1,8 @@
-const cron = require('node-cron');
 const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const processedDocIds = new Set();
 
 function parseArticleSections(bodyText) {
   if (!bodyText) return { intro: '', sections: [] };
@@ -462,103 +463,157 @@ ${restArticleCards}
 </html>`;
 }
 
-async function sendMintMorningsEmail(supabaseAdmin) {
-  if (!supabaseAdmin) {
-    console.error('[MINT MORNINGS] No Supabase admin client available');
-    return;
-  }
-
+async function sendEmailToAllUsers(supabaseAdmin, article) {
   if (!process.env.RESEND_API_KEY) {
     console.error('[MINT MORNINGS] No RESEND_API_KEY configured');
     return;
   }
 
-  console.log('[MINT MORNINGS] Starting daily email send...');
+  const docId = article.doc_id;
+  console.log(`[MINT MORNINGS] Sending article doc_id=${docId} "${article.title}" to all users...`);
 
-  try {
-    const today = new Date();
-    const oneDayAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+  const html = buildMintMorningsHtml([article]);
 
-    const { data: articles, error: articlesError } = await supabaseAdmin
-      .from('News_articles')
-      .select('*')
-      .filter('content_types', 'cs', '"ALLBRF"')
-      .gte('published_at', oneDayAgo.toISOString())
-      .order('published_at', { ascending: false });
+  const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
 
-    if (articlesError) {
-      console.error('[MINT MORNINGS] Error fetching articles:', articlesError.message);
-      return;
-    }
+  if (usersError) {
+    console.error('[MINT MORNINGS] Error fetching users:', usersError.message);
+    return;
+  }
 
-    if (!articles || articles.length === 0) {
-      console.log('[MINT MORNINGS] No ALLBRF articles in the last 24 hours. Skipping email.');
-      return;
-    }
+  const confirmedUsers = users.filter(u => u.email_confirmed_at && u.email);
+  console.log(`[MINT MORNINGS] Sending to ${confirmedUsers.length} confirmed user(s)...`);
 
-    console.log(`[MINT MORNINGS] Found ${articles.length} ALLBRF article(s) to send.`);
+  if (confirmedUsers.length === 0) {
+    console.log('[MINT MORNINGS] No confirmed users to send to.');
+    return;
+  }
 
-    const html = buildMintMorningsHtml(articles);
+  const batchSize = 50;
+  let successCount = 0;
+  let failCount = 0;
 
-    const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-
-    if (usersError) {
-      console.error('[MINT MORNINGS] Error fetching users:', usersError.message);
-      return;
-    }
-
-    const confirmedUsers = users.filter(u => u.email_confirmed_at && u.email);
-    console.log(`[MINT MORNINGS] Sending to ${confirmedUsers.length} confirmed user(s)...`);
-
-    if (confirmedUsers.length === 0) {
-      console.log('[MINT MORNINGS] No confirmed users to send to.');
-      return;
-    }
-
-    const batchSize = 50;
-    let successCount = 0;
-    let failCount = 0;
-
-    for (let i = 0; i < confirmedUsers.length; i += batchSize) {
-      const batch = confirmedUsers.slice(i, i + batchSize);
-      const emailPromises = batch.map(async (user) => {
-        try {
-          await resend.emails.send({
-            from: 'MINT MORNINGS <mornings@thealgohive.com>',
-            to: [user.email],
-            subject: `MINT MORNINGS — ${articles[0].title}`,
-            html: html,
-          });
-          successCount++;
-        } catch (err) {
-          console.error(`[MINT MORNINGS] Failed to send to ${user.email}:`, err.message);
-          failCount++;
-        }
-      });
-
-      await Promise.all(emailPromises);
-
-      if (i + batchSize < confirmedUsers.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+  for (let i = 0; i < confirmedUsers.length; i += batchSize) {
+    const batch = confirmedUsers.slice(i, i + batchSize);
+    const emailPromises = batch.map(async (user) => {
+      try {
+        await resend.emails.send({
+          from: 'MINT MORNINGS <mornings@thealgohive.com>',
+          to: [user.email],
+          subject: `MINT MORNINGS — ${article.title}`,
+          html: html,
+        });
+        successCount++;
+      } catch (err) {
+        console.error(`[MINT MORNINGS] Failed to send to ${user.email}:`, err.message);
+        failCount++;
       }
+    });
+
+    await Promise.all(emailPromises);
+
+    if (i + batchSize < confirmedUsers.length) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  console.log(`[MINT MORNINGS] doc_id=${docId} complete: ${successCount} sent, ${failCount} failed.`);
+}
+
+let lastCheckedAt = null;
+let pollingInterval = null;
+let isInitialized = false;
+
+async function initializeLastCheckedAt(supabaseAdmin) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('News_articles')
+      .select('created_at')
+      .filter('content_types', 'cs', '"ALLBRF"')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('[MINT MORNINGS] Failed to get last article timestamp:', error.message);
+      lastCheckedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      return;
     }
 
-    console.log(`[MINT MORNINGS] Complete: ${successCount} sent, ${failCount} failed.`);
-
-  } catch (error) {
-    console.error('[MINT MORNINGS] Unexpected error:', error.message);
+    if (data && data.length > 0) {
+      lastCheckedAt = data[0].created_at;
+      console.log(`[MINT MORNINGS] Initialized from latest article: ${lastCheckedAt}`);
+    } else {
+      lastCheckedAt = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      console.log(`[MINT MORNINGS] No existing articles, using 24h lookback: ${lastCheckedAt}`);
+    }
+  } catch (err) {
+    console.error('[MINT MORNINGS] Init error:', err.message);
+    lastCheckedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   }
 }
 
-function startMintMorningsCron(supabaseAdmin) {
-  cron.schedule('0 7 * * *', () => {
-    console.log('[MINT MORNINGS] Cron triggered at 07:00 SAST');
-    sendMintMorningsEmail(supabaseAdmin);
-  }, {
-    timezone: 'Africa/Johannesburg'
-  });
+async function pollForNewArticles(supabaseAdmin) {
+  try {
+    if (!isInitialized) {
+      await initializeLastCheckedAt(supabaseAdmin);
+      isInitialized = true;
+    }
 
-  console.log('[MINT MORNINGS] Cron scheduled: daily at 07:00 SAST (Africa/Johannesburg)');
+    const { data: articles, error } = await supabaseAdmin
+      .from('News_articles')
+      .select('*')
+      .filter('content_types', 'cs', '"ALLBRF"')
+      .gt('created_at', lastCheckedAt)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[MINT MORNINGS] Polling error:', error.message);
+      return;
+    }
+
+    if (!articles || articles.length === 0) return;
+
+    let newArticleCount = 0;
+    for (const article of articles) {
+      const docIdStr = String(article.doc_id);
+      if (processedDocIds.has(docIdStr)) continue;
+
+      processedDocIds.add(docIdStr);
+      newArticleCount++;
+      console.log(`[MINT MORNINGS] New ALLBRF article detected: doc_id=${docIdStr} "${article.title}"`);
+      await sendEmailToAllUsers(supabaseAdmin, article);
+    }
+
+    lastCheckedAt = articles[articles.length - 1].created_at;
+
+    if (processedDocIds.size > 10000) {
+      const entries = Array.from(processedDocIds);
+      entries.splice(0, entries.length - 5000).forEach(id => processedDocIds.delete(id));
+    }
+  } catch (err) {
+    console.error('[MINT MORNINGS] Polling unexpected error:', err.message);
+  }
+}
+
+function startMintMorningsListener(supabaseAdmin) {
+  if (!supabaseAdmin) {
+    console.error('[MINT MORNINGS] No Supabase admin client available');
+    return null;
+  }
+
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[MINT MORNINGS] No RESEND_API_KEY — listener not started');
+    return null;
+  }
+
+  pollForNewArticles(supabaseAdmin);
+
+  pollingInterval = setInterval(() => {
+    pollForNewArticles(supabaseAdmin);
+  }, 30000);
+
+  console.log('[MINT MORNINGS] Polling listener started (checking every 30s for new ALLBRF articles by doc_id)');
+  return pollingInterval;
 }
 
 async function sendTestEmail(supabaseAdmin, testEmail) {
@@ -573,15 +628,12 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
 
   console.log(`[MINT MORNINGS TEST] Sending test email to ${testEmail}...`);
 
-  const today = new Date();
-  const oneDayAgo = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-
   const { data: articles, error: articlesError } = await supabaseAdmin
     .from('News_articles')
     .select('*')
     .filter('content_types', 'cs', '"ALLBRF"')
-    .gte('published_at', oneDayAgo.toISOString())
-    .order('published_at', { ascending: false });
+    .order('published_at', { ascending: false })
+    .limit(1);
 
   if (articlesError) {
     console.error('[MINT MORNINGS TEST] Error fetching articles:', articlesError.message);
@@ -589,50 +641,26 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
   }
 
   if (!articles || articles.length === 0) {
-    const { data: recentArticles, error: recentError } = await supabaseAdmin
-      .from('News_articles')
-      .select('*')
-      .filter('content_types', 'cs', '"ALLBRF"')
-      .order('published_at', { ascending: false })
-      .limit(5);
-
-    if (recentError || !recentArticles || recentArticles.length === 0) {
-      return { success: false, error: 'No ALLBRF articles found in the database' };
-    }
-
-    console.log(`[MINT MORNINGS TEST] No ALLBRF articles in last 24h, using ${recentArticles.length} most recent ALLBRF articles instead`);
-    const html = buildMintMorningsHtml(recentArticles);
-
-    try {
-      await resend.emails.send({
-        from: 'MINT MORNINGS <mornings@thealgohive.com>',
-        to: [testEmail],
-        subject: `MINT MORNINGS — ${recentArticles[0].title}`,
-        html: html,
-      });
-      console.log(`[MINT MORNINGS TEST] Test email sent to ${testEmail}`);
-      return { success: true, articlesCount: recentArticles.length, note: 'Used most recent articles (none in last 24h)' };
-    } catch (err) {
-      console.error(`[MINT MORNINGS TEST] Failed:`, err.message);
-      return { success: false, error: err.message };
-    }
+    return { success: false, error: 'No ALLBRF articles found in the database' };
   }
 
-  const html = buildMintMorningsHtml(articles);
+  const article = articles[0];
+  console.log(`[MINT MORNINGS TEST] Using article doc_id=${article.doc_id} "${article.title}"`);
+  const html = buildMintMorningsHtml([article]);
 
   try {
     await resend.emails.send({
       from: 'MINT MORNINGS <mornings@thealgohive.com>',
       to: [testEmail],
-      subject: `MINT MORNINGS — ${articles[0].title}`,
+      subject: `MINT MORNINGS — ${article.title}`,
       html: html,
     });
     console.log(`[MINT MORNINGS TEST] Test email sent to ${testEmail}`);
-    return { success: true, articlesCount: articles.length };
+    return { success: true, doc_id: article.doc_id, title: article.title };
   } catch (err) {
     console.error(`[MINT MORNINGS TEST] Failed:`, err.message);
     return { success: false, error: err.message };
   }
 }
 
-module.exports = { startMintMorningsCron, sendMintMorningsEmail, sendTestEmail };
+module.exports = { startMintMorningsListener, sendTestEmail };

@@ -40,16 +40,16 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
 - **Settings**: Biometric toggles, change password, session timeout configuration, and active session management.
 - **Navigation Menu**: Comprehensive menu including Profile Details, Settings, Help & FAQs, Legal, Privacy, Subscriptions, and Logout.
 
-### MINT MORNINGS Daily Email
-- **File**: `server/mintMorningsCron.cjs` — scheduled daily email newsletter
-- **Schedule**: Runs at 07:00 AM SAST (Africa/Johannesburg timezone) via `node-cron`
-- **Data Source**: Fetches articles published in the last 24 hours from the `News_articles` Supabase table
+### MINT MORNINGS Real-Time Email
+- **File**: `server/mintMorningsCron.cjs` — real-time article email sender
+- **Trigger**: Polls `News_articles` table every 30 seconds for new ALLBRF articles (by `doc_id` unique identifier)
+- **Behavior**: Each new article with `content_types` containing "ALLBRF" is immediately sent to all confirmed users. Duplicate `doc_id`s are tracked in memory to prevent re-sending.
 - **Recipients**: All confirmed users (email_confirmed_at set) from Supabase auth
 - **Email Service**: Resend (API key stored as RESEND_API_KEY secret). Resend integration was dismissed; using direct API key instead.
 - **Sender**: `MINT MORNINGS <mornings@thealgohive.com>`
-- **Template**: HTML email matching the app's article page style with Mint branding, source/channel badges, and topic tags
-- **Batching**: Sends in batches of 50 with 1-second delay between batches
-- **Test Endpoint**: `POST /api/test-mint-mornings` (admin-only, requires Bearer token + admin role in profiles)
+- **Template**: HTML5 email with responsive media queries, parsed article sections (MARKETS, COMPANY CALENDAR, ECONOMIC CALENDAR, news sections) into separate styled cards matching the Mint design system.
+- **Batching**: Sends to users in batches of 50 with 1-second delay between batches
+- **Test Endpoints**: `POST /api/test-mint-mornings-single` (send to specific email), `POST /api/test-mint-mornings` (admin-only, requires Bearer token + admin role)
 
 ## External Dependencies
 
