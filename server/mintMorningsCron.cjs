@@ -153,6 +153,7 @@ async function sendMintMorningsEmail(supabaseAdmin) {
     const { data: articles, error: articlesError } = await supabaseAdmin
       .from('News_articles')
       .select('*')
+      .filter('content_types', 'cs', '"ALLBRF"')
       .gte('published_at', oneDayAgo.toISOString())
       .order('published_at', { ascending: false });
 
@@ -162,11 +163,11 @@ async function sendMintMorningsEmail(supabaseAdmin) {
     }
 
     if (!articles || articles.length === 0) {
-      console.log('[MINT MORNINGS] No new articles in the last 24 hours. Skipping email.');
+      console.log('[MINT MORNINGS] No ALLBRF articles in the last 24 hours. Skipping email.');
       return;
     }
 
-    console.log(`[MINT MORNINGS] Found ${articles.length} article(s) to send.`);
+    console.log(`[MINT MORNINGS] Found ${articles.length} ALLBRF article(s) to send.`);
 
     const html = buildMintMorningsHtml(articles);
 
@@ -249,6 +250,7 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
   const { data: articles, error: articlesError } = await supabaseAdmin
     .from('News_articles')
     .select('*')
+    .filter('content_types', 'cs', '"ALLBRF"')
     .gte('published_at', oneDayAgo.toISOString())
     .order('published_at', { ascending: false });
 
@@ -261,14 +263,15 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
     const { data: recentArticles, error: recentError } = await supabaseAdmin
       .from('News_articles')
       .select('*')
+      .filter('content_types', 'cs', '"ALLBRF"')
       .order('published_at', { ascending: false })
       .limit(5);
 
     if (recentError || !recentArticles || recentArticles.length === 0) {
-      return { success: false, error: 'No articles found in the database at all' };
+      return { success: false, error: 'No ALLBRF articles found in the database' };
     }
 
-    console.log(`[MINT MORNINGS TEST] No articles in last 24h, using ${recentArticles.length} most recent articles instead`);
+    console.log(`[MINT MORNINGS TEST] No ALLBRF articles in last 24h, using ${recentArticles.length} most recent ALLBRF articles instead`);
     const html = buildMintMorningsHtml(recentArticles);
 
     try {
