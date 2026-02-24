@@ -4,130 +4,145 @@ const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 function buildMintMorningsHtml(articles) {
-  const articleCards = articles.map(article => {
-    const publishedDate = new Date(article.published_at);
-    const formattedDate = publishedDate.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    const formattedTime = publishedDate.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  const FONT = "Inter,Segoe UI,Arial,sans-serif";
 
-    const sourceBadge = article.source
-      ? `<span style="display:inline-block;background-color:#f1f5f9;color:#475569;font-size:11px;font-weight:600;padding:4px 12px;border-radius:9999px;margin-right:6px;margin-bottom:6px;">${article.source}</span>`
+  const articleCards = articles.map((article, index) => {
+    const bodyContent = article.body_text || article.body || '';
+    const authorLine = article.author
+      ? `<div style="margin-top:14px;font-family:${FONT};font-size:13px;color:#7B8194;">By ${article.author}</div>`
+      : '';
+    const sourceLine = article.source
+      ? `<div style="font-family:${FONT};font-size:12px;color:#7B8194;">${article.source}, formatted for Mint</div>`
       : '';
 
-    const channelBadge = article.channel
-      ? `<span style="display:inline-block;background-color:#ede9fe;color:#6d28d9;font-size:11px;font-weight:600;padding:4px 12px;border-radius:9999px;margin-bottom:6px;">${article.channel}</span>`
-      : '';
-
-    const industries = (article.industries || []).map(t =>
-      `<span style="display:inline-block;border:1px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;font-weight:500;padding:4px 12px;border-radius:9999px;margin-right:6px;margin-bottom:6px;">${t}</span>`
-    ).join('');
-
-    const markets = (article.markets || []).map(t =>
-      `<span style="display:inline-block;border:1px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;font-weight:500;padding:4px 12px;border-radius:9999px;margin-right:6px;margin-bottom:6px;">${t}</span>`
-    ).join('');
-
-    const topics = (article.topics || []).map(t =>
-      `<span style="display:inline-block;border:1px solid #e2e8f0;background:#fff;color:#475569;font-size:11px;font-weight:500;padding:4px 12px;border-radius:9999px;margin-right:6px;margin-bottom:6px;">${t}</span>`
-    ).join('');
-
-    const tagsSection = (industries || markets || topics)
-      ? `<div style="margin-top:24px;padding-top:20px;border-top:1px solid #f1f5f9;">
-           <p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:0 0 10px 0;">Related Topics</p>
-           <div>${industries}${markets}${topics}</div>
-         </div>`
+    const topics = (article.topics || article.industries || article.markets || []);
+    const topicsSection = topics.length > 0
+      ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+          <tbody><tr>
+            <td style="padding:14px 14px;border-radius:18px;background:#F4F2FF;border:1px solid #E8E5FF;">
+              <div style="font-family:${FONT};font-size:13px;color:#7B8194;font-weight:700;">RELATED TOPICS</div>
+              <div style="margin-top:8px;font-family:${FONT};font-size:14px;line-height:20px;color:#4B5166;">
+                ${topics.join('<br />')}
+              </div>
+            </td>
+          </tr></tbody>
+        </table>`
       : '';
 
     return `
-      <div style="background:#ffffff;border-radius:24px;padding:28px;margin-bottom:24px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid #f1f5f9;">
-          <tr>
-            <td width="48" style="vertical-align:middle;">
-              <div style="width:48px;height:48px;background-color:#f1f5f9;border-radius:50%;text-align:center;line-height:48px;">
-                <span style="font-size:20px;font-weight:700;color:#581ba4;">M</span>
-              </div>
-            </td>
-            <td style="padding-left:12px;vertical-align:middle;">
-              <p style="margin:0;font-size:14px;font-weight:600;color:#0f172a;">Mint News</p>
-              <p style="margin:2px 0 0 0;font-size:12px;color:#64748b;">${formattedDate} &bull; ${formattedTime}</p>
-            </td>
-          </tr>
-        </table>
-
-        <h2 style="margin:0 0 16px 0;font-size:22px;font-weight:700;color:#0f172a;line-height:1.3;">${article.title}</h2>
-
-        ${(sourceBadge || channelBadge) ? `<div style="margin-bottom:20px;">${sourceBadge}${channelBadge}</div>` : ''}
-
-        ${article.body_text ? `<div style="font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap;">${article.body_text}</div>` : ''}
-        ${article.body && !article.body_text ? `<div style="font-size:14px;line-height:1.7;color:#334155;white-space:pre-wrap;">${article.body}</div>` : ''}
-
-        ${tagsSection}
-      </div>`;
+                                        <tr>
+                                          <td class="px" style="padding:${index === 0 ? '0' : '16px'} 24px 0 24px;">
+                                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+                                              <tbody>
+                                                <tr>
+                                                  <td style="padding:20px 20px 14px 20px;">
+                                                    ${sourceLine}
+                                                    <div class="h1" style="margin-top:10px;font-family:${FONT};font-size:${index === 0 ? '26px' : '18px'};line-height:${index === 0 ? '32px' : '24px'};color:#121526;font-weight:800;">
+                                                      ${article.title}
+                                                    </div>
+                                                    <div style="margin-top:10px;font-family:${FONT};font-size:14px;line-height:20px;color:#4B5166;">
+                                                      ${bodyContent}
+                                                    </div>
+                                                    ${authorLine}
+                                                    ${topicsSection}
+                                                    <div style="margin-top:16px;">
+                                                      <a href="https://www.mymint.co.za" class="btn" style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${FONT};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                                                        Read more on Mint
+                                                      </a>
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              </tbody>
+                                            </table>
+                                          </td>
+                                        </tr>`;
   }).join('');
 
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  return `<!DOCTYPE html>
-<html lang="en">
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html dir="ltr" lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MINT MORNINGS</title>
+  <meta content="width=device-width" name="viewport" />
+  <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta content="IE=edge" http-equiv="X-UA-Compatible" />
+  <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
 </head>
-<body style="margin:0;padding:0;background-color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
-  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color:#f8fafc;">
-    <tr>
-      <td align="center" style="padding:0;">
-        <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width:600px;width:100%;">
+<body style="margin:0;padding:0;">
+  <table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" align="center">
+    <tbody>
+      <tr>
+        <td>
+          <table align="center" width="100%" border="0" cellpadding="0" cellspacing="0" role="presentation" style="font-family:${FONT};font-size:1.0769230769230769em;min-height:100%;line-height:155%">
+            <tbody>
+              <tr>
+                <td>
+                  <div>
+                    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+                      Johannesburg market preview, SA news, global headlines.
+                    </div>
 
-          <!-- Header -->
-          <tr>
-            <td style="padding:40px 24px 24px 24px;text-align:center;">
-              <div style="width:56px;height:56px;background:linear-gradient(135deg,#000 0%,#581ba4 100%);border-radius:16px;margin:0 auto 16px auto;text-align:center;line-height:56px;">
-                <span style="font-size:24px;font-weight:800;color:#ffffff;">M</span>
-              </div>
-              <h1 style="margin:0 0 4px 0;font-size:28px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">MINT MORNINGS</h1>
-              <p style="margin:0;font-size:14px;color:#64748b;">${today}</p>
-            </td>
-          </tr>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F6F7FB;">
+                      <tbody>
+                        <tr>
+                          <td align="center" style="padding:24px 12px;">
+                            <table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;">
+                              <tbody>
+                                <tr>
+                                  <td class="px" style="padding:6px 24px 14px 24px;">
+                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                      <tbody>
+                                        <tr>
+                                          <td align="left" style="padding:0;">
+                                            <img src="https://www.mymint.co.za/assets/mint-logo.svg" width="110" alt="Mint" style="display:block;border:0;outline:none;text-decoration:none;height:auto;" />
+                                          </td>
+                                          <td align="right" style="padding:0;">
+                                            <span style="font-family:${FONT};font-size:13px;color:#7B8194;">
+                                              Market Brief
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
 
-          <!-- Divider -->
-          <tr>
-            <td style="padding:0 24px;">
-              <div style="height:1px;background:linear-gradient(90deg,transparent,#cbd5e1,transparent);"></div>
-            </td>
-          </tr>
+                                ${articleCards}
 
-          <!-- Articles -->
-          <tr>
-            <td style="padding:24px;">
-              ${articleCards}
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="padding:0 24px 40px 24px;text-align:center;">
-              <div style="height:1px;background:linear-gradient(90deg,transparent,#cbd5e1,transparent);margin-bottom:24px;"></div>
-              <p style="margin:0 0 4px 0;font-size:13px;font-weight:600;color:#0f172a;">MINT</p>
-              <p style="margin:0 0 16px 0;font-size:12px;color:#94a3b8;">Your money tools are ready when you are.</p>
-              <p style="margin:0;font-size:11px;color:#cbd5e1;">You're receiving this because you have a Mint account.</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
+                                <tr>
+                                  <td class="px" style="padding:18px 24px 28px 24px;">
+                                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                      <tbody>
+                                        <tr>
+                                          <td style="padding:16px 18px;background:#FFFFFF;border:1px solid #F0F1F6;border-radius:22px;">
+                                            <div style="font-family:${FONT};font-size:12px;line-height:17px;color:#7B8194;">
+                                              Alliance News South Africa covers every actively traded company listed on the Johannesburg Stock Exchange, large and small, and the global influences upon South African markets and the local economy.
+                                              <br /><br />
+                                              Copyright &copy; ${new Date().getFullYear()} Alliance News Ltd. All rights reserved.
+                                            </div>
+                                            <div style="margin-top:12px;font-family:${FONT};font-size:12px;color:#7B8194;">
+                                              You're receiving this on Mint.
+                                              <a href="https://www.mymint.co.za" style="color:#6D28FF;text-decoration:none;font-weight:700;">Open Mint</a>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </td>
+      </tr>
+    </tbody>
   </table>
 </body>
 </html>`;
