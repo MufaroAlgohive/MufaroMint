@@ -3,26 +3,200 @@ const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-function formatBodyHtml(rawText) {
-  if (!rawText) return '';
-  let text = rawText;
-  text = text.replace(/----------\s*([A-Z][A-Z &/\-]+[A-Z])\s*----------/g, (_, label) => {
-    return `<br/><br/><strong style="color:#7B8194;font-size:13px;font-weight:700;letter-spacing:0.5px;">${label.trim()}</strong><br/>`;
-  });
-  text = text.replace(/\n/g, '<br/>');
-  return text;
+function parseArticleSections(bodyText) {
+  if (!bodyText) return { intro: '', sections: [] };
+  const parts = bodyText.split(/----------/);
+  const intro = (parts[0] || '').trim();
+  const sections = [];
+  for (let i = 1; i < parts.length; i++) {
+    const chunk = (parts[i] || '').trim();
+    if (!chunk) continue;
+    if (/^[A-Z][A-Z0-9 &\/\-,'.]+$/m.test(chunk.split('\n')[0])) {
+      const name = chunk.split('\n')[0].trim();
+      sections.push({ name, content: '' });
+    } else if (sections.length > 0) {
+      sections[sections.length - 1].content += (sections[sections.length - 1].content ? '\n' : '') + chunk;
+    }
+  }
+  return { intro, sections };
+}
+
+function textToHtml(text) {
+  if (!text) return '';
+  return text.replace(/\n/g, '<br/>');
 }
 
 function buildMintMorningsHtml(articles) {
   const F = 'Inter,Segoe UI,Arial,sans-serif';
   const heroArticle = articles[0];
-  const restArticles = articles.slice(1);
-  const heroBody = formatBodyHtml(heroArticle.body_text || heroArticle.body || '');
+  const heroBody = heroArticle.body_text || heroArticle.body || '';
   const heroSource = heroArticle.source || 'Alliance News South Africa';
   const heroAuthor = heroArticle.author || '';
+  const parsed = parseArticleSections(heroBody);
 
-  const restCards = restArticles.map((article) => {
-    const body = formatBodyHtml(article.body_text || article.body || '');
+  const marketSections = ['MARKETS'];
+  const calendarSections = ['COMPANY CALENDAR', 'ECONOMIC CALENDAR'];
+  const marketOpenSections = [...marketSections, ...calendarSections, 'ECONOMICS'];
+
+  const marketData = parsed.sections.filter(s => marketSections.includes(s.name));
+  const calendarData = parsed.sections.filter(s => calendarSections.includes(s.name));
+  const economicsData = parsed.sections.filter(s => s.name === 'ECONOMICS');
+  const newsSections = parsed.sections.filter(s => !marketOpenSections.includes(s.name));
+
+  const topHeadlines = newsSections.length > 0
+    ? newsSections.slice(0, 3).map(s => {
+        const firstLine = (s.content || '').split('\n')[0].trim();
+        return firstLine.length > 80 ? firstLine.substring(0, 80) + '...' : firstLine;
+      }).filter(Boolean)
+    : [];
+
+  const hasMarketOpen = marketData.length > 0 || calendarData.length > 0;
+
+  let marketOpenCard = '';
+  if (hasMarketOpen) {
+    let marketsBox = '';
+    if (marketData.length > 0) {
+      marketsBox = `
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+<tr>
+<td style="padding:12px 12px;border-radius:18px;background:#FAFAFF;border:1px solid #ECEBFF;">
+<div style="font-family:${F};font-size:13px;color:#7B8194;font-weight:700;">
+                              MARKETS
+</div>
+
+                            <div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#121526;">
+                              ${textToHtml(marketData[0].content)}
+</div>
+
+                            <div style="margin-top:14px;font-family:${F};font-size:12px;line-height:17px;color:#7B8194;">
+                              Figures reflect changes since the prior Johannesburg equities close.
+</div>
+</td>
+</tr>
+</table>`;
+    }
+
+    let calendarBox = '';
+    if (calendarData.length > 0 || economicsData.length > 0) {
+      const calItems = [...calendarData, ...economicsData].map(s => {
+        return `
+                            <div style="margin-top:14px;font-family:${F};font-size:13px;color:#7B8194;font-weight:700;">
+                              ${s.name}
+</div>
+<div style="margin-top:8px;font-family:${F};font-size:14px;line-height:20px;color:#121526;">
+                              ${textToHtml(s.content)}
+</div>`;
+      }).join('');
+
+      calendarBox = `
+                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:14px;">
+<tr>
+<td style="padding:12px 12px;border-radius:18px;background:#FFFFFF;border:1px solid #F0F1F6;">
+${calItems}
+</td>
+</tr>
+</table>`;
+    }
+
+    marketOpenCard = `
+            <!-- Before market open -->
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:${F};font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        Before the market open
+</div>
+<div class="muted" style="margin-top:6px;font-family:${F};font-size:13px;line-height:18px;color:#7B8194;">
+                        Key levels and overnight moves
+</div>
+${marketsBox}
+${calendarBox}
+
+                      <div style="margin-top:16px;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>`;
+  }
+
+  const newsCards = newsSections.map((section) => {
+    return `
+            <!-- ${section.name} -->
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+                  class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:${F};font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+                        ${section.name.charAt(0) + section.name.slice(1).toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
+</div>
+
+                      <div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
+                        ${textToHtml(section.content)}
+</div>
+
+                      <div style="margin-top:14px;">
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>`;
+  }).join('\n');
+
+  const topHeadlinesBox = topHeadlines.length > 0
+    ? `
+                  <tr>
+<td style="padding:0 20px 18px 20px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td style="padding:14px 14px;border-radius:18px;background:#F4F2FF;border:1px solid #E8E5FF;">
+<div class="h2" style="font-family:${F};font-size:17px;line-height:22px;color:#121526;font-weight:800;">
+                              Top side headlines
+</div>
+<div style="margin-top:8px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
+                              ${topHeadlines.join('<br/>')}
+</div>
+
+                            <div style="margin-top:14px;">
+<a href="https://www.mymint.co.za" class="btn"
+                                style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                                Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>`
+    : `
+                  <tr>
+<td style="padding:0 20px 18px 20px;">
+<div>
+<a href="https://www.mymint.co.za" class="btn"
+                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+                          Read more on Mint
+</a>
+</div>
+</td>
+</tr>`;
+
+  const restArticleCards = articles.slice(1).map((article) => {
+    const body = textToHtml(article.body_text || article.body || '');
     return `
             <!-- Article card -->
 <tr>
@@ -121,7 +295,7 @@ function buildMintMorningsHtml(articles) {
 </div>
 
                       <div style="margin-top:10px;font-family:${F};font-size:14px;line-height:20px;color:#4B5166;">
-                        ${heroBody}
+                        ${textToHtml(parsed.intro)}
 </div>
 
                       ${heroAuthor ? `<div style="margin-top:14px;font-family:${F};font-size:13px;color:#7B8194;">
@@ -130,21 +304,16 @@ function buildMintMorningsHtml(articles) {
 </td>
 </tr>
 
-                  <tr>
-<td style="padding:0 20px 18px 20px;">
-<div style="margin-top:0;">
-<a href="https://www.mymint.co.za" class="btn"
-                          style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${F};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
-                          Read more on Mint
-</a>
-</div>
-</td>
-</tr>
+${topHeadlinesBox}
 </table>
 </td>
 </tr>
 
-${restCards}
+${marketOpenCard}
+
+${newsCards}
+
+${restArticleCards}
 
             <!-- Footer -->
 <tr>
