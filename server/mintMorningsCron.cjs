@@ -10,6 +10,10 @@ function getResend() {
 }
 
 const processedDocIds = new Set();
+const pendingArticles = [];
+const SEND_HOUR_UTC = 5;
+const SEND_MINUTE_UTC = 0;
+let lastSendDate = null;
 
 function parseArticleSections(bodyText) {
   if (!bodyText) return { intro: '', sections: [] };
@@ -580,15 +584,13 @@ async function pollForNewArticles(supabaseAdmin) {
 
     if (!articles || articles.length === 0) return;
 
-    let newArticleCount = 0;
     for (const article of articles) {
       const docIdStr = String(article.doc_id);
       if (processedDocIds.has(docIdStr)) continue;
 
       processedDocIds.add(docIdStr);
-      newArticleCount++;
-      console.log(`[MINT MORNINGS] New ALLBRF article detected: doc_id=${docIdStr} "${article.title}"`);
-      await sendEmailToAllUsers(supabaseAdmin, article);
+      pendingArticles.push(article);
+      console.log(`[MINT MORNINGS] New ALLBRF article queued: doc_id=${docIdStr} "${article.title}" (pending: ${pendingArticles.length})`);
     }
 
     lastCheckedAt = articles[articles.length - 1].created_at;
@@ -599,6 +601,36 @@ async function pollForNewArticles(supabaseAdmin) {
     }
   } catch (err) {
     console.error('[MINT MORNINGS] Polling unexpected error:', err.message);
+  }
+}
+
+function getTodayDateStr() {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+}
+
+async function checkScheduledSend(supabaseAdmin) {
+  const now = new Date();
+  const currentHour = now.getUTCHours();
+  const currentMinute = now.getUTCMinutes();
+  const todayStr = getTodayDateStr();
+
+  if (currentHour === SEND_HOUR_UTC && currentMinute >= SEND_MINUTE_UTC && currentMinute < SEND_MINUTE_UTC + 2 && lastSendDate !== todayStr) {
+    lastSendDate = todayStr;
+
+    if (pendingArticles.length === 0) {
+      console.log(`[MINT MORNINGS] 07:00 SAST — no pending ALLBRF articles to send`);
+      return;
+    }
+
+    console.log(`[MINT MORNINGS] 07:00 SAST — sending ${pendingArticles.length} queued ALLBRF article(s)...`);
+    const articlesToSend = pendingArticles.splice(0, pendingArticles.length);
+
+    for (const article of articlesToSend) {
+      await sendEmailToAllUsers(supabaseAdmin, article);
+    }
+
+    console.log(`[MINT MORNINGS] 07:00 SAST send complete`);
   }
 }
 
@@ -619,7 +651,11 @@ function startMintMorningsListener(supabaseAdmin) {
     pollForNewArticles(supabaseAdmin);
   }, 30000);
 
-  console.log('[MINT MORNINGS] Polling listener started (checking every 30s for new ALLBRF articles by doc_id)');
+  setInterval(() => {
+    checkScheduledSend(supabaseAdmin);
+  }, 60000);
+
+  console.log(`[MINT MORNINGS] Listener started — polling every 30s, scheduled send at 07:00 SAST (05:00 UTC)`);
   return pollingInterval;
 }
 

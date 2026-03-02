@@ -40,16 +40,18 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
 - **Settings**: Biometric toggles, change password, session timeout configuration, and active session management.
 - **Navigation Menu**: Comprehensive menu including Profile Details, Settings, Help & FAQs, Legal, Privacy, Subscriptions, and Logout.
 
-### MINT MORNINGS Real-Time Email
-- **File**: `server/mintMorningsCron.cjs` — real-time article email sender
-- **Trigger**: Polls `News_articles` table every 30 seconds for new ALLBRF articles (by `doc_id` unique identifier)
-- **Behavior**: Each new article with `content_types` containing "ALLBRF" is immediately sent to all confirmed users. Duplicate `doc_id`s are tracked in memory to prevent re-sending.
+### MINT MORNINGS Scheduled Email
+- **File**: `server/mintMorningsCron.cjs` — scheduled daily newsletter sender
+- **Detection**: Polls `News_articles` table every 30 seconds for new ALLBRF articles (by `doc_id` unique identifier). New articles are queued in memory, not sent immediately.
+- **Scheduled Send**: At 07:00 SAST (05:00 UTC) each morning, all queued ALLBRF articles are sent to all confirmed users. A `lastSendDate` guard prevents duplicate sends on the same day.
+- **ALLBRF Articles**: Typically arrive in the database around 04:55 UTC (06:55 SAST), giving ~5 minutes before the scheduled send.
 - **Recipients**: All confirmed users (email_confirmed_at set) from Supabase auth
-- **Email Service**: Resend (API key stored as RESEND_API_KEY secret). Resend integration was dismissed; using direct API key instead.
+- **Email Service**: Resend (API key stored as RESEND_API_KEY secret, plain env var — no Replit connector)
 - **Sender**: `MINT MORNINGS <mornings@thealgohive.com>`
 - **Template**: HTML5 email with responsive media queries, parsed article sections (MARKETS, COMPANY CALENDAR, ECONOMIC CALENDAR, news sections) into separate styled cards matching the Mint design system.
 - **Batching**: Sends to users in batches of 50 with 1-second delay between batches
 - **Test Endpoints**: `POST /api/test-mint-mornings-single` (send to specific email), `POST /api/test-mint-mornings` (admin-only, requires Bearer token + admin role)
+- **Note**: `lastSendDate` is in-memory only; a server restart during the 05:00–05:02 UTC window could trigger a resend on the same day.
 
 ## External Dependencies
 
