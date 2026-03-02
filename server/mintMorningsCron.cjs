@@ -655,16 +655,6 @@ function startMintMorningsListener(supabaseAdmin) {
     checkScheduledSend(supabaseAdmin);
   }, 60000);
 
-  const scheduledTestInterval = setInterval(async () => {
-    const now = new Date();
-    if (now.getUTCHours() === 14 && now.getUTCMinutes() === 6) {
-      console.log('[MINT MORNINGS SCHEDULED TEST] 16:06 SAST reached — sending to tsiemasilo@gmail.com...');
-      const result = await sendTestEmail(supabaseAdmin, 'tsiemasilo@gmail.com');
-      console.log('[MINT MORNINGS SCHEDULED TEST] Result:', JSON.stringify(result));
-      clearInterval(scheduledTestInterval);
-    }
-  }, 15000);
-
   console.log(`[MINT MORNINGS] Listener started — polling every 30s, scheduled send at 07:00 SAST (05:00 UTC)`);
   return pollingInterval;
 }
