@@ -1,39 +1,12 @@
 const { Resend } = require('resend');
 
-async function getResendCredentials() {
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const xReplitToken = process.env.REPL_IDENTITY
-    ? 'repl ' + process.env.REPL_IDENTITY
-    : process.env.WEB_REPL_RENEWAL
-    ? 'depl ' + process.env.WEB_REPL_RENEWAL
-    : null;
-
-  if (!hostname || !xReplitToken) {
-    if (process.env.RESEND_API_KEY) {
-      return { apiKey: process.env.RESEND_API_KEY, fromEmail: null };
-    }
-    throw new Error('No Resend credentials available (no Replit connector or RESEND_API_KEY)');
+let _resend = null;
+function getResend() {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) throw new Error('RESEND_API_KEY is not set');
+    _resend = new Resend(process.env.RESEND_API_KEY);
   }
-
-  const data = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=resend',
-    {
-      headers: {
-        'Accept': 'application/json',
-        'X-Replit-Token': xReplitToken
-      }
-    }
-  ).then(res => res.json()).then(d => d.items?.[0]);
-
-  if (!data || !data.settings.api_key) {
-    throw new Error('Resend connector not connected');
-  }
-  return { apiKey: data.settings.api_key, fromEmail: data.settings.from_email };
-}
-
-async function getResend() {
-  const { apiKey } = await getResendCredentials();
-  return new Resend(apiKey);
+  return _resend;
 }
 
 const processedDocIds = new Set();
@@ -531,8 +504,7 @@ async function sendEmailToAllUsers(supabaseAdmin, article) {
     const batch = confirmedUsers.slice(i, i + batchSize);
     const emailPromises = batch.map(async (user) => {
       try {
-        const resendClient = await getResend();
-        await resendClient.emails.send({
+        await getResend().emails.send({
           from: 'MINT MORNINGS <mornings@thealgohive.com>',
           to: [user.email],
           subject: `MINT MORNINGS — ${article.title}`,
@@ -636,6 +608,11 @@ function startMintMorningsListener(supabaseAdmin) {
     return null;
   }
 
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[MINT MORNINGS] No RESEND_API_KEY — listener not started');
+    return null;
+  }
+
   pollForNewArticles(supabaseAdmin);
 
   pollingInterval = setInterval(() => {
@@ -650,6 +627,10 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
   if (!supabaseAdmin) {
     console.error('[MINT MORNINGS TEST] No Supabase admin client available');
     return { success: false, error: 'No database connection' };
+  }
+  if (!process.env.RESEND_API_KEY) {
+    console.error('[MINT MORNINGS TEST] No RESEND_API_KEY configured');
+    return { success: false, error: 'No RESEND_API_KEY' };
   }
   console.log(`[MINT MORNINGS TEST] Sending test email to ${testEmail}...`);
 
@@ -674,8 +655,7 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
   const html = buildMintMorningsHtml([article]);
 
   try {
-    const resendClient = await getResend();
-    await resendClient.emails.send({
+    await getResend().emails.send({
       from: 'MINT MORNINGS <mornings@thealgohive.com>',
       to: [testEmail],
       subject: `MINT MORNINGS — ${article.title}`,
