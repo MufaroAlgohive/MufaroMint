@@ -1,4 +1,5 @@
 import React, { useId, useMemo, useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft, ChevronRight, Search, SlidersHorizontal, Heart, X } from "lucide-react";
 import { StrategyReturnHeaderChart } from "../components/StrategyReturnHeaderChart";
 import { ChartContainer } from "../components/ui/line-charts-2";
@@ -106,6 +107,7 @@ const StrategyMiniChart = ({ values }) => {
 
 const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   const [strategies, setStrategies] = useState([]);
+  const [portalTarget, setPortalTarget] = useState(null);
   const [strategiesLoading, setStrategiesLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHolding, setSelectedHolding] = useState(null);
@@ -131,6 +133,8 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   const carouselRef = useRef(null);
   const dragStartY = useRef(null);
   const isDragging = useRef(false);
+
+  useEffect(() => { setPortalTarget(document.body); }, []);
 
   // Fetch strategies from database
   useEffect(() => {
@@ -677,7 +681,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
         </section>
       </div>
 
-      {isFilterOpen && (
+      {isFilterOpen && portalTarget && createPortal(
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 px-4 pb-6">
           <button
             type="button"
@@ -1013,7 +1017,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
             </div>
           </div>
         </div>
-      )}
+      , portalTarget)}
     </div>
   );
 };

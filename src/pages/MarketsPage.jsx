@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo, useId } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../lib/supabase.js";
 import { getMarketsSecuritiesWithMetrics } from "../lib/marketData.js";
 import { getStrategiesWithMetrics, getPublicStrategies, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
@@ -120,6 +121,7 @@ const StrategyMiniChart = ({ values }) => {
 
 const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNewsArticle, onOpenFactsheet, initialViewMode }) => {
   const { profile, loading: profileLoading } = useProfile();
+  const [portalTarget, setPortalTarget] = useState(null);
   const [securities, setSecurities] = useState([]);
   const [strategies, setStrategies] = useState([]);
   const [publicStrategies, setPublicStrategies] = useState([]);
@@ -167,6 +169,8 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [draftStrategySectors, setDraftStrategySectors] = useState(new Set());
 
   const [watchlist, setWatchlist] = useState([]);
+
+  useEffect(() => { setPortalTarget(document.body); }, []);
 
   useEffect(() => {
     if (profile?.watchlist && Array.isArray(profile.watchlist)) {
@@ -1752,7 +1756,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       </div>
 
       {/* Strategy Preview Modal */}
-      {selectedStrategy && (
+      {selectedStrategy && portalTarget && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 overscroll-contain">
           <button
             type="button"
@@ -1973,10 +1977,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             </div>
           </div>
         </div>
-      )}
+      , portalTarget)}
 
       {/* Filter Sheet */}
-      {isFilterOpen && (
+      {isFilterOpen && portalTarget && createPortal(
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-slate-900/40 px-4 pb-6">
           <button
             type="button"
@@ -2273,7 +2277,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             </div>
           </div>
         </div>
-      )}
+      , portalTarget)}
     </div>
   );
 };
