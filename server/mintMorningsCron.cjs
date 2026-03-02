@@ -691,16 +691,17 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
   const html = buildMintMorningsHtml([article]);
 
   try {
-    await getResend().emails.send({
+    const resendResponse = await getResend().emails.send({
       from: 'MINT MORNINGS <mornings@thealgohive.com>',
       to: [testEmail],
       subject: `MINT MORNINGS — ${article.title}`,
       html: html,
     });
+    console.log(`[MINT MORNINGS TEST] Resend API response:`, JSON.stringify(resendResponse));
     console.log(`[MINT MORNINGS TEST] Test email sent to ${testEmail}`);
-    return { success: true, doc_id: article.doc_id, title: article.title };
+    return { success: true, doc_id: article.doc_id, title: article.title, resendResponse };
   } catch (err) {
-    console.error(`[MINT MORNINGS TEST] Failed:`, err.message);
+    console.error(`[MINT MORNINGS TEST] Failed:`, err.message, err);
     return { success: false, error: err.message };
   }
 }
