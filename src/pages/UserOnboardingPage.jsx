@@ -144,8 +144,30 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }, 260);
   };
 
-  const handleContinue = () => {
+  const ensureOnboardingRecord = async () => {
+    if (existingOnboardingId) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${apiBase}/api/onboarding/save-employment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ employment_status: "not_provided", annual_income_currency: "ZAR" }),
+      });
+      const result = await res.json();
+      if (result.success && result.onboarding_id) {
+        setExistingOnboardingId(result.onboarding_id);
+      }
+    } catch (err) {
+      console.error("[Onboarding] Failed to ensure onboarding record:", err);
+    }
+  };
+
+  const handleContinue = async () => {
     if (step === 0) {
+      await ensureOnboardingRecord();
       if (kycAlreadyVerified) {
         goToStep(3);
       } else {

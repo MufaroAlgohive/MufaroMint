@@ -997,6 +997,20 @@ app.post("/api/sumsub/status", async (req, res) => {
             onboardingUpdate.kyc_verified_at = new Date().toISOString();
             await db.from("user_onboarding").update(onboardingUpdate).eq("id", existingOnboarding.id).eq("user_id", userId);
             console.log(`[Status] Updated user_onboarding for user ${userId}`);
+          } else {
+            onboardingUpdate.kyc_status = "verified";
+            onboardingUpdate.kyc_verified_at = new Date().toISOString();
+            const { error: insErr } = await db.from("user_onboarding").insert({
+              user_id: userId,
+              employment_status: "not_provided",
+              annual_income_currency: "ZAR",
+              ...onboardingUpdate,
+            });
+            if (insErr) {
+              console.error(`[Status] Failed to create user_onboarding for ${userId}:`, insErr.message);
+            } else {
+              console.log(`[Status] Created user_onboarding for verified user ${userId}`);
+            }
           }
 
           const { data: existingAction } = await db
@@ -1007,6 +1021,8 @@ app.post("/api/sumsub/status", async (req, res) => {
 
           if (existingAction) {
             await db.from("required_actions").update({ kyc_verified: true, kyc_pending: false, kyc_needs_resubmission: false }).eq("user_id", userId);
+          } else {
+            await db.from("required_actions").insert({ user_id: userId, kyc_verified: true, kyc_pending: false, kyc_needs_resubmission: false });
           }
         } catch (dbErr) {
           console.error(`[Status] Error updating onboarding for ${userId}:`, dbErr.message);
@@ -3587,16 +3603,37 @@ app.post("/api/onboarding/save-employment", async (req, res) => {
         return res.status(404).json({ success: false, error: "Onboarding record not found" });
       }
     } else {
-      const { data, error } = await db
+      const { data: existingRecord } = await db
         .from("user_onboarding")
-        .insert(payload)
         .select("id")
-        .single();
-      if (error) {
-        console.error("[Onboarding] Insert employment error:", error.message);
-        return res.status(500).json({ success: false, error: error.message });
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingRecord) {
+        const { error } = await db
+          .from("user_onboarding")
+          .update(payload)
+          .eq("id", existingRecord.id)
+          .eq("user_id", user.id);
+        if (error) {
+          console.error("[Onboarding] Update existing employment error:", error.message);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+        savedId = existingRecord.id;
+      } else {
+        const { data, error } = await db
+          .from("user_onboarding")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error) {
+          console.error("[Onboarding] Insert employment error:", error.message);
+          return res.status(500).json({ success: false, error: error.message });
+        }
+        savedId = data?.id;
       }
-      savedId = data?.id;
     }
 
     console.log(`[Onboarding] Employment saved for user ${user.id}, onboarding_id: ${savedId}`);
