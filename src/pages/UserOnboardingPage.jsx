@@ -963,7 +963,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               )}
             </div>
           ) : step === 3 ? (
-            <div className="w-full max-w-3xl mx-auto">
+            <div className="w-full max-w-3xl mx-auto bank-step-wrapper">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
                   <BankIcon width={48} height={48} />
@@ -975,7 +975,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   Bank Account Details
                 </h2>
                 <p className="text-sm mb-6" style={{ color: "hsl(270 20% 50%)" }}>
-                  Add the bank account you'll use with <span className="mint-brand">MINT</span>
+                  Link your South African bank account to <span className="mint-brand">MINT</span>
                 </p>
               </div>
 
@@ -988,133 +988,123 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 <div className="progress-step"></div>
               </div>
 
-              <div className="bank-details-card animate-fade-in delay-2">
-                <div className="bank-card-header">
-                  <div className="bank-card-header-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="20" height="20">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+              <div className="bank-section animate-fade-in delay-2">
+                <div className="bank-section-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
+                  </svg>
+                  Select Your Bank
+                </div>
+                <div className="custom-select" ref={bankDropdownRef}>
+                  <div
+                    className={`bank-select-trigger ${bankDropdownOpen ? "active" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setBankDropdownOpen((prev) => !prev)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setBankDropdownOpen((prev) => !prev);
+                      }
+                    }}
+                  >
+                    {bankName ? (
+                      <span className="bank-select-value">
+                        {selectedBankOption?.logo && (
+                          <img
+                            src={selectedBankOption.logo}
+                            alt=""
+                            className="bank-option-logo"
+                            onError={(e) => { e.target.style.display = "none"; }}
+                          />
+                        )}
+                        <span>{selectedBankOption?.label}</span>
+                      </span>
+                    ) : (
+                      <span className="bank-select-placeholder">Choose a bank</span>
+                    )}
+                    <svg className="bank-select-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                     </svg>
                   </div>
-                  <div>
-                    <div className="bank-card-header-title">Banking Information</div>
-                    <div className="bank-card-header-subtitle">We need your bank details for deposits and withdrawals</div>
-                  </div>
-                </div>
-
-                <div className="bank-fields-container">
-                  <div className="bank-field-group">
-                    <label htmlFor="bank-name">
-                      <span className="bank-field-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0 0 12 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75Z" />
-                        </svg>
-                      </span>
-                      Bank Name
-                    </label>
-                    <div className="custom-select" ref={bankDropdownRef}>
+                  <div className={`bank-dropdown-list ${bankDropdownOpen ? "active" : ""}`}>
+                    {southAfricanBanks.map((option) => (
                       <div
-                        className={`glass-field select-trigger ${bankDropdownOpen ? "active" : ""}`}
+                        key={option.value || "placeholder"}
+                        className={`bank-dropdown-option ${bankName === option.value ? "selected" : ""}`}
                         role="button"
                         tabIndex={0}
-                        onClick={() => setBankDropdownOpen((prev) => !prev)}
+                        onClick={() => handleBankSelect(option.value)}
                         onKeyDown={(event) => {
                           if (event.key === "Enter" || event.key === " ") {
                             event.preventDefault();
-                            setBankDropdownOpen((prev) => !prev);
+                            handleBankSelect(option.value);
                           }
                         }}
                       >
-                        <div className="selected-value" data-placeholder="Select your bank">
-                          {bankName ? (
-                            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              {selectedBankOption?.logo && (
-                                <img
-                                  src={selectedBankOption.logo}
-                                  alt=""
-                                  style={{ width: 22, height: 22, borderRadius: 6, objectFit: "contain", background: "white", padding: 2 }}
-                                  onError={(e) => { e.target.style.display = "none"; }}
-                                />
-                              )}
-                              {selectedBankOption?.label}
-                            </span>
-                          ) : ""}
-                        </div>
+                        {option.logo && (
+                          <img
+                            src={option.logo}
+                            alt=""
+                            className="bank-option-logo"
+                            onError={(e) => { e.target.style.display = "none"; }}
+                          />
+                        )}
+                        <span>{option.label}</span>
+                        {bankName === option.value && (
+                          <svg className="bank-option-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        )}
                       </div>
-                      <div className={`custom-dropdown ${bankDropdownOpen ? "active" : ""}`}>
-                        {southAfricanBanks.map((option) => (
-                          <div
-                            key={option.value || "placeholder"}
-                            className={`custom-option ${bankName === option.value ? "selected" : ""}`}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => handleBankSelect(option.value)}
-                            onKeyDown={(event) => {
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
-                                handleBankSelect(option.value);
-                              }
-                            }}
-                          >
-                            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              {option.logo && (
-                                <img
-                                  src={option.logo}
-                                  alt=""
-                                  style={{ width: 22, height: 22, borderRadius: 6, objectFit: "contain", background: "white", padding: 2 }}
-                                  onError={(e) => { e.target.style.display = "none"; }}
-                                />
-                              )}
-                              {option.label}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <input type="hidden" id="bank-name" name="bank-name" value={bankName} />
+                    ))}
+                  </div>
+                  <input type="hidden" id="bank-name" name="bank-name" value={bankName} />
+                </div>
+              </div>
+
+              <div className="bank-account-fields animate-fade-in delay-3 hide-when-dropdown-open">
+                <div className="bank-section-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="15" height="15">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
+                  </svg>
+                  Account Details
+                </div>
+                <div className="bank-inputs-card">
+                  <div className="bank-input-row">
+                    <label htmlFor="bank-account-number">Account Number</label>
+                    <div className="bank-input-field">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18" className="bank-input-icon">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
+                      </svg>
+                      <input
+                        type="text"
+                        id="bank-account-number"
+                        placeholder="Enter your account number"
+                        value={bankAccountNumber}
+                        onChange={(event) => setBankAccountNumber(event.target.value.replace(/\D/g, ""))}
+                        inputMode="numeric"
+                        autoComplete="off"
+                      />
                     </div>
                   </div>
-
-                  <div className="bank-field-row hide-when-dropdown-open">
-                    <div className="bank-field-group animate-fade-in delay-3">
-                      <label htmlFor="bank-account-number">
-                        <span className="bank-field-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5-3.9 19.5m-2.1-19.5-3.9 19.5" />
-                          </svg>
-                        </span>
-                        Account Number
-                      </label>
-                      <div className="glass-field">
-                        <input
-                          type="text"
-                          id="bank-account-number"
-                          placeholder="e.g. 1234567890"
-                          value={bankAccountNumber}
-                          onChange={(event) => setBankAccountNumber(event.target.value.replace(/\D/g, ""))}
-                          inputMode="numeric"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="bank-field-group animate-fade-in delay-3">
-                      <label htmlFor="bank-branch-code">
-                        <span className="bank-field-icon">
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="16" height="16">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-                          </svg>
-                        </span>
-                        Branch Code
-                      </label>
-                      <div className="glass-field">
-                        <input
-                          type="text"
-                          id="bank-branch-code"
-                          placeholder="e.g. 250655"
-                          value={bankBranchCode}
-                          onChange={(event) => setBankBranchCode(event.target.value.replace(/\D/g, ""))}
-                          inputMode="numeric"
-                        />
-                      </div>
+                  <div className="bank-input-divider"></div>
+                  <div className="bank-input-row">
+                    <label htmlFor="bank-branch-code">Branch Code</label>
+                    <div className="bank-input-field">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18" className="bank-input-icon">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                      </svg>
+                      <input
+                        type="text"
+                        id="bank-branch-code"
+                        placeholder="Enter your branch code"
+                        value={bankBranchCode}
+                        onChange={(event) => setBankBranchCode(event.target.value.replace(/\D/g, ""))}
+                        inputMode="numeric"
+                        autoComplete="off"
+                      />
                     </div>
                   </div>
                 </div>
