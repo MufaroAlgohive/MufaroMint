@@ -1031,6 +1031,7 @@ const App = () => {
         <MarketsPage
           onBack={goBack}
           initialViewMode={marketsInitialView}
+          onViewModeChange={(mode) => setMarketsInitialView(mode)}
           onOpenNotifications={() => {
             setNotificationReturnPage("markets");
             navigateTo("notifications");
@@ -1422,9 +1423,9 @@ const App = () => {
 
   if (currentPage === "actions") {
     return (
-      <SwipeBackWrapper onBack={() => navigateTo("home")} enabled={canSwipeBack} previousPage={previousPageComponent}>
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <ActionsPage
-          onBack={() => navigateTo("home")}
+          onBack={goBack}
           onNavigate={navigateTo}
         />
       </SwipeBackWrapper>
