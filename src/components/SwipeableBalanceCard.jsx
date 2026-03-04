@@ -64,6 +64,7 @@ const SwipeableBalanceCard = ({
 }) => {
   const [activeTab, setActiveTab] = useState("m");
   const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const { lastUpdated, isConnected } = useRealtimePrices();
   const settlementCfg = useSettlementConfig();
   const holdingSettlementStatus = getSettlementStatusForHolding(settlementCfg);
@@ -87,6 +88,21 @@ const SwipeableBalanceCard = ({
   useEffect(() => {
     if (!isBackFacing) setIsOpen(false);
   }, [isBackFacing]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
@@ -673,88 +689,89 @@ const SwipeableBalanceCard = ({
                 </div>
               )}
             </div>
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="mt-2 mb-1 flex items-center justify-between p-2 rounded-xl bg-slate-100 border border-slate-200"
-            >
-              <div className="flex items-center gap-2">
-                <LayoutGrid size={12} className="text-violet-400" />
-                <span className="text-[10px] font-medium text-slate-700">
-                  {selectedAsset ? selectedAsset.symbol : "All Investments"}
-                </span>
-              </div>
-              {isOpen ? (
-                <ChevronUp size={14} className="text-slate-500" />
-              ) : (
-                <ChevronDown size={14} className="text-slate-500" />
+            <div ref={dropdownRef} className="relative">
+              <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="mt-2 mb-1 flex items-center justify-between p-2 rounded-xl bg-slate-100 border border-slate-200 w-full"
+              >
+                <div className="flex items-center gap-2">
+                  <LayoutGrid size={12} className="text-violet-400" />
+                  <span className="text-[10px] font-medium text-slate-700">
+                    {selectedAsset ? selectedAsset.symbol : "All Investments"}
+                  </span>
+                </div>
+                {isOpen ? (
+                  <ChevronUp size={14} className="text-slate-500" />
+                ) : (
+                  <ChevronDown size={14} className="text-slate-500" />
+                )}
+              </button>
+              {isOpen && (
+                <div className="absolute bottom-full mb-1 right-0 w-full bg-white rounded-xl z-[120] overflow-hidden border border-slate-200 shadow-lg">
+                  <div className="py-1 overflow-y-auto max-h-[140px]">
+                    <button
+                      onClick={() => {
+                        setSelectedAsset(null);
+                        setIsOpen(false);
+                        scrollToHoldingIndex(-1);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${!selectedAsset ? "bg-slate-100" : "hover:bg-slate-50"}`}
+                    >
+                      <LayoutGrid size={10} className="text-violet-400 shrink-0" />
+                      <span className="text-[9px] font-medium text-slate-700 truncate">
+                        All Investments
+                      </span>
+                    </button>
+                    {dbData.holdings.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setSelectedAsset(item);
+                          setIsOpen(false);
+                          scrollToHoldingIndex(idx);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? "bg-slate-100" : "hover:bg-slate-50"}`}
+                      >
+                        <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-100 shrink-0">
+                          {item.isStrategy && item.topLogos?.length > 0 ? (
+                            <div className="flex -space-x-1 h-full items-center justify-center">
+                              {item.topLogos.slice(0, 2).map((logo, li) => (
+                                <img
+                                  key={li}
+                                  src={logo}
+                                  className="w-3 h-3 rounded-full object-cover border border-white/25"
+                                />
+                              ))}
+                            </div>
+                          ) : item.logo_url ? (
+                            <img
+                              src={item.logo_url}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="flex items-center justify-center w-full h-full text-[6px] text-slate-500">
+                              {item.symbol?.substring(0, 2)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[9px] font-medium text-slate-700 truncate">
+                          {item.symbol}
+                        </span>
+                        {(() => {
+                          const s = item.settlement_status || holdingSettlementStatus;
+                          return s && s !== "confirmed" ? (
+                            <SettlementBadge status={s} size="xs" />
+                          ) : null;
+                        })()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
       </div>
-
-      {isOpen && (
-        <div className="absolute bottom-0 right-0 w-[55%] max-h-[70%] bg-white rounded-xl z-[120] overflow-hidden border border-slate-200 shadow-lg">
-          <div className="py-1 overflow-y-auto max-h-[140px]">
-            <button
-              onClick={() => {
-                setSelectedAsset(null);
-                setIsOpen(false);
-                scrollToHoldingIndex(-1);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${!selectedAsset ? "bg-slate-100" : "hover:bg-slate-50"}`}
-            >
-              <LayoutGrid size={10} className="text-violet-400 shrink-0" />
-              <span className="text-[9px] font-medium text-slate-700 truncate">
-                All Investments
-              </span>
-            </button>
-            {dbData.holdings.map((item, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setSelectedAsset(item);
-                  setIsOpen(false);
-                  scrollToHoldingIndex(idx);
-                }}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? "bg-slate-100" : "hover:bg-slate-50"}`}
-              >
-                <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-100 shrink-0">
-                  {item.isStrategy && item.topLogos?.length > 0 ? (
-                    <div className="flex -space-x-1 h-full items-center justify-center">
-                      {item.topLogos.slice(0, 2).map((logo, li) => (
-                        <img
-                          key={li}
-                          src={logo}
-                          className="w-3 h-3 rounded-full object-cover border border-white/25"
-                        />
-                      ))}
-                    </div>
-                  ) : item.logo_url ? (
-                    <img
-                      src={item.logo_url}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex items-center justify-center w-full h-full text-[6px] text-slate-500">
-                      {item.symbol?.substring(0, 2)}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[9px] font-medium text-slate-700 truncate">
-                  {item.symbol}
-                </span>
-                {(() => {
-                  const s = item.settlement_status || holdingSettlementStatus;
-                  return s && s !== "confirmed" ? (
-                    <SettlementBadge status={s} size="xs" />
-                  ) : null;
-                })()}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
