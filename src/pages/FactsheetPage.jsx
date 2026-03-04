@@ -3,7 +3,7 @@ import { ArrowLeft, X, Info, Heart, Wallet } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 import { formatChangePct, getChangeColor } from "../lib/strategyData.js";
-import { buildHoldingsBySymbol, calculateMinInvestment } from "../lib/strategyUtils";
+import { buildHoldingsBySymbol, calculateMinInvestment, getAdjustedShares } from "../lib/strategyUtils";
 import {
   Area,
   Line,
@@ -1004,7 +1004,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
               const holdingsWithLogos = (currentStrategy.holdings || []).map(h => {
                 const sym = h.ticker || h.symbol || h;
                 const sec = holdingsSecurities.find(s => s.symbol === sym);
-                return { ...h, logo_url: sec?.logo_url || null };
+                return { ...h, logo_url: sec?.logo_url || null, shares: getAdjustedShares(h, hMap) };
               });
               onOpenInvest?.({ ...currentStrategy, calculatedMinInvestment: calcMin, holdingsWithLogos });
             } catch (e) {
