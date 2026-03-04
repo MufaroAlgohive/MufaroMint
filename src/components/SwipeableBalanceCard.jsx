@@ -11,6 +11,7 @@ import {
   Area,
   ComposedChart,
   Line,
+  ReferenceLine,
   ResponsiveContainer,
   YAxis,
   Tooltip,
@@ -382,6 +383,46 @@ const SwipeableBalanceCard = ({
       : "0.0";
   const chartColor = isLoss ? "#FB7185" : "#10B981";
 
+  const chartAxisConfig = useMemo(() => {
+    if (!chartData || chartData.length === 0) return { domain: [-10, 10], ticks: [-10, 0, 10] };
+    const values = chartData.map((p) => p.v);
+    let dataMin = Math.min(...values);
+    let dataMax = Math.max(...values);
+
+    if (Math.abs(dataMax - dataMin) < 1) {
+      dataMin = Math.min(dataMin, -5);
+      dataMax = Math.max(dataMax, 5);
+    }
+
+    const range = dataMax - dataMin;
+    const padding = range * 0.15;
+
+    let axisMin, axisMax;
+    if (dataMin >= 0) {
+      axisMin = 0;
+      axisMax = dataMax + padding;
+    } else if (dataMax <= 0) {
+      axisMin = dataMin - padding;
+      axisMax = 0;
+    } else {
+      axisMin = dataMin - padding;
+      axisMax = dataMax + padding;
+    }
+
+    const ticks = [0];
+    if (axisMax > 0.5) {
+      ticks.push(Math.round(axisMax / 2));
+      ticks.push(Math.round(axisMax));
+    }
+    if (axisMin < -0.5) {
+      ticks.push(-Math.round(Math.abs(axisMin) / 2));
+      ticks.push(-Math.round(Math.abs(axisMin)));
+    }
+
+    const unique = [...new Set(ticks)].filter((t) => !(Object.is(t, -0))).sort((a, b) => a - b);
+    return { domain: [axisMin, axisMax], ticks: unique.length >= 2 ? unique : [-5, 0, 5] };
+  }, [chartData]);
+
   const masked = "••••";
 
   if (loading && userId)
@@ -548,22 +589,12 @@ const SwipeableBalanceCard = ({
                     margin={{ top: 2, right: 0, left: -12, bottom: 0 }}
                   >
                     <YAxis
-                      domain={[
-                        (dataMin) => {
-                          const min = Math.min(0, dataMin);
-                          const max = Math.max(0, Math.abs(dataMin));
-                          return max < 1 ? -10 : min;
-                        },
-                        (dataMax) => {
-                          const val = Math.max(0, dataMax);
-                          return val < 1 ? 10 : val;
-                        },
-                      ]}
+                      domain={chartAxisConfig.domain}
+                      ticks={chartAxisConfig.ticks}
                       tickFormatter={formatYAxis}
                       tick={{ fontSize: 8, fill: "#94a3b8" }}
                       axisLine={false}
                       tickLine={false}
-                      tickCount={4}
                       width={42}
                     />
                     <Tooltip
@@ -578,6 +609,12 @@ const SwipeableBalanceCard = ({
                           </div>
                         );
                       }}
+                    />
+                    <ReferenceLine
+                      y={0}
+                      stroke="#cbd5e1"
+                      strokeDasharray="3 3"
+                      strokeWidth={1}
                     />
                     <Area
                       type="monotone"
