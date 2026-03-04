@@ -247,14 +247,16 @@ const SwipeableBalanceCard = ({
           tf,
         );
         if (priceHistory && priceHistory.length > 0) {
-          const firstNav = priceHistory[0].nav;
-          if (firstNav > 0) {
+          const latestNav = priceHistory[priceHistory.length - 1].nav;
+          const currentMarketValue = Number(selectedAsset.market_value || 0) / 100;
+          const costBasis = (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 1)) / 100;
+          if (latestNav > 0) {
             const points = priceHistory.map((p) => {
-              const change = (p.nav / firstNav - 1);
-              const investedValue = Number(selectedAsset.avg_fill || 0) / 100;
+              const valueAtDate = currentMarketValue * (p.nav / latestNav);
+              const pnl = valueAtDate - costBasis;
               return {
                 d: p.ts,
-                v: Number((investedValue * change).toFixed(2)),
+                v: Number(pnl.toFixed(2)),
               };
             });
             setChartData(points);
@@ -303,6 +305,7 @@ const SwipeableBalanceCard = ({
         return {
           securityId: h.security_id,
           quantity: Number(h.quantity || 1),
+          avgFill: Number(h.avg_fill || 0) / 100,
           prices: data.map((p) => ({
             ts: p.ts.split("T")[0],
             close: Number(p.close_price) / 100,
@@ -346,29 +349,21 @@ const SwipeableBalanceCard = ({
         }
       });
 
-      const baselinePrices = {};
-      allPriceData.forEach(({ securityId, prices }) => {
-        if (prices.length > 0) {
-          baselinePrices[securityId] = prices[0].close;
-        }
-      });
-
       const points = [];
       for (const dateKey of sortedDates) {
-        let totalGain = 0;
+        let totalPnl = 0;
         let hasData = false;
 
-        for (const { securityId, quantity } of allPriceData) {
+        for (const { securityId, quantity, avgFill } of allPriceData) {
           const price = filledPriceByDate[securityId]?.[dateKey];
-          const baseline = baselinePrices[securityId];
-          if (price && baseline) {
-            totalGain += quantity * (price - baseline);
+          if (price && avgFill > 0) {
+            totalPnl += quantity * (price - avgFill);
             hasData = true;
           }
         }
 
         if (hasData) {
-          points.push({ d: dateKey, v: Number(totalGain.toFixed(2)) });
+          points.push({ d: dateKey, v: Number(totalPnl.toFixed(2)) });
         }
       }
 
