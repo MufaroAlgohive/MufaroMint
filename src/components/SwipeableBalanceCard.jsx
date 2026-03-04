@@ -252,10 +252,10 @@ const SwipeableBalanceCard = ({
           const costBasis = (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 1)) / 100;
           if (latestNav > 0) {
             const points = [];
-            const stratFillDate = (selectedAsset.created_at || selectedAsset.as_of_date || "").split("T")[0];
-            if (stratFillDate && stratFillDate < priceHistory[0].ts) {
-              points.push({ d: stratFillDate, v: 0 });
-            }
+            const firstTs = priceHistory[0].ts.split("T")[0];
+            const anchorDate = new Date(firstTs);
+            anchorDate.setDate(anchorDate.getDate() - 1);
+            points.push({ d: anchorDate.toISOString().split("T")[0], v: 0 });
             priceHistory.forEach((p) => {
               const valueAtDate = currentMarketValue * (p.nav / latestNav);
               const pnl = valueAtDate - costBasis;
@@ -357,12 +357,10 @@ const SwipeableBalanceCard = ({
 
       const points = [];
 
-      const earliestFill = allPriceData
-        .map((d) => d.fillDate)
-        .filter(Boolean)
-        .sort()[0];
-      if (earliestFill && (!sortedDates.length || earliestFill < sortedDates[0])) {
-        points.push({ d: earliestFill, v: 0 });
+      if (sortedDates.length > 0) {
+        const anchorDate = new Date(sortedDates[0]);
+        anchorDate.setDate(anchorDate.getDate() - 1);
+        points.push({ d: anchorDate.toISOString().split("T")[0], v: 0 });
       }
 
       for (const dateKey of sortedDates) {
