@@ -251,13 +251,18 @@ const SwipeableBalanceCard = ({
           const currentMarketValue = Number(selectedAsset.market_value || 0) / 100;
           const costBasis = (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 1)) / 100;
           if (latestNav > 0) {
-            const points = priceHistory.map((p) => {
+            const points = [];
+            const stratFillDate = (selectedAsset.created_at || selectedAsset.as_of_date || "").split("T")[0];
+            if (stratFillDate && stratFillDate < priceHistory[0].ts) {
+              points.push({ d: stratFillDate, v: 0 });
+            }
+            priceHistory.forEach((p) => {
               const valueAtDate = currentMarketValue * (p.nav / latestNav);
               const pnl = valueAtDate - costBasis;
-              return {
+              points.push({
                 d: p.ts,
                 v: Number(pnl.toFixed(2)),
-              };
+              });
             });
             setChartData(points);
           } else {
@@ -306,6 +311,7 @@ const SwipeableBalanceCard = ({
           securityId: h.security_id,
           quantity: Number(h.quantity || 1),
           avgFill: Number(h.avg_fill || 0) / 100,
+          fillDate: (h.created_at || h.as_of_date || "").split("T")[0],
           prices: data.map((p) => ({
             ts: p.ts.split("T")[0],
             close: Number(p.close_price) / 100,
@@ -350,6 +356,15 @@ const SwipeableBalanceCard = ({
       });
 
       const points = [];
+
+      const earliestFill = allPriceData
+        .map((d) => d.fillDate)
+        .filter(Boolean)
+        .sort()[0];
+      if (earliestFill && (!sortedDates.length || earliestFill < sortedDates[0])) {
+        points.push({ d: earliestFill, v: 0 });
+      }
+
       for (const dateKey of sortedDates) {
         let totalPnl = 0;
         let hasData = false;
