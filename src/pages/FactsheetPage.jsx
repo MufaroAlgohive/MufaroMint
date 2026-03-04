@@ -840,7 +840,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
           <h2 className="text-sm font-semibold text-slate-900">Fees & Disclaimers</h2>
           <ul className="mt-3 space-y-2 text-xs text-slate-600">
             <li>• Management fee: 0% per annum</li>
-            <li>• Performance fee: 20% of profits (if applicable)</li>
+            <li>• Performance fee: 20% of profits</li>
             <li>• Past performance does not guarantee future results</li>
             <li>• All data is for informational purposes only</li>
           </ul>
