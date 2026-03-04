@@ -13,6 +13,7 @@ import {
   Line,
   ResponsiveContainer,
   YAxis,
+  Tooltip,
 } from "recharts";
 import { supabase } from "../lib/supabase";
 import { getStrategyPriceHistory } from "../lib/strategyData";
@@ -42,7 +43,16 @@ const formatKMB = (value) => {
   return `${sign}R${formatted}`;
 };
 
-const TIMEFRAME_DAYS = { d: null, "1m": 30, "3m": 90, "6m": 180 };
+const TIMEFRAME_DAYS = { d: 7, "1m": 30, "3m": 90, "6m": 180 };
+
+const formatYAxis = (value) => {
+  const num = Number(value);
+  const sign = num < 0 ? "-" : "";
+  const abs = Math.abs(num);
+  if (abs >= 1e6) return `${sign}R${(abs / 1e6).toFixed(1)}m`;
+  if (abs >= 1e3) return `${sign}R${(abs / 1e3).toFixed(0)}k`;
+  return `${sign}R${abs.toFixed(0)}`;
+};
 
 const SwipeableBalanceCard = ({
   userId,
@@ -224,7 +234,7 @@ const SwipeableBalanceCard = ({
       const holdingsToChart = selectedAsset ? [selectedAsset] : dbData.holdings;
 
       if (selectedAsset?.isStrategy && selectedAsset?.strategyId) {
-        const timeframeMap = { d: "ALL", "1m": "1M", "3m": "3M", "6m": "6M" };
+        const timeframeMap = { d: "1W", "1m": "1M", "3m": "3M", "6m": "6M" };
         const tf = timeframeMap[activeTab] || "1M";
         const priceHistory = await getStrategyPriceHistory(
           selectedAsset.strategyId,
@@ -258,31 +268,10 @@ const SwipeableBalanceCard = ({
         return;
       }
 
-      const fillDates = stockHoldings
-        .map((h) => (h.created_at || h.as_of_date || "").split("T")[0])
-        .filter(Boolean);
-      const earliestFillDate =
-        fillDates.length > 0 ? fillDates.sort()[0] : null;
-
-      let startDateStr;
-      const days = TIMEFRAME_DAYS[activeTab];
-      if (days === null) {
-        startDateStr = earliestFillDate;
-      } else {
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - days);
-        const cutoffStr = cutoff.toISOString().split("T")[0];
-        startDateStr =
-          earliestFillDate && cutoffStr > earliestFillDate
-            ? cutoffStr
-            : earliestFillDate || cutoffStr;
-      }
-
-      if (!startDateStr) {
-        const fallback = new Date();
-        fallback.setDate(fallback.getDate() - 30);
-        startDateStr = fallback.toISOString().split("T")[0];
-      }
+      const days = TIMEFRAME_DAYS[activeTab] || 30;
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const startDateStr = cutoff.toISOString().split("T")[0];
 
       const pricePromises = stockHoldings.map(async (h) => {
         const { data, error } = await supabase
@@ -544,8 +533,32 @@ const SwipeableBalanceCard = ({
             <div className="flex-1 min-h-0">
               {chartData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={chartData}>
-                    <YAxis hide domain={["auto", "auto"]} />
+                  <ComposedChart
+                    data={chartData}
+                    margin={{ top: 2, right: 0, left: -12, bottom: 0 }}
+                  >
+                    <YAxis
+                      domain={["auto", "auto"]}
+                      tickFormatter={formatYAxis}
+                      tick={{ fontSize: 8, fill: "#94a3b8" }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickCount={4}
+                      width={42}
+                    />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (!active || !payload?.length) return null;
+                        return (
+                          <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-2 py-1 shadow-md">
+                            <p className="text-[9px] text-slate-500">{payload[0]?.payload?.d}</p>
+                            <p className="text-[10px] font-semibold text-slate-800">
+                              {formatKMB(payload[0]?.value)}
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
                     <Area
                       type="monotone"
                       dataKey="v"
