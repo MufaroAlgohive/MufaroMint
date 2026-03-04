@@ -15,6 +15,8 @@ import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySym
 
 const sortOptions = ["Market Cap", "Dividend Yield", "P/E Ratio"];
 
+const MIN_ASSET_VALUE_DISPLAY = 1000;
+
 const strategySortOptions = [
   "Recommended",
   "Best performance",
@@ -1817,22 +1819,28 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
               </div>
 
               <div className="flex items-center gap-3 mb-6">
-                {selectedStrategy.last_close !== null && selectedStrategy.last_close !== undefined ? (
-                  <>
-                    <p className="text-2xl font-semibold text-slate-900">
-                      {formatCurrency(selectedStrategy.last_close, selectedStrategy.currency || 'R')}
-                    </p>
-                    {selectedStrategy.change_pct !== null && selectedStrategy.change_pct !== undefined && (
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        selectedStrategy.change_pct >= 0 
-                          ? 'bg-emerald-50 text-emerald-600' 
-                          : 'bg-red-50 text-red-600'
-                      }`}>
-                        {formatChangePct(selectedStrategy.change_pct)} today
+                {(() => {
+                  const minInvest = calculateMinInvestment(selectedStrategy, holdingsBySymbol);
+                  return minInvest ? (
+                    <>
+                      <p className="text-2xl font-semibold text-slate-900">
+                        {formatCurrency(minInvest, selectedStrategy.currency || 'R')}
+                      </p>
+                      <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-500">
+                        Min. investment
                       </span>
-                    )}
-                  </>
-                ) : null}
+                    </>
+                  ) : selectedStrategy.last_close !== null && selectedStrategy.last_close !== undefined ? (
+                    <>
+                      <p className="text-2xl font-semibold text-slate-900">
+                        {formatCurrency(Math.max(selectedStrategy.last_close, MIN_ASSET_VALUE_DISPLAY), selectedStrategy.currency || 'R')}
+                      </p>
+                      <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-500">
+                        Min. investment
+                      </span>
+                    </>
+                  ) : null;
+                })()}
               </div>
 
               <div className="mb-5">

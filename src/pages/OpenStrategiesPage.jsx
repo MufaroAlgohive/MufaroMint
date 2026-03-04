@@ -941,24 +941,35 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
               </div>
 
               <div className="flex items-center gap-3">
-                {selectedStrategy.last_close !== null && selectedStrategy.last_close !== undefined ? (
-                  <>
-                    <p className="text-2xl font-semibold text-slate-900">
-                      {formatCurrency(selectedStrategy.last_close, selectedStrategy.currency || 'R')}
-                    </p>
-                    {selectedStrategy.change_pct !== null && selectedStrategy.change_pct !== undefined && (
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        selectedStrategy.change_pct >= 0 
-                          ? 'bg-emerald-50 text-emerald-600' 
-                          : 'bg-red-50 text-red-600'
-                      }`}>
-                        {formatChangePct(selectedStrategy.change_pct)} today
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-slate-500">Price data updating...</p>
-                )}
+                {(() => {
+                  const minInvest = calculateMinInvestment(selectedStrategy, holdingsBySymbol);
+                  if (minInvest) {
+                    return (
+                      <>
+                        <p className="text-2xl font-semibold text-slate-900">
+                          {formatCurrency(minInvest, selectedStrategy.currency || 'R')}
+                        </p>
+                        <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-500">
+                          Min. investment
+                        </span>
+                      </>
+                    );
+                  }
+                  if (selectedStrategy.last_close !== null && selectedStrategy.last_close !== undefined) {
+                    const displayPrice = Math.max(selectedStrategy.last_close, 1000);
+                    return (
+                      <>
+                        <p className="text-2xl font-semibold text-slate-900">
+                          {formatCurrency(displayPrice, selectedStrategy.currency || 'R')}
+                        </p>
+                        <span className="rounded-full px-2.5 py-1 text-xs font-semibold bg-slate-100 text-slate-500">
+                          Min. investment
+                        </span>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
 
               <div className="flex flex-wrap gap-2">
