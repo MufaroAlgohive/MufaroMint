@@ -889,7 +889,9 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-900">Fees & Disclaimers</h2>
           <ul className="mt-3 space-y-2 text-xs text-slate-600">
-            <li>• Management fee: {currentStrategy.management_fee_bps != null ? `${(Number(currentStrategy.management_fee_bps) / 100).toFixed(2)}%` : '0.00%'} per annum</li>
+            <li>• Brokerage fee: 0.25% of investment amount</li>
+            <li>• Custody fee (ISIN): R62.00 per asset</li>
+            <li>• Transaction fee (Paystack): 2.9% of total</li>
             <li>• Past performance does not guarantee future results</li>
             <li>• All data is for informational purposes only</li>
           </ul>

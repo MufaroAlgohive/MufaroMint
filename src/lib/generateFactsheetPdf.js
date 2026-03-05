@@ -390,19 +390,24 @@ export default function generateFactsheetPdf({
   doc.text("Fees", detailLabelX, ry);
   ry += 5;
 
-  const mgmtFee = strategy?.management_fee_bps != null
-    ? `${(Number(strategy.management_fee_bps) / 100).toFixed(2)}% p.a.`
-    : "0.00% p.a.";
+  const feeItems = [
+    ["Brokerage Fee:", "0.25%"],
+    ["Custody Fee (ISIN):", "R62 / asset"],
+    ["Transaction Fee:", "2.9%"],
+  ];
 
-  doc.setFontSize(6.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...GRAY);
-  doc.text("Management Fee:", detailLabelX, ry);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...DARK);
-  doc.text(mgmtFee, detailValX, ry, { align: "right" });
+  feeItems.forEach(([label, value]) => {
+    doc.setFontSize(6.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...GRAY);
+    doc.text(label, detailLabelX, ry);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...DARK);
+    doc.text(value, detailValX, ry, { align: "right" });
+    ry += 5;
+  });
 
-  ry = 34 + 82 + 6;
+  ry = 34 + 82 + 16;
 
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
