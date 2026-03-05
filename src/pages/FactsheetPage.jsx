@@ -317,14 +317,14 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
   }, [availableCalendarYears]);
 
   const minimumInvestmentAmount = useMemo(() => {
-    const strategyMin = Number(currentStrategy?.min_investment);
-    if (Number.isFinite(strategyMin) && strategyMin > 0) {
-      return strategyMin;
-    }
-
     const holdingsMap = buildHoldingsBySymbol(holdingsSecurities);
     const calculated = Number(calculateMinInvestment(currentStrategy, holdingsMap));
-    return Number.isFinite(calculated) && calculated > 0 ? calculated : null;
+    if (Number.isFinite(calculated) && calculated > 0) {
+      return calculated;
+    }
+
+    const strategyMin = Number(currentStrategy?.min_investment);
+    return Number.isFinite(strategyMin) && strategyMin > 0 ? strategyMin : null;
   }, [currentStrategy, holdingsSecurities]);
 
   const cashHoldingAmount = useMemo(() => {
