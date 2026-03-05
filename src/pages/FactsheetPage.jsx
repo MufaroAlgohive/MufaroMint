@@ -456,7 +456,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
                     userPosition,
                   });
                 } catch (e) {
-                  console.error("PDF generation error:", e);
+                  console.error("PDF generation error:", e?.message || e?.toString?.() || e, e?.stack);
                 } finally {
                   setPdfGenerating(false);
                 }

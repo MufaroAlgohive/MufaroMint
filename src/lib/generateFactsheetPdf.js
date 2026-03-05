@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { applyPlugin } from "jspdf-autotable";
+applyPlugin(jsPDF);
 
 const PURPLE = [91, 33, 182];
 const DARK = [18, 21, 38];
@@ -146,7 +147,9 @@ export default function generateFactsheetPdf({
   holdingsSecurities,
   userPosition,
 }) {
+  console.log("[PDF] Starting generation...", { strategyName: strategy?.name, hasAnalytics: !!analytics });
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  console.log("[PDF] jsPDF instance created");
 
   const name = strategy?.name || "Strategy";
   const now = new Date();
@@ -225,8 +228,10 @@ export default function generateFactsheetPdf({
   );
   const chartData = longestKey ? curves[longestKey] : [];
 
+  console.log("[PDF] Drawing chart, key:", longestKey, "points:", chartData.length);
   drawChart(doc, chartData, ML, ly, LEFT_W, 52, longestKey ? `${longestKey} Performance` : "");
   ly += 56;
+  console.log("[PDF] Chart done, ly:", ly);
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
@@ -259,6 +264,7 @@ export default function generateFactsheetPdf({
   returnRows.push(["YTD", fmtPct(ytdVal)]);
   returnRows.push(["All-time", latestValue != null ? fmtPct(latestValue) : "N/A"]);
 
+  console.log("[PDF] Return rows:", returnRows);
   doc.autoTable({
     startY: ly,
     margin: { left: ML, right: PAGE_W - ML - LEFT_W },
@@ -336,6 +342,7 @@ export default function generateFactsheetPdf({
     tableWidth: 65,
   });
 
+  console.log("[PDF] Left column done, starting right column");
   let ry = 34;
 
   doc.setFillColor(...LIGHT_BG);
@@ -513,5 +520,22 @@ export default function generateFactsheetPdf({
   doc.text("Past performance does not guarantee future results. All data is for informational purposes only.", ML, footerY + 3);
 
   const fileName = `${name.replace(/[^a-zA-Z0-9]/g, "_")}_Factsheet_${now.toISOString().split("T")[0]}.pdf`;
-  doc.save(fileName);
+
+  try {
+    const pdfBlob = doc.output("blob");
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = fileName;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }, 500);
+  } catch (saveErr) {
+    console.error("PDF save fallback:", saveErr);
+    doc.save(fileName);
+  }
 }
