@@ -530,18 +530,9 @@ export default function generateFactsheetPdf({
   try {
     const pdfBlob = doc.output("blob");
     const blobUrl = URL.createObjectURL(pdfBlob);
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = fileName;
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-    }, 500);
+    window.open(blobUrl, "_blank");
   } catch (saveErr) {
-    console.error("PDF save fallback:", saveErr);
+    console.error("PDF open fallback:", saveErr);
     doc.save(fileName);
   }
 }
