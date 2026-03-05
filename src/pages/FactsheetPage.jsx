@@ -209,7 +209,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, name, logo_url, last_price, change_percent, sector")
+          .select("symbol, name, logo_url, last_price, change_percent, sector, isin")
           .in("symbol", tickers);
 
         if (error) throw error;
