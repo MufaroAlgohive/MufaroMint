@@ -146,6 +146,9 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [bankName, setBankName] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [bankBranchCode, setBankBranchCode] = useState("");
+  const [identityNumber, setIdentityNumber] = useState("");
+  const [identityCheckLoading, setIdentityCheckLoading] = useState(false);
+  const [identityCheckError, setIdentityCheckError] = useState("");
   const [bankDropdownOpen, setBankDropdownOpen] = useState(false);
   const bankDropdownRef = useRef(null);
   const [kycAlreadyVerified, setKycAlreadyVerified] = useState(false);
@@ -207,12 +210,62 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
   const handleContinue = async () => {
     if (step === 0) {
+      goToStep(1);
+    }
+  };
+
+  const handleIdentityCheckContinue = async () => {
+    setIdentityCheckError("");
+
+    const cleanIdNumber = identityNumber.replace(/\D/g, "");
+    if (!/^\d{13}$/.test(cleanIdNumber)) {
+      setIdentityCheckError("Please enter a valid 13-digit ID number.");
+      return;
+    }
+
+    if (!supabase) {
+      setIdentityCheckError("Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+      return;
+    }
+
+    setIdentityCheckLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setIdentityCheckError("You must be signed in to continue.");
+        return;
+      }
+
+      const res = await fetch("/api/onboarding/check-id-number", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id_number: cleanIdNumber }),
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Failed to verify ID number.");
+      }
+
+      if (result.exists) {
+        setIdentityCheckError("ID already exists");
+        return;
+      }
+
       await ensureOnboardingRecord();
       if (kycAlreadyVerified) {
         goToStep(3);
       } else {
         goToStep(2);
       }
+    } catch (err) {
+      setIdentityCheckError(err?.message || "Failed to verify ID number.");
+    } finally {
+      setIdentityCheckLoading(false);
     }
   };
 
@@ -227,11 +280,13 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       goToStep(3);
     } else if (step === 3) {
       if (kycAlreadyVerified) {
-        goToStep(0);
+        goToStep(1);
       } else {
         goToStep(2);
       }
     } else if (step === 2) {
+      goToStep(1);
+    } else if (step === 1) {
       goToStep(0);
     } else if (onBack) {
       onBack();
@@ -394,7 +449,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     if (step !== 2) {
       setShowProceed(false);
     }
-    if (step !== 5) {
+    if (step !== 7) {
       setAgreedTerms(false);
       setAgreedPrivacy(false);
     }
@@ -570,14 +625,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="steps-container animate-fade-in delay-2">
-                <div className={`step-circle ${kycAlreadyVerified ? 'step-circle-complete' : ''}`}>
-                  {kycAlreadyVerified ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                  ) : '1'}
-                </div>
-                <div className={`step-line ${kycAlreadyVerified ? 'step-line-complete' : ''}`}></div>
+                <div className="step-circle">1</div>
+                <div className="step-line"></div>
                 <div className="step-circle">2</div>
                 <div className="step-line"></div>
                 <div className="step-circle">3</div>
@@ -587,16 +636,28 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 <div className="step-circle">5</div>
                 <div className="step-line"></div>
                 <div className="step-circle">6</div>
+                <div className="step-line"></div>
+                <div className="step-circle">7</div>
               </div>
 
               <div className="step-info animate-fade-in delay-3">
+                <div className="step-item">
+                  <div className="step-number">1</div>
+                  <div className="step-content">
+                    <div className="step-title">Identity Check</div>
+                    <div className="step-description">
+                      Confirm your ID number is unique in our records
+                    </div>
+                  </div>
+                </div>
+
                 <div className={`step-item ${kycAlreadyVerified ? 'step-item-complete' : ''}`}>
                   <div className={`step-number ${kycAlreadyVerified ? 'step-number-complete' : ''}`}>
                     {kycAlreadyVerified ? (
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                       </svg>
-                    ) : '1'}
+                    ) : '2'}
                   </div>
                   <div className="step-content">
                     <div className="step-title">
@@ -612,7 +673,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
 
                 <div className="step-item">
-                  <div className="step-number">2</div>
+                  <div className="step-number">3</div>
                   <div className="step-content">
                     <div className="step-title">Bank Account</div>
                     <div className="step-description">
@@ -622,7 +683,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
 
                 <div className="step-item">
-                  <div className="step-number">3</div>
+                  <div className="step-number">4</div>
                   <div className="step-content">
                     <div className="step-title">Discretionary Mandate</div>
                     <div className="step-description">
@@ -632,7 +693,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
 
                 <div className="step-item">
-                  <div className="step-number">4</div>
+                  <div className="step-number">5</div>
                   <div className="step-content">
                     <div className="step-title">Risk Disclosure</div>
                     <div className="step-description">
@@ -642,7 +703,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
 
                 <div className="step-item">
-                  <div className="step-number">5</div>
+                  <div className="step-number">6</div>
                   <div className="step-content">
                     <div className="step-title">Source of Funds</div>
                     <div className="step-description">
@@ -652,7 +713,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
 
                 <div className="step-item">
-                  <div className="step-number">6</div>
+                  <div className="step-number">7</div>
                   <div className="step-content">
                     <div className="step-title">Agreements</div>
                     <div className="step-description">
@@ -674,7 +735,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  You'll be taken through our six-step process
+                  You'll be taken through our seven-step process
                 </p>
               </div>
             </div>
@@ -685,219 +746,51 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   className="text-xs uppercase tracking-[0.2em] mb-2"
                   style={{ color: "hsl(270 20% 55%)" }}
                 >
-                  Step 1 of 6
+                  Step 1 of 7
                 </p>
                 <h2
                   className="text-3xl font-light tracking-tight mb-2"
                   style={{ color: "hsl(270 30% 25%)" }}
                 >
-                  Employment details
+                  Identity Check
                 </h2>
                 <p className="text-sm" style={{ color: "hsl(270 20% 50%)" }}>
-                  Help us understand your <span className="mint-brand">MINT</span> profile
+                  Enter your South African ID number before continuing
                 </p>
               </div>
 
               <div className="space-y-5">
                 <div className="animate-fade-in delay-2">
-                  <label htmlFor="employment-status">Employment Status</label>
-                  <div className="custom-select" ref={dropdownRef}>
-                    <div
-                      className={`glass-field select-trigger ${
-                        isDropdownOpen ? "active" : ""
-                      }`}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setIsDropdownOpen((prev) => !prev)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setIsDropdownOpen((prev) => !prev);
-                        }
-                      }}
-                    >
-                      <div
-                        className="selected-value"
-                        data-placeholder="Select your status"
-                      >
-                        {employmentStatus ? selectedOption?.label : ""}
-                      </div>
-                    </div>
-                    <div className={`custom-dropdown ${isDropdownOpen ? "active" : ""}`}>
-                      {employmentOptions.map((option) => (
-                        <div
-                          key={option.value || "placeholder"}
-                          className={`custom-option ${
-                            employmentStatus === option.value ? "selected" : ""
-                          }`}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => handleSelect(option.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              handleSelect(option.value);
-                            }
-                          }}
-                        >
-                          {option.label}
-                        </div>
-                      ))}
-                    </div>
+                  <label htmlFor="identity-number">ID Number</label>
+                  <div className="glass-field">
                     <input
-                      type="hidden"
-                      id="employment-status"
-                      name="employment-status"
-                      value={employmentStatus}
+                      type="text"
+                      id="identity-number"
+                      placeholder="Enter your 13-digit ID number"
+                      value={identityNumber}
+                      onChange={(event) => setIdentityNumber(event.target.value.replace(/\D/g, "").slice(0, 13))}
+                      inputMode="numeric"
+                      autoComplete="off"
                     />
                   </div>
                 </div>
 
-                <div
-                  className={`conditional-section space-y-4 hide-when-dropdown-open ${
-                    showEmployedSection ? "active" : ""
-                  }`}
-                >
-                  <div className="grid-2">
-                    <div>
-                      <label htmlFor="employer-name">Employer Name</label>
-                      <div className="glass-field">
-                        <input
-                          type="text"
-                          id="employer-name"
-                          placeholder="Company name"
-                          value={employerName}
-                          onChange={(event) => setEmployerName(event.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="employer-industry">Industry</label>
-                      <div className="glass-field">
-                        <select
-                          id="employer-industry"
-                          value={employerIndustry}
-                          onChange={(event) => setEmployerIndustry(event.target.value)}
-                        >
-                          <option value="">Select industry</option>
-                          <option value="technology">Technology</option>
-                          <option value="finance">Finance</option>
-                          <option value="healthcare">Healthcare</option>
-                          <option value="education">Education</option>
-                          <option value="retail">Retail</option>
-                          <option value="manufacturing">Manufacturing</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="employment-type">Employment Type</label>
-                    <div className="glass-field">
-                      <select
-                        id="employment-type"
-                        value={employmentType}
-                        onChange={(event) => setEmploymentType(event.target.value)}
-                      >
-                        <option value="">Select type</option>
-                        <option value="full-time">Full-Time</option>
-                        <option value="part-time">Part-Time</option>
-                      </select>
-                    </div>
-                  </div>
+                <div className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
+                  We will check this number in onboarding pack records before allowing you to proceed.
                 </div>
 
-                <div
-                  className={`conditional-section space-y-4 hide-when-dropdown-open ${
-                    showStudentSection ? "active" : ""
-                  }`}
-                >
-                  <div className="grid-2">
-                    <div>
-                      <label htmlFor="institution-name">Institution Name</label>
-                      <div className="glass-field">
-                        <input
-                          type="text"
-                          id="institution-name"
-                          placeholder="University name"
-                          value={institutionName}
-                          onChange={(event) => setInstitutionName(event.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label htmlFor="course-name">Course / Major</label>
-                      <div className="glass-field">
-                        <input
-                          type="text"
-                          id="course-name"
-                          placeholder="e.g. Computer Science"
-                          value={courseName}
-                          onChange={(event) => setCourseName(event.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <label htmlFor="graduation-date">Expected Graduation</label>
-                    <div className="glass-field">
-                      <input
-                        type="month"
-                        id="graduation-date"
-                        value={graduationDate}
-                        onChange={(event) => setGraduationDate(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="animate-fade-in delay-3 hide-when-dropdown-open">
-                  <label htmlFor="annual-income">Annual Income</label>
-                  <div className="income-row">
-                    <div className="glass-field">
-                      <select
-                        id="income-currency"
-                        value={incomeCurrency}
-                        onChange={(event) => setIncomeCurrency(event.target.value)}
-                      >
-                        <option value="USD">USD</option>
-                        <option value="EUR">EUR</option>
-                        <option value="GBP">GBP</option>
-                        <option value="ZAR">ZAR</option>
-                        <option value="NGN">NGN</option>
-                        <option value="KES">KES</option>
-                        <option value="GHS">GHS</option>
-                      </select>
-                    </div>
-                    <div className="glass-field">
-                      <input
-                        type="text"
-                        id="annual-income"
-                        placeholder="e.g. 50,000"
-                        value={annualIncome}
-                        onChange={(event) => setAnnualIncome(event.target.value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2 animate-fade-in delay-4 hide-when-dropdown-open">
+                <div className="pt-2 animate-fade-in delay-3">
                   <button
                     type="button"
                     className="submit-btn"
-                    onClick={handleSubmit}
-                    disabled={isSubmitting}
+                    onClick={handleIdentityCheckContinue}
+                    disabled={identityCheckLoading}
                   >
-                    {isSubmitting ? "Saving..." : "Continue"}
+                    {identityCheckLoading ? "Checking..." : "Continue"}
                   </button>
-                  {submitError ? (
+                  {identityCheckError ? (
                     <p className="form-error" role="alert">
-                      {submitError}
-                    </p>
-                  ) : null}
-                  {submitSuccess ? (
-                    <p className="form-success" role="status">
-                      {submitSuccess}
+                      {identityCheckError}
                     </p>
                   ) : null}
                 </div>
@@ -910,7 +803,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   className="text-xs uppercase tracking-[0.2em] mb-2"
                   style={{ color: "hsl(270 20% 55%)" }}
                 >
-                  Step 1 of 6
+                  Step 2 of 7
                 </p>
                 <h2
                   className="text-3xl font-light tracking-tight mb-2"
@@ -980,6 +873,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step"></div>
@@ -1130,7 +1024,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4 hide-when-dropdown-open">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 2 of 6
+                  Step 3 of 7
                 </p>
               </div>
             </div>
@@ -1152,6 +1046,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1212,7 +1107,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 3 of 6
+                  Step 4 of 7
                 </p>
               </div>
             </div>
@@ -1234,6 +1129,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1307,7 +1203,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 4 of 6
+                  Step 5 of 7
                 </p>
               </div>
             </div>
@@ -1329,6 +1225,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1452,7 +1349,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
                 <div className="text-center mt-6 animate-fade-in delay-4 hide-when-dropdown-open">
                   <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                    Step 5 of 6
+                    Step 6 of 7
                   </p>
                 </div>
               </div>
@@ -1475,6 +1372,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1573,7 +1471,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 6 of 6 - Final step to complete your onboarding
+                  Step 7 of 7 - Final step to complete your onboarding
                 </p>
               </div>
             </div>
