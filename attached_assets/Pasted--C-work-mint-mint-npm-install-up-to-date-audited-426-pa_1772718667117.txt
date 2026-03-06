@@ -1,0 +1,120 @@
+
+C:\work\mint\mint>npm install
+
+up to date, audited 426 packages in 7s
+
+69 packages are looking for funding
+  run `npm fund` for details
+
+12 vulnerabilities (1 low, 4 moderate, 7 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+C:\work\mint\mint>npm start
+npm error Missing script: "start"
+npm error
+npm error Did you mean one of these?
+npm error   npm star # Mark your favorite packages
+npm error   npm stars # View packages marked as favorites
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: C:\Users\tsiem\AppData\Local\npm-cache\_logs\2026-03-05T13_40_12_732Z-debug-0.log
+
+C:\work\mint\mint>npm run dev
+
+> mint@1.0.0 dev
+> node server/index.cjs & vite
+
+C:\work\mint\mint\node_modules\resend\dist\index.cjs:931
+                        if (!this.key) throw new Error("Missing API key. Pass it to the constructor `new Resend(\"re_123\")`");
+                                       ^
+
+Error: Missing API key. Pass it to the constructor `new Resend("re_123")`
+    at new Resend (C:\work\mint\mint\node_modules\resend\dist\index.cjs:931:25)
+    at Object.<anonymous> (C:\work\mint\mint\server\mintMorningsCron.cjs:3:16)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.require (node:internal/modules/cjs/loader:1504:12)
+    at require (node:internal/modules/helpers:152:16)
+
+Node.js v24.13.0
+
+  VITE v5.4.21  ready in 2430 ms
+
+  ➜  Local:   http://localhost:5000/
+  ➜  Network: http://192.168.0.56:5000/
+  ➜  press h + enter to show help
+q
+
+C:\work\mint\mint>git fetch --all --prune
+
+C:\work\mint\mint>git branch -a  
+* feature/BankOnboarding
+* feature/BankOnboarding
+  main
+  remotes/origin/Android.v1
+  remotes/origin/Android.v2
+  remotes/origin/Credit-Code
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/Merge/Version1
+  remotes/origin/Merge/Version2
+  remotes/origin/MergeUpdate
+  remotes/origin/Precheck-ID-on-samsub
+
+C:\work\mint\mint>git status
+On branch feature/BankOnboarding
+Your branch is up to date with 'origin/feature/BankOnboarding'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+        modified:   api/onboarding/save-bank-details.js
+        modified:   src/pages/UserOnboardingPage.jsx
+
+no changes added to commit (use "git add" and/or "git commit -a")
+
+C:\work\mint\mint>git branch -a
+* feature/BankOnboarding
+  main
+  remotes/origin/Android.v1
+  remotes/origin/Android.v2
+  remotes/origin/Credit-Code
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/Merge/Version1
+  remotes/origin/Merge/Version2
+  remotes/origin/MergeUpdate
+  remotes/origin/Precheck-ID-on-samsub
+
+C:\work\mint\mint>git stash
+Saved working directory and index state WIP on feature/BankOnboarding: 158036c Add Bank names to onboard
+
+C:\work\mint\mint>git branch -a
+  feature/BankOnboarding
+* feature/MinDiscolusureDocument
+  main
+  remotes/origin/Android.v1
+  remotes/origin/Android.v2
+  remotes/origin/Credit-Code
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/Merge/Version1
+  remotes/origin/Merge/Version2
+  remotes/origin/MergeUpdate
+
+C:\work\mint\mint>npm run dev
+
+> mint@1.0.0 dev
+> node server/index.cjs & vite
+
+[settlement] Config: { csdpEnabled: false, brokerEnabled: false, fullyIntegrated: false }
+TruID API server running on port 3001

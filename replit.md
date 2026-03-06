@@ -92,3 +92,13 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
   - Fallback: if < 2 data points in timeframe, fetches last 30 available prices
   - Forward-fills prices across gaps for smooth curves
   - Tooltip shows date and P&L value on hover
+
+### PDF Factsheet Generation
+- **File**: `src/lib/generateFactsheetPdf.js` — client-side PDF generation using jsPDF + jspdf-autotable
+- **Trigger**: FileText icon button in FactsheetPage header (next to heart/watchlist button)
+- **Layout**: Single A4 portrait page matching Fairtree MDD style with two-column layout:
+  - Left column: Investment Objective, Strategy Profile, Cumulative Performance chart, Return Analysis table (7D/30D/90D/YTD/All-time), Risk Analysis table
+  - Right column: Strategy Details box (risk, manager, NAV, inception, benchmark, min investment, currency), Fees section (from `management_fee_bps`), Sector Allocation bars, Portfolio Holdings table, Your Investment (personalized if user has invested)
+- **Personalization**: Fetches user's transaction history for the strategy to calculate invested amount, current value, and return
+- **Data sources**: `strategies` table (objective, fees, benchmark, inception via `created_at`), `strategy_analytics` (curves, summary, calendar_returns), `securities` (sector data for holdings)
+- **Fees**: FactsheetPage fees section now reads from `management_fee_bps` database column instead of hardcoded values

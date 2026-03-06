@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
-import { ArrowLeft, X, Info, Heart, Wallet } from "lucide-react";
+import { ArrowLeft, X, Info, Heart, Wallet, FileText } from "lucide-react";
+import generateFactsheetPdf from "../lib/generateFactsheetPdf";
 import { supabase } from "../lib/supabase";
 import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 import { formatChangePct, getChangeColor } from "../lib/strategyData.js";
@@ -41,6 +42,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [investChecking, setInvestChecking] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   const strategyId = strategy?.id || strategy?.strategy_id || strategyData?.id || null;
   const strategySlug = strategy?.slug || strategyData?.slug || null;
@@ -103,7 +105,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
         if (!resolvedId && strategySlug) {
           const { data, error } = await supabase
             .from("strategies")
-            .select("id, slug, name, short_name, description, risk_level, sector, tags, base_currency, icon_url, image_url, holdings")
+            .select("id, slug, name, short_name, description, objective, risk_level, sector, tags, base_currency, icon_url, image_url, holdings, management_fee_bps, fee_type, benchmark_name, benchmark_symbol, min_investment, provider_name, created_at")
             .eq("slug", strategySlug)
             .maybeSingle();
 
@@ -120,7 +122,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
         if (resolvedId) {
           const { data, error } = await supabase
             .from("strategies")
-            .select("id, slug, name, short_name, description, risk_level, sector, tags, base_currency, icon_url, image_url, holdings")
+            .select("id, slug, name, short_name, description, objective, risk_level, sector, tags, base_currency, icon_url, image_url, holdings, management_fee_bps, fee_type, benchmark_name, benchmark_symbol, min_investment, provider_name, created_at")
             .eq("id", resolvedId)
             .maybeSingle();
 
@@ -207,7 +209,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, name, logo_url, last_price, change_percent")
+          .select("symbol, name, logo_url, last_price, change_percent, sector, isin")
           .in("symbol", tickers);
 
         if (error) throw error;
@@ -315,14 +317,14 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
   }, [availableCalendarYears]);
 
   const minimumInvestmentAmount = useMemo(() => {
-    const strategyMin = Number(currentStrategy?.min_investment);
-    if (Number.isFinite(strategyMin) && strategyMin > 0) {
-      return strategyMin;
-    }
-
     const holdingsMap = buildHoldingsBySymbol(holdingsSecurities);
     const calculated = Number(calculateMinInvestment(currentStrategy, holdingsMap));
-    return Number.isFinite(calculated) && calculated > 0 ? calculated : null;
+    if (Number.isFinite(calculated) && calculated > 0) {
+      return calculated;
+    }
+
+    const strategyMin = Number(currentStrategy?.min_investment);
+    return Number.isFinite(strategyMin) && strategyMin > 0 ? strategyMin : null;
   }, [currentStrategy, holdingsSecurities]);
 
   const cashHoldingAmount = useMemo(() => {
@@ -421,14 +423,63 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
             <ArrowLeft className="h-5 w-5" />
           </button>
           <h1 className="text-lg font-semibold">{currentStrategy.name}</h1>
-          <button
-            type="button"
-            onClick={() => setIsInWatchlist(!isInWatchlist)}
-            aria-label="Add to watchlist"
-            className="absolute right-0 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0"
-          >
-            <Heart className={`h-5 w-5 ${isInWatchlist ? "fill-current text-rose-600" : ""}`} />
-          </button>
+          <div className="absolute right-0 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={pdfGenerating}
+              onClick={async () => {
+                setPdfGenerating(true);
+                try {
+                  let userPosition = null;
+                  const { data: { session } } = await supabase.auth.getSession();
+                  if (session?.user) {
+                    const strategyName = currentStrategy?.name;
+                    const { data: txns } = await supabase
+                      .from("transactions")
+                      .select("amount")
+                      .eq("user_id", session.user.id)
+                      .eq("status", "posted")
+                      .like("name", `Strategy Investment: ${strategyName}`);
+                    const totalInvested = (txns || []).reduce((s, t) => s + Math.abs(Number(t.amount || 0)), 0);
+                    if (totalInvested > 0 && analytics?.latest_value != null) {
+                      const navRatio = Number(analytics.latest_value) / 100;
+                      const currentValue = totalInvested * navRatio;
+                      const returnPct = ((currentValue - totalInvested) / totalInvested) * 100;
+                      userPosition = { invested: totalInvested / 100, currentValue: currentValue / 100, returnPct };
+                    }
+                  }
+                  generateFactsheetPdf({
+                    strategy: currentStrategy,
+                    analytics,
+                    holdingsWithMetrics,
+                    holdingsSecurities,
+                    userPosition,
+                    calculatedMinInvestment: minimumInvestmentAmount,
+                  });
+                } catch (e) {
+                  console.error("PDF generation error:", e?.message || e?.toString?.() || e, e?.stack);
+                } finally {
+                  setPdfGenerating(false);
+                }
+              }}
+              aria-label="View factsheet PDF"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0 disabled:opacity-50"
+            >
+              {pdfGenerating ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-violet-600" />
+              ) : (
+                <FileText className="h-5 w-5" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsInWatchlist(!isInWatchlist)}
+              aria-label="Add to watchlist"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-700 shadow-sm flex-shrink-0"
+            >
+              <Heart className={`h-5 w-5 ${isInWatchlist ? "fill-current text-rose-600" : ""}`} />
+            </button>
+          </div>
         </header>
 
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_16px_32px_rgba(15,23,42,0.08)]">
@@ -839,8 +890,9 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-slate-900">Fees & Disclaimers</h2>
           <ul className="mt-3 space-y-2 text-xs text-slate-600">
-            <li>• Management fee: 0% per annum</li>
-            <li>• Performance fee: 20% of profits</li>
+            <li>• Brokerage fee: 0.25% of investment amount</li>
+            <li>• Custody fee (ISIN): R62.00 per asset</li>
+            <li>• Transaction fee (Paystack): 2.9% of total</li>
             <li>• Past performance does not guarantee future results</li>
             <li>• All data is for informational purposes only</li>
           </ul>
