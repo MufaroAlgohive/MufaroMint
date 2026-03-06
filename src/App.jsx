@@ -961,6 +961,24 @@ const App = () => {
     );
   }
 
+  if (currentPage === "instantLiquidity") {
+    return (
+      <AppLayout
+        activeTab="credit" 
+        onTabChange={handleTabChange}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <InstantLiquidityPage 
+          profile={profile} 
+          onBack={goBack} 
+        />
+      </AppLayout>
+    );
+  }
+
   if (currentPage === "statements") {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
