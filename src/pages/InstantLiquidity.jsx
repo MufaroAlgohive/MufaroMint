@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { 
   Zap, 
-  ArrowLeft, 
   ChevronRight, 
   Info, 
   Search, 
@@ -11,23 +10,28 @@ import {
   HandCoins, 
   History 
 } from "lucide-react";
+import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts';
 import { formatZar } from "../lib/formatCurrency";
 import NotificationBell from "../components/NotificationBell";
 
-const InstantLiquidity = ({ profile, onOpenNotifications, onBack }) => {
-  // Shared font families from HomePage.jsx
+const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
+  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
+  const initials = displayName.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase() || "MN";
+
+  // Font stacks matched exactly to HomePage (8).jsx
   const fonts = {
     display: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
 
-  const firstName = profile?.firstName || "Mufaro";
-  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
-  const initials = displayName.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase() || "MN";
+  // Sample data for mini line charts
+  const sparklineData = [
+    { v: 40 }, { v: 35 }, { v: 55 }, { v: 45 }, { v: 60 }, { v: 50 }, { v: 75 }
+  ];
 
   return (
     <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900">
-      {/* 1. Integrated Background from NewPortfolioPage.jsx */}
+      {/* 1. Integrated Background from NewPortfolioPage (1).jsx */}
       <div className="absolute inset-x-0 top-0 -z-10 h-full">
         <div 
           className="absolute inset-x-0 top-0"
@@ -40,15 +44,9 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onBack }) => {
       </div>
 
       <div className="px-5 pt-12 pb-8">
-        {/* 2. Header Sync with HomePage.jsx */}
-        <header className="relative flex items-center justify-between mb-8 text-white">
+        {/* 2. Exact Header Sync with HomePage (8).jsx */}
+        <header className="relative flex items-center justify-between mb-10 text-white">
           <div className="flex items-center gap-3">
-            <button 
-                onClick={onBack}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 shadow-sm transition active:scale-95"
-             >
-                <ArrowLeft size={20} className="text-white" />
-            </button>
             {profile?.avatarUrl ? (
               <img src={profile.avatarUrl} alt="Profile" className="h-10 w-10 rounded-full border border-white/40 object-cover" />
             ) : (
@@ -56,10 +54,18 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onBack }) => {
             )}
           </div>
 
+          {/* Central Pill Switcher - Re-activating Credit */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="flex items-center rounded-full bg-white/10 p-1 backdrop-blur-md">
-              <button className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10">Wealth</button>
-              <button className="rounded-full px-3 py-1.5 text-xs font-semibold bg-white text-slate-900 shadow-sm">Credit</button>
+              <button 
+                onClick={() => onTabChange("home")}
+                className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10 transition-all"
+              >
+                Wealth
+              </button>
+              <button className="rounded-full px-3 py-1.5 text-xs font-semibold bg-white text-slate-900 shadow-sm transition-all">
+                Credit
+              </button>
               <span className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/30 cursor-default">Transact</span>
             </div>
           </div>
@@ -67,23 +73,36 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onBack }) => {
           <NotificationBell onClick={onOpenNotifications} />
         </header>
 
-        {/* 3. Glass Score Hero Card */}
-        <div className="bg-slate-900/40 backdrop-blur-xl rounded-[36px] p-6 shadow-2xl border border-white/10 mb-8 relative overflow-hidden">
+        {/* 3. Refined Glass Hero Card */}
+        <div className="bg-[#111111]/40 backdrop-blur-2xl rounded-[36px] p-6 shadow-2xl border border-white/10 mb-8 relative overflow-hidden">
           <div className="flex justify-between items-start mb-6">
             <div className="max-w-[180px]">
-              <p className="text-white/60 text-[13px] leading-tight font-medium" style={{ fontFamily: fonts.text }}>
-                The higher your <span className="text-white font-bold">Liquidity score</span>, the more instant access you have to capital.
+              <p 
+                className="text-white/60 text-[12px] leading-tight font-medium" 
+                style={{ fontFamily: fonts.text }}
+              >
+                Access up to <span className="text-white font-bold">50% of your portfolio</span> value instantly by pledging qualifying strategies.
               </p>
             </div>
-            <div className="text-6xl font-bold text-white tracking-tighter" style={{ fontFamily: fonts.display }}>72</div>
+            <div 
+                className="text-5xl font-light text-white tracking-tighter opacity-20" 
+                style={{ fontFamily: fonts.display }}
+            >
+              LQD
+            </div>
           </div>
 
-          {/* Impact Currency Card */}
-          <div className="bg-gradient-to-br from-violet-500 to-purple-700 rounded-3xl p-5 shadow-lg relative">
+          {/* Embedded Internal Gradient Card matching Dashboard Impact style */}
+          <div className="bg-gradient-to-br from-violet-600 to-purple-800 rounded-[28px] p-6 shadow-xl relative">
             <div className="flex justify-between items-center">
               <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                   <p className="text-white/70 text-[9px] font-black uppercase tracking-[0.2em]" style={{ fontFamily: fonts.text }}>Total Available</p>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                   <p 
+                    className="text-white/70 text-[9px] font-black uppercase tracking-[0.2em]" 
+                    style={{ fontFamily: fonts.text }}
+                   >
+                    Liquidity Available
+                   </p>
                    <Info size={12} className="text-white/30" />
                 </div>
                 <div className="flex items-baseline text-white tracking-wide" style={{ fontFamily: fonts.display }}>
@@ -91,14 +110,14 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onBack }) => {
                   <span className="text-xl font-medium opacity-60">.89</span>
                 </div>
               </div>
-              <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-                <ChevronRight size={20} className="text-white" />
+              <div className="h-11 w-11 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+                <Zap size={22} className="text-white fill-white/20" />
               </div>
             </div>
           </div>
           
-          <button className="mt-5 w-full bg-white/5 hover:bg-white/10 text-white text-[10px] uppercase tracking-widest font-bold py-3 rounded-full transition-all border border-white/10 active:scale-95">
-            Increase my score
+          <button className="mt-6 w-full bg-white text-slate-900 text-[11px] uppercase tracking-[0.15em] font-black py-4 rounded-2xl shadow-lg transition-all active:scale-[0.98]">
+            Pledge All
           </button>
         </div>
 
@@ -110,39 +129,39 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onBack }) => {
             { label: "Pay", icon: HandCoins },
             { label: "History", icon: History }
           ].map((action, i) => (
-            <button key={i} className="flex flex-col items-center gap-2 rounded-2xl bg-white/70 backdrop-blur-md p-3 shadow-sm border border-slate-100 transition active:scale-95">
+            <button key={i} className="flex flex-col items-center gap-2 rounded-2xl bg-white/60 backdrop-blur-md p-3 shadow-sm border border-slate-100 transition active:scale-95">
               <div className="h-10 w-10 rounded-full bg-violet-50 flex items-center justify-center text-violet-700">
                 <action.icon size={20} />
               </div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight" style={{ fontFamily: fonts.text }}>{action.label}</span>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest" style={{ fontFamily: fonts.text }}>{action.label}</span>
             </button>
           ))}
         </div>
 
-        {/* 5. Search & Filter Bar */}
-        <div className="flex gap-2 mb-8">
+        {/* 5. Search & Filter Bar matched to App aesthetics */}
+        <div className="flex gap-2 mb-10">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
               type="text" 
               placeholder="Search strategies..." 
-              className="w-full bg-white/70 backdrop-blur-md border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 text-sm focus:outline-none"
+              className="w-full bg-white/70 backdrop-blur-md border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/10 transition-all"
               style={{ fontFamily: fonts.text }}
             />
           </div>
-          <button className="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg transition active:scale-95">
+          <button className="h-12 w-12 rounded-2xl bg-[#0d0d12] text-white flex items-center justify-center shadow-lg transition active:scale-95">
             <SlidersHorizontal size={20} />
           </button>
         </div>
 
-        {/* 6. Strategy List Items */}
+        {/* 6. Qualifying Strategy List with Line Sparklines */}
         <div className="space-y-4">
-          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Qualifying Strategies</h3>
+          <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-1">Qualifying Strategies</h3>
           {[
             { name: "Bitcoin Alpha", balance: 4250.34, available: 5749.66, ltv: "50%", code: "BTC-005" },
             { name: "Global Equity", balance: 12890.12, available: 8200.00, ltv: "40%", code: "GEQ-012" }
           ].map((strat, i) => (
-            <div key={i} className="bg-white/90 backdrop-blur-xl rounded-[32px] p-6 shadow-sm border border-slate-100">
+            <div key={i} className="bg-white/80 backdrop-blur-xl rounded-[32px] p-6 shadow-sm border border-slate-100 transition active:bg-white/95">
               <div className="flex justify-between items-center mb-4">
                  <div className="flex items-center gap-4">
                    <div className="h-12 w-12 rounded-2xl bg-violet-50 flex items-center justify-center text-violet-700">
@@ -151,23 +170,36 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onBack }) => {
                    <div>
                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1" style={{ fontFamily: fonts.text }}>{strat.name}</p>
                      <div className="flex items-baseline tracking-tight" style={{ fontFamily: fonts.display }}>
-                        <span className="text-2xl font-semibold text-slate-900">R{Math.floor(strat.balance).toLocaleString()}</span>
+                        <span className="text-2xl font-bold text-slate-900">R{Math.floor(strat.balance).toLocaleString()}</span>
                         <span className="text-lg font-bold text-slate-300">.{(strat.balance % 1).toFixed(2).split('.')[1]}</span>
                      </div>
                    </div>
                  </div>
-                 <div className="h-8 w-16 flex items-end gap-1">
-                    {[30, 45, 35, 55, 40].map((h, j) => (
-                      <div key={j} className="flex-1 bg-violet-100/50 rounded-t-sm" style={{ height: `${h}%` }} />
-                    ))}
+
+                 {/* Recharts Mini Line Chart matched to Portfolio styling */}
+                 <div className="h-10 w-20">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={sparklineData}>
+                        <YAxis hide domain={['dataMin - 10', 'dataMax + 10']} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="v" 
+                          stroke="#7c3aed" 
+                          strokeWidth={2} 
+                          dot={false} 
+                          animationDuration={1500}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
                  </div>
               </div>
-              <div className="flex justify-between items-center pt-4 border-t border-slate-50">
+
+              <div className="flex justify-between items-center pt-5 border-t border-slate-50">
                  <p className="text-[12px] font-bold text-slate-500" style={{ fontFamily: fonts.text }}>
                     {formatZar(strat.available)} <span className="text-slate-300 font-medium">Available</span>
                  </p>
                  <div className="text-right">
-                    <p className="text-[10px] font-black text-slate-900 uppercase tracking-tighter">LTV {strat.ltv}</p>
+                    <p className="text-[10px] font-black text-slate-900 uppercase">LTV {strat.ltv}</p>
                     <p className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{strat.code}</p>
                  </div>
               </div>
