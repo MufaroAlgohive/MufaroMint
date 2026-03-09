@@ -65,18 +65,21 @@ const BankIcon = (props) => (
 const southAfricanBanks = [
   { value: "", label: "Select your bank", logo: null, branchCode: "" },
   { value: "absa", label: "Absa Bank", logo: "https://logo.clearbit.com/absa.co.za", branchCode: "632005" },
-  { value: "african_bank", label: "African Bank", logo: "https://logo.clearbit.com/africanbank.co.za", branchCode: "" },
+  { value: "access_bank", label: "Access Bank", logo: "https://logo.clearbit.com/accessbank.co.za", branchCode: "410506" },
+  { value: "african_bank", label: "African Bank", logo: "https://logo.clearbit.com/africanbank.co.za", branchCode: "430000" },
+  { value: "zero", label: "Bank Zero", logo: "https://logo.clearbit.com/bankzero.co.za", branchCode: "888000" },
   { value: "bidvest_bank", label: "Bidvest Bank", logo: "https://logo.clearbit.com/bidvestbank.co.za", branchCode: "462005" },
   { value: "capitec", label: "Capitec Bank", logo: "https://logo.clearbit.com/capitecbank.co.za", branchCode: "470010" },
-  { value: "discovery_bank", label: "Discovery Bank", logo: "https://logo.clearbit.com/discovery.co.za", branchCode: "" },
+  { value: "capitec_business", label: "Capitec Business Bank", logo: "https://logo.clearbit.com/capitecbank.co.za", branchCode: "450105" },
+  { value: "discovery_bank", label: "Discovery Bank", logo: "https://logo.clearbit.com/discovery.co.za", branchCode: "679000" },
   { value: "fnb", label: "First National Bank (FNB)", logo: "https://logo.clearbit.com/fnb.co.za", branchCode: "250655" },
   { value: "investec", label: "Investec", logo: "https://logo.clearbit.com/investec.com", branchCode: "580105" },
   { value: "nedbank", label: "Nedbank", logo: "https://logo.clearbit.com/nedbank.co.za", branchCode: "198765" },
-  { value: "old_mutual", label: "Old Mutual", logo: "https://logo.clearbit.com/oldmutual.co.za", branchCode: "" },
-  { value: "sasfin", label: "Sasfin Bank", logo: "https://logo.clearbit.com/sasfin.com", branchCode: "" },
+  { value: "old_mutual", label: "Old Mutual", logo: "https://logo.clearbit.com/oldmutual.co.za", branchCode: "462005" },
+  { value: "sasfin", label: "Sasfin Bank", logo: "https://logo.clearbit.com/sasfin.com", branchCode: "683000" },
   { value: "standard_bank", label: "Standard Bank", logo: "https://logo.clearbit.com/standardbank.co.za", branchCode: "051001" },
-  { value: "tyme_bank", label: "TymeBank", logo: "https://logo.clearbit.com/tymebank.co.za", branchCode: "" },
-  { value: "zero", label: "Bank Zero", logo: "https://logo.clearbit.com/bankzero.co.za", branchCode: "" },
+  { value: "tyme_bank", label: "TymeBank", logo: "https://logo.clearbit.com/tymebank.co.za", branchCode: "678910" },
+  { value: "ubank", label: "UBank", logo: "https://logo.clearbit.com/ubank.co.za", branchCode: "431010" },
   { value: "other", label: "Other", logo: null, branchCode: "" },
 ];
 
@@ -1017,9 +1020,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                       <input
                         type="text"
                         id="bank-branch-code"
-                        placeholder="Enter your branch code"
+                        placeholder={bankName === "other" ? "Enter your branch code" : "Select a bank above"}
                         value={bankBranchCode}
                         onChange={(event) => setBankBranchCode(event.target.value.replace(/\D/g, ""))}
+                        readOnly={bankName !== "other" && bankName !== ""}
+                        style={bankName !== "other" && bankName !== "" ? { opacity: 0.7, cursor: "default" } : {}}
                         inputMode="numeric"
                         autoComplete="off"
                       />
@@ -1040,7 +1045,22 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${bankDetailsReady ? "enabled" : ""}`}
                   disabled={!bankDetailsReady}
-                  onClick={async () => { await saveProgressFlag("bank_details_saved"); setBankDone(true); goToStep(getNextIncompleteStep(3, 3)); }}
+                  onClick={async () => {
+                    try {
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const userId = session?.user?.id;
+                      if (userId) {
+                        await supabase.from("user_onboarding").update({
+                          bank_name: bankName || null,
+                          bank_account_number: bankAccountNumber || null,
+                          bank_branch_code: bankBranchCode || null,
+                        }).eq("user_id", userId);
+                      }
+                    } catch {}
+                    await saveProgressFlag("bank_details_saved");
+                    setBankDone(true);
+                    goToStep(getNextIncompleteStep(3, 3));
+                  }}
                 >
                   Continue
                 </button>
