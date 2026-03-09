@@ -309,25 +309,25 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }
   };
 
+  const getPrevIncompleteStep = (beforeStep) => {
+    const identityCheckDone = !!existingOnboardingId || kycAlreadyVerified;
+    const steps = [
+      { step: 6, done: sofDone },
+      { step: 5, done: riskDone },
+      { step: 4, done: mandateDone },
+      { step: 3, done: bankDone },
+      { step: 2, done: kycAlreadyVerified },
+      { step: 1, done: identityCheckDone },
+    ];
+    for (const s of steps) {
+      if (s.step < beforeStep && !s.done) return s.step;
+    }
+    return 0;
+  };
+
   const handleBack = () => {
-    if (step === 7) {
-      goToStep(6);
-    } else if (step === 6) {
-      goToStep(5);
-    } else if (step === 5) {
-      goToStep(4);
-    } else if (step === 4) {
-      goToStep(3);
-    } else if (step === 3) {
-      if (kycAlreadyVerified) {
-        goToStep(1);
-      } else {
-        goToStep(2);
-      }
-    } else if (step === 2) {
-      goToStep(1);
-    } else if (step === 1) {
-      goToStep(0);
+    if (step >= 1) {
+      goToStep(getPrevIncompleteStep(step));
     } else if (onBack) {
       onBack();
     }
