@@ -370,8 +370,8 @@ const App = () => {
           const { data: refreshed } = await supabase.auth.refreshSession();
           if (!refreshed?.session) {
             sessionCheckFailCountRef.current += 1;
-            console.log(`[session-check] No active session found (attempt ${sessionCheckFailCountRef.current}/3)`);
-            if (sessionCheckFailCountRef.current >= 3) {
+            console.log(`[session-check] No active session found (attempt ${sessionCheckFailCountRef.current}/5)`);
+            if (sessionCheckFailCountRef.current >= 5) {
               sessionExpiredPageRef.current = currentPageRef.current;
               setShowPinLock(false);
               setShowSessionExpired(true);
@@ -388,13 +388,15 @@ const App = () => {
             const res = await fetch(`/api/sessions/validate?fingerprint=${encodeURIComponent(fingerprint)}`, {
               headers: { Authorization: `Bearer ${activeSession.access_token}` },
             });
-            const json = await res.json();
-            if (json.success && json.valid === false) {
-              console.log('[session-check] Session revoked remotely');
-              await supabase.auth.signOut({ scope: 'local' });
-              setShowPinLock(false);
-              setCurrentPage("welcome");
-              return;
+            if (res.ok) {
+              const json = await res.json();
+              if (json.success && json.valid === false) {
+                console.log('[session-check] Session revoked remotely');
+                await supabase.auth.signOut({ scope: 'local' });
+                setShowPinLock(false);
+                setCurrentPage("welcome");
+                return;
+              }
             }
           } catch (valErr) {
             // ignore validation errors
@@ -405,8 +407,8 @@ const App = () => {
       }
     };
 
-    const initialDelay = setTimeout(() => checkSession(), 15000);
-    const interval = setInterval(checkSession, 30000);
+    const initialDelay = setTimeout(() => checkSession(), 30000);
+    const interval = setInterval(checkSession, 60000);
 
     return () => {
       clearTimeout(initialDelay);
