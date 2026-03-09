@@ -26,12 +26,26 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
         }
         const { data } = await supabase
           .from("user_onboarding")
-          .select("kyc_status")
+          .select("kyc_status, sumsub_raw")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(1);
         const record = data?.[0];
-        if (record?.kyc_status === "onboarding_complete") {
+        const kycDone = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
+        let bankDone = false;
+        let mandateAgreed = false;
+        let riskDone = false;
+        let sofDone = false;
+        if (record?.sumsub_raw) {
+          try {
+            const raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : record.sumsub_raw;
+            bankDone = !!raw?.bank_details_saved;
+            mandateAgreed = !!raw?.mandate_data?.agreedMandate || !!raw?.mandate_accepted;
+            riskDone = !!raw?.risk_disclosure_accepted;
+            sofDone = !!raw?.source_of_funds_accepted;
+          } catch {}
+        }
+        if (kycDone && bankDone && mandateAgreed && riskDone && sofDone) {
           setOnboardingComplete(true);
         }
       } catch {
