@@ -244,19 +244,15 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
   const handleBack = () => {
     if (step === 7) {
-      goToStep(6);
+      goToStep(sofDone ? 0 : 6);
     } else if (step === 6) {
-      goToStep(5);
+      goToStep(riskDone ? 0 : 5);
     } else if (step === 5) {
-      goToStep(4);
+      goToStep(mandateDone ? 0 : 4);
     } else if (step === 4) {
-      goToStep(3);
+      goToStep(bankDone ? 0 : 3);
     } else if (step === 3) {
-      if (kycAlreadyVerified) {
-        goToStep(0);
-      } else {
-        goToStep(2);
-      }
+      goToStep(kycAlreadyVerified ? 0 : 2);
     } else if (step === 2) {
       goToStep(0);
     } else if (onBack) {
@@ -422,9 +418,10 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           }
           let raw = {};
           try { raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : (record.sumsub_raw || {}); } catch {}
-          if (raw.mandate_data?.agreedMandate === true) setMandateDone(true);
+          if (raw.mandate_data?.agreedMandate === true || raw.mandate_accepted === true) setMandateDone(true);
           if (raw.risk_disclosure_accepted === true) setRiskDone(true);
           if (raw.source_of_funds_accepted === true) setSofDone(true);
+          if (raw.bank_details_saved === true) setBankDone(true);
         }
       } catch (err) {
         // ignore; user can still proceed normally
@@ -1126,7 +1123,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${bankDetailsReady ? "enabled" : ""}`}
                   disabled={!bankDetailsReady}
-                  onClick={() => goToStep(4)}
+                  onClick={async () => { await saveProgressFlag("bank_details_saved"); setBankDone(true); goToStep(4); }}
                 >
                   Continue to Mandate
                 </button>
@@ -1208,7 +1205,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${agreedMandate && mandateValid ? "enabled" : ""}`}
                   disabled={!agreedMandate || !mandateValid}
-                  onClick={() => goToStep(5)}
+                  onClick={async () => { await saveProgressFlag("mandate_accepted"); setMandateDone(true); goToStep(5); }}
                 >
                   Continue to Risk Disclosure
                 </button>
