@@ -52,14 +52,20 @@ const ActionsPage = ({ onBack, onNavigate }) => {
   const onboardingMarkedComplete = onboardingData?.kyc_status === "onboarding_complete" || onboardingData?.kyc_status === "verified";
   const identityComplete = kycVerified && (employmentDone || onboardingMarkedComplete);
 
+  let bankDone = false;
   let mandateAgreed = false;
+  let riskDone = false;
+  let sofDone = false;
   if (onboardingData?.sumsub_raw) {
     try {
       const raw = typeof onboardingData.sumsub_raw === "string" ? JSON.parse(onboardingData.sumsub_raw) : onboardingData.sumsub_raw;
-      mandateAgreed = !!raw?.mandate_data?.agreedMandate;
+      bankDone = !!raw?.bank_details_saved;
+      mandateAgreed = !!raw?.mandate_data?.agreedMandate || !!raw?.mandate_accepted;
+      riskDone = !!raw?.risk_disclosure_accepted;
+      sofDone = !!raw?.source_of_funds_accepted;
     } catch {}
   }
-  const allOnboardingComplete = onboardingMarkedComplete && mandateAgreed;
+  const allOnboardingComplete = onboardingMarkedComplete && bankDone && mandateAgreed && riskDone && sofDone;
 
   const getIdentityStatus = () => {
     if (identityComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
@@ -101,7 +107,12 @@ const ActionsPage = ({ onBack, onNavigate }) => {
 
   const getOnboardingDescription = () => {
     if (allOnboardingComplete) return "Risk disclosure, source of funds, mandate, and agreements complete";
-    if (onboardingMarkedComplete && !mandateAgreed) return "Discretionary mandate still needs to be signed";
+    const missing = [];
+    if (!bankDone) missing.push("bank details");
+    if (!mandateAgreed) missing.push("mandate");
+    if (!riskDone) missing.push("risk disclosure");
+    if (!sofDone) missing.push("source of funds");
+    if (missing.length > 0) return `Still needed: ${missing.join(", ")}`;
     return "Risk disclosure, source of funds, mandate, and agreements";
   };
 
