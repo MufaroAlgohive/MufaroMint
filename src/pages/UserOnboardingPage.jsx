@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import SumsubVerification from "../components/SumsubVerification";
 import MandateViewer from "../components/MandateViewer";
 import { supabase } from "../lib/supabase";
@@ -149,6 +149,10 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [bankDropdownOpen, setBankDropdownOpen] = useState(false);
   const bankDropdownRef = useRef(null);
   const [kycAlreadyVerified, setKycAlreadyVerified] = useState(false);
+  const [bankDone, setBankDone] = useState(false);
+  const [mandateDone, setMandateDone] = useState(false);
+  const [riskDone, setRiskDone] = useState(false);
+  const [sofDone, setSofDone] = useState(false);
   const [authStatus, setAuthStatus] = useState({
     isChecked: false,
     isAuthenticated: false,
@@ -205,13 +209,35 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }
   };
 
+  const saveProgressFlag = async (flagKey) => {
+    if (!supabase) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+      if (!userId) return;
+      const { data: record } = await supabase.from("user_onboarding").select("sumsub_raw").eq("user_id", userId).maybeSingle();
+      let raw = {};
+      try { raw = typeof record?.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : (record?.sumsub_raw || {}); } catch {}
+      raw[flagKey] = true;
+      await supabase.from("user_onboarding").update({ sumsub_raw: JSON.stringify(raw) }).eq("user_id", userId);
+    } catch {}
+  };
+
   const handleContinue = async () => {
     if (step === 0) {
       await ensureOnboardingRecord();
-      if (kycAlreadyVerified) {
-        goToStep(3);
-      } else {
+      if (!kycAlreadyVerified) {
         goToStep(2);
+      } else if (!bankDone) {
+        goToStep(3);
+      } else if (!mandateDone) {
+        goToStep(4);
+      } else if (!riskDone) {
+        goToStep(5);
+      } else if (!sofDone) {
+        goToStep(6);
+      } else {
+        goToStep(7);
       }
     }
   };
@@ -373,7 +399,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
-        if (!token) return;
+        const userId = session?.user?.id;
+        if (!token || !userId) return;
 
         const res = await fetch("/api/onboarding/status", {
           headers: { Authorization: `Bearer ${token}` },
@@ -381,6 +408,23 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
         const result = await res.json();
         if (result.success && result.onboarding_id) {
           setExistingOnboardingId(result.onboarding_id);
+        }
+
+        const { data: record } = await supabase
+          .from("user_onboarding")
+          .select("bank_name, bank_account_number, bank_branch_code, sumsub_raw, kyc_status")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (record) {
+          if (record.bank_name && record.bank_account_number && record.bank_branch_code) {
+            setBankDone(true);
+          }
+          let raw = {};
+          try { raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : (record.sumsub_raw || {}); } catch {}
+          if (raw.mandate_data?.agreedMandate === true) setMandateDone(true);
+          if (raw.risk_disclosure_accepted === true) setRiskDone(true);
+          if (raw.source_of_funds_accepted === true) setSofDone(true);
         }
       } catch (err) {
         // ignore; user can still proceed normally
@@ -569,98 +613,58 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </p>
               </div>
 
-              <div className="steps-container animate-fade-in delay-2">
-                <div className={`step-circle ${kycAlreadyVerified ? 'step-circle-complete' : ''}`}>
-                  {kycAlreadyVerified ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                  ) : '1'}
-                </div>
-                <div className={`step-line ${kycAlreadyVerified ? 'step-line-complete' : ''}`}></div>
-                <div className="step-circle">2</div>
-                <div className="step-line"></div>
-                <div className="step-circle">3</div>
-                <div className="step-line"></div>
-                <div className="step-circle">4</div>
-                <div className="step-line"></div>
-                <div className="step-circle">5</div>
-                <div className="step-line"></div>
-                <div className="step-circle">6</div>
-              </div>
-
-              <div className="step-info animate-fade-in delay-3">
-                <div className={`step-item ${kycAlreadyVerified ? 'step-item-complete' : ''}`}>
-                  <div className={`step-number ${kycAlreadyVerified ? 'step-number-complete' : ''}`}>
-                    {kycAlreadyVerified ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    ) : '1'}
-                  </div>
-                  <div className="step-content">
-                    <div className="step-title">
-                      Identification
-                      {kycAlreadyVerified && <span className="step-verified-badge">Verified</span>}
+              {(() => {
+                const tick = (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="16" height="16">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                );
+                const tickSm = (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="14" height="14">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                );
+                const steps = [
+                  { done: kycAlreadyVerified, title: "Identification", doneDesc: "Identity verification complete", pendingDesc: "Verify your identity for security purposes", badge: "Verified" },
+                  { done: bankDone, title: "Bank Account", doneDesc: "Bank details saved", pendingDesc: "Add your bank account details", badge: "Saved" },
+                  { done: mandateDone, title: "Discretionary Mandate", doneDesc: "Mandate accepted", pendingDesc: "Review and accept the FSP investment mandate", badge: "Accepted" },
+                  { done: riskDone, title: "Risk Disclosure", doneDesc: "Risk disclosure acknowledged", pendingDesc: "Review investment risk disclosure", badge: "Acknowledged" },
+                  { done: sofDone, title: "Source of Funds", doneDesc: "Source of funds declared", pendingDesc: "Declare the origin of your investment funds", badge: "Declared" },
+                  { done: false, title: "Agreements", doneDesc: "Agreements accepted", pendingDesc: "Review and accept terms and conditions", badge: "Accepted" },
+                ];
+                return (
+                  <>
+                    <div className="steps-container animate-fade-in delay-2">
+                      {steps.map((s, i) => (
+                        <React.Fragment key={i}>
+                          <div className={`step-circle ${s.done ? 'step-circle-complete' : ''}`}>
+                            {s.done ? tick : i + 1}
+                          </div>
+                          {i < steps.length - 1 && <div className={`step-line ${s.done ? 'step-line-complete' : ''}`}></div>}
+                        </React.Fragment>
+                      ))}
                     </div>
-                    <div className="step-description">
-                      {kycAlreadyVerified
-                        ? 'Identity verification complete'
-                        : 'Verify your identity for security purposes'}
+                    <div className="step-info animate-fade-in delay-3">
+                      {steps.map((s, i) => (
+                        <div key={i} className={`step-item ${s.done ? 'step-item-complete' : ''}`}>
+                          <div className={`step-number ${s.done ? 'step-number-complete' : ''}`}>
+                            {s.done ? tickSm : i + 1}
+                          </div>
+                          <div className="step-content">
+                            <div className="step-title">
+                              {s.title}
+                              {s.done && <span className="step-verified-badge">{s.badge}</span>}
+                            </div>
+                            <div className="step-description">
+                              {s.done ? s.doneDesc : s.pendingDesc}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </div>
-
-                <div className="step-item">
-                  <div className="step-number">2</div>
-                  <div className="step-content">
-                    <div className="step-title">Bank Account</div>
-                    <div className="step-description">
-                      Add your bank account details
-                    </div>
-                  </div>
-                </div>
-
-                <div className="step-item">
-                  <div className="step-number">3</div>
-                  <div className="step-content">
-                    <div className="step-title">Discretionary Mandate</div>
-                    <div className="step-description">
-                      Review and accept the FSP investment mandate
-                    </div>
-                  </div>
-                </div>
-
-                <div className="step-item">
-                  <div className="step-number">4</div>
-                  <div className="step-content">
-                    <div className="step-title">Risk Disclosure</div>
-                    <div className="step-description">
-                      Review investment risk disclosure
-                    </div>
-                  </div>
-                </div>
-
-                <div className="step-item">
-                  <div className="step-number">5</div>
-                  <div className="step-content">
-                    <div className="step-title">Source of Funds</div>
-                    <div className="step-description">
-                      Declare the origin of your investment funds
-                    </div>
-                  </div>
-                </div>
-
-                <div className="step-item">
-                  <div className="step-number">6</div>
-                  <div className="step-content">
-                    <div className="step-title">Agreements</div>
-                    <div className="step-description">
-                      Review and accept terms and conditions
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </>
+                );
+              })()}
 
               <div className="text-center mt-8 animate-fade-in delay-4">
                 <button
@@ -1299,7 +1303,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${agreedRiskDisclosure ? "enabled" : ""}`}
                   disabled={!agreedRiskDisclosure}
-                  onClick={() => goToStep(6)}
+                  onClick={async () => { await saveProgressFlag("risk_disclosure_accepted"); setRiskDone(true); goToStep(6); }}
                 >
                   Continue to Source of Funds
                 </button>
@@ -1444,7 +1448,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                     type="button"
                     className={`continue-button agreement-continue ${sofReady ? "enabled" : ""}`}
                     disabled={!sofReady}
-                    onClick={() => goToStep(7)}
+                    onClick={async () => { await saveProgressFlag("source_of_funds_accepted"); setSofDone(true); goToStep(7); }}
                   >
                     Continue to Agreements
                   </button>
