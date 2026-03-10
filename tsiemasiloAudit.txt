@@ -2,7 +2,7 @@
   MINT APP — DEVELOPMENT AUDIT
   Developer: tsiemasilo-dev
   Repository: github.com/mihle-matimba/mint
-  Period: 12 February 2026 – 10 March 2026
+  Period: 21 January 2026 – 10 March 2026
 
   Accounts tracked:
     tsiemasilo-dev  ·  T-Dev  ·  Masilo  ·  MintDev  ·  masechabamaile
@@ -10,13 +10,209 @@
     MarDeveloper  ·  MarchDeveloper  (AI-assisted sessions)
 
   Last updated: 10 March 2026
-  Total Commits: 215
+  Total Commits: 386
 ================================================================================
 
 
 ────────────────────────────────────────────────────────────────────────────────
-  FEBRUARY 2026  (137 commits)
+  JANUARY 2026  (65 commits)
 ────────────────────────────────────────────────────────────────────────────────
+
+  21 January 2026  [3 commits]
+  · [2fa5824] patymca            Saved progress at the end of the loop
+  · [3621001] patymca            Saved progress at the end of the loop
+  · [1b47d5a] patymca            Initial commit
+
+  23 January 2026  [2 commits]
+  · [7ccfede] patymca            Add biometric authentication for enhanced user login security
+  · [a9754b5] patymca            Saved progress at the end of the loop
+
+  26 January 2026  [22 commits]
+  · [bfb084c] patymca            Update navigation label for subscriptions management
+  · [7eeaa6e] patymca            Always show the view all actions button on the outstanding actions section
+  · [bb43552] patymca            Add back missing outstanding actions and improve visibility
+  · [a3582cd] patymca            Saved progress at the end of the loop
+  · [0bd690c] patymca            Integrate real-time verification status into user pages
+  · [43d07b4] patymca            Update profile details to display the correct address information
+  · [68a1939] patymca            Add international phone number input with country codes
+  · [eafd8b3] patymca            Update profile to include phone, DOB, gender, and address
+  · [dd4289e] patymca            Update address search to use Google Places API
+  · [85baf31] patymca            Improve address search functionality using OpenStreetMap data
+  · [19be3a4] patymca            Switch to a free address lookup service
+  · [7952ac2] patymca            Update address search to use the new Google Places API
+  · [137cc09] patymca            Integrate Google Places API for address autocomplete functionality
+  · [5e10d01] patymca            Prioritize South African addresses in search suggestions
+  · [184f3b7] patymca            Improve address search to show real house numbers and load faster
+  · [f4895de] patymca            Improve address search responsiveness by reducing input delay
+  · [0cfb9c9] patymca            Use real addresses for search suggestions
+  · [e34c335] patymca            Improve address search suggestions by generating dynamic options
+  · [df984a9] patymca            Update profile editing and navigation with new components
+  · [8436af6] patymca            Fix profile loading errors by removing unneeded database fields
+  · [d70fe36] patymca            Update profile management, settings, and navigation for enhanced user experience
+  · [fc868a2] patymca            Update user profile and settings with new fields and navigation options
+
+  28 January 2026  [11 commits]
+  · [81f3c9e] masechabamaile     Update notification toggle switches to match existing styles
+  · [c914735] masechabamaile     Add notification settings and improve toggle switch appearance
+  · [10f636d] masechabamaile     Prevent notifications from disappearing when marked as read
+  · [fafbbb2] masechabamaile     Update notification display and toggle switch styling
+  · [7eaf620] masechabamaile     Update notification settings toggle styles to use new component
+  · [265cc40] masechabamaile     Ensure new users see welcome notifications immediately
+  · [f666878] masechabamaile     Add welcome notification for new users and improve error logging
+  · [abd72f7] masechabamaile     Add comprehensive notification system with real-time updates and user preferences
+  · [535183a] masechabamaile     Add welcome notifications for new users and a settings page
+  · [965922f] masechabamaile     Add new database tables and fields for financial tracking
+  · [5435c2b] masechabamaile     Saved progress at the end of the loop
+
+  30 January 2026  [11 commits]
+  · [284c39c] masechabamaile     Saved progress at the end of the loop
+  · [9e791d1] masechabamaile     Improve financial data calculations and transaction display
+  · [25dba0a] masechabamaile     Saved progress at the end of the loop
+  · [5320def] masechabamaile     Update bank and identity verification statuses and page content
+  · [0685ff5] masechabamaile     Update actions section to dynamically display and redirect outstanding tasks
+  · [3c5295c] masechabamaile     Update outstanding actions and add credit application button
+  · [4ac609c] masechabamaile     Saved progress at the end of the loop
+  · [75e3a31] masechabamaile     Improve credit score tracking with daily and historical data views
+  · [94d9e63] masechabamaile     Integrate financial data fetching and update page navigation
+  · [fb9a77b] masechabamaile     Fetch real financial data from the database
+  · [3dd5dd3] masechabamaile     Saved progress at the end of the loop
+
+  31 January 2026  [16 commits]
+  · [e258129] patymca            Replace identity verification system with new provider
+  · [605fea6] patymca            Update identity verification to use TruID Connect instead of Sumsub
+  · [779fd4a] patymca            Integrate TruID identity verification service into user onboarding flow
+  · [9600d02] patymca            Saved progress at the end of the loop
+  · [554ed97] patymca            Add Sumsub identity verification and backend applicant creation
+  · [775c5df] patymca            Restore and improve Sumsub identity verification workflow
+  · [8ea7bbf] patymca            Update identity verification step to use a placeholder
+  · [613cd61] patymca            Update user verification status and display on onboarding completion
+  · [b732d41] patymca            Update identification page styling to a clean white background
+  · [ea2dfb3] patymca            Fix onboarding to always start from the beginning
+  · [47529be] patymca            Update onboarding process with white background and new button styling
+  · [26fdc6e] patymca            Redirect users to the dashboard after signup and OTP verification
+  · [bda8131] patymca            Add user identity verification and onboarding process
+  · [cee59ad] patymca            Integrate user onboarding flow into the identity verification process
+  · [f323d79] patymca            Add user identification onboarding flow to the application
+  · [986a3e7] patymca            Saved progress at the end of the loop
+
+
+────────────────────────────────────────────────────────────────────────────────
+  FEBRUARY 2026  (243 commits)
+────────────────────────────────────────────────────────────────────────────────
+
+  02 February 2026  [30 commits]
+  · [945f720] Masilo             Migrate Sumsub API endpoints to Vercel serverless functions
+  · [5de2abd] Masilo             Update identity verification to use correct API endpoint for mobile
+  · [1352c38] Masilo             Fix build error by correctly including the CSV asset
+  · [0671fe9] Masilo             Update project configuration to resolve asset import errors
+  · [24a769b] Masilo             Improve biometric login by securely storing credentials
+  · [cfd758d] Masilo             Restored to '57bf217e4adf0c57fa00375738518001180c62ae'
+  · [df6c61f] Masilo             Lock the desktop app to a portrait-style layout
+  · [57bf217] Masilo             Remove device rotation warning message from web interface
+  · [08bd5e5] Masilo             Lock app orientation to portrait on all platforms
+  · [a918d76] Masilo             Update onboarding flow to remove extra step and renumber remaining steps
+  · [f6f358e] Masilo             Fix error when re-entering password during signup
+  · [d763ded] Masilo             Improve password field transition animation for a smoother user experience
+  · [1c880b3] Masilo             Update signup flow to collect first and last names together
+  · [39a7db9] Masilo             Combine login email and password fields onto a single page
+  · [bd3d10d] Masilo             Remove hardcoded level name from identity verification process
+  · [c07f422] Masilo             Saved progress at the end of the loop
+  · [0d72e6e] Masilo             Make Sumsub verification level configurable via environment variable
+  · [d6bc5f3] Masilo             Integrate real identity verification using Sumsub SDK
+  · [e556d77] Masilo             Replace identity verification with Sumsub and update onboarding flow
+  · [929fdb5] Masilo             Update bank linking navigation to go to credit apply page
+  · [422a657] Masilo             Fix back button navigation on credit application page
+  · [1e84100] Masilo             Update credit application page to use browser history for navigation
+  · [ef3136c] Masilo             Fix back button functionality on the welcome to credit page
+  · [e80b4d1] Masilo             Saved progress at the end of the loop
+  · [49daef7] Masilo             Add missing components and hooks for the credit application page
+  · [c2f7176] Masilo             Restore full credit application page functionality with multiple subcomponents
+  · [3e7dd5c] Masilo             Update login button to display correct form
+  · [1f565c0] Masilo             Add a welcome screen that appears before the login and sign-up options
+  · [4ca9bc5] Masilo             Update status to confirm bank account has been linked
+  · [d2442ee] Masilo             Saved progress at the end of the loop
+
+  03 February 2026  [25 commits]
+  · [2415587] MintDev            Update verification status badges to reflect current user verification progress
+  · [f7159dd] MintDev            Update identity check flow to show distinct pages for verification status
+  · [92f66b8] MintDev            Add ability to display user verification status and handle review outcomes
+  · [a0a947b] MintDev            Fix issue preventing users from seeing their required actions
+  · [ac15577] MintDev            Add debugging to verify user KYC status updates
+  · [2ad310b] MintDev            Update verification status to show immediately after completion
+  · [42a4ce5] Masilo             Make card flip animation follow finger direction
+  · [5a136d6] Masilo             Add 3D flip animation that follows swipe direction
+  · [99d228c] Masilo             Improve card swiping animation for a more natural feel
+  · [b0df519] Masilo             Improve card swiping animation to match user direction
+  · [9fca7f2] Masilo             Remove the circular background element from the card displays
+  · [a0acee0] Masilo             Improve card designs and button functionality for better user experience
+  · [170c863] Masilo             Update card components to add a view breakdown button and improve styling
+  · [8640fc7] Masilo             Apply a 3D flip animation for card transitions
+  · [bc478d2] Masilo             Update card design with white text, larger fonts, and new layout
+  · [8a5f85a] Masilo             Restored to 'd14474b307124fcd28c37a5d6172becab02777ee'
+  · [bcfabc1] Masilo             Update card design to match premium credit card aesthetic
+  · [d14474b] Masilo             Update card design to match user's reference image with gold logo and user name
+  · [c7b3e73] Masilo             Add swipeable card to home dashboard for balance and investment overview
+  · [05937e3] Masilo             Improve the verification retry process by resetting state instead of reloading the page
+  · [559478a] Masilo             Update identity verification flow and status displays
+  · [3d72d17] Masilo             Saved progress at the end of the loop
+  · [1ca70b7] Masilo             Improve user verification process with detailed status updates
+  · [f97bac3] Masilo             Improve verification rejection handling and user messaging
+  · [0fc852d] Masilo             Update KYC verification status and outstanding actions display
+
+  04 February 2026  [31 commits]
+  · [c86fac0] MintDev            Improve navigation consistency across multiple app pages
+  · [5c6ba93] MintDev            Add detailed logging for Sumsub status checks
+  · [e6b29d4] MintDev            Enable automatic status updates for verification checks
+  · [cecc1f2] MintDev            Address issues with SDK reinitialization and data fetching
+  · [f165763] MintDev            Improve verification widget stability by fixing initialization and reload issues
+  · [767c229] MintDev            Adjust camera access configuration and polling interval
+  · [4c9c729] MintDev            Add camera and microphone access for verification steps
+  · [90d508d] MintDev            Prevent verification widget from refreshing during user interaction
+  · [0018895] MintDev            Update verification status to accurately reflect required documents
+  · [ea3253a] MintDev            Update app to automatically check for status changes
+  · [29a72e7] MintDev            Improve document resubmission process for identity verification
+  · [9e981ae] MintDev            Saved progress at the end of the loop
+  · [ad2a179] MintDev            Integrate Sumsub for direct KYC status management and remove legacy database tracking
+  · [c4166e4] MintDev            Update KYC status checks to directly use the Sumsub API for real-time updates
+  · [b8676b6] MintDev            Integrate Sumsub API for direct KYC status checks and update notifications
+  · [ec0d38d] MintDev            Update system to fetch KYC status directly from Sumsub API
+  · [4101e0f] MintDev            Update identity check to fetch status directly from Sumsub
+  · [304b8c2] MintDev            Update KYC status to sync automatically from Sumsub
+  · [e19871d] MintDev            Saved progress at the end of the loop
+  · [9006b9d] MintDev            Improve navigation handling within the application
+  · [2065451] MintDev            Update app configuration to use development server for backend access
+  · [42387a3] MintDev            Update app configuration to load from local files
+  · [eaf3893] MintDev            Improve how the app responds to the Android back button
+  · [0d42b6d] MintDev            Add swipe-back navigation and improve back button handling
+  · [a8dcf0f] MintDev            Add ability to navigate within the app using the Android back button
+  · [9812545] MintDev            Improve how the app responds to the Android back button
+  · [a17334e] MintDev            Add swipe-back navigation gesture for Android users
+  · [bda5471] MintDev            Add Capacitor Android support for the application
+  · [cffc942] MintDev            Fix error when closing Android Studio project
+  · [3cbfc75] MintDev            Add Android support for Capacitor
+  · [ebc7cad] MintDev            Fix identity verification not updating automatically on Vercel deployments
+
+  05 February 2026  [20 commits]
+  · [ca8deac] MintDev            Restore browser history navigation and update server configuration
+  · [e7931f4] MintDev            Remove browser history handling to prevent duplicate page navigation
+  · [299b213] MintDev            Remove exposed secret token from project history
+  · [7889d4f] MintDev            Remove sensitive token from commit history
+  · [3946120] MintDev            Update Android navigation and fix KYC status determination logic
+  · [7570f8c] MintDev            Enable swipe gesture navigation on Android web without iOS visual effects
+  · [327694e] MintDev            Prevent swipe gesture visuals on Android web browsers
+  · [f588e71] MintDev            Update status checks to include comprehensive applicant data
+  · [f2b357a] MintDev            Improve web navigation to use browser history for back functionality
+  · [68ea497] MintDev            Update configuration to connect to Replit development server
+  · [e9c690c] MintDev            Update app configuration to use local assets for builds
+  · [f7d875a] MintDev            Update app configuration to use local assets
+  · [106265b] MintDev            Improve how the back button works on Android devices
+  · [900a713] MintDev            Add haptic feedback for swipe gesture navigation
+  · [39ead7e] MintDev            Improve back button navigation handling for Android devices
+  · [0a28770] MintDev            Improve iOS-style swipe-back navigation with enhanced visual feedback
+  · [151aad1] MintDev            Add swipe-to-go-back gesture and improve navigation logic
+  · [ea11fcf] MintDev            Incorporate Android and feature branch changes into main
+  · [fe30f5f] MintDev            Merge Android.v1 branch into main and incorporate new features
+  · [15f1107] MintDev            Saved progress at the end of the loop
 
   12 February 2026  [6 commits]
   · [516cf54] manwhodevs         Add pending settlement badges to investment assets and strategies
@@ -276,11 +472,15 @@
   Account                Commits    First Commit       Last Commit
   ---------------------------------------------------------------------------
   manwhodevs             93         12 February 2026   18 February 2026
+  MintDev                57         03 February 2026   05 February 2026
+  Masilo                 49         02 February 2026   03 February 2026
   MarDeveloper           48         04 March 2026      10 March 2026
   AlgoDev                44         19 February 2026   24 February 2026
+  patymca                43         21 January 2026    31 January 2026
   MarchDeveloper         30         02 March 2026      04 March 2026
+  masechabamaile         22         28 January 2026    30 January 2026
   ---------------------------------------------------------------------------
-  TOTAL                  215
+  TOTAL                  386
 
 
 ================================================================================
