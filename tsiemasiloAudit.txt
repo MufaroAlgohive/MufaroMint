@@ -1,0 +1,219 @@
+================================================================================
+  MINT APP — DEVELOPMENT AUDIT
+  Developer: tsiemasilo-dev
+  Repository: github.com/mihle-matimba/mint
+  Period: 04 March 2026 – 10 March 2026
+  Total Commits: 57
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+  04 MARCH 2026 — Performance Charts & Environment Setup
+  Commits: 12
+────────────────────────────────────────────────────────────────────────────────
+
+  Environment & Project Setup
+  · [bef59ba] Updated project dependencies and configurations for the Replit
+              development environment
+
+  Historical Performance Charting (Built from scratch)
+  · [7963f09] Built historical performance charting for user portfolios and
+              strategies — full charting feature designed and implemented
+  · [4d36065] Added chart time-period filters (1D, 1W, 1M, 3M, 1Y) and
+              Y-axis price labels for readability
+  · [f35a0e5] Updated investment performance charts to display profit and
+              loss clearly over time
+  · [8f7b7de] Set charts to begin from R0 baseline so relative performance
+              is immediately clear at a glance
+  · [4dfd121] Fixed chart Y-axis to always include the R0 line even when all
+              values are positive
+  · [fe69900] Improved chart rendering consistency across all time filters
+              for both individual assets and strategies
+  · [50b37b2] Fixed profit calculations to use actual cost basis rather than
+              current price — accurate P&L charting
+  · [f25fbdb] Corrected chart axis labels to properly represent profit and
+              loss values
+  · [d0d78de] Added a consistent starting data point to all performance
+              charts so every chart starts from the same origin
+  · [0d3b474] Applied consistent starting points specifically to asset and
+              strategy charts
+
+  UI Polish
+  · [25cf5c7] Fixed dropdown menus to close automatically when clicking
+              outside — standard expected behaviour
+
+
+────────────────────────────────────────────────────────────────────────────────
+  05 MARCH 2026 — PDF Factsheets & Strategy Documents
+  Commits: 13
+────────────────────────────────────────────────────────────────────────────────
+
+  Strategy Factsheet PDF (Built from scratch)
+  · [1d4045b] Added investment management document for internal strategy
+              analysis
+  · [754f82d] Built full personalised strategy factsheet PDF — users can
+              download a factsheet tailored to their own holdings and strategy
+  · [dd905b8] Configured the PDF generation plugin to apply correctly during
+              build time
+  · [c60ccfd] Updated factsheet to display actual purchase fees paid rather
+              than generic placeholder data
+  · [24fa682] Added ISIN numbers to the portfolio holdings section of the PDF
+  · [45924d2] Removed the ISIN column from PDF after review for a cleaner
+              layout
+  · [595886d] Replaced sector allocation chart with actual asset allocation
+              chart in the PDF
+  · [cace126] Fixed layout to display full asset names above their respective
+              allocation bars
+  · [3bf9284] Further improved the full asset name display above bars across
+              all allocation charts
+
+  Factsheet UX & Fixes
+  · [5b6ddec] Changed factsheet PDFs to open in a new browser tab instead of
+              forcing a download
+  · [0bb63ca] Fixed a server crash caused by a missing API key — added a
+              guard check to prevent the crash
+  · [af4f1f1] Fixed the PDF to display the correct minimum investment amount
+              per strategy
+  · [c68ea64] Updated minimum investment calculation to prioritise dynamic
+              database values rather than hardcoded amounts
+
+  PR Merged
+  · [c629336] Merged Pull Request #102: feature/MinDisclosureDocument
+              Integrated the minimum disclosure document feature branch into
+              main (tsiemasilo-dev)
+
+
+────────────────────────────────────────────────────────────────────────────────
+  06 MARCH 2026 — Onboarding Identity Precheck
+  Commits: 4
+────────────────────────────────────────────────────────────────────────────────
+
+  SA ID Precheck Feature (Reviewed & Merged)
+  · [cb28412] Added an onboarding ID precheck step that validates a user's
+              SA ID number against Sumsub before they proceed — prevents
+              duplicate account registrations
+  · [413d759] Merged the remote tracking branch into the precheck feature
+              branch and resolved conflicts
+  · [c41c98b] Updated the precheck response to show the matched email address
+              when a duplicate ID is detected, so users know which account
+              already exists
+  · [a529a94] Masked the matched email for privacy — shows partial email only
+              (e.g. t***@gmail.com)
+
+  PR Merged
+  · [a86cac2] Merged Pull Request #103: Precheck-ID-on-samsub
+              Brought the ID precheck branch into main (tsiemasilo-dev)
+
+
+────────────────────────────────────────────────────────────────────────────────
+  09 MARCH 2026 — Onboarding Flow Overhaul & Session Management
+  Commits: 22
+────────────────────────────────────────────────────────────────────────────────
+
+  Onboarding Progress & Saving
+  · [9024a13] Added checkpoints and progress saving throughout onboarding so
+              users never lose their place on refresh or return
+  · [19ff1af] Improved onboarding to save each step as it is completed and
+              respect already-completed steps when a user returns
+  · [b4de824] Allowed users to freely go back and edit any previous
+              onboarding step, with all saved data pre-filled correctly
+
+  Smart Step Navigation
+  · [05b9299] Expanded onboarding completion checks to cover all five
+              required steps: KYC, bank details, debit mandate, risk profile,
+              and source of funds
+  · [429eac1] Built intelligent step-skipping — already-completed steps are
+              bypassed automatically so users don't repeat themselves
+  · [1908668] Merged origin/main and resolved onboarding conflicts — smart
+              step skipping retained correctly after merge (tsiemasilo-dev)
+  · [51c41a4] Added the Identity Check (Sumsub KYC) as a formal numbered
+              step in the onboarding journey
+  · [849a2cf] Improved the accuracy of the "required actions" completion
+              status shown on the dashboard
+  · [4245eeb] Made onboarding completion checks consistent across all pages
+              (dashboard, portfolio, settings, etc.)
+  · [36c5b73] Unified the onboarding status logic so every page reads from
+              the same shared source — no more inconsistencies
+  · [25a6dfd] Fixed the flow to correctly skip steps the user has already
+              completed rather than showing them again
+  · [6b574f5] Overhauled the onboarding to use a unified step list and fixed
+              session-related display issues
+  · [e8c8da7] Improved completion checks to correctly handle both returning
+              users and first-time users
+  · [ef086dc] Added back-navigation support so users can return to previous
+              incomplete steps without losing any progress
+
+  Session Management & API
+  · [ad97990] Improved session timeout resilience — server no longer crashes
+              on expired or missing sessions; logs gracefully instead
+  · [84ed0c8] Added missing API endpoints required for Vercel deployment and
+              improved overall session handling
+  · [75ecda1] Updated user onboarding status tracking and session management
+              throughout the server
+
+  Banking Details
+  · [21a7f38] Added automatic branch code population when a user selects
+              their bank — eliminates manual entry and human error
+  · [35fae16] Saved full banking details (including branch code) directly to
+              the user's profile; branch code field set as read-only
+
+  Real-time Data
+  · [6cf6825] Improved real-time Supabase data subscriptions and added
+              better error handling for live data feeds
+
+
+────────────────────────────────────────────────────────────────────────────────
+  10 MARCH 2026 — Order Email Notification System
+  Commits: 4
+────────────────────────────────────────────────────────────────────────────────
+
+  Email Infrastructure (Built from scratch)
+  · [52f980d] Built the complete order email notification system using Resend:
+              - Created order_emails table in Supabase to track email state
+                per order (one row per order, not two)
+              - Added sendOrderConfirmationEmail() to the Express server,
+                triggered immediately after payment is received
+              - Added sendOrderFillEmail() triggered by CSDP/broker webhooks
+                when settlement is confirmed
+              - Built idempotency checks to prevent any duplicate sends
+
+  Email Templates & Design
+  · [34b178a] Architected two separate email types:
+              - Confirmation: sent immediately after payment goes through
+              - Fill: sent when the broker confirms settlement (T+3)
+  · [57a6bc8] Redesigned both email templates to match the Mint brand:
+              - Deep purple gradient header (matching the app's colour scheme)
+              - Bordered detail cards for each order field
+              - Clean slate typography with proper status badges
+                (amber "Pending Settlement" / purple "Settled")
+              - Purple CTA button (Track Your Order / View My Portfolio)
+              - Responsive layout for mobile and desktop email clients
+  · [8d1e353] Consolidated both templates into a single shared file
+              (api/_lib/order-email-templates.js) used by both Vercel
+              serverless functions and the Express server —
+              one source of truth, no duplicate code
+
+
+────────────────────────────────────────────────────────────────────────────────
+  SUMMARY
+────────────────────────────────────────────────────────────────────────────────
+
+  Total commits in repository:      57
+  Direct commits (tsiemasilo-dev):   3  (merge commits and PR management)
+  AI-assisted development commits:  54  (directed and owned by tsiemasilo-dev)
+
+  Feature Areas Delivered:
+  ✓  Historical portfolio performance charting (P&L, time filters, R0 baseline)
+  ✓  Personalised strategy factsheet PDF with asset allocation
+  ✓  SA ID precheck against Sumsub — prevents duplicate registrations
+  ✓  Full onboarding flow overhaul (smart step skipping, saving, back-nav)
+  ✓  Banking details capture with automatic branch code population
+  ✓  Session management resilience and improved server stability
+  ✓  Missing Vercel deployment API endpoints
+  ✓  Real-time Supabase subscription improvements
+  ✓  Order confirmation and fill email notifications (Resend integration)
+  ✓  Shared email template system — single source of truth, no duplication
+
+================================================================================
+  End of Audit — Mint App (github.com/mihle-matimba/mint)
+================================================================================
