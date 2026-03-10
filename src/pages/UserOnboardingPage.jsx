@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import SumsubVerification from "../components/SumsubVerification";
 import MandateViewer from "../components/MandateViewer";
+import PdfViewer from "../components/PdfViewer";
 import { supabase } from "../lib/supabase";
 import { useProfile } from "../lib/useProfile";
 import "../styles/onboarding-process.css";
@@ -1432,10 +1433,9 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="agreement-card animate-fade-in delay-2" style={{padding: 0, overflow: 'hidden'}}>
-                <iframe
-                  src="/strategy-disclosures.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH"
-                  title="Strategy Disclosures"
-                  style={{width: '100%', height: '70vh', border: 'none', display: 'block'}}
+                <PdfViewer
+                  file="/strategy-disclosures.pdf"
+                  style={{ height: '65vh' }}
                 />
               </div>
 
