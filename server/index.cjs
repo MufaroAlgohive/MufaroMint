@@ -54,13 +54,11 @@ async function sendOrderFillEmail(db, { transactionId, holdingId }) {
     const dedupKey = transactionId || holdingId;
     if (dedupKey) {
       const { data: existing } = await db.from("order_emails")
-        .select("id")
-        .eq("email_type", "order_fill")
+        .select("id, fill_status")
         .or(`transaction_id.eq.${dedupKey},holding_id.eq.${dedupKey}`)
-        .eq("status", "sent")
         .limit(1)
         .maybeSingle();
-      if (existing) {
+      if (existing && existing.fill_status === "sent") {
         console.log(`[order-fill-email] Already sent for tx:${transactionId} holding:${holdingId} — skipping`);
         return;
       }
@@ -125,26 +123,133 @@ async function sendOrderFillEmail(db, { transactionId, holdingId }) {
 
     const resendId = resp?.data?.id || null;
 
-    await db.from("order_emails").insert({
-      user_id: userId,
-      email: userEmail,
-      email_type: "order_fill",
-      asset_name: assetName || null,
-      asset_symbol: assetSymbol || null,
-      strategy_name: strategyName || null,
-      amount_cents: amountCents,
-      quantity, fill_price_cents: fillPriceCents,
-      reference, order_date: orderDate,
-      fill_date: fillDate,
-      transaction_id: transactionId || null,
-      holding_id: holdingId || null,
-      resend_id: resendId,
-      status: resp.error ? "failed" : "sent",
-    }).then(() => {}).catch((err) => console.warn("[order-fill-email] Log write error:", err?.message));
+    const fillStatus = resp.error ? "failed" : "sent";
+    const existingRow = await db.from("order_emails")
+      .select("id")
+      .or(`transaction_id.eq.${transactionId || ""},holding_id.eq.${holdingId || ""}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingRow?.data?.id) {
+      await db.from("order_emails").update({
+        fill_status: fillStatus,
+        fill_resend_id: resendId,
+        fill_sent_at: fillDate,
+        fill_price_cents: fillPriceCents,
+        fill_date: fillDate,
+        updated_at: new Date().toISOString(),
+      }).eq("id", existingRow.data.id).then(() => {}).catch((err) => console.warn("[order-fill-email] Log update error:", err?.message));
+    } else {
+      await db.from("order_emails").insert({
+        user_id: userId,
+        email: userEmail,
+        asset_name: assetName || null,
+        asset_symbol: assetSymbol || null,
+        strategy_name: strategyName || null,
+        amount_cents: amountCents,
+        quantity,
+        reference,
+        order_date: orderDate,
+        confirmation_status: "unknown",
+        fill_status: fillStatus,
+        fill_resend_id: resendId,
+        fill_sent_at: fillDate,
+        fill_price_cents: fillPriceCents,
+        fill_date: fillDate,
+        transaction_id: transactionId || null,
+        holding_id: holdingId || null,
+      }).then(() => {}).catch((err) => console.warn("[order-fill-email] Log insert error:", err?.message));
+    }
 
     console.log(`[order-fill-email] Sent to ${userEmail} for ${displayName}`);
   } catch (err) {
     console.error("[order-fill-email] Failed:", err.message);
+  }
+}
+
+function buildOrderConfirmationEmailHtml({ assetName, assetSymbol, strategyName, amountCents, quantity, priceCents, reference, orderDate }) {
+  const Fn = "Inter,Segoe UI,Arial,sans-serif";
+  const isStrategy = !!strategyName;
+  const displayName = isStrategy ? strategyName : (assetName || assetSymbol || "Unknown Asset");
+  const typeLabel = isStrategy ? "Strategy Investment" : "Stock Purchase";
+
+  function fmtZar(cents) {
+    const r = typeof cents === "number" ? cents / 100 : Number(cents) / 100;
+    if (isNaN(r)) return "R0.00";
+    return "R" + r.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtDate(d) {
+    return new Date(d).toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Johannesburg" });
+  }
+  function row(label, value) {
+    return `<tr><td style="padding:8px 0;font-family:${Fn};font-size:14px;color:#7B8194;border-bottom:1px solid #F0F1F6;">${label}</td><td style="padding:8px 0;font-family:${Fn};font-size:14px;color:#121526;font-weight:600;text-align:right;border-bottom:1px solid #F0F1F6;">${value}</td></tr>`;
+  }
+
+  let rows = "";
+  rows += row("Order Type", typeLabel);
+  rows += row(isStrategy ? "Strategy" : "Asset", displayName);
+  if (assetSymbol && !isStrategy) rows += row("Symbol", assetSymbol);
+  rows += row("Amount", fmtZar(amountCents));
+  if (quantity) rows += row("Quantity", Number(quantity).toFixed(4));
+  if (priceCents) rows += row("Price per unit", fmtZar(priceCents));
+  rows += row("Reference", reference || "\u2014");
+  rows += row("Date", fmtDate(orderDate || new Date().toISOString()));
+  rows += row("Status", '<span style="color:#F59E0B;font-weight:700;">Pending</span>');
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="x-apple-disable-message-reformatting"/><title>Order Confirmed \u2014 Mint</title><style>@media(max-width:620px){.container{width:100%!important}.px{padding-left:16px!important;padding-right:16px!important}.card{border-radius:20px!important}.h1{font-size:22px!important;line-height:28px!important}}</style></head><body style="margin:0;padding:0;background:#F6F7FB;"><div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Order confirmed \u2014 ${displayName}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F6F7FB;"><tr><td align="center" style="padding:24px 12px;"><table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;"><tr><td class="px" style="padding:6px 24px 14px 24px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="left" style="padding:0;"><img src="https://www.mymint.co.za/assets/mint-logo.svg" width="110" alt="Mint" style="display:block;border:0;outline:none;text-decoration:none;height:auto;"/></td><td align="right" style="padding:0;"><span style="font-family:${Fn};font-size:13px;color:#7B8194;">Trade Notification</span></td></tr></table></td></tr><tr><td class="px" style="padding:0 24px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.10);overflow:hidden;"><tr><td style="padding:28px 20px 8px 20px;text-align:center;"><div style="display:inline-block;width:48px;height:48px;border-radius:50%;background:#F59E0B1A;line-height:48px;text-align:center;"><span style="font-size:24px;">&#9202;</span></div><div class="h1" style="margin-top:14px;font-family:${Fn};font-size:26px;line-height:32px;color:#121526;font-weight:800;">Order Confirmed</div><div style="margin-top:8px;font-family:${Fn};font-size:14px;line-height:20px;color:#7B8194;">Your ${typeLabel.toLowerCase()} has been received and is being processed.</div></td></tr><tr><td style="padding:20px 20px 4px 20px;"><div style="display:inline-block;padding:4px 12px;border-radius:20px;background:#F59E0B1A;font-family:${Fn};font-size:12px;font-weight:700;color:#F59E0B;">Pending Settlement</div></td></tr><tr><td style="padding:16px 20px 24px 20px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">${rows}</table></td></tr></table></td></tr><tr><td class="px" style="padding:18px 24px 0 24px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;"><tr><td style="padding:18px 20px;"><div style="font-family:${Fn};font-size:14px;line-height:20px;color:#4B5166;">Your order is now pending settlement. You will receive another email once your order has been filled by the broker and confirmed by the CSDP.</div><div style="margin-top:16px;"><a href="https://www.mymint.co.za" class="btn" style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:${Fn};font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">Open Mint</a></div></td></tr></table></td></tr><tr><td class="px" style="padding:18px 24px 28px 24px;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:16px 18px;background:#FFFFFF;border:1px solid #F0F1F6;border-radius:22px;"><div style="font-family:${Fn};font-size:12px;line-height:17px;color:#7B8194;">This is an automated notification from Mint. If you did not make this transaction, please contact us immediately.<br/><br/>&copy; ${new Date().getFullYear()} Mint. All rights reserved.</div><div style="margin-top:12px;font-family:${Fn};font-size:12px;color:#7B8194;"><a href="https://www.mymint.co.za" style="color:#6D28FF;text-decoration:none;font-weight:700;">www.mymint.co.za</a></div></td></tr></table></td></tr></table></td></tr></table></body></html>`;
+}
+
+async function sendOrderConfirmationEmail(db, { userId, userEmail, assetName, assetSymbol, strategyName, amountCents, quantity, priceCents, reference, orderDate }) {
+  try {
+    const resend = getResendClient();
+    if (!resend) {
+      console.log("[order-email] RESEND_API_KEY not set — skipping confirmation email");
+      return;
+    }
+
+    const isStrategy = !!strategyName;
+    const displayName = strategyName || assetName || assetSymbol || "Unknown";
+    const subject = isStrategy
+      ? `Order Confirmed \u2014 ${strategyName}`
+      : `Order Confirmed \u2014 ${assetName || assetSymbol || "Stock"}`;
+
+    const html = buildOrderConfirmationEmailHtml({
+      assetName, assetSymbol, strategyName,
+      amountCents, quantity, priceCents,
+      reference, orderDate,
+    });
+
+    const resp = await resend.emails.send({
+      from: "Mint <orders@mymint.co.za>",
+      to: [userEmail],
+      subject,
+      html,
+    });
+
+    const resendId = resp?.data?.id || null;
+    if (resp.error) {
+      console.error("[order-email] Resend error:", resp.error.message);
+    }
+
+    await db.from("order_emails").insert({
+      user_id: userId,
+      email: userEmail,
+      asset_name: assetName || null,
+      asset_symbol: assetSymbol || null,
+      strategy_name: strategyName || null,
+      amount_cents: amountCents,
+      quantity: quantity || null,
+      reference: reference || null,
+      order_date: orderDate,
+      confirmation_status: resp.error ? "failed" : "sent",
+      confirmation_resend_id: resendId,
+      confirmation_sent_at: new Date().toISOString(),
+      confirmation_price_cents: priceCents || null,
+    }).then(() => {}).catch((err) => console.warn("[order-email] Log write error:", err?.message));
+
+    console.log(`[order-email] Confirmation sent to ${userEmail} for ${displayName}`);
+  } catch (err) {
+    console.error("[order-email] Failed to send confirmation:", err.message);
   }
 }
 
@@ -2497,10 +2602,11 @@ app.post("/api/record-investment", async (req, res) => {
     console.log("[record-investment] Security check result:", securityCheck ? "FOUND" : "NOT FOUND", "error:", secCheckError ? JSON.stringify(secCheckError) : "none");
 
     let holdingResult = { data: null, error: null };
+    let currentPriceCents = null;
+    let calcQuantity = null;
 
     if (securityCheck) {
       console.log("[record-investment] Security exists - will create/update stock_holdings");
-      let currentPriceCents = null;
       const { data: securityData, error: secError } = await db
         .from("securities")
         .select("last_price")
@@ -2530,6 +2636,7 @@ app.post("/api/record-investment", async (req, res) => {
 
       const currentPriceRands = currentPriceCents ? currentPriceCents / 100 : amount;
       const quantity = shareCount && Number(shareCount) > 0 ? Number(shareCount) : (currentPriceRands > 0 ? amount / currentPriceRands : 1);
+      calcQuantity = quantity;
       const avgFillCents = currentPriceCents || Math.round(amount * 100);
       const marketValueCents = Math.round(quantity * (currentPriceCents || amount * 100));
       console.log("[record-investment] Calculated - currentPriceRands:", currentPriceRands, "quantity:", quantity, "avgFillCents:", avgFillCents, "marketValueCents:", marketValueCents);
@@ -2677,6 +2784,21 @@ app.post("/api/record-investment", async (req, res) => {
         console.error("[record-investment] user_strategies upsert failed:", usErr.message);
       }
     }
+
+    const orderDate = new Date().toISOString();
+    const confirmEmailData = {
+      userId,
+      userEmail: user.email,
+      assetName: name || null,
+      assetSymbol: symbol || null,
+      strategyName: isStrategyInvestment ? (name || symbol || "Strategy") : null,
+      amountCents: Math.round(amount * 100),
+      quantity: calcQuantity,
+      priceCents: currentPriceCents,
+      reference: paymentReference,
+      orderDate,
+    };
+    sendOrderConfirmationEmail(db, confirmEmailData).catch(() => {});
 
     console.log("[record-investment] === SUCCESS === Holding:", JSON.stringify(holdingResult.data));
     res.json({ success: true, holding: holdingResult.data });

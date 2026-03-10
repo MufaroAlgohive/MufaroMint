@@ -65,17 +65,17 @@ async function sendOrderConfirmationEmail(db, { userId, userEmail, assetName, as
     await db.from("order_emails").insert({
       user_id: userId,
       email: userEmail,
-      email_type: "order_confirmation",
       asset_name: assetName || null,
       asset_symbol: assetSymbol || null,
       strategy_name: strategyName || null,
       amount_cents: amountCents,
       quantity: quantity || null,
-      fill_price_cents: priceCents || null,
       reference: reference || null,
       order_date: orderDate,
-      resend_id: resendId,
-      status: resp.error ? "failed" : "sent",
+      confirmation_status: resp.error ? "failed" : "sent",
+      confirmation_resend_id: resendId,
+      confirmation_sent_at: new Date().toISOString(),
+      confirmation_price_cents: priceCents || null,
     }).then(() => {}).catch((err) => {
       console.warn("[order-email] Failed to log email:", err?.message);
     });
