@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { ArrowDownRight, ArrowDownLeft, ArrowUpRight, MoreHorizontal, X, Search, CalendarDays, TrendingUp, CreditCard, Wallet, RefreshCw, Gift } from "lucide-react";
-import { generateMintStatement, openStatementWindow } from "../lib/generateMintStatement";
+import { ArrowDownRight, ArrowDownLeft, ArrowUpRight, MoreHorizontal, X, Search, TrendingUp, CreditCard, Wallet, RefreshCw, Gift } from "lucide-react";
+import { generateMintStatement } from "../lib/generateMintStatement";
 import { useProfile } from "../lib/useProfile";
 import NotificationBell from "../components/NotificationBell";
 import Skeleton from "../components/Skeleton";
@@ -98,11 +98,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
   const { transactions: activityTransactions, loading: activityLoading } = useTransactions(100);
 
-  const [activityFilter, setActivityFilter]       = useState("All");
+  const [activityFilter, setActivityFilter]           = useState("All");
   const [activitySearchQuery, setActivitySearchQuery] = useState("");
-  const [showDateFilter, setShowDateFilter]       = useState(false);
-  const [fromDate, setFromDate]                   = useState("");
-  const [toDate, setToDate]                       = useState("");
+  const [dateRange, setDateRange]                     = useState(null);
   const activitySearchRef = useRef(null);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
@@ -113,8 +111,19 @@ const StatementsPage = ({ onOpenNotifications }) => {
     profile?.accountNumber ||
     (profile?.id ? `MINT-${String(profile.id).slice(0, 8).toUpperCase()}` : "MINT-XXXXXXXX");
 
-  // ── All data loaded? ── key guard to prevent empty-PDF bug ────────────────
-  // We wait for: strategies done, holdings done, AND activityTransactions fetched
+  // ── Computed date range ────────────────────────────────────────────────────
+  const { computedFrom, computedTo } = useMemo(() => {
+    if (!dateRange) return { computedFrom: null, computedTo: null };
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - dateRange);
+    return {
+      computedFrom: from.toISOString().split("T")[0],
+      computedTo: to.toISOString().split("T")[0],
+    };
+  }, [dateRange]);
+
+  // ── All data loaded? ───────────────────────────────────────────────────────
   const dataReady = !strategiesLoading && !holdingsLoading && !activityLoading;
 
   // ── Viewport-based perPage ─────────────────────────────────────────────────
@@ -277,7 +286,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
     update();
   }, [activeTab, holdingsRaw]);
 
-  const holdingsBySymbol    = useMemo(() => buildHoldingsBySymbol(holdingsSecurities), [holdingsSecurities]);
+  const holdingsBySymbol     = useMemo(() => buildHoldingsBySymbol(holdingsSecurities), [holdingsSecurities]);
   const strategySnapshotsMap = useMemo(() => {
     const map = new Map();
     rawStrategies.forEach(s => map.set(s.short_name || s.name, getStrategyHoldingsSnapshot(s, holdingsBySymbol)));
@@ -318,13 +327,13 @@ const StatementsPage = ({ onOpenNotifications }) => {
       const q = activitySearchQuery.toLowerCase();
       items = items.filter(i => i.title.toLowerCase().includes(q) || i.description.toLowerCase().includes(q) || i.amount.toLowerCase().includes(q));
     }
-    if (fromDate || toDate) {
-      const ft = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
-      const tt = toDate   ? new Date(`${toDate}T23:59:59`).getTime()   : null;
+    if (computedFrom || computedTo) {
+      const ft = computedFrom ? new Date(`${computedFrom}T00:00:00`).getTime() : null;
+      const tt = computedTo   ? new Date(`${computedTo}T23:59:59`).getTime()   : null;
       items = items.filter(i => { const t = new Date(i.date).getTime(); return !isNaN(t) && (!ft || t >= ft) && (!tt || t <= tt); });
     }
     return items;
-  }, [activityFilter, activitySearchQuery, fromDate, toDate, activityItems]);
+  }, [activityFilter, activitySearchQuery, computedFrom, computedTo, activityItems]);
 
   const activityGroupedItems = useMemo(() => {
     const groups = {};
@@ -357,17 +366,12 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
   const isLoadingTab = (activeTab === "strategy" && strategiesLoading) || (activeTab === "holdings" && holdingsLoading);
 
-  // ── Statement handlers — only fire when data is ready ─────────────────────
-  const handleViewStatement = () => {
-    if (!dataReady) return;
-    openStatementWindow(profile, displayName, holdingsRows, strategyRows, activityItems, fromDate || null, toDate || null);
-  };
-
+  // ── PDF download ───────────────────────────────────────────────────────────
   const handleDownloadPdf = async () => {
     if (!dataReady || pdfLoading) return;
     setPdfLoading(true);
     try {
-      await generateMintStatement(profile, displayName, holdingsRows, strategyRows, activityItems, fromDate || null, toDate || null);
+      await generateMintStatement(profile, displayName, holdingsRows, strategyRows, activityItems, computedFrom, computedTo);
     } catch (e) {
       console.error("PDF generation failed:", e);
     } finally {
@@ -375,10 +379,28 @@ const StatementsPage = ({ onOpenNotifications }) => {
     }
   };
 
-  // ── Button label / disabled helpers ───────────────────────────────────────
-  const pdfLabel  = pdfLoading ? "Generating…" : !dataReady ? "Loading…" : "PDF";
-  const viewLabel = !dataReady ? "Loading…" : "View";
+  const pdfLabel    = pdfLoading ? "Generating…" : !dataReady ? "Loading…" : "Download PDF";
   const btnDisabled = !dataReady || pdfLoading;
+
+  // ── Date range pill selector ───────────────────────────────────────────────
+  const DateRangePills = ({ compact = false }) => (
+    <div className={`flex rounded-full bg-white/10 p-0.5 gap-0.5 ${compact ? "" : "flex-1"}`}>
+      {[null, 30, 60, 90].map((d) => (
+        <button
+          key={d ?? "all"}
+          type="button"
+          onClick={() => setDateRange(d)}
+          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${
+            dateRange === d
+              ? "bg-white text-slate-900 shadow-sm"
+              : "text-white/70 hover:bg-white/10 hover:text-white"
+          }`}
+        >
+          {d ? `${d}d` : "All"}
+        </button>
+      ))}
+    </div>
+  );
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
@@ -416,31 +438,35 @@ const StatementsPage = ({ onOpenNotifications }) => {
             ))}
           </div>
 
-          {/* Search + action buttons */}
+          {/* Date range + PDF button row */}
           {activeTab !== "activity" ? (
-            <div className="grid w-full grid-cols-4 gap-2">
-              <div className="col-span-2">
-                <input type="text" placeholder="Search" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs text-white placeholder:text-white/70 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white/40" />
-              </div>
-              <button type="button" onClick={handleViewStatement} disabled={btnDisabled}
-                className="rounded-full border border-white/40 bg-transparent px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed">
-                {viewLabel}
-              </button>
-              <button type="button" onClick={handleDownloadPdf} disabled={btnDisabled}
-                className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+            <div className="flex items-center gap-2 w-full">
+              <input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-24 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs text-white placeholder:text-white/70 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white/40"
+              />
+              <DateRangePills />
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={btnDisabled}
+                className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              >
                 {pdfLabel}
               </button>
             </div>
           ) : (
-            /* Activity tab action row */
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={handleViewStatement} disabled={btnDisabled}
-                className="rounded-full border border-white/40 bg-transparent px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed">
-                {viewLabel}
-              </button>
-              <button type="button" onClick={handleDownloadPdf} disabled={btnDisabled}
-                className="rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-slate-900 shadow-sm hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed">
+            <div className="flex items-center gap-2 w-full">
+              <DateRangePills />
+              <button
+                type="button"
+                onClick={handleDownloadPdf}
+                disabled={btnDisabled}
+                className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              >
                 {pdfLabel}
               </button>
             </div>
@@ -484,9 +510,14 @@ const StatementsPage = ({ onOpenNotifications }) => {
               {/* Search */}
               <div className="mt-4 relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input ref={activitySearchRef} type="text" placeholder="Search transactions..." value={activitySearchQuery}
+                <input
+                  ref={activitySearchRef}
+                  type="text"
+                  placeholder="Search transactions..."
+                  value={activitySearchQuery}
                   onChange={e => setActivitySearchQuery(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-50 transition" />
+                  className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-50 transition"
+                />
                 {activitySearchQuery && (
                   <button onClick={() => setActivitySearchQuery("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300">
                     <X className="h-3 w-3" />
@@ -494,30 +525,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
                 )}
               </div>
 
-              {/* Date filter */}
-              {showDateFilter && (
-                <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm border border-slate-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold text-slate-500">Date Range</p>
-                    {(fromDate || toDate) && <button onClick={() => { setFromDate(""); setToDate(""); }} className="text-[11px] font-semibold text-blue-600">Clear</button>}
-                  </div>
-                  <div className="grid gap-3 grid-cols-2">
-                    {[{ label: "From", val: fromDate, set: setFromDate }, { label: "To", val: toDate, set: setToDate }].map(({ label, val, set }) => (
-                      <label key={label} className="flex flex-col gap-1.5 text-[11px] font-semibold text-slate-400">
-                        {label}
-                        <input type="date" value={val} onChange={e => set(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-blue-200 focus:outline-none" />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Filter pills */}
               <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-none">
-                <button type="button" onClick={() => setShowDateFilter(p => !p)}
-                  className={`flex-shrink-0 flex items-center justify-center h-9 w-9 rounded-full shadow-sm transition ${showDateFilter || fromDate || toDate ? "bg-blue-50 text-blue-600 border border-blue-200" : "bg-white text-slate-500 border border-slate-100"}`}>
-                  <CalendarDays className="h-4 w-4" />
-                </button>
                 {activityFilters.map(f => (
                   <button key={f} type="button" onClick={() => setActivityFilter(f)}
                     className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${activityFilter === f ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100"}`}>
@@ -525,6 +534,22 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   </button>
                 ))}
               </div>
+
+              {/* Active date range indicator */}
+              {dateRange && (
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-slate-500 bg-violet-50 border border-violet-100 rounded-full px-3 py-1">
+                    Last {dateRange} days
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setDateRange(null)}
+                    className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                  >
+                    <X className="h-3 w-3" /> Clear
+                  </button>
+                </div>
+              )}
 
               <p className="mt-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                 {activityVisibleItems.length} transaction{activityVisibleItems.length !== 1 ? "s" : ""}
