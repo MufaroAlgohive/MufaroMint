@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node server/index.cjs & vite",
+"dev": "node server/index.cjs & npx vite",
     "server": "node server/index.cjs",
     "build": "vite build",
     "preview": "vite preview",

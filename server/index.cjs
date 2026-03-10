@@ -2709,18 +2709,27 @@ app.get("/api/user/holdings", async (req, res) => {
 
 app.get("/api/user/strategies", async (req, res) => {
   try {
+    console.log("[user/strategies] Request received");
+    console.log("[user/strategies] Supabase available:", !!supabase);
+    console.log("[user/strategies] SupabaseAdmin available:", !!supabaseAdmin);
+    
     if (!supabase) {
-      return res.status(500).json({ success: false, error: "Database not connected" });
+      console.log("[user/strategies] ERROR: Database not connected - supabase is null");
+      return res.status(503).json({ success: false, error: "Database not available. Please check server configuration." });
     }
 
     const { user, error: authError } = await authenticateUser(req);
     if (authError || !user) {
+      console.log("[user/strategies] Auth error:", authError);
       return res.status(401).json({ success: false, error: authError || "Unauthorized" });
     }
+
+    console.log("[user/strategies] User authenticated:", user.id);
 
     const db = supabaseAdmin || supabase;
     const userId = user.id;
 
+    // First, get user's strategy investments from transactions
     const { data: transactions, error: txError } = await db
       .from("transactions")
       .select("id, name, amount, direction, transaction_date")
@@ -2732,6 +2741,7 @@ app.get("/api/user/strategies", async (req, res) => {
       return res.status(500).json({ success: false, error: txError.message });
     }
 
+    // Extract strategy names from transactions
     const strategyInvestments = {};
     const strategyFirstDate = {};
     for (const tx of (transactions || [])) {
@@ -2757,9 +2767,10 @@ app.get("/api/user/strategies", async (req, res) => {
 
     const strategyNames = Object.keys(strategyInvestments);
     if (strategyNames.length === 0) {
-      return res.json({ success: true, strategies: [] });
+      return res.status(200).json({ success: true, strategies: [] });
     }
 
+    // Get all active strategies
     const { data: allStrategies, error: stratErr } = await db
       .from("strategies")
       .select(`
@@ -2775,6 +2786,7 @@ app.get("/api/user/strategies", async (req, res) => {
       return res.status(500).json({ success: false, error: stratErr.message });
     }
 
+    // Get securities for logos
     const allHoldingSymbols = new Set();
     for (const strategy of (allStrategies || [])) {
       const h = strategy.holdings || [];
@@ -2794,6 +2806,7 @@ app.get("/api/user/strategies", async (req, res) => {
       }
     }
 
+    // Match user's strategies
     const matchedStrategies = [];
     for (const strategy of (allStrategies || [])) {
       const matchKey = strategyNames.find(sn =>
@@ -2825,23 +2838,11 @@ app.get("/api/user/strategies", async (req, res) => {
       }
     }
 
-    const holdingSecIds = matchedStrategies.map(s => s.id);
-    if (holdingSecIds.length > 0) {
-      const { data: badHoldings } = await db
-        .from("stock_holdings")
-        .select("id, security_id")
-        .eq("user_id", userId)
-        .in("security_id", holdingSecIds);
-      for (const bh of (badHoldings || [])) {
-        console.log("[user/strategies] Cleaning up invalid stock_holding", bh.id, "for strategy", bh.security_id);
-        await db.from("stock_holdings").delete().eq("id", bh.id);
-      }
-    }
-
-    res.json({ success: true, strategies: matchedStrategies });
+    console.log("[user/strategies] Found strategies for user:", matchedStrategies.length);
+    return res.status(200).json({ success: true, strategies: matchedStrategies });
   } catch (error) {
     console.error("[user/strategies] Error:", error);
-    res.status(500).json({ success: false, error: error.message || "Failed to fetch user strategies" });
+    return res.status(500).json({ success: false, error: error.message || "Failed to fetch user strategies" });
   }
 });
 
@@ -4202,11 +4203,18 @@ app.post('/api/test-mint-mornings', async (req, res) => {
   }
 });
 
+const PORT = process.env.API_PORT || 3001;
+
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Catch-all 404 handler - MUST be after all route definitions
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", message: "This is the API server. The frontend is served separately." });
 });
 
-const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`TruID API server running on port ${PORT}`);
 });
