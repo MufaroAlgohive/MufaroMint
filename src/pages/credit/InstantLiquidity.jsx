@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Star,
   ShieldCheck,
+  PieChart,
   HelpCircle
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts';
@@ -29,7 +30,7 @@ import NavigationPill from "../../components/NavigationPill";
 import LiquidityHistory from "./LiquidityHistory";
 import ActiveLiquidity from "./ActiveLiquidity";
 import RepayLiquidity from "./RepayLiquidity";
-import ApplyLiquidity from "./ApplyLiquidity";
+import NewPortfolio from "../NewPortfolioPage";
 
 // --- CONSTANTS FOR MEGA FILTER ---
 const sortOptions = ["Balance (High)", "Score (High)", "Market Cap", "Dividend Yield"];
@@ -77,6 +78,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   const [workflowStep, setWorkflowStep] = useState("idle");
   const [isProcessing, setIsProcessing] = useState(false);
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
+  const [repaymentDate, setRepaymentDate] = useState("");
 
   useEffect(() => { setPortalTarget(document.body); }, []);
 
@@ -84,6 +86,20 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     display: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
+
+  // --- DATE CONSTRAINTS ---
+  const dateConstraints = useMemo(() => {
+    const minDateObj = new Date();
+    minDateObj.setDate(minDateObj.getDate() + 14);
+    
+    const maxDateObj = new Date();
+    maxDateObj.setMonth(maxDateObj.getMonth() + 6);
+    
+    return {
+      min: minDateObj.toISOString().split('T')[0],
+      max: maxDateObj.toISOString().split('T')[0]
+    };
+  }, []);
 
   // --- PORTFOLIO ENGINE (Mock Data & Calculations) ---
   const portfolioItems = useMemo(() => [
@@ -138,6 +154,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     setWorkflowStep("idle");
     setPledgeAmount("");
     setDisclaimerChecked(false);
+    setRepaymentDate("");
   };
 
   const closeDetail = () => { setIsDetailOpen(false); setTimeout(() => setSelectedItem(null), 300); };
@@ -184,13 +201,19 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   if (view === "history") return <LiquidityHistory onBack={() => setView("main")} fonts={fonts} />;
   if (view === "active") return <ActiveLiquidity onBack={() => setView("main")} fonts={fonts} />;
   if (view === "repay") return <RepayLiquidity onBack={() => setView("main")} fonts={fonts} totalDebt={256450} />;
-  if (view === "apply_manual") return <ApplyLiquidity onBack={() => setView("main")} totalPortfolioValue={totalPortfolioValue} fonts={fonts} onNavigateToMarkets={() => onTabChange("markets")} />;
+  if (view === "portfolio") return <NewPortfolio onBack={() => setView("main")} fonts={fonts} />;
 
   // --- MAIN DASHBOARD RENDER ---
   return (
     <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900">
       <div className="absolute inset-x-0 top-0 -z-10 h-full">
-        <div className="absolute inset-x-0 top-0" style={{ height: '100vh', background: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #3b1b7a 10%, #f8f6fa 100%)' }} />
+        <div 
+          className="absolute inset-x-0 top-0"
+          style={{ 
+            height: '100vh',
+            background: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)'
+          }} 
+        />
       </div>
 
       <div className="px-5 pt-12 pb-8">
@@ -224,7 +247,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
         {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-3 mb-10 text-[11px] font-medium">
           {[
-            { label: "Apply", icon: Plus, onClick: () => setView("apply_manual") },
+            { label: "Portfolio", icon: PieChart, onClick: () => setView("portfolio") },
             { label: "Active", icon: FileSignature, onClick: () => setView("active") },
             { label: "Pay", icon: HandCoins, onClick: () => setView("repay") },
             { label: "History", icon: History, onClick: () => setView("history") }
@@ -402,6 +425,18 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                     <div className="space-y-4 mb-6">
                         <div className="flex justify-between pb-3 border-b border-slate-50 text-sm"><span className="text-slate-500 font-medium">Applied LTV</span><span className="font-bold text-slate-900">{(selectedItem?.ltv * 100 || 50)}%</span></div>
                         <div className="bg-slate-900 rounded-2xl p-4 flex justify-between items-center text-white"><span className="text-[10px] font-black opacity-40 uppercase">Interest Cost</span><span className="font-bold">{formatZar((pledgeAmount || 0) * 0.105 / 12)} / mo</span></div>
+                        
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Repayment Date</label>
+                            <input 
+                                type="date" 
+                                min={dateConstraints.min} 
+                                max={dateConstraints.max} 
+                                value={repaymentDate} 
+                                onChange={(e) => setRepaymentDate(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-100 text-slate-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-violet-500 font-medium transition-all"
+                            />
+                        </div>
                     </div>
 
                     <div className="p-4 bg-slate-50 rounded-2xl mb-6 border border-slate-100">
@@ -419,7 +454,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                     </label>
 
                     <div className="flex flex-col gap-3">
-                        <button disabled={!disclaimerChecked} onClick={() => setWorkflowStep("auth")} className="w-full bg-slate-900 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl disabled:opacity-30">Agree & Drawdown</button>
+                        <button disabled={!disclaimerChecked || !repaymentDate} onClick={() => setWorkflowStep("auth")} className="w-full bg-slate-900 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl disabled:opacity-30">Agree & Drawdown</button>
                         <button onClick={() => setWorkflowStep("idle")} className="w-full py-2 text-xs font-bold text-slate-400 uppercase">Go Back</button>
                     </div>
                 </div>
