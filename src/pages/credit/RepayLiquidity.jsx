@@ -3,9 +3,7 @@ import {
   Check, 
   ChevronLeft, 
   Landmark, 
-  Wallet,
   Calendar,
-  Sparkles,
   TrendingDown
 } from "lucide-react";
 import { formatZar } from "../../lib/formatCurrency";
@@ -113,8 +111,76 @@ const RepayLiquidity = ({ onBack, fonts }) => {
             </h2>
         </div>
 
-        {/* Loan Selection List */}
+        {/* Sleek Custom Input Card (Moved Up) */}
+        <div className="px-6 mb-6">
+            <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm">
+                <div className="flex justify-between items-center mb-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Repayment Amount</span>
+                    <button 
+                        onClick={() => { 
+                            const max = selectedLoanId 
+                                ? activeLoans.find(l => l.id === selectedLoanId).principal + activeLoans.find(l => l.id === selectedLoanId).interestAccrued 
+                                : totalOutstanding;
+                            setRepayAmount(max.toString()); 
+                        }} 
+                        className="text-[10px] font-bold text-violet-600 uppercase tracking-wider bg-violet-50 px-3 py-1 rounded-full active:scale-95 transition-all"
+                    >
+                        Max
+                    </button>
+                </div>
+                <div className="flex items-center gap-2 border-b border-slate-50 pb-2">
+                    <span className="text-2xl font-bold text-slate-300">R</span>
+                    <input 
+                        type="number" 
+                        value={repayAmount} 
+                        onChange={(e) => setRepayAmount(e.target.value)} 
+                        placeholder="0.00" 
+                        className="w-full text-4xl font-bold text-slate-900 outline-none placeholder:text-slate-200 tracking-tight bg-transparent" 
+                    />
+                </div>
+            </div>
+        </div>
+
+        {/* Payment Methods (Moved Up, Sleek Light Mode, No Mint Wallet) */}
         <div className="px-6 mb-8 space-y-3">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">Source of Funds</p>
+            {[
+                { id: 'bank', label: 'Linked Bank Account', sub: 'Standard Bank ••• 429', icon: Landmark }
+            ].map(m => (
+                <button 
+                    key={m.id} 
+                    onClick={() => setMethod(m.id)} 
+                    className={`w-full flex items-center justify-between p-5 rounded-[24px] border transition-all active:scale-[0.98] ${method === m.id ? 'bg-violet-50 border-violet-200 text-violet-900 shadow-sm' : 'bg-white border-slate-100 text-slate-900 shadow-sm'}`}
+                >
+                    <div className="flex items-center gap-4 text-left">
+                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-colors ${method === m.id ? 'bg-white shadow-sm' : 'bg-slate-50'}`}>
+                            <m.icon size={20} className={method === m.id ? 'text-violet-600' : 'text-slate-400'} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-bold">{m.label}</p>
+                            <p className={`text-[10px] font-medium mt-0.5 ${method === m.id ? 'text-violet-600/70' : 'text-slate-400'}`}>{m.sub}</p>
+                        </div>
+                    </div>
+                    <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors ${method === m.id ? 'border-violet-600 bg-violet-600' : 'border-slate-200'}`}>
+                        {method === m.id && <Check size={14} className="text-white" />}
+                    </div>
+                </button>
+            ))}
+        </div>
+
+        {/* Action Button (Moved Up) */}
+        <div className="px-6 mb-10">
+            <button 
+                onClick={handleConfirm} 
+                disabled={!repayAmount || isProcessing} 
+                className="w-full h-14 bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] text-white rounded-2xl font-bold uppercase tracking-widest text-xs shadow-xl active:scale-[0.98] transition-all disabled:opacity-30 disabled:grayscale"
+            >
+                {isProcessing ? "Processing..." : selectedLoanId ? "Settle Loan Early" : "Confirm Repayment"}
+            </button>
+        </div>
+
+        {/* Loan Selection List (Moved Down) */}
+        <div className="px-6 space-y-3">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1 mt-4">Select Loan to Settle</p>
             {activeLoans.map((loan) => {
                 const isSelected = selectedLoanId === loan.id;
@@ -166,70 +232,6 @@ const RepayLiquidity = ({ onBack, fonts }) => {
                 )
             })}
         </div>
-
-        {/* Custom Input Card */}
-        <div className="px-6 mb-8">
-            <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm">
-                <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Custom Repayment Amount</span>
-                    <button 
-                        onClick={() => { setSelectedLoanId(null); setRepayAmount(totalOutstanding.toString()); }} 
-                        className="text-[10px] font-bold text-violet-600 uppercase tracking-wider bg-violet-50 px-3 py-1 rounded-full active:scale-95 transition-all"
-                    >
-                        Pay Total
-                    </button>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-slate-300">R</span>
-                    <input 
-                        type="number" 
-                        value={repayAmount} 
-                        onChange={(e) => { setRepayAmount(e.target.value); setSelectedLoanId(null); }} 
-                        placeholder="0.00" 
-                        className="w-full text-4xl font-bold text-slate-900 outline-none placeholder:text-slate-200 tracking-tight bg-transparent" 
-                    />
-                </div>
-            </div>
-        </div>
-
-        {/* Payment Methods */}
-        <div className="px-6 space-y-3">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-2">Source of Funds</p>
-            {[
-                { id: 'bank', label: 'Linked Bank Account', sub: 'Standard Bank ••• 429', icon: Landmark }, 
-                { id: 'wallet', label: 'Mint Wallet Balance', sub: 'Available: R12,450.00', icon: Wallet }
-            ].map(m => (
-                <button 
-                    key={m.id} 
-                    onClick={() => setMethod(m.id)} 
-                    className={`w-full flex items-center justify-between p-5 rounded-[24px] border transition-all active:scale-[0.98] ${method === m.id ? 'bg-slate-900 border-slate-900 text-white shadow-xl' : 'bg-white border-slate-100 text-slate-900 shadow-sm'}`}
-                >
-                    <div className="flex items-center gap-4 text-left">
-                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center transition-colors ${method === m.id ? 'bg-white/10' : 'bg-slate-50'}`}>
-                            <m.icon size={20} className={method === m.id ? 'text-white' : 'text-slate-400'} />
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold">{m.label}</p>
-                            <p className={`text-[10px] font-medium mt-0.5 ${method === m.id ? 'text-white/50' : 'text-slate-400'}`}>{m.sub}</p>
-                        </div>
-                    </div>
-                    <div className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-colors ${method === m.id ? 'border-emerald-400 bg-emerald-400/20' : 'border-slate-200'}`}>
-                        {method === m.id && <Check size={14} className="text-emerald-400" />}
-                    </div>
-                </button>
-            ))}
-        </div>
-      </div>
-
-      {/* Action Footer (Offset for Navigation Bar) */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 pb-28 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-10">
-        <button 
-            onClick={handleConfirm} 
-            disabled={!repayAmount || isProcessing} 
-            className="w-full h-14 bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] text-white rounded-2xl font-bold uppercase tracking-widest text-xs shadow-xl active:scale-[0.98] transition-all disabled:opacity-30 disabled:grayscale"
-        >
-            {isProcessing ? "Processing..." : selectedLoanId ? "Settle Loan Early" : "Confirm Repayment"}
-        </button>
       </div>
     </div>
   );

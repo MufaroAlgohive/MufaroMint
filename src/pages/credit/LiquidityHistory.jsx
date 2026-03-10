@@ -131,31 +131,31 @@ const LiquidityHistory = ({ onBack }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Loan Performance Summary */}
+        {/* Loan Performance Summary - Updated to Light Purple Brand Color */}
         <div className="px-6 py-8">
-            <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-2xl relative overflow-hidden">
+            <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 rounded-[32px] p-8 shadow-xl shadow-violet-900/5 relative overflow-hidden">
                 <div className="relative z-10">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-1">Total Life-cycle Interest</p>
-                            <h2 className="text-4xl font-light tracking-tight" style={{ fontFamily: fonts.display }}>{formatZar(6535.40)}</h2>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-500 mb-1">Total Life-cycle Interest</p>
+                            <h2 className="text-4xl font-light tracking-tight text-slate-900" style={{ fontFamily: fonts.display }}>{formatZar(6535.40)}</h2>
                         </div>
-                        <div className="bg-white/10 p-2 rounded-2xl border border-white/10">
-                            <ReceiptText className="text-violet-400" size={24} />
+                        <div className="bg-white p-2 rounded-2xl border border-violet-100 shadow-sm">
+                            <ReceiptText className="text-violet-600" size={24} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/10">
+                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-violet-200/50">
                         <div>
-                            <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Active Collateral</p>
-                            <p className="text-sm font-bold text-white">{formatZar(535000)}</p>
+                            <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Active Collateral</p>
+                            <p className="text-sm font-bold text-slate-900">{formatZar(535000)}</p>
                         </div>
                         <div>
-                            <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Avg. Loan Term</p>
-                            <p className="text-sm font-bold text-emerald-400">22 Days</p>
+                            <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Avg. Loan Term</p>
+                            <p className="text-sm font-bold text-emerald-600">22 Days</p>
                         </div>
                     </div>
                 </div>
-                <div className="absolute -right-10 -bottom-10 opacity-10">
+                <div className="absolute -right-10 -bottom-10 opacity-50 text-violet-200">
                     <History size={180} />
                 </div>
             </div>
