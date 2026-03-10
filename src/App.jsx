@@ -963,8 +963,6 @@ const App = () => {
     );
   }
 
-  // --- In App.jsx ---
-
   if (currentPage === "instantLiquidity") {
     return (
       <AppLayout
@@ -978,7 +976,7 @@ const App = () => {
         <InstantLiquidityPage 
           profile={profile} 
           onBack={goBack} 
-          onTabChange={handleTabChange} 
+          onTabChange={handleTabChange} // ADD THIS: Missing link back to Wealth
           onOpenNotifications={() => {
             setNotificationReturnPage("instantLiquidity");
             navigateTo("notifications");

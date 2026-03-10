@@ -2,7 +2,6 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const NavigationPill = ({ activeTab = "credit", onTabChange, className = "" }) => {
-  // Tabs configuration
   const tabs = [
     { id: "home", label: "Wealth" },
     { id: "credit", label: "Credit" },
