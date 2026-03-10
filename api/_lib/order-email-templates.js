@@ -1,12 +1,58 @@
-const F = "-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Helvetica Neue',sans-serif";
+/**
+ * Mint | Wealth-as-a-Service South Africa
+ * Professional Email Templates
+ * 
+ * Usage:
+ *   import { buildOrderConfirmationHtml, formatZar, formatDate } from './mint-email-templates.js';
+ *
+ *   const html = buildOrderConfirmationHtml({
+ *     assetName: "Naspers Limited",
+ *     amountCents: 1250000,
+ *     quantity: 3.4812,
+ *     reference: "MNT-20250310-00847",
+ *     strategyName: null,
+ *   });
+ */
 
-function formatZar(cents) {
-  const rands = typeof cents === "number" ? cents / 100 : Number(cents) / 100;
-  if (isNaN(rands)) return "R0.00";
-  return "R\u202f" + rands.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const F = "-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Helvetica Neue',sans-serif";
+const MINT_PURPLE = "#4a1d96";
+const GRADIENT = "linear-gradient(135deg, #1e0b4a 0%, #4a1d96 100%)";
+
+// ─── Inline white logo (base64 SVG) ──────────────────────────────────────────
+// Replace the value below with your own base64-encoded logo if it changes.
+const LOGO_WHITE_B64 = "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMiIgZGF0YS1uYW1lPSJMYXllciAyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5MzU2LjA4IDExODcuMTIiPgogIDxkZWZzPgogICAgPHN0eWxlPgogICAgICAuY2xzLTEgewogICAgICAgIGZpbGw6ICNmZmY7CiAgICAgIH0KICAgIDwvc3R5bGU+CiAgPC9kZWZzPgogIDxnIGlkPSJMYXllcl8xLTIiIGRhdGEtbmFtZT0iTGF5ZXIgMSI+CiAgICA8Zz4KICAgICAgPGc+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTc4OS41NSw0MzUuNTFjNDEuNTUsMjAuMjgsMjcuNDIsODIuNzQtMTguODEsODMuMTZoMHMtODQxLjU5LDAtODQxLjU5LDBjLTI0LjE5LDAtNDMuOCwxOS42MS00My44LDQzLjh2Mzc0LjQxYzAsMjQuMTktMTkuNjEsNDMuOC00My44LDQzLjhINDMuOGMtMjQuMTksMC00My44LTE5LjYxLTQzLjgtNDMuOHYtNDA4LjI2YzAtMTUuNjgsOC4zOC0zMC4xNiwyMS45Ny0zNy45N0w4NjUuMjQsNS44M2MxMi42LTcuMjUsMjcuOTgtNy43Nyw0MS4wNC0xLjM5bDg4My4yNyw0MzEuMDdaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTIxMC44Niw3NTEuNjJjLTQxLjU1LTIwLjI4LTI3LjQyLTgyLjc0LDE4LjgxLTgzLjE2aDBzODQxLjU5LDAsODQxLjU5LDBjMjQuMTksMCw0My44LTE5LjYxLDQzLjgtNDMuOFYyNTAuMjVjMC0yNC4xOSwxOS42MS00My44LDQzLjgtNDMuOGg3OTcuNzRjMjQuMTksMCw0My44LDE5LjYxLDQzLjgsNDMuOHY0MDguMjZjMCwxNS42OC04LjM4LDMwLjE2LTIxLjk3LDM3Ljk3bC04NDMuMjcsNDg0LjgxYy0xMi42LDcuMjUtMjcuOTgsNy43Ny00MS4wNCwxLjM5bC04ODMuMjctNDMxLjA3WiIvPgogICAgICA8L2c+CiAgICAgIDxnPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTM1MjUuNjcsMTE2NS40N1YzMDcuMzZjMC04NC41NywyOS45MS0xNTcuMTEsODkuNzMtMjE3LjYzQzM2NzUuODksMjkuOTEsMzc0OC40NSwwLDM4MzMuMDIsMGgyMi42OWM5Ni45NSwwLDE3OS44LDM0LjQsMjQ4LjU2LDEwMy4xNCwzNy44LDM3LjgyLDY1LjMxLDgwLjExLDgyLjUxLDEyNi44NmwzMDYuMzIsNjEzLjY3LDMwNi4zMi02MTMuNjdjMTcuMTgtNDYuNzUsNDUuMDMtODkuMDQsODMuNTQtMTI2Ljg2QzQ5NTEuNzIsMzQuNCw1MDM0LjU4LDAsNTEzMS41MywwaDIxLjY2Yzg1LjI1LDAsMTU3LjgsMjkuOTEsMjE3LjYyLDg5LjczLDYwLjUsNjAuNTIsOTAuNzYsMTMzLjA1LDkwLjc2LDIxNy42M3Y4NTguMTFoLTM1MS43VjQzOS4zOGMwLTExLjY4LTQuNDgtMjItMTMuNDEtMzAuOTUtOC45NC04LjI0LTE5LjI2LTEyLjM4LTMwLjk1LTEyLjM4LTYuMTksMC0xMi4wNCwxLjA0LTE3LjUzLDMuMS00LjgyLDIuMDYtOS4yOSw1LjE2LTEzLjQxLDkuMjhoLTEuMDNsLTM3OC41Miw3NTcuMDRoLTMyMi44MmwtMTc2LjM3LTM1MS43MS0yMDMuMTgtNDA1LjMzYy00LjEzLTQuMTItOC45NC03LjIyLTE0LjQ0LTkuMjgtNS41MS0yLjA2LTExLTMuMS0xNi41LTMuMS0xMi4zOCwwLTIzLjA1LDQuMTMtMzEuOTgsMTIuMzgtOC4yNSw4Ljk1LTEyLjM4LDE5LjI3LTEyLjM4LDMwLjk1djcyNi4wOWgtMzUxLjdaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNTYzNy45NCwxMTY1LjQ3VjIxLjY3aDM1MS43djExNDMuOGgtMzUxLjdaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNzQ0MS44NCwxMTg3LjEyYy05Ni45NiwwLTE3OS44Mi0zNC4wMy0yNDguNTgtMTAyLjExLTIuNzYtMi4wNi01LjE0LTQuNDYtNy4yMi03LjIyaC0xLjA0bC0xMi4zNi0xNS40N2MtMi43Ni0yLjczLTUuMTYtNS40OS03LjIzLTguMjRsLTQyMC43OS01MDQuMzYtMTU4LjgzLTE5MC44Yy0yLjA3LTEuMzYtNC40OS0yLjc0LTcuMjMtNC4xMi01LjUxLTIuMDYtMTEtMy4xLTE2LjUtMy4xLTEyLjM4LDAtMjMuMDUsNC40OC0zMS45OCwxMy40MS04LjI1LDguMjQtMTIuMzgsMTguNTYtMTIuMzgsMzAuOTN2NzY5LjQyaC0zNTEuN1YzMDcuMzZjMC04NC41NywyOS45MS0xNTcuMTEsODkuNzMtMjE3LjYzQzYzMTYuMjQsMjkuOTEsNjM4OC43OSwwLDY0NzMuMzYsMGgyMi42OWM5Ni45NCwwLDE3OS44LDM0LjQsMjQ4LjU3LDEwMy4xNCwyLjA1LDIuMDYsNC4xMiw0LjEyLDYuMTgsNi4xOGgxLjAybDEzLjQxLDE1LjQ3YzIuMDYsMi43Niw0LjEzLDUuNTEsNi4xOCw4LjI2bDU3OS42NSw2OTUuMTZjMi4wNiwyLjA2LDQuNDYsMy40NCw3LjIyLDQuMTIsNS41LDIuMDYsMTEuMzQsMy4xLDE3LjUzLDMuMSwxMS42OCwwLDIyLTQuMTMsMzAuOTUtMTIuMzgsOC45Mi04Ljk0LDEzLjQtMTkuMjUsMTMuNC0zMC45NVYyMS42N2gzNTEuNjl2ODU4LjExYzAsODUuMjctMzAuMjcsMTU3Ljc5LTkwLjc1LDIxNy42MS01OS44Miw1OS44Mi0xMzIuMzcsODkuNzMtMjE3LjYzLDg5LjczaC0yMS42NFoiLz4KICAgICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik04NDMxLjk3LDExNjUuNDdWMjg1LjdoLTU3MS40VjIxLjY3aDE0OTUuNTF2MjY0LjA0aC01NzIuNDJ2ODc5Ljc2aC0zNTEuNjlaIi8+CiAgICAgIDwvZz4KICAgIDwvZz4KICA8L2c+Cjwvc3ZnPg==";
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+const S = {
+  container: "max-width:600px; background:#ffffff; border-radius:32px; overflow:hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.04); border: 1px solid #f1f5f9;",
+  hero: `background: ${GRADIENT}; padding: 56px 48px; text-align: left;`,
+  row: "margin-bottom:8px; background:#f8fafc; border-radius:16px;",
+  label: `padding:18px 20px; font-family:${F}; font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.1em; font-weight:700;`,
+  value: `padding:18px 20px; font-family:${F}; font-size:14px; color:#0f172a; font-weight:600; text-align:right;`,
+  button: `background:${MINT_PURPLE}; color:#ffffff; padding:18px 36px; border-radius:16px; font-family:${F}; font-size:15px; font-weight:700; text-decoration:none; display:inline-block;`,
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Formats cents to ZAR string — e.g. R 12 500,00
+ */
+export function formatZar(cents) {
+  const rands = (typeof cents === "number" ? cents : Number(cents)) / 100;
+  if (isNaN(rands)) return "R 0,00";
+  return new Intl.NumberFormat("en-ZA", {
+    style: "currency",
+    currency: "ZAR",
+    minimumFractionDigits: 2,
+  })
+    .format(rands)
+    .replace("ZAR", "R");
 }
 
-function formatDate(dateStr) {
+/**
+ * Formats ISO date string to SA Standard Time
+ */
+export function formatDate(dateStr) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-ZA", {
     day: "numeric",
@@ -18,181 +64,208 @@ function formatDate(dateStr) {
   });
 }
 
-function detailCard(label, value) {
-  return `<div style="margin:0 0 10px;border:1px solid #e2e8f0;border-radius:10px;background:#f8fafc;overflow:hidden;"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:11px 16px;font-family:${F};font-size:13px;color:#64748b;width:50%;">${label}</td><td style="padding:11px 16px;font-family:${F};font-size:13px;color:#0f172a;font-weight:600;text-align:right;">${value}</td></tr></table></div>`;
+// ─── Internal components ─────────────────────────────────────────────────────
+
+function detailRow(label, value) {
+  return `
+    <div style="${S.row}">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td style="${S.label}">${label}</td>
+          <td style="${S.value}">${value}</td>
+        </tr>
+      </table>
+    </div>`;
 }
 
-const PURPLE_GRADIENT = "linear-gradient(135deg,#140a2e 0%,#2a0f5e 55%,#4a1d96 100%)";
-
-function buildShell({ preheader, eyebrow, heroTitle, heroSubtitle, cards, ctaLabel, footerNote }) {
+function buildShell({ heroLabel, heroTitle, body, footerNote }) {
   const yr = new Date().getFullYear();
-  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html dir="ltr" lang="en">
+  return `<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta content="width=device-width" name="viewport" />
-  <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
-  <meta name="x-apple-disable-message-reformatting" />
-  <meta content="IE=edge" http-equiv="X-UA-Compatible" />
-  <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
-  <title>${heroTitle} — Mint</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="x-apple-disable-message-reformatting">
+  <style>
+    @media only screen and (max-width:600px) {
+      .inner-padding { padding: 32px !important; }
+      .hero-text    { font-size: 26px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#f4f7f8;">
-<div style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0;">${preheader}</div>
+<body style="margin:0; padding:0; background-color:#fcfcfd; font-family:${F};">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#fcfcfd">
+    <tr>
+      <td align="center" style="padding:60px 10px;">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="${S.container}">
 
-<table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f4f7f8;">
-<tr><td align="center" style="padding:24px 12px;">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:620px;margin:0 auto;">
+          <!-- ── Hero ── -->
+          <tr>
+            <td style="${S.hero}">
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom:32px;">
+                <tr>
+                  <td style="font-family:${F}; font-size:12px; font-weight:800; color:#c084fc; text-transform:uppercase; letter-spacing:0.2em;">
+                    ${heroLabel}
+                  </td>
+                  <td align="right">
+                    <img src="data:image/svg+xml;base64,${LOGO_WHITE_B64}" width="90" alt="Mint" style="display:block;">
+                  </td>
+                </tr>
+              </table>
+              <div class="hero-text" style="font-family:${F}; font-size:36px; font-weight:800; color:#ffffff; line-height:1.1; letter-spacing:-0.02em;">
+                ${heroTitle}
+              </div>
+            </td>
+          </tr>
 
-  <!-- LOGO BAR -->
-  <tr>
-    <td style="padding:0 0 16px 0;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-        <tr>
-          <td align="left">
-            <img src="https://www.mymint.co.za/assets/mint-logo.svg" width="90" alt="Mint"
-              style="display:block;border:0;height:auto;" />
-          </td>
-          <td align="right"
-            style="font-family:${F};font-size:12px;letter-spacing:0.06em;color:#64748b;text-transform:uppercase;font-weight:600;">
-            ${eyebrow}
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
+          <!-- ── Body ── -->
+          <tr>
+            <td class="inner-padding" style="padding:48px;">
+              ${body}
+            </td>
+          </tr>
 
-  <!-- MAIN CARD -->
-  <tr>
-    <td style="background:#ffffff;border-radius:18px;border:1px solid #e2e8f0;overflow:hidden;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+          <!-- ── Footer ── -->
+          <tr>
+            <td style="padding:48px; background:#f8fafc; border-top:1px solid #f1f5f9; text-align:center;">
+              <div style="font-size:14px; font-weight:700; color:#0f172a; margin-bottom:8px;">Mint Financial Services</div>
+              <div style="font-size:13px; color:#64748b; line-height:1.8;">
+                3 Gwen Ln, Sandown, Sandton, 2031<br>
+                <a href="mailto:info@mymint.co.za" style="color:${MINT_PURPLE}; text-decoration:none;">info@mymint.co.za</a>
+                &nbsp;•&nbsp; +27 10 276 0531
+              </div>
+              <div style="margin-top:32px; padding-top:32px; border-top:1px solid #e2e8f0; font-size:11px; color:#94a3b8; text-align:left; line-height:1.6;">
+                <strong>FSP Compliance</strong><br>
+                ${footerNote}
+                <br><br>&copy; ${yr} Mint. Proudly South African.
+              </div>
+            </td>
+          </tr>
 
-        <!-- HEADER -->
-        <tr>
-          <td style="background:${PURPLE_GRADIENT};padding:32px 28px;">
-            <div style="font-family:${F};font-size:11px;letter-spacing:0.14em;font-weight:700;text-transform:uppercase;color:#e9d5ff;margin-bottom:12px;">
-              Mint · Trade Notification
-            </div>
-            <div style="font-family:${F};font-size:28px;line-height:1.2;font-weight:800;color:#ffffff;margin:0 0 8px;">
-              ${heroTitle}
-            </div>
-            <div style="font-family:${F};font-size:14px;line-height:1.6;color:#e2e8f0;">
-              ${heroSubtitle}
-            </div>
-          </td>
-        </tr>
-
-        <!-- BODY -->
-        <tr>
-          <td style="padding:24px 28px 8px;background:#ffffff;">
-            <p style="margin:0 0 18px;font-family:${F};font-size:14px;line-height:1.7;color:#1e293b;">
-              Dear Mint Investor,
-            </p>
-            <p style="margin:0 0 22px;font-family:${F};font-size:14px;line-height:1.7;color:#334155;">
-              Below is a summary of your order. Please review the details and keep this email for your records.
-            </p>
-
-            ${cards}
-
-            <div style="margin:24px 0 8px;">
-              <a href="https://www.mymint.co.za"
-                style="display:inline-block;background:#4a1d96;color:#ffffff;font-family:${F};font-size:14px;font-weight:700;text-decoration:none;padding:13px 28px;border-radius:10px;letter-spacing:0.02em;">
-                ${ctaLabel} &rarr;
-              </a>
-            </div>
-
-            <p style="margin:24px 0 0;font-family:${F};font-size:13px;color:#0f172a;font-weight:600;">
-              Warm regards,<br />The Mint Team
-            </p>
-          </td>
-        </tr>
-
-        <!-- FOOTER NOTE -->
-        <tr>
-          <td style="padding:20px 28px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-            <p style="margin:0;font-family:${F};font-size:13px;line-height:1.6;color:#475569;">
-              ${footerNote}
-            </p>
-          </td>
-        </tr>
-
-        <!-- LEGAL -->
-        <tr>
-          <td style="padding:16px 28px 26px;background:#ffffff;border-top:1px solid #e2e8f0;">
-            <p style="margin:0 0 6px;font-family:${F};font-size:11px;line-height:1.6;color:#94a3b8;">
-              This is an automated notification from Mint. If you did not place this trade, please contact us at
-              <a href="mailto:support@mymint.co.za" style="color:#6d28d9;text-decoration:none;">support@mymint.co.za</a>.
-            </p>
-            <p style="margin:0;font-family:${F};font-size:11px;color:#94a3b8;">
-              &copy; ${yr} Mint. All rights reserved. &nbsp;&middot;&nbsp;
-              <a href="https://www.mymint.co.za" style="color:#6d28d9;text-decoration:none;font-weight:600;">www.mymint.co.za</a>
-            </p>
-          </td>
-        </tr>
-
-      </table>
-    </td>
-  </tr>
-
-</table>
-</td></tr>
-</table>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 }
 
-function buildOrderConfirmationHtml({ assetName, assetSymbol, amountCents, quantity, priceCents, reference, orderDate, strategyName }) {
-  const isStrategy = !!strategyName;
-  const displayName = isStrategy ? strategyName : (assetName || assetSymbol || "Unknown Asset");
-  const typeLabel = isStrategy ? "Strategy Investment" : "Stock Purchase";
+// ─── Templates ───────────────────────────────────────────────────────────────
 
-  let cards = "";
-  cards += detailCard("Order Type", typeLabel);
-  cards += detailCard(isStrategy ? "Strategy" : "Asset", `<strong>${displayName}</strong>`);
-  if (assetSymbol && !isStrategy) cards += detailCard("Symbol", assetSymbol);
-  cards += detailCard("Amount Invested", `<strong>${formatZar(amountCents)}</strong>`);
-  if (quantity) cards += detailCard("Quantity", Number(quantity).toFixed(4) + " shares");
-  if (priceCents) cards += detailCard("Price per Share", formatZar(priceCents));
-  cards += detailCard("Reference", `<span style="font-size:12px;font-family:monospace;color:#475569;">${reference || "—"}</span>`);
-  cards += detailCard("Order Date", formatDate(orderDate || new Date().toISOString()));
-  cards += detailCard("Status", `<span style="color:#d97706;font-weight:700;background:#fef3c7;padding:2px 10px;border-radius:20px;font-size:12px;">Pending Settlement</span>`);
+/**
+ * Order Confirmation Email
+ *
+ * @param {object} params
+ * @param {string} params.assetName      - e.g. "Naspers Limited"
+ * @param {string} [params.assetSymbol]  - e.g. "NPN"
+ * @param {number} params.amountCents    - amount in cents, e.g. 1250000
+ * @param {number} [params.quantity]     - number of shares
+ * @param {string} [params.reference]    - transaction reference
+ * @param {string} [params.strategyName] - if a strategy, overrides assetName
+ */
+export function buildOrderConfirmationHtml({
+  assetName,
+  assetSymbol,
+  amountCents,
+  quantity,
+  reference,
+  strategyName,
+}) {
+  const displayName = strategyName || assetName || assetSymbol || "Investment";
+  const isStrategy = !!strategyName;
+
+  const body = `
+    <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 32px;">
+      Hello Investor, your order for <strong>${displayName}</strong> has been
+      successfully received and is moving to settlement.
+    </p>
+
+    ${detailRow("Order Type", isStrategy ? "Strategy Allocation" : "Stock Purchase")}
+    ${detailRow("Portfolio Asset", `<strong>${displayName}</strong>`)}
+    ${detailRow("Total Amount", `<span style="color:${MINT_PURPLE}; font-size:16px;">${formatZar(amountCents)}</span>`)}
+    ${quantity ? detailRow("Quantity", `${Number(quantity).toFixed(4)} shares`) : ""}
+    ${detailRow("Reference", `<span style="font-family:monospace; color:#64748b;">${reference || "—"}</span>`)}
+    ${detailRow("Status", `<span style="color:#d97706; font-weight:700;">Pending Settlement</span>`)}
+
+    <div style="margin-top:40px; text-align:center;">
+      <a href="https://www.mymint.co.za" style="${S.button}">View My Portfolio &rarr;</a>
+    </div>`;
 
   return buildShell({
-    preheader: `Order confirmed — ${displayName} · ${formatZar(amountCents)}`,
-    eyebrow: "Trade Notification",
-    heroTitle: "Order Confirmed",
-    heroSubtitle: `Your ${typeLabel.toLowerCase()} for <strong>${displayName}</strong> has been received and is being processed.`,
-    cards,
-    ctaLabel: "Track Your Order",
-    footerNote: "Your order is pending settlement with our broker. You will receive a second email once the trade is filled and confirmed — typically within 1–3 business days.",
+    heroLabel: "Trade Confirmation",
+    heroTitle: "Your investment is<br>now in progress.",
+    body,
+    footerNote:
+      "Mint is a Wealth-as-a-Service technology platform. All investment products are managed through authorized Financial Services Providers (FSP). Capital is at risk. Past performance does not guarantee future results. Settlement typically occurs within 1–3 business days.",
   });
 }
 
-function buildOrderFillHtml({ assetName, assetSymbol, amountCents, quantity, fillPriceCents, reference, orderDate, fillDate, strategyName }) {
-  const isStrategy = !!strategyName;
-  const displayName = isStrategy ? strategyName : (assetName || assetSymbol || "Unknown Asset");
-  const typeLabel = isStrategy ? "Strategy Investment" : "Stock Purchase";
+/**
+ * Deposit Received Email
+ *
+ * @param {object} params
+ * @param {number} params.amountCents - deposit amount in cents
+ * @param {string} params.reference   - transaction reference
+ * @param {string} [params.dateStr]   - ISO date string
+ */
+export function buildDepositConfirmationHtml({ amountCents, reference, dateStr }) {
+  const body = `
+    <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 32px;">
+      Hello Investor, we've received your deposit and your funds are now
+      available in your Mint wallet.
+    </p>
 
-  let cards = "";
-  cards += detailCard("Order Type", typeLabel);
-  cards += detailCard(isStrategy ? "Strategy" : "Asset", `<strong>${displayName}</strong>`);
-  if (assetSymbol && !isStrategy) cards += detailCard("Symbol", assetSymbol);
-  cards += detailCard("Amount Settled", `<strong>${formatZar(amountCents)}</strong>`);
-  if (quantity) cards += detailCard("Shares Filled", Number(quantity).toFixed(4) + " shares");
-  if (fillPriceCents) cards += detailCard("Fill Price per Share", formatZar(fillPriceCents));
-  cards += detailCard("Reference", `<span style="font-size:12px;font-family:monospace;color:#475569;">${reference || "—"}</span>`);
-  if (orderDate) cards += detailCard("Order Date", formatDate(orderDate));
-  cards += detailCard("Settlement Date", formatDate(fillDate || new Date().toISOString()));
-  cards += detailCard("Status", `<span style="color:#6d28d9;font-weight:700;background:#ede9fe;padding:2px 10px;border-radius:20px;font-size:12px;">Settled ✓</span>`);
+    ${detailRow("Transaction Type", "Deposit")}
+    ${detailRow("Amount Received", `<span style="color:${MINT_PURPLE}; font-size:16px;">${formatZar(amountCents)}</span>`)}
+    ${detailRow("Reference", `<span style="font-family:monospace; color:#64748b;">${reference || "—"}</span>`)}
+    ${dateStr ? detailRow("Date", formatDate(dateStr)) : ""}
+    ${detailRow("Status", `<span style="color:#16a34a; font-weight:700;">Settled</span>`)}
+
+    <div style="margin-top:40px; text-align:center;">
+      <a href="https://www.mymint.co.za" style="${S.button}">Go to Dashboard &rarr;</a>
+    </div>`;
 
   return buildShell({
-    preheader: `Order filled — ${displayName} · ${formatZar(amountCents)}`,
-    eyebrow: "Settlement Notification",
-    heroTitle: "Order Filled",
-    heroSubtitle: `Your ${typeLabel.toLowerCase()} for <strong>${displayName}</strong> has been settled. The shares are now in your portfolio.`,
-    cards,
-    ctaLabel: "View My Portfolio",
-    footerNote: "Your investment is now reflected in your Mint portfolio. Log in to the app to view your updated holdings, performance and statements.",
+    heroLabel: "Deposit Notification",
+    heroTitle: "Funds received<br>successfully.",
+    body,
+    footerNote:
+      "This is an automated deposit confirmation from Mint. If you did not initiate this transaction, please contact us immediately at info@mymint.co.za.",
   });
 }
 
-export { buildOrderConfirmationHtml, buildOrderFillHtml, formatZar, formatDate };
+/**
+ * Withdrawal Confirmation Email
+ *
+ * @param {object} params
+ * @param {number} params.amountCents   - withdrawal amount in cents
+ * @param {string} params.reference     - transaction reference
+ * @param {string} [params.bankAccount] - masked bank account, e.g. "****4821"
+ * @param {string} [params.dateStr]     - ISO date string
+ */
+export function buildWithdrawalConfirmationHtml({ amountCents, reference, bankAccount, dateStr }) {
+  const body = `
+    <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 32px;">
+      Hello Investor, your withdrawal request has been processed and funds are
+      on their way to your bank account.
+    </p>
+
+    ${detailRow("Transaction Type", "Withdrawal")}
+    ${detailRow("Amount", `<span style="color:${MINT_PURPLE}; font-size:16px;">${formatZar(amountCents)}</span>`)}
+    ${bankAccount ? detailRow("Destination Account", `<span style="font-family:monospace;">${bankAccount}</span>`) : ""}
+    ${detailRow("Reference", `<span style="font-family:monospace; color:#64748b;">${reference || "—"}</span>`)}
+    ${dateStr ? detailRow("Date", formatDate(dateStr)) : ""}
+    ${detailRow("Status", `<span style="color:#d97706; font-weight:700;">Processing</span>`)}
+
+    <div style="margin-top:40px; text-align:center;">
+      <a href="https://www.mymint.co.za" style="${S.button}">View Transactions &rarr;</a>
+    </div>`;
+
+  return buildShell({
+    heroLabel: "Withdrawal Notification",
+    heroTitle: "Your withdrawal<br>is being processed.",
+    body,
+    footerNote:
+      "Withdrawals typically reflect within 1–2 business days depending on your bank. If you did not request this withdrawal, contact us immediately at info@mymint.co.za.",
+  });
+}
