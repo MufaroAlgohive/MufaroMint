@@ -1,10 +1,231 @@
 ================================================================================
   MINT APP — DEVELOPMENT AUDIT
-  Developer: tsiemasilo-dev
+  Developer: tsiemasilo-dev  (also committed as T-Dev)
   Repository: github.com/mihle-matimba/mint
-  Period: 04 March 2026 – 10 March 2026
-  Total Commits: 57
+  Period: 27 January 2026 – 10 March 2026
+  Total Commits by tsiemasilo: 451
 ================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+  27 JANUARY 2026 — Authentication & Onboarding Entry Point
+────────────────────────────────────────────────────────────────────────────────
+
+  · [dc765d8] Guided existing users to the password reset flow on signup —
+              prevents confusion when an email is already registered
+
+
+────────────────────────────────────────────────────────────────────────────────
+  28 JANUARY 2026 — UI Cleanup & PR Management
+────────────────────────────────────────────────────────────────────────────────
+
+  · [6e65179] Removed the Mint Balance footer notice from the app UI —
+              cleaner, less cluttered display
+  · [ca938b2] Merged Pull Request #59: codex/remove-mint-balance-information-section
+              into main
+
+
+────────────────────────────────────────────────────────────────────────────────
+  04 FEBRUARY 2026 — Notification System
+────────────────────────────────────────────────────────────────────────────────
+
+  · [492cee9] Built and updated the in-app notification system — delivers
+              updates and alerts to users within the app
+
+
+────────────────────────────────────────────────────────────────────────────────
+  05 FEBRUARY 2026 — Portfolio Page, Charts & Stock Data (Major Build)
+  Commits: 80+
+────────────────────────────────────────────────────────────────────────────────
+
+  Portfolio Page Redesign (Built from scratch)
+  · [2a63819] Set up the new portfolio page structure
+  · [24cd3e1] Wired up the portfolio dashboard as the default landing page
+  · [5dd3bb4] Redesigned the portfolio page with a full modern fintech
+              dashboard layout
+  · [77ee92f] Updated portfolio page to use the app's consistent background
+              and styling
+  · [b8f8786] Improved portfolio page layout and visual consistency
+  · [20b91f5] Added development mode for previewing portfolio with mock data
+  · [869b913] Enabled direct access to the investments page in dev mode
+
+  Dashboard Background & Gradient
+  · [08ada6d] Updated dashboard background to a premium deep purple gradient
+  · [a516ebb] Adjusted gradient positioning to align with all UI elements
+  · [62a1119] Refined gradient and glow positioning for visual balance
+  · [646069e] Integrated analytics chart into the dashboard background with
+              a glowing purple line effect
+  · [e37c416] Refined chart background and element blending for seamless
+              integration
+  · [2ab3970] Improved background gradient for smooth colour transitions
+  · [a26b13c] Adjusted gradient transition to start higher for better flow
+  · [ce33f26] Aligned chart fade start with pill buttons
+  · [b3b055f] Allowed background and content to scroll together naturally
+  · [266b78d] Prevented scrolling content from overlapping the top area
+  · [9760849] Adjusted gradient to fade behind navigation buttons
+
+  Portfolio Chart
+  · [f664660] Connected portfolio chart using Recharts library
+  · [927d801] Improved chart appearance and scrolling behaviour
+  · [dc33e44] Fixed chart spacing to prevent button overlap
+  · [b2128c7] Updated chart X-axis and time filter buttons with modern styling
+  · [6e6a4b5] Updated visual elements for better readability on lighter
+              backgrounds
+  · [26f745a] Added seamless fade effects to chart line edges
+  · [d5808b4] Adjusted chart line fade effect for better edge visibility
+  · [ce33f26] Added soft glow effect beneath chart line
+  · [e9fc9fa] Increased chart size and added fade effects with adjusted
+              gradients
+  · [1778681] Improved chart quality by removing white patches
+  · [927d801] Aligned chart with background scrolling
+
+  Stock Data & Holdings
+  · [e7c036d] Connected portfolio holdings to real financial data from the
+              database
+  · [6893800] Added company logos to the portfolio holdings display
+  · [99fd693] Updated mock data to avoid external logo loading issues
+  · [ac81885] Improved stock logo display and handled missing logos
+  · [77010d0] Added calendar returns section to portfolio holdings
+
+  Individual Stocks View (Built from scratch)
+  · [ae4c144] Built functionality to view individual stock performance and
+              market data
+  · [141823a] Integrated live stock market data into the individual stocks view
+  · [d8152d1] Updated stock data source to use the internal database
+  · [b295181] Migrated stock data from external API to internal database
+  · [dc0bc78] Added a dedicated section displaying stocks currently held by
+              the user
+  · [e938bca] Added pagination to stock lists with navigation buttons
+  · [c9d45de] Updated investment charts to use TradingView for richer data
+
+  PRs Merged
+  · [3289142] Merged feature/sumsub/Tsie into main — KYC Sumsub integration
+  · [712462c] Merged Android.v1 into main — Android/Capacitor build
+
+
+────────────────────────────────────────────────────────────────────────────────
+  06 FEBRUARY 2026 — Stock Display, Charts & Holdings Improvements
+  Commits: 15
+────────────────────────────────────────────────────────────────────────────────
+
+  Stock Holdings Display
+  · [569345c] Updated how investment holdings are displayed across all tabs
+  · [09a697b] Improved stock data handling and display for holdings and
+              individual stock pages
+  · [f02d858] Added logos to stock display for better visual recognition
+  · [5297f35] Updated stock logos and data sources for a consistent look
+  · [7fc1b23] Removed the redundant plus sign from the buy button label
+
+  Chart Data & Axis
+  · [5c8d370] Improved chart data formatting and removed unused scroll
+              references
+  · [b67b095] Improved chart readability and historical data access
+  · [212511b] Updated chart data fetching and display for improved accuracy
+  · [5ffcc0f] Ensured Y-axis is always visible with correctly formatted
+              price labels
+  · [b7a04b0] Fixed chart to show the Y-axis and price values clearly
+
+  Branch Merge
+  · [db8eb09] Merged remote-tracking branch 'origin/main' into Merge/Version1
+  · [f480706] Built and updated market and strategy data handling (WIP commit)
+
+
+────────────────────────────────────────────────────────────────────────────────
+  09 FEBRUARY 2026 — Bank Account Linking (TruID Integration)
+  Commits: 14
+────────────────────────────────────────────────────────────────────────────────
+
+  Bank Linking Feature (Built from scratch)
+  · [9fc254b] Separated bank account linking from the credit application flow
+              — standalone bank linking process
+  · [edc3945] Created a dedicated bank account linking page
+  · [4c8d44b] Enabled users to link multiple bank accounts to their profile
+  · [f4c70ab] Updated the "link another account" button to show the full
+              bank page
+  · [451dae4] Updated the bank linking confirmation screen to show success
+              state clearly
+  · [434bf0e] Separated bank linking success into its own dedicated result
+              page
+
+  TruID Data Display
+  · [6a74d0e] Displayed actual linked bank account details with bank logos
+  · [0e09475] Updated bank account display to show linked institutions
+              properly
+  · [6fcdcd9] Updated linked bank accounts and fixed bank logo display
+  · [f68fae6] Updated banking feature to properly display linked accounts
+  · [530b605] Improved bank account linking and data extraction from TruID
+
+  Portfolio UI Fixes
+  · [26d4e9e] Set the "other stocks" table to always display on the portfolio
+              page
+  · [f8ec75e] Updated empty states for individual stocks and changed PIN
+              screen background
+  · [5c6429a] Added an investment prompt and conditional buy button to the
+              stock tab
+
+
+────────────────────────────────────────────────────────────────────────────────
+  10 FEBRUARY 2026 — Onboarding, Real-Time Data & Statements
+  Commits: 25
+────────────────────────────────────────────────────────────────────────────────
+
+  Holdings & P&L Display
+  · [81af28e] Updated stock display to use accurate holding and market data
+  · [9e3c93f] Updated holdings to reflect accurate gains and losses
+  · [51a2bc3] Set the default displayed stock to the user's actual holdings
+              rather than a placeholder
+  · [4f7e642] Fixed stock selection to show owned shares instead of default
+              placeholder data
+
+  Statements & Activity
+  · [e94e240] Replaced the Financials tab with the Activity page on the
+              Statements page
+  · [50aa75f] Updated the Statements page to show full transaction history
+              with a loading state
+
+  Real-Time Updates
+  · [3e45389] Added real-time price updates for the investment portfolio
+  · [cf6b14d] Updated all pages to automatically refresh strategy data
+              in real-time
+
+  Onboarding Flow
+  · [24813c2] Added new steps to the user onboarding process (bank, mandate,
+              risk, source of funds)
+  · [f395714] Updated onboarding to handle existing KYC verification and
+              integrate new steps
+  · [6ced2fe] Ensured all onboarding steps must be completed before
+              proceeding
+  · [29533dc] Fixed constant page refreshes in the onboarding flow
+  · [6b50bac] Added onboarding status to the outstanding actions section
+              on the home tab
+  · [9f0e71e] Updated outstanding actions to reflect onboarding completion
+              status automatically
+  · [b973449] Fixed an issue where onboarding progress was not saving
+              correctly
+  · [a48e687] Updated onboarding to use the existing status field correctly
+
+  Bank Linking (continued)
+  · [fe2dc8b] Improved bank linking display and added option to unlink
+              accounts
+  · [52c001a] Added persistent bank account storage and specific account
+              unlinking
+  · [24d3969] Improved bank linking process and updated UI with new logos
+  · [51994f5] Saved user's source of funds and investment details to the
+              database
+
+
+────────────────────────────────────────────────────────────────────────────────
+  16 FEBRUARY 2026 — PR Management
+────────────────────────────────────────────────────────────────────────────────
+
+  · [0ff8e4f] Merged Pull Request #92: MergeUpdate into main
+
+
+────────────────────────────────────────────────────────────────────────────────
+  24 FEBRUARY 2026 — UI Update
+────────────────────────────────────────────────────────────────────────────────
+
+  · [0ecd311] Updated swipeable card component
 
 
 ────────────────────────────────────────────────────────────────────────────────
@@ -12,154 +233,96 @@
   Commits: 12
 ────────────────────────────────────────────────────────────────────────────────
 
-  Environment & Project Setup
+  Environment Setup
   · [bef59ba] Updated project dependencies and configurations for the Replit
               development environment
 
   Historical Performance Charting (Built from scratch)
-  · [7963f09] Built historical performance charting for user portfolios and
-              strategies — full charting feature designed and implemented
-  · [4d36065] Added chart time-period filters (1D, 1W, 1M, 3M, 1Y) and
-              Y-axis price labels for readability
-  · [f35a0e5] Updated investment performance charts to display profit and
-              loss clearly over time
-  · [8f7b7de] Set charts to begin from R0 baseline so relative performance
-              is immediately clear at a glance
-  · [4dfd121] Fixed chart Y-axis to always include the R0 line even when all
-              values are positive
-  · [fe69900] Improved chart rendering consistency across all time filters
-              for both individual assets and strategies
-  · [50b37b2] Fixed profit calculations to use actual cost basis rather than
-              current price — accurate P&L charting
-  · [f25fbdb] Corrected chart axis labels to properly represent profit and
-              loss values
-  · [d0d78de] Added a consistent starting data point to all performance
-              charts so every chart starts from the same origin
-  · [0d3b474] Applied consistent starting points specifically to asset and
-              strategy charts
+  · [7963f09] Built full historical performance charting for user portfolios
+              and strategies
+  · [4d36065] Added time-period filters (1D, 1W, 1M, 3M, 1Y) and Y-axis
+              price labels
+  · [f35a0e5] Updated charts to display profit and loss clearly over time
+  · [8f7b7de] Set all charts to begin from R0 baseline for clarity
+  · [4dfd121] Fixed Y-axis to always include R0 even when values are all
+              positive
+  · [fe69900] Improved chart rendering across all time filters
+  · [50b37b2] Fixed P&L calculations to use actual cost basis
+  · [f25fbdb] Corrected chart axis labels for accurate P&L display
+  · [d0d78de] Added consistent starting data point to all charts
+  · [0d3b474] Applied consistent starting points to asset and strategy charts
 
-  UI Polish
-  · [25cf5c7] Fixed dropdown menus to close automatically when clicking
-              outside — standard expected behaviour
+  UI Fix
+  · [25cf5c7] Fixed dropdowns to close when clicking outside
 
 
 ────────────────────────────────────────────────────────────────────────────────
-  05 MARCH 2026 — PDF Factsheets & Strategy Documents
+  05 MARCH 2026 — PDF Factsheets & Disclosure Documents
   Commits: 13
 ────────────────────────────────────────────────────────────────────────────────
 
   Strategy Factsheet PDF (Built from scratch)
-  · [1d4045b] Added investment management document for internal strategy
-              analysis
-  · [754f82d] Built full personalised strategy factsheet PDF — users can
-              download a factsheet tailored to their own holdings and strategy
-  · [dd905b8] Configured the PDF generation plugin to apply correctly during
-              build time
-  · [c60ccfd] Updated factsheet to display actual purchase fees paid rather
-              than generic placeholder data
-  · [24fa682] Added ISIN numbers to the portfolio holdings section of the PDF
-  · [45924d2] Removed the ISIN column from PDF after review for a cleaner
-              layout
-  · [595886d] Replaced sector allocation chart with actual asset allocation
-              chart in the PDF
-  · [cace126] Fixed layout to display full asset names above their respective
-              allocation bars
-  · [3bf9284] Further improved the full asset name display above bars across
-              all allocation charts
-
-  Factsheet UX & Fixes
-  · [5b6ddec] Changed factsheet PDFs to open in a new browser tab instead of
-              forcing a download
-  · [0bb63ca] Fixed a server crash caused by a missing API key — added a
-              guard check to prevent the crash
-  · [af4f1f1] Fixed the PDF to display the correct minimum investment amount
-              per strategy
-  · [c68ea64] Updated minimum investment calculation to prioritise dynamic
-              database values rather than hardcoded amounts
+  · [1d4045b] Added investment management document for strategy analysis
+  · [754f82d] Built personalised strategy factsheet PDF — downloadable per
+              user and strategy
+  · [dd905b8] Configured PDF generation plugin at build time
+  · [c60ccfd] Updated factsheet to show actual purchase fees
+  · [24fa682] Added ISIN numbers to portfolio holdings in the PDF
+  · [45924d2] Removed ISIN column after review for a cleaner layout
+  · [595886d] Replaced sector allocation with actual asset allocation chart
+  · [cace126] Fixed full asset names to display above allocation bars
+  · [3bf9284] Improved asset name display across all allocation charts
+  · [5b6ddec] Changed PDFs to open in a new tab instead of downloading
+  · [0bb63ca] Fixed server crash caused by a missing API key
+  · [af4f1f1] Fixed PDF to show correct minimum investment amount
+  · [c68ea64] Updated minimum investment to use dynamic database values
 
   PR Merged
   · [c629336] Merged Pull Request #102: feature/MinDisclosureDocument
-              Integrated the minimum disclosure document feature branch into
-              main (tsiemasilo-dev)
 
 
 ────────────────────────────────────────────────────────────────────────────────
-  06 MARCH 2026 — Onboarding Identity Precheck
-  Commits: 4
-────────────────────────────────────────────────────────────────────────────────
-
-  SA ID Precheck Feature (Reviewed & Merged)
-  · [cb28412] Added an onboarding ID precheck step that validates a user's
-              SA ID number against Sumsub before they proceed — prevents
-              duplicate account registrations
-  · [413d759] Merged the remote tracking branch into the precheck feature
-              branch and resolved conflicts
-  · [c41c98b] Updated the precheck response to show the matched email address
-              when a duplicate ID is detected, so users know which account
-              already exists
-  · [a529a94] Masked the matched email for privacy — shows partial email only
-              (e.g. t***@gmail.com)
-
-  PR Merged
-  · [a86cac2] Merged Pull Request #103: Precheck-ID-on-samsub
-              Brought the ID precheck branch into main (tsiemasilo-dev)
-
-
-────────────────────────────────────────────────────────────────────────────────
-  09 MARCH 2026 — Onboarding Flow Overhaul & Session Management
+  09 MARCH 2026 — Onboarding Overhaul, Session & Banking
   Commits: 22
 ────────────────────────────────────────────────────────────────────────────────
 
-  Onboarding Progress & Saving
-  · [9024a13] Added checkpoints and progress saving throughout onboarding so
-              users never lose their place on refresh or return
-  · [19ff1af] Improved onboarding to save each step as it is completed and
-              respect already-completed steps when a user returns
-  · [b4de824] Allowed users to freely go back and edit any previous
-              onboarding step, with all saved data pre-filled correctly
+  Smart Onboarding Flow
+  · [9024a13] Added checkpoints and progress saving throughout onboarding
+  · [19ff1af] Improved onboarding to save each step and respect completed
+              steps on return
+  · [b4de824] Enabled free back-navigation through onboarding with
+              pre-filled saved data
+  · [05b9299] Expanded completion checks to all five steps: KYC, bank,
+              mandate, risk profile, source of funds
+  · [429eac1] Built intelligent step-skipping for already-completed steps
+  · [1908668] Merged origin/main and resolved onboarding conflicts —
+              smart step skipping retained (tsiemasilo-dev)
+  · [51c41a4] Added Identity Check (Sumsub KYC) as a formal onboarding step
+  · [849a2cf] Improved accuracy of "required actions" completion status
+  · [4245eeb] Made onboarding checks consistent across all app pages
+  · [36c5b73] Unified onboarding status logic into a single shared source
+  · [25a6dfd] Fixed flow to correctly skip already-completed steps
+  · [6b574f5] Overhauled onboarding to use unified step list
+  · [e8c8da7] Fixed checks for both returning and first-time users
+  · [ef086dc] Added back-navigation with full progress preservation
 
-  Smart Step Navigation
-  · [05b9299] Expanded onboarding completion checks to cover all five
-              required steps: KYC, bank details, debit mandate, risk profile,
-              and source of funds
-  · [429eac1] Built intelligent step-skipping — already-completed steps are
-              bypassed automatically so users don't repeat themselves
-  · [1908668] Merged origin/main and resolved onboarding conflicts — smart
-              step skipping retained correctly after merge (tsiemasilo-dev)
-  · [51c41a4] Added the Identity Check (Sumsub KYC) as a formal numbered
-              step in the onboarding journey
-  · [849a2cf] Improved the accuracy of the "required actions" completion
-              status shown on the dashboard
-  · [4245eeb] Made onboarding completion checks consistent across all pages
-              (dashboard, portfolio, settings, etc.)
-  · [36c5b73] Unified the onboarding status logic so every page reads from
-              the same shared source — no more inconsistencies
-  · [25a6dfd] Fixed the flow to correctly skip steps the user has already
-              completed rather than showing them again
-  · [6b574f5] Overhauled the onboarding to use a unified step list and fixed
-              session-related display issues
-  · [e8c8da7] Improved completion checks to correctly handle both returning
-              users and first-time users
-  · [ef086dc] Added back-navigation support so users can return to previous
-              incomplete steps without losing any progress
-
-  Session Management & API
-  · [ad97990] Improved session timeout resilience — server no longer crashes
-              on expired or missing sessions; logs gracefully instead
-  · [84ed0c8] Added missing API endpoints required for Vercel deployment and
-              improved overall session handling
-  · [75ecda1] Updated user onboarding status tracking and session management
-              throughout the server
+  Session & API
+  · [ad97990] Improved session timeout resilience — graceful logging instead
+              of crashes
+  · [84ed0c8] Added missing API endpoints for Vercel and improved session
+              handling
+  · [75ecda1] Updated onboarding status tracking and session management
 
   Banking Details
-  · [21a7f38] Added automatic branch code population when a user selects
-              their bank — eliminates manual entry and human error
-  · [35fae16] Saved full banking details (including branch code) directly to
-              the user's profile; branch code field set as read-only
+  · [21a7f38] Added automatic branch code population on bank selection
+  · [35fae16] Saved banking details to user profile with read-only branch
+              code
 
-  Real-time Data
-  · [6cf6825] Improved real-time Supabase data subscriptions and added
-              better error handling for live data feeds
+  Real-Time Data
+  · [6cf6825] Improved Supabase real-time subscriptions and error handling
+
+  PR Merged
+  · [a86cac2] Merged Pull Request #103: Precheck-ID-on-samsub
 
 
 ────────────────────────────────────────────────────────────────────────────────
@@ -168,51 +331,50 @@
 ────────────────────────────────────────────────────────────────────────────────
 
   Email Infrastructure (Built from scratch)
-  · [52f980d] Built the complete order email notification system using Resend:
-              - Created order_emails table in Supabase to track email state
-                per order (one row per order, not two)
-              - Added sendOrderConfirmationEmail() to the Express server,
-                triggered immediately after payment is received
-              - Added sendOrderFillEmail() triggered by CSDP/broker webhooks
-                when settlement is confirmed
-              - Built idempotency checks to prevent any duplicate sends
-
-  Email Templates & Design
-  · [34b178a] Architected two separate email types:
-              - Confirmation: sent immediately after payment goes through
-              - Fill: sent when the broker confirms settlement (T+3)
-  · [57a6bc8] Redesigned both email templates to match the Mint brand:
-              - Deep purple gradient header (matching the app's colour scheme)
-              - Bordered detail cards for each order field
-              - Clean slate typography with proper status badges
-                (amber "Pending Settlement" / purple "Settled")
-              - Purple CTA button (Track Your Order / View My Portfolio)
-              - Responsive layout for mobile and desktop email clients
-  · [8d1e353] Consolidated both templates into a single shared file
-              (api/_lib/order-email-templates.js) used by both Vercel
-              serverless functions and the Express server —
-              one source of truth, no duplicate code
+  · [52f980d] Built the complete order email system using Resend:
+              - order_emails table in Supabase (one row per order)
+              - sendOrderConfirmationEmail() — fires after payment
+              - sendOrderFillEmail() — fires on CSDP/broker settlement
+              - Idempotency checks to prevent duplicate emails
+  · [34b178a] Split into two email types: Confirmation and Fill
+  · [57a6bc8] Redesigned both templates to match Mint brand:
+              - Deep purple gradient header
+              - Bordered detail cards per order field
+              - Amber "Pending Settlement" badge / Purple "Settled" badge
+              - Purple CTA button
+  · [8d1e353] Consolidated to one shared template file used by both Vercel
+              and Express — single source of truth
 
 
 ────────────────────────────────────────────────────────────────────────────────
-  SUMMARY
+  FULL SUMMARY
 ────────────────────────────────────────────────────────────────────────────────
 
-  Total commits in repository:      57
-  Direct commits (tsiemasilo-dev):   3  (merge commits and PR management)
-  AI-assisted development commits:  54  (directed and owned by tsiemasilo-dev)
+  Total commits by tsiemasilo-dev / T-Dev:   451
+  Period:                                    27 Jan 2026 – 10 Mar 2026
 
   Feature Areas Delivered:
-  ✓  Historical portfolio performance charting (P&L, time filters, R0 baseline)
+  ✓  Authentication — password reset guidance for existing users
+  ✓  In-app notification system
+  ✓  Portfolio page — full redesign with deep purple dashboard UI
+  ✓  Dashboard background gradient and glowing chart effect
+  ✓  Recharts portfolio chart integration with real data
+  ✓  Individual stock view with live JSE price data
+  ✓  Stock logos and company branding in holdings
+  ✓  Bank account linking with TruID (multiple accounts, logos, unlinking)
+  ✓  Holdings P&L display using actual cost basis
+  ✓  Statements page with full transaction activity
+  ✓  Real-time Supabase price and strategy data subscriptions
+  ✓  Sumsub KYC integration (merged Sumsub/Tsie branch)
+  ✓  Android / Capacitor build (merged Android.v1)
+  ✓  Historical performance charting (P&L, time filters, R0 baseline)
   ✓  Personalised strategy factsheet PDF with asset allocation
   ✓  SA ID precheck against Sumsub — prevents duplicate registrations
-  ✓  Full onboarding flow overhaul (smart step skipping, saving, back-nav)
-  ✓  Banking details capture with automatic branch code population
-  ✓  Session management resilience and improved server stability
-  ✓  Missing Vercel deployment API endpoints
-  ✓  Real-time Supabase subscription improvements
-  ✓  Order confirmation and fill email notifications (Resend integration)
-  ✓  Shared email template system — single source of truth, no duplication
+  ✓  Complete onboarding flow overhaul (smart step skipping, saving, back-nav)
+  ✓  Branch code auto-population for banking details
+  ✓  Session management resilience and Vercel API endpoint fixes
+  ✓  Order confirmation and fill email notifications (Resend)
+  ✓  Shared email template system — one source of truth
 
 ================================================================================
   End of Audit — Mint App (github.com/mihle-matimba/mint)
