@@ -169,7 +169,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
           <div className="flex justify-between items-start mb-6">
             <div className="max-w-[200px]">
               <p className="text-slate-600 text-[12px] leading-tight font-medium" style={{ fontFamily: fonts.text }}>
-                Pledge qualifying assets to unlock <span className="text-slate-900 font-bold">instant liquidity</span> based on collateral quality[cite: 1, 99].
+                Pledge qualifying assets to unlock <span className="text-slate-900 font-bold">instant liquidity</span> based on collateral quality.
               </p>
             </div>
             <div className="text-6xl font-black text-slate-900/5" style={{ fontFamily: fonts.display }}>{portfolioItems.length}</div>
@@ -236,7 +236,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
         {/* Portfolio List with Eligibility and Concentration UI */}
         <div className="space-y-4">
           <div className="px-5 mb-2 flex items-center justify-between">
-             <p className="text-sm font-semibold text-slate-900">Your Eligible Assets [cite: 100]</p>
+             <p className="text-sm font-semibold text-slate-900">Your Eligible Assets</p>
              <Info className="h-4 w-4 text-slate-300" />
           </div>
 
@@ -263,7 +263,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                    </div>
                    <div className="text-right">
                       {!item.isEligible ? (
-                        <span className="text-[8px] font-black bg-rose-50 text-rose-500 px-2 py-1 rounded-full uppercase">Ineligible [cite: 30]</span>
+                        <span className="text-[8px] font-black bg-rose-50 text-rose-500 px-2 py-1 rounded-full uppercase">Ineligible</span>
                       ) : (
                         <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full uppercase">Score: {item.totalScore.toFixed(2)} [cite: 55]</span>
                       )}
@@ -274,7 +274,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                    <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Recognized Collateral</p>
                       <p className={`text-xs font-bold ${item.isCapped ? 'text-amber-600' : 'text-slate-900'}`}>
-                        {formatZar(item.recognizedValue)} {item.isCapped && <span className="text-[8px] opacity-60">(Capped 45% [cite: 86])</span>}
+                        {formatZar(item.recognizedValue)} {item.isCapped && <span className="text-[8px] opacity-60">(Capped 45%)</span>}
                       </p>
                    </div>
                    <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                     {/* Step 6: Safety Buffer Bar Visualization [cite: 96] */}
                     <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm mb-8">
                         <div className="flex justify-between items-center mb-4">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Buffers [cite: 93]</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Buffers</p>
                             <span className="text-[10px] font-bold text-emerald-600">Secure Range</span>
                         </div>
                         <div className="relative h-6 w-full bg-slate-100 rounded-full overflow-hidden flex">
