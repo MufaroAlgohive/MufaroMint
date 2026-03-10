@@ -7,7 +7,7 @@ import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 
 const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavigateToOnboarding }) => {
   const { profile } = useProfile();
-  const [selectedPeriod, setSelectedPeriod] = useState("1M");
+  const [selectedPeriod, setSelectedPeriod] = useState("YTD");
   const [security, setSecurity] = useState(initialSecurity);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [buyChecking, setBuyChecking] = useState(false);

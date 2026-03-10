@@ -148,7 +148,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     onViewModeChange?.(viewMode);
   }, [viewMode]);
   const [selectedStrategy, setSelectedStrategy] = useState(null);
-  const [selectedStrategyTimeframe, setSelectedStrategyTimeframe] = useState("1M");
+  const [selectedStrategyTimeframe, setSelectedStrategyTimeframe] = useState("YTD");
   const [selectedStrategyActiveLabel, setSelectedStrategyActiveLabel] = useState(null);
   const [selectedStrategyAnalytics, setSelectedStrategyAnalytics] = useState(null);
   const [selectedStrategyAnalyticsLoading, setSelectedStrategyAnalyticsLoading] = useState(false);
