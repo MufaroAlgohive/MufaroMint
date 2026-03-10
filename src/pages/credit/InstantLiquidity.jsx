@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { 
   Zap, 
@@ -22,17 +22,29 @@ import {
   Wallet,
   Landmark,
   TrendingDown,
-  AlertCircle
+  AlertCircle,
+  HelpCircle
 } from "lucide-react";
-import { Line, LineChart, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
+import { Line, LineChart, ResponsiveContainer, Area, AreaChart, ReferenceLine, YAxis } from 'recharts';
 import { formatZar } from "../../lib/formatCurrency";
 import NotificationBell from "../../components/NotificationBell";
 import NavigationPill from "../../components/NavigationPill";
 
-// --- SUB-COMPONENTS ---
+// --- MINI CHART COMPONENT ---
+const AssetMiniChart = ({ data, color = "#7c3aed" }) => (
+  <div className="h-8 w-16">
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data.map((v, i) => ({ v, i }))}>
+        <YAxis hide domain={['dataMin', 'dataMax']} />
+        <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2} dot={false} />
+      </LineChart>
+    </ResponsiveContainer>
+  </div>
+);
+
+// --- SUB-COMPONENTS (HISTORY, ACTIVE, PAY) ---
 
 const LiquidityHistory = ({ onBack, fonts }) => {
-  const [search, setSearch] = useState("");
   const historyData = [
     { id: 1, type: 'pledge', asset: 'Naspers Ltd', amount: 450000, date: '2026-03-08', status: 'completed' },
     { id: 2, type: 'repayment', asset: 'Standard Bank', amount: 120000, date: '2026-03-05', status: 'completed' },
@@ -47,9 +59,10 @@ const LiquidityHistory = ({ onBack, fonts }) => {
         <div className="w-10" />
       </div>
       <div className="flex-1 overflow-y-auto p-6 pb-32">
-        <div className="bg-slate-900 rounded-[32px] p-6 text-white shadow-xl mb-8">
+        <div className="bg-slate-900 rounded-[32px] p-6 text-white shadow-xl mb-8 overflow-hidden relative">
             <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">Total Life-cycle Interest</p>
             <h2 className="text-3xl font-light" style={{ fontFamily: fonts.display }}>{formatZar(6535.40)}</h2>
+            <div className="absolute -right-4 -bottom-4 opacity-10"><HandCoins size={100} /></div>
         </div>
         <div className="space-y-3">
             {historyData.map((item) => (
@@ -85,7 +98,7 @@ const ActiveLiquidity = ({ onBack, fonts }) => {
       </div>
       <div className="flex-1 overflow-y-auto p-6 pb-32">
         <div className="bg-slate-900 rounded-[36px] p-8 text-white shadow-2xl relative overflow-hidden mb-8">
-            <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-1">Outstanding Balance</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-1">Outstanding Balance</p>
             <h2 className="text-4xl font-light mb-6" style={{ fontFamily: fonts.display }}>{formatZar(activeDebt.total)}</h2>
             <div className="flex justify-between pt-6 border-t border-white/10">
                 <div><p className="text-[9px] text-white/40 uppercase font-black">LTV Ratio</p><p className="font-bold text-amber-500">{activeDebt.ltv}%</p></div>
@@ -170,12 +183,16 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   const [selectedTypes, setSelectedTypes] = useState(new Set());
   const [draftTypes, setDraftTypes] = useState(new Set());
 
+  // Info Modal States
+  const [infoModal, setInfoModal] = useState(null); // 'collateral', 'ltv', 'score'
+
   // Workflow States
   const [selectedItem, setSelectedItem] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [pledgeAmount, setPledgeAmount] = useState("");
   const [workflowStep, setWorkflowStep] = useState("idle");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [disclaimerChecked, setDisclaimerChecked] = useState(false);
 
   useEffect(() => { setPortalTarget(document.body); }, []);
 
@@ -184,35 +201,31 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
 
-  // --- Portfolio Engine (Scoring, Capping, Eligibility) ---
+  // --- Portfolio Engine ---
   const portfolioItems = useMemo(() => [
-    { id: 1, name: "Naspers Ltd", balance: 600000, type: "stock", code: "NPN", marketCap: 1500e9, advt: 120e6, volatility: 0.22, isSuspended: false, freeFloat: 30000e6 },
-    { id: 2, name: "Standard Bank", balance: 250000, type: "stock", code: "SBK", marketCap: 320e9, advt: 45e6, volatility: 0.18, isSuspended: false, freeFloat: 15000e6 },
-    { id: 3, name: "Capitec Bank", balance: 150000, type: "stock", code: "CPI", marketCap: 210e9, advt: 30e6, volatility: 0.25, isSuspended: false, freeFloat: 8000e6 },
-    { id: 4, name: "Speculative Mining", balance: 50000, type: "stock", code: "SPM", marketCap: 2e9, advt: 1e6, volatility: 0.65, isSuspended: false, freeFloat: 500e6 },
+    { id: 1, name: "Naspers Ltd", balance: 600000, type: "stock", code: "NPN", marketCap: 1500e9, advt: 120e6, volatility: 0.22, isSuspended: false, freeFloat: 30000e6, spark: [45, 48, 52, 49, 55, 58, 62] },
+    { id: 2, name: "Standard Bank", balance: 250000, type: "stock", code: "SBK", marketCap: 320e9, advt: 45e6, volatility: 0.18, isSuspended: false, freeFloat: 15000e6, spark: [30, 32, 31, 35, 34, 38, 36] },
+    { id: 3, name: "Capitec Bank", balance: 150000, type: "stock", code: "CPI", marketCap: 210e9, advt: 30e6, volatility: 0.25, isSuspended: false, freeFloat: 8000e6, spark: [12, 14, 13, 16, 15, 18, 17] },
+    { id: 4, name: "Speculative Mining", balance: 50000, type: "stock", code: "SPM", marketCap: 2e9, advt: 1e6, volatility: 0.65, isSuspended: false, freeFloat: 500e6, spark: [10, 8, 5, 12, 7, 9, 6] },
   ], []);
 
   const totalPortfolioValue = portfolioItems.reduce((acc, item) => acc + item.balance, 0);
   const maxPerCounter = totalPortfolioValue * 0.45;
 
   const enrichedItems = useMemo(() => portfolioItems.map(item => {
-    // Step 1: Eligibility
     const isEligible = item.marketCap >= 10e9 && item.advt >= 10e6 && item.volatility <= 0.5 && !item.isSuspended;
     const isTier1 = item.advt >= 10e6 && (item.advt / item.freeFloat >= 0.004);
     
-    // Step 2: Scoring
     const liqScore = Math.min(item.advt / 100e6, 1);
     const volScore = 1 - (item.volatility / 0.5);
     const capScore = Math.min(item.marketCap / 200e9, 1);
     const score = (0.4 * liqScore) + (0.4 * volScore) + (0.2 * capScore);
 
-    // Step 3: LTV Mapping
     let ltv = 0;
     if (score >= 0.8) ltv = 0.55;
     else if (score >= 0.5) ltv = 0.50;
     else if (score >= 0.3) ltv = 0.30;
 
-    // Step 5: Concentration Capping
     const recognizedValue = Math.min(item.balance, maxPerCounter);
     const available = isEligible ? recognizedValue * ltv : 0;
 
@@ -220,6 +233,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   }), [portfolioItems, maxPerCounter]);
 
   const totalAvailable = enrichedItems.reduce((acc, item) => acc + item.available, 0);
+  const eligibleCount = enrichedItems.filter(i => i.isEligible).length;
 
   const filteredItems = useMemo(() => {
     return enrichedItems.filter(item => {
@@ -236,9 +250,15 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     setIsDetailOpen(true);
     setWorkflowStep("idle");
     setPledgeAmount("");
+    setDisclaimerChecked(false);
   };
 
   const closeDetail = () => { setIsDetailOpen(false); setTimeout(() => setSelectedItem(null), 300); };
+
+  const portfolioUsagePercent = useMemo(() => {
+      const val = parseFloat(pledgeAmount) || 0;
+      return totalPortfolioValue > 0 ? ((val / totalPortfolioValue) * 100).toFixed(1) : 0;
+  }, [pledgeAmount, totalPortfolioValue]);
 
   // Router Logic
   if (view === "history") return <LiquidityHistory onBack={() => setView("main")} fonts={fonts} />;
@@ -263,11 +283,14 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
         <div className="bg-white/40 backdrop-blur-3xl rounded-[36px] p-6 shadow-xl border border-white/80 mb-8 overflow-hidden relative">
           <div className="flex justify-between items-start mb-6">
             <p className="text-slate-600 text-[12px] leading-tight font-medium max-w-[200px]">Unlock <span className="text-slate-900 font-bold">instant liquidity</span> using your portfolio as collateral.</p>
-            <div className="text-6xl font-black text-slate-900/5" style={{ fontFamily: fonts.display }}>PBC</div>
+            <div className="text-6xl font-black text-slate-900/5" style={{ fontFamily: fonts.display }}>{eligibleCount}</div>
           </div>
           <div className="bg-gradient-to-br from-violet-600 to-purple-900 rounded-[32px] p-6 shadow-xl relative min-h-[160px] flex flex-col justify-between">
             <div>
-              <p className="text-white/70 text-[9px] font-black uppercase tracking-[0.2em] mb-1.5">Max Recognized Liquidity</p>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <p className="text-white/70 text-[9px] font-black uppercase tracking-[0.2em]">Max Recognized Liquidity</p>
+                <button onClick={() => setInfoModal('collateral')}><Info size={11} className="text-white/30" /></button>
+              </div>
               <div className="flex items-baseline text-white tracking-tight" style={{ fontFamily: fonts.display }}>
                 <span className="text-3xl font-light">R{Math.floor(totalAvailable).toLocaleString()}</span>
                 <span className="text-xl font-medium opacity-60">.00</span>
@@ -301,9 +324,9 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
           <button onClick={() => { setDraftTypes(new Set(selectedTypes)); setIsFilterOpen(true); }} className="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-95"><SlidersHorizontal size={18} /></button>
         </div>
 
-        {/* Asset List with PBC Logic */}
+        {/* Asset List */}
         <div className="space-y-4">
-          <div className="px-5 mb-2 flex items-center justify-between"><p className="text-sm font-semibold text-slate-900">Eligible Collateral</p><Info className="h-4 w-4 text-slate-300" /></div>
+          <div className="px-5 mb-2 flex items-center justify-between"><p className="text-sm font-semibold text-slate-900">Eligible Collateral</p><button onClick={() => setInfoModal('score')}><Info className="h-4 w-4 text-slate-300" /></button></div>
           {filteredItems.map((item) => (
             <button key={item.id} onClick={() => handleOpenDetail(item)} disabled={!item.isEligible} className={`relative w-full overflow-hidden bg-white rounded-[28px] p-5 shadow-sm border text-left transition-all ${!item.isEligible ? 'opacity-40 grayscale pointer-events-none' : 'active:scale-[0.98] border-slate-100'}`}>
               <div className="flex justify-between items-start mb-4">
@@ -311,19 +334,24 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                    <div className="h-11 w-11 rounded-2xl bg-slate-50 flex items-center justify-center font-black text-slate-400 text-[10px]">{item.code}</div>
                    <div>
                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.name}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">{item.name}</p>
                         {item.isTier1 && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
                      </div>
                      <p className="text-xl font-bold text-slate-900" style={{ fontFamily: fonts.display }}>R{item.balance.toLocaleString()}</p>
                    </div>
                  </div>
-                 <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full uppercase">Score: {item.score.toFixed(2)}</span>
+                 <div className="flex flex-col items-end gap-1">
+                    <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full uppercase">Score: {item.score.toFixed(2)}</span>
+                 </div>
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-slate-50">
                  <div>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Recognized</p>
-                    <p className={`text-xs font-bold ${item.isCapped ? 'text-amber-600' : 'text-slate-900'}`}>{formatZar(item.recognizedValue)} {item.isCapped && <span className="text-[8px] opacity-40">(45% CAP)</span>}</p>
+                    <p className={`text-xs font-bold ${item.isCapped ? 'text-amber-600' : 'text-slate-900'}`}>{formatZar(item.recognizedValue)} {item.isCapped && <span className="text-[8px] opacity-40">(CAP)</span>}</p>
                  </div>
+                 
+                 <AssetMiniChart data={item.spark} />
+
                  <div className="flex items-center gap-2">
                     <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black text-slate-600 uppercase">LTV {(item.ltv * 100).toFixed(0)}%</span>
                     <ChevronRight className="h-4 w-4 text-slate-300" />
@@ -334,6 +362,22 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
         </div>
       </div>
 
+      {/* Info Modals */}
+      {infoModal && portalTarget && createPortal(
+          <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 px-6 backdrop-blur-sm">
+              <div className="bg-white rounded-[32px] p-8 w-full max-w-xs shadow-2xl animate-in zoom-in-95">
+                  <div className="h-12 w-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-6"><HelpCircle size={24} /></div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-3">{infoModal === 'collateral' ? 'Recognized Collateral' : infoModal === 'score' ? 'Collateral Score' : 'LTV Calculation'}</h3>
+                  <p className="text-sm text-slate-500 leading-relaxed mb-8">
+                      {infoModal === 'collateral' ? "To protect the loan book, exposure to a single counter is capped at 45% of total collateral. Any value above this is excluded from lending calculations." : 
+                       infoModal === 'score' ? "Your score is a weighted combination of Liquidity (40%), Volatility (40%), and Market Cap (20%). Higher scores unlock higher LTV rates." : 
+                       "LTV determines how much you can borrow against your assets. It is mapped directly from your Collateral Quality Score."}
+                  </p>
+                  <button onClick={() => setInfoModal(null)} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest text-[10px]">Got it</button>
+              </div>
+          </div>
+      , portalTarget)}
+
       {/* Filter Sheet (Drafting Logic) */}
       {isFilterOpen && portalTarget && createPortal(
         <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm px-4 pb-28">
@@ -343,10 +387,10 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Asset Type</p>
               <div className="flex gap-2 mb-8">
                 {["strategy", "stock"].map(t => (
-                   <button key={t} onClick={() => { const n = new Set(draftTypes); n.has(t) ? n.delete(t) : n.add(t); setDraftTypes(n); }} className={`rounded-full px-5 py-2 text-xs font-bold border transition-all ${draftTypes.has(t) ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"}`}>{t}</button>
+                   <button key={t} onClick={() => { const n = new Set(draftTypes); n.has(t) ? n.delete(t) : n.add(t); setDraftTypes(n); }} className={`rounded-full px-5 py-2 text-xs font-bold border transition-all ${draftTypes.has(t) ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"}`}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
                 ))}
               </div>
-              <button onClick={() => { setSelectedTypes(new Set(draftTypes)); setIsFilterOpen(false); }} className="w-full h-14 bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] text-white rounded-2xl font-bold uppercase tracking-widest text-xs">Apply Filters</button>
+              <button onClick={() => { setSelectedTypes(new Set(draftTypes)); setIsFilterOpen(false); }} className="w-full h-14 bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] text-white rounded-2xl font-bold uppercase tracking-widest text-xs shadow-xl active:scale-[0.97]">Apply Filters</button>
            </div>
         </div>
       , portalTarget)}
@@ -354,7 +398,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
       {/* Asset Detail / Pledge Flow */}
       {isDetailOpen && portalTarget && createPortal(
         <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-right">
-            <div className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-100 sticky top-0 bg-white">
+            <div className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-100 sticky top-0 bg-white z-10">
                 <button onClick={closeDetail} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-95 transition-all"><ChevronLeft size={20} /></button>
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Pledge Analysis</h3>
                 <div className="w-10" />
@@ -368,8 +412,8 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                     <div className="h-14 w-14 rounded-full border-4 border-violet-600 flex items-center justify-center font-black text-xs text-violet-600">{(selectedItem?.score || 0.85).toFixed(2)}</div>
                 </div>
 
-                <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100 mb-10">
-                    <div className="flex justify-between items-center mb-4"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Safety Bar</p><span className="text-[10px] font-bold text-emerald-600">Secure</span></div>
+                <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100 mb-10 shadow-inner">
+                    <div className="flex justify-between items-center mb-4"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Safety Bar</p><span className="text-[10px] font-bold text-emerald-600">Secure Range</span></div>
                     <div className="relative h-4 w-full bg-slate-200 rounded-full overflow-hidden flex">
                         <div className="h-full bg-emerald-500" style={{ width: '55%' }} /><div className="h-full bg-amber-400" style={{ width: '10%' }} /><div className="h-full bg-rose-500" style={{ width: '35%' }} />
                         <div className="absolute top-0 bottom-0 w-1 bg-white shadow-xl" style={{ left: `${(selectedItem?.ltv || 0.5) * 100}%` }} />
@@ -384,12 +428,21 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                     <p className="text-4xl font-extralight text-slate-900 tracking-tight" style={{ fontFamily: fonts.display }}>{formatZar(selectedItem === 'all' ? totalAvailable : selectedItem?.available || 0)}</p>
                 </div>
 
-                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-lg">
+                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-lg mb-6">
                     <div className="flex justify-between items-center mb-6">
                         <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Withdrawal Amount</span>
-                        <input type="number" value={pledgeAmount} onChange={(e) => setPledgeAmount(e.target.value)} placeholder="0.00" className="w-32 bg-slate-50 px-4 py-2 rounded-xl text-right font-bold text-slate-900 outline-none" />
+                        <div className="text-right">
+                           <input type="number" value={pledgeAmount} onChange={(e) => setPledgeAmount(e.target.value)} placeholder="0.00" className="w-32 bg-slate-50 px-4 py-2 rounded-xl text-right font-bold text-slate-900 outline-none mb-1" />
+                           <p className="text-[9px] font-bold text-violet-600 uppercase">Usage: {portfolioUsagePercent}% of Portfolio</p>
+                        </div>
                     </div>
-                    <input type="range" className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none accent-violet-600 cursor-pointer" />
+                    <input 
+                      type="range" 
+                      min="0" max="100" 
+                      value={(pledgeAmount / (selectedItem === 'all' ? totalAvailable : selectedItem?.available || 1)) * 100 || 0}
+                      onChange={(e) => setPledgeAmount(Math.floor((e.target.value / 100) * (selectedItem === 'all' ? totalAvailable : selectedItem?.available)))}
+                      className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none accent-violet-600 cursor-pointer" 
+                    />
                 </div>
             </div>
             <div className="p-6 bg-white border-t border-slate-100 pb-28">
@@ -403,14 +456,29 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-md px-6 pb-20">
             {workflowStep === "contract" && (
                 <div className="bg-white w-full max-w-sm rounded-[36px] p-8 shadow-2xl animate-in zoom-in-95">
-                    <div className="flex items-center gap-3 mb-6"><div className="h-10 w-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center"><FileText size={20} /></div><h3 className="text-xl font-bold text-slate-900">Loan Agreement</h3></div>
-                    <div className="space-y-4 mb-8">
+                    <div className="flex items-center gap-3 mb-6"><div className="h-10 w-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center"><FileText size={20} /></div><h3 className="text-xl font-bold text-slate-900">Final Confirmation</h3></div>
+                    <div className="space-y-4 mb-6">
                         <div className="flex justify-between pb-3 border-b border-slate-50 text-sm"><span className="text-slate-500 font-medium">Applied LTV</span><span className="font-bold text-slate-900">{(selectedItem?.ltv * 100 || 50)}%</span></div>
                         <div className="bg-slate-900 rounded-2xl p-4 flex justify-between items-center text-white"><span className="text-[10px] font-black opacity-40 uppercase">Interest Cost</span><span className="font-bold">{formatZar((pledgeAmount || 0) * 0.105 / 12)} / mo</span></div>
                     </div>
+
+                    <div className="p-4 bg-slate-50 rounded-2xl mb-6 border border-slate-100">
+                        <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                            Disclaimer: By proceeding, you understand that your assets will be locked as collateral and may be liquidated if the LTV threshold is breached.
+                        </p>
+                    </div>
+
+                    <label className="flex items-center gap-3 mb-8 cursor-pointer group">
+                        <div className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-all ${disclaimerChecked ? 'bg-violet-600 border-violet-600' : 'bg-white border-slate-200'}`}>
+                            {disclaimerChecked && <Check size={14} className="text-white" />}
+                        </div>
+                        <input type="checkbox" className="hidden" checked={disclaimerChecked} onChange={() => setDisclaimerChecked(!disclaimerChecked)} />
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tight">I have read and understood the terms.</span>
+                    </label>
+
                     <div className="flex flex-col gap-3">
-                        <button onClick={() => setWorkflowStep("auth")} className="w-full bg-slate-900 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl">Agree & Continue</button>
-                        <button onClick={() => setWorkflowStep("idle")} className="w-full py-2 text-xs font-bold text-slate-400 uppercase">Cancel</button>
+                        <button disabled={!disclaimerChecked} onClick={() => setWorkflowStep("auth")} className="w-full bg-slate-900 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl disabled:opacity-30">Agree & Drawdown</button>
+                        <button onClick={() => setWorkflowStep("idle")} className="w-full py-2 text-xs font-bold text-slate-400 uppercase">Go Back</button>
                     </div>
                 </div>
             )}
@@ -418,16 +486,17 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                 <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl">
                     <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><Lock size={28} /></div>
                     <h3 className="text-xl font-bold text-slate-900 mb-2">Authorize</h3>
-                    <div className="flex justify-center gap-3 my-8">{[1,2,3,4].map(i => <div key={i} className="h-12 w-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300">•</div>)}</div>
-                    <button onClick={() => { setIsProcessing(true); setTimeout(() => { setIsProcessing(false); setWorkflowStep("success"); }, 1500); }} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-xs">{isProcessing ? "Processing..." : "Confirm PIN"}</button>
+                    <p className="text-xs text-slate-400 mb-8 font-medium uppercase tracking-widest">Enter Secure PIN</p>
+                    <div className="flex justify-center gap-3 my-8">{[1,2,3,4].map(i => <div key={i} className="h-12 w-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300 font-bold tracking-widest">•</div>)}</div>
+                    <button onClick={() => { setIsProcessing(true); setTimeout(() => { setIsProcessing(false); setWorkflowStep("success"); }, 1500); }} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-xl">{isProcessing ? "Processing..." : "Confirm PIN"}</button>
                 </div>
             )}
             {workflowStep === "success" && (
                 <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl">
-                    <div className="h-20 w-20 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-6"><Check size={40} strokeWidth={3} /></div>
+                    <div className="h-20 w-20 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-6 shadow-inner"><Check size={40} strokeWidth={3} /></div>
                     <h3 className="text-2xl font-bold text-slate-900 mb-2">Credit Secured</h3>
-                    <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Capital</p><h2 className="text-2xl font-bold text-slate-900">{formatZar(pledgeAmount)}</h2></div>
-                    <button onClick={closeDetail} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-xs uppercase tracking-widest">Done</button>
+                    <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100 shadow-inner"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Available Capital</p><h2 className="text-2xl font-bold text-slate-900">{formatZar(pledgeAmount)}</h2></div>
+                    <button onClick={closeDetail} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-lg">Return to Wealth</button>
                 </div>
             )}
         </div>
