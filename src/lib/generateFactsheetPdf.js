@@ -1,9 +1,9 @@
 import jsPDF from "jspdf";
 import { applyPlugin } from "jspdf-autotable";
-import mintLogo from "../../mint-icon-transparent.png";   // ← local white logo
+import mintLogo from "../../mint-icon-transparent.png"; // ← local white logo
 applyPlugin(jsPDF);
 
-// ─── Palette ─────────────────────────────────────────────────────────────────
+// ─── Palette ──────────────────────────────────────────────────────────────────
 const P        = [59,  27,  122];   // #3b1b7a  deep brand purple
 const P_MID    = [91,  33,  182];   // #5b21b6
 const P_DIM    = [130, 95,  210];   // muted labels
@@ -17,19 +17,21 @@ const BODY     = [50,  35,  90 ];
 const GREEN    = [22,  163, 74 ];
 const RED      = [220, 38,  38 ];
 const DIV      = [210, 200, 240];
+const DISC_BG  = [248, 246, 255];   // disclosure background
+const DISC_HDR = [240, 236, 255];   // disclosure section header bg
 
-// ─── Page geometry (mm) ──────────────────────────────────────────────────────
-const PW   = 210;
-const PH   = 297;
-const ML   = 13;        // left  margin
-const MR   = 13;        // right margin
-const HDR  = 30;        // header height (slightly taller for tagline)
-const LW   = 117;       // left  column width
-const GAP  = 5;         // column gap
-const RX   = ML + LW + GAP;   // right col X = 135
-const RW   = PW - MR - RX;    // right col W = 62
+// ─── Page geometry (mm) ───────────────────────────────────────────────────────
+const PW  = 210;
+const PH  = 297;
+const ML  = 13;
+const MR  = 13;
+const HDR = 30;
+const LW  = 117;
+const GAP = 5;
+const RX  = ML + LW + GAP;   // 135
+const RW  = PW - MR - RX;    // 62
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const tc = (doc, c) => doc.setTextColor(...c);
 const fc = (doc, c) => doc.setFillColor(...c);
 const dc = (doc, c) => doc.setDrawColor(...c);
@@ -161,9 +163,184 @@ function pctHook(d, col) {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+//  PAGE 2 — FULL DISCLOSURES
+// ═══════════════════════════════════════════════════════════════════════════════
+function addDisclosurePage(doc, name, dateStr, monthStr, isoDate) {
+  doc.addPage();
+
+  // ── Header band ─────────────────────────────────────────────────────────────
+  fc(doc, P);     doc.rect(0, 0, PW, HDR, "F");
+  fc(doc, P_MID); doc.rect(0, 0, PW, 1.8, "F");
+  fc(doc, P_MID); doc.rect(0, HDR, PW, 0.7, "F");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13); tc(doc, WHITE);
+  doc.text("MINT", ML, 10);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); tc(doc, [185, 155, 230]);
+  doc.text("Money in Transit", ML, 15.5);
+  hl(doc, ML, 18, ML + 60, 18, [120, 90, 180], 0.25);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); tc(doc, WHITE);
+  doc.text("Important Disclosures, Risk Factors & Legal Notice", ML, 23);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [160, 130, 210]);
+  doc.text(`${name.toUpperCase()}  ·  STRATEGY FACTSHEET  ·  ${dateStr}`, ML, 27.5);
+
+  // ── Page background ─────────────────────────────────────────────────────────
+  fc(doc, [252, 250, 255]); doc.rect(0, HDR + 0.7, PW, PH - HDR - 0.7, "F");
+
+  const COL_W   = (PW - ML - MR - 6) / 2;
+  const COL2_X  = ML + COL_W + 6;
+  const LINE_H  = 2.6;
+  const SECTION_GAP = 4;
+
+  // All disclosure sections
+  const sections = [
+    {
+      title: "Investment Strategy Provider",
+      icon: "●",
+      body: "Mint Platforms (Pty) Ltd (Reg. 2024/644796/07) trading as MINT, 3 Gwen Lane, Sandown, Sandton, provides investment strategy design and portfolio management services through managed investment strategies. Strategies on the MINT platform are not collective investment schemes or pooled funds unless explicitly stated. This document does not constitute financial advice as defined under FAIS Act No. 37 of 2002 and is provided for informational purposes only. Investors should seek independent financial advice prior to investing.",
+    },
+    {
+      title: "Custody & Asset Safekeeping",
+      icon: "●",
+      body: "Client assets are held in custody through Computershare Investor Services (Pty) Ltd (CSDP), via its nominee Computershare Nominees (Pty) Ltd (Reg. 1999/008543/07), Rosebank Towers, 15 Biermann Avenue, Rosebank, Johannesburg. Client assets remain fully segregated from MINT's own operating assets at all times.",
+    },
+    {
+      title: "Nature of Investment Strategies",
+      icon: "●",
+      body: "Investment strategies are actively managed portfolios where Mint may rebalance, adjust or change portfolio allocations in accordance with the stated strategy mandate. Rebalancing may occur at any time in response to strategic reallocation, tactical positioning, risk management adjustments, or optimisation of portfolio exposures. These strategies are designed to align with defined investment objectives and risk parameters.",
+    },
+    {
+      title: "Performance Disclosure",
+      icon: "●",
+      body: "Performance information may include historical realised performance and back-tested or simulated results. Back-tested performance is hypothetical, constructed with hindsight, and does not represent actual trading results. It may not reflect real-world liquidity constraints, slippage, or execution costs. Past performance, whether actual or simulated, is not a reliable indicator of future performance. Performance shown is gross of fees unless stated. Individual investor returns may differ based on timing, deposits, withdrawals, costs, and applicable taxes.",
+    },
+    {
+      title: "Fees & Charges",
+      icon: "●",
+      body: "Performance fee: 20% of investment profits. No management or AUM-based fee is charged. Transaction fee: 0.25% per trade executed within the portfolio. Custody and administrative fees are charged per ISIN and displayed transparently at checkout prior to investment confirmation. A full schedule of fees is available on request from Mint.",
+    },
+    {
+      title: "Investment Risk Disclosure",
+      icon: "●",
+      body: "The value of investments may increase or decrease and investors may lose part or all of their invested capital. Strategies are subject to: Market Risk, Equity Risk, Volatility Risk, Derivative Risk, Leverage Risk, Liquidity Risk, Counterparty Risk, Concentration Risk, Correlation Risk, Foreign Market Risk, Strategy Risk, Rebalancing Risk, and Model & Back-Test Risk. Where strategies include foreign investments, performance may also be affected by foreign exchange movements, political and regulatory risk, and settlement risk.",
+    },
+    {
+      title: "Market & Equity Risk",
+      icon: "◆",
+      body: "Investment strategies are exposed to general market movements. Share prices may fluctuate due to company-specific factors, earnings performance, competitive pressures, or broader macroeconomic and sector conditions. Equity investments may experience periods of significant volatility.",
+    },
+    {
+      title: "Liquidity & Concentration Risk",
+      icon: "◆",
+      body: "Liquidity risk arises when securities cannot be bought or sold quickly enough to prevent or minimise losses. In certain market environments, liquidity may deteriorate and trades may execute at prices that differ from expected levels. Concentration risk arises from holding large positions in specific securities, sectors, or regions, increasing sensitivity to adverse events affecting those positions.",
+    },
+    {
+      title: "Leverage & Counterparty Risk",
+      icon: "◆",
+      body: "Where leverage is employed, adverse market movements may result in amplified losses. Counterparty risk refers to the risk that a financial institution or trading counterparty may fail to fulfil its contractual obligations in relation to derivative contracts, settlement arrangements, or other financial transactions.",
+    },
+    {
+      title: "Model, Back-Test & Strategy Risk",
+      icon: "◆",
+      body: "Strategies relying on quantitative models or back-tested simulations present inherent limitations as results are constructed using historical data with the benefit of hindsight. Actual investment outcomes may differ materially from simulated results. There is no assurance that a strategy will achieve its intended objective. Rebalancing may result in transaction costs and may not always produce favourable outcomes.",
+    },
+    {
+      title: "Liquidity & Withdrawal Considerations",
+      icon: "◆",
+      body: "Investments are subject to market liquidity. Where large withdrawals occur or where underlying market liquidity is constrained, withdrawal requests may be processed over time to ensure orderly portfolio management and investor protection.",
+    },
+    {
+      title: "Conflicts of Interest",
+      icon: "◆",
+      body: "Mint is committed to fair treatment of all investors. No investor will receive preferential fee or liquidity terms within the same investment strategy unless explicitly disclosed. Where commissions or incentives are payable to third parties, such arrangements will be disclosed in accordance with applicable regulatory requirements.",
+    },
+  ];
+
+  // Layout sections into two columns
+  const leftSections  = sections.filter((_, i) => i % 2 === 0);
+  const rightSections = sections.filter((_, i) => i % 2 === 1);
+
+  let startY = HDR + 8;
+
+  function renderSectionColumn(secList, colX, colW, startY) {
+    let y = startY;
+    secList.forEach(sec => {
+      const isDiamond = sec.icon === "◆";
+      const headerBg  = isDiamond ? [232, 226, 252] : P;
+      const headerTc  = isDiamond ? P                : WHITE;
+
+      // Section header pill
+      fc(doc, headerBg);
+      doc.roundedRect(colX, y, colW, 5.5, 1, 1, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(6.2); tc(doc, headerTc);
+      doc.text(`${sec.icon}  ${sec.title.toUpperCase()}`, colX + 3, y + 3.8);
+      y += 7;
+
+      // Body text
+      doc.setFont("helvetica", "normal"); doc.setFontSize(5.8); tc(doc, BODY);
+      const lines = doc.splitTextToSize(sec.body, colW - 2);
+      doc.text(lines, colX + 1, y);
+      y += lines.length * LINE_H + SECTION_GAP;
+    });
+    return y;
+  }
+
+  const leftEnd  = renderSectionColumn(leftSections,  ML,      COL_W, startY);
+  const rightEnd = renderSectionColumn(rightSections, COL2_X,  COL_W, startY);
+
+  // ── Disclaimer box ──────────────────────────────────────────────────────────
+  const disclaimerY = Math.max(leftEnd, rightEnd) + 4;
+  const disclaimerText =
+    "This document is confidential and issued for the information of addressees and clients of Mint Platforms (Pty) Ltd only. Subject to copyright; may not be reproduced without prior written permission. Information and opinions are provided for informational purposes only and are not statements of fact. No representation or warranty is made that any strategy will achieve its objectives or generate profits. All investments carry risk; investors may lose part or all of invested capital. This document may include simulated or back-tested results which are hypothetical, constructed with hindsight, and do not represent actual trading. Performance is gross of fees unless stated. Strategies referenced are not collective investment schemes unless explicitly stated. This document does not constitute financial advice, an offer to sell, or a solicitation under FAIS Act No. 37 of 2002. The Manager accepts no liability for direct, indirect or consequential loss arising from use of, or reliance on, this document. Strategies may be modified or withdrawn at the Manager's discretion without prior notice.";
+
+  const disclaimerLines = doc.splitTextToSize(disclaimerText, PW - ML - MR - 6);
+  const disclaimerH     = disclaimerLines.length * 2.4 + 10;
+
+  fc(doc, [240, 236, 255]);
+  doc.roundedRect(ML, disclaimerY, PW - ML - MR, disclaimerH, 2, 2, "F");
+  dc(doc, P_MID); doc.setLineWidth(0.5);
+  doc.roundedRect(ML, disclaimerY, PW - ML - MR, disclaimerH, 2, 2, "S");
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); tc(doc, P);
+  doc.text("DISCLAIMER & LEGAL NOTICE", ML + 3, disclaimerY + 5);
+  hl(doc, ML + 3, disclaimerY + 6.5, PW - MR - 3, disclaimerY + 6.5, DIV, 0.2);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5.2); tc(doc, BODY);
+  doc.text(disclaimerLines, ML + 3, disclaimerY + 9);
+
+  // ── Additional info box ─────────────────────────────────────────────────────
+  const addInfoY = disclaimerY + disclaimerH + 5;
+  if (addInfoY + 18 < PH - 16) {
+    fc(doc, P_LITE);
+    doc.roundedRect(ML, addInfoY, PW - ML - MR, 18, 2, 2, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); tc(doc, P);
+    doc.text("ADDITIONAL INFORMATION", ML + 3, addInfoY + 5);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(5.8); tc(doc, BODY);
+    const addLines = doc.splitTextToSize(
+      "Additional information regarding Mint's investment strategies — including strategy descriptions, risk disclosures, fee schedules, investment methodology, and portfolio construction framework — is available on request from Mint Platforms (Pty) Ltd. Contact us at: info@mymint.co.za  ·  +27 10 276 0531  ·  www.mymint.co.za  ·  3 Gwen Lane, Sandown, Sandton, Johannesburg.",
+      PW - ML - MR - 6
+    );
+    doc.text(addLines, ML + 3, addInfoY + 9);
+  }
+
+  // ── Footer ──────────────────────────────────────────────────────────────────
+  const FY = PH - 12;
+  fc(doc, P);     doc.rect(0, FY,   PW, 12,  "F");
+  fc(doc, P_MID); doc.rect(0, FY,   PW, 1.2, "F");
+  doc.setFont("helvetica", "bold");   doc.setFontSize(7);   tc(doc, WHITE);
+  doc.text("MINT", ML, FY + 4);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5); tc(doc, [160, 130, 205]);
+  doc.text("Money in Transit", ML, FY + 7.5);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [185, 160, 225]);
+  doc.text(`${name}  ·  Disclosures & Risk Factors  ·  ${monthStr}`, ML + 28, FY + 5.5);
+  doc.text("3 Gwen Ln, Sandown, Sandton  ·  www.mymint.co.za  ·  info@mymint.co.za  ·  +27 10 276 0531", ML, FY + 9.5);
+  tc(doc, [160, 140, 200]);
+  doc.text("Page 2 of 2",         PW - MR, FY + 4,   { align: "right" });
+  doc.text(`Generated ${isoDate}`, PW - MR, FY + 9.5, { align: "right" });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  MAIN EXPORT
-// ═════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 export default function generateFactsheetPdf({
   strategy,
   analytics,
@@ -179,54 +356,37 @@ export default function generateFactsheetPdf({
   const monthStr = now.toLocaleDateString("en-ZA", { month: "long", year: "numeric" });
   const isoDate  = now.toISOString().split("T")[0];
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  HEADER
-  // ═══════════════════════════════════════════════════════════════════════════
-  fc(doc, P);     doc.rect(0, 0, PW, HDR, "F");
-  fc(doc, P_MID); doc.rect(0, 0, PW, 1.8, "F");   // top accent stripe
-  fc(doc, P_MID); doc.rect(0, HDR, PW, 0.7, "F"); // bottom accent stripe
+  // ═════════════════════════════════════════════════════════════════════════════
+  //  PAGE 1 — FACTSHEET
+  // ═════════════════════════════════════════════════════════════════════════════
 
-  // ── Logo — right-aligned, vertically centred in header ───────────────────
+  // ── Header ───────────────────────────────────────────────────────────────────
+  fc(doc, P);     doc.rect(0, 0, PW, HDR, "F");
+  fc(doc, P_MID); doc.rect(0, 0, PW, 1.8, "F");
+  fc(doc, P_MID); doc.rect(0, HDR, PW, 0.7, "F");
+
   const ICON_H = 9;
   const ICON_W = ICON_H * (2000 / 791);
   const ICON_X = PW - MR - ICON_W;
   const ICON_Y = (HDR - ICON_H) / 2;
   doc.addImage(mintLogo, "PNG", ICON_X, ICON_Y, ICON_W, ICON_H);
 
-  // ── Left side: MINT name + tagline + strategy name ────────────────────────
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  tc(doc, WHITE);
+  doc.setFont("helvetica", "bold");   doc.setFontSize(13); tc(doc, WHITE);
   doc.text("MINT", ML, 10);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  tc(doc, [185, 155, 230]);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); tc(doc, [185, 155, 230]);
   doc.text("Money in Transit", ML, 15.5);
-
   hl(doc, ML, 18, ML + 60, 18, [120, 90, 180], 0.25);
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  tc(doc, WHITE);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); tc(doc, WHITE);
   const sn = name.length > 52 ? name.slice(0, 52) + "…" : name;
-  const maxNameW = ICON_X - 4 - ML;
-  doc.text(sn, ML, 23, { maxWidth: maxNameW });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
-  tc(doc, [160, 130, 210]);
+  doc.text(sn, ML, 23, { maxWidth: ICON_X - 4 - ML });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [160, 130, 210]);
   doc.text(`STRATEGY FACTSHEET  ·  ${dateStr}`, ML, 27.5);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  CONTENT AREA
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── Content ───────────────────────────────────────────────────────────────────
   let ly = HDR + 6;
   let ry = HDR + 6;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  //  LEFT COLUMN
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── LEFT COLUMN ───────────────────────────────────────────────────────────────
 
   ly = secHead(doc, "Investment Objective", ML, ly, LW) + 2;
 
@@ -332,9 +492,7 @@ export default function generateFactsheetPdf({
 
   const leftBottomY = doc.lastAutoTable.finalY;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  //  RIGHT COLUMN
-  // ─────────────────────────────────────────────────────────────────────────
+  // ── RIGHT COLUMN ──────────────────────────────────────────────────────────────
   const LX  = RX + 3;
   const VX  = RX + RW - 3;
   const ROW = 6;
@@ -385,23 +543,30 @@ export default function generateFactsheetPdf({
   });
   ry += 6;
 
-  ry = subHead(doc, "Asset Allocation", LX, ry, RW - 6) + 1;
+  // ── Sector Allocation ─────────────────────────────────────────────────────────
+  ry = subHead(doc, "Sector Allocation", LX, ry, RW - 6) + 1;
 
-  const holdings  = Array.isArray(strategy?.holdings) ? strategy.holdings : [];
-  const totalWt   = holdings.reduce((s, h) => s + (+h.weight || 0), 0) || 1;
-  const assetBars = holdings
-    .map(h => ({ name: h.name || h.ticker || h.symbol || String(h), weight: ((+h.weight || 0) / totalWt) * 100 }))
+  const sectorMap = {};
+  (holdingsWithMetrics || []).forEach(h => {
+    const sec = h.sector ?? h.gics_sector ?? h.industry ?? h.asset_class ?? "Other";
+    const wt  = h.weightNorm != null ? h.weightNorm * 100 : (+h.weight || 0);
+    sectorMap[sec] = (sectorMap[sec] || 0) + wt;
+  });
+
+  const sectorBars = Object.entries(sectorMap)
+    .map(([name, weight]) => ({ name, weight: +weight.toFixed(2) }))
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 8);
 
-  if (assetBars.length) {
-    ry = drawBars(doc, assetBars, LX, ry, RW - 6) + 4;
+  if (sectorBars.length) {
+    ry = drawBars(doc, sectorBars, LX, ry, RW - 6) + 4;
   } else {
     doc.setFontSize(6); tc(doc, P_DIM);
-    doc.text("Allocation data unavailable", LX, ry + 3);
+    doc.text("Sector data unavailable", LX, ry + 3);
     ry += 8;
   }
 
+  // ── Portfolio Holdings ────────────────────────────────────────────────────────
   ry = subHead(doc, "Portfolio Holdings", LX, ry, RW - 6) + 1;
 
   const holdRows = (holdingsWithMetrics || [])
@@ -434,6 +599,7 @@ export default function generateFactsheetPdf({
     ry = doc.lastAutoTable.finalY + 4;
   }
 
+  // ── User Position (if invested) ───────────────────────────────────────────────
   if (userPosition?.invested > 0) {
     const posData = [
       ["Amount Invested", fmtR(userPosition.invested)],
@@ -456,38 +622,40 @@ export default function generateFactsheetPdf({
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  DISCLOSURES
-  // ═══════════════════════════════════════════════════════════════════════════
-  const DISC_TOP  = Math.max(leftBottomY, ry) + 8;
+  // ── Compact summary disclosures (bottom of page 1) ───────────────────────────
+  const DISC_TOP  = Math.max(leftBottomY, ry) + 6;
   const DISC_COLW = (PW - ML - MR - 8) / 2;
   const DISC_RX   = ML + DISC_COLW + 8;
 
-  const discItems = [
+  const summaryDiscItems = [
     {
       title: "Regulatory Status",
-      body: "Mint Platforms (Pty) Ltd (Reg. 2024/644796/07) trading as MINT, 3 Gwen Lane, Sandown, Sandton. Strategies on the MINT platform are not collective investment schemes unless explicitly stated. This document does not constitute financial advice under the Financial Advisory and Intermediary Services Act No. 37 of 2002 (FAIS). Seek independent financial advice prior to investing.",
+      body: "Mint Platforms (Pty) Ltd (Reg. 2024/644796/07) trading as MINT, 3 Gwen Lane, Sandown, Sandton. Strategies are not collective investment schemes unless explicitly stated. Not financial advice under FAIS Act No. 37 of 2002. Seek independent advice prior to investing.",
     },
     {
       title: "Custody & Asset Segregation",
-      body: "Client assets are held in custody through Computershare Investor Services (Pty) Ltd (CSDP), via its nominee Computershare Nominees (Pty) Ltd (Reg. 1999/008543/07). Client assets are fully segregated from MINT's own assets at all times.",
+      body: "Client assets held via Computershare Investor Services (Pty) Ltd (CSDP) through Computershare Nominees (Pty) Ltd (Reg. 1999/008543/07). Assets are fully segregated from MINT's own assets at all times.",
     },
     {
       title: "Performance Disclosure",
-      body: "Performance may include historical realised results and/or back-tested simulations. Back-tested performance does not represent actual trading, is constructed with hindsight, and may not reflect real-world liquidity or transaction costs. Performance is gross of fees unless stated. Individual returns may differ based on timing, deposits, withdrawals, and taxes.",
+      body: "Performance may include historical or back-tested results. Back-tested performance does not represent actual trading and is constructed with hindsight. Performance is gross of fees unless stated. Individual returns may differ based on timing, costs, and taxes.",
     },
     {
       title: "Risk Warning",
-      body: "Past performance does not guarantee future results. Market values fluctuate and capital is not guaranteed. Strategies are subject to Market, Equity, Volatility, Leverage, Liquidity, Counterparty, Concentration, Correlation, and Foreign Market risks. Investors may lose part or all of their invested capital.",
+      body: "Past performance does not guarantee future results. Capital is not guaranteed. Strategies are subject to Market, Equity, Volatility, Leverage, Liquidity, Counterparty, Concentration, and Foreign Market risks. See Page 2 for full risk factor disclosures.",
     },
     {
-      title: "Fees & Charges",
-      body: "A performance fee of 20% of profits applies. No management or AUM-based fee is charged. A transaction fee of 0.25% per trade applies. Custody fees are charged per ISIN and displayed transparently at checkout prior to investment.",
+      title: "Fees Summary",
+      body: "Performance fee: 20% of profits. No management or AUM fee. Transaction fee: 0.25% per trade. Custody fees per ISIN are displayed at checkout. Full fee schedule available on request.",
+    },
+    {
+      title: "Full Disclosures",
+      body: "Complete regulatory disclosures, risk factors, legal notices, and the full disclaimer are contained on Page 2 of this factsheet. Please read all disclosures carefully before investing.",
     },
   ];
 
   doc.setFontSize(5.8);
-  const measured = discItems.map(d => ({
+  const measured = summaryDiscItems.map(d => ({
     ...d,
     lines: doc.splitTextToSize(d.body, DISC_COLW),
   }));
@@ -500,7 +668,7 @@ export default function generateFactsheetPdf({
   hl(doc, 0, DISC_TOP + DISC_H - 0.5, PW, DISC_TOP + DISC_H - 0.5, DIV, 0.2);
 
   doc.setFont("helvetica", "bold"); doc.setFontSize(7); tc(doc, P);
-  doc.text("IMPORTANT DISCLOSURES & RISK FACTORS", ML, DISC_TOP + 8);
+  doc.text("KEY DISCLOSURES & RISK SUMMARY  ·  Full disclosures and legal notices on Page 2", ML, DISC_TOP + 8);
 
   let dly = DISC_TOP + 12;
   let dry = DISC_TOP + 12;
@@ -513,7 +681,6 @@ export default function generateFactsheetPdf({
     doc.setFont("helvetica", "bold");   doc.setFontSize(5.8); tc(doc, P_MID);
     doc.text(item.title, x, y);
     y += 3;
-
     doc.setFont("helvetica", "normal"); tc(doc, BODY);
     doc.text(item.lines, x, y);
     y += item.lines.length * 2.5 + 3.5;
@@ -521,38 +688,44 @@ export default function generateFactsheetPdf({
     if (isRight) dry = y; else dly = y;
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  FOOTER
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── Footer (page 1) ───────────────────────────────────────────────────────────
   const FY = PH - 12;
   fc(doc, P);     doc.rect(0, FY,   PW, 12,  "F");
   fc(doc, P_MID); doc.rect(0, FY,   PW, 1.2, "F");
 
   doc.setFont("helvetica", "bold");   doc.setFontSize(7);   tc(doc, WHITE);
   doc.text("MINT", ML, FY + 4);
-
   doc.setFont("helvetica", "normal"); doc.setFontSize(5); tc(doc, [160, 130, 205]);
   doc.text("Money in Transit", ML, FY + 7.5);
-
   doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [185, 160, 225]);
   doc.text(`${name}  ·  Strategy Factsheet  ·  ${monthStr}`, ML + 28, FY + 5.5);
-  doc.text(
-    "3 Gwen Ln, Sandown, Sandton  ·  www.mymint.co.za  ·  info@mymint.co.za  ·  +27 10 276 0531",
-    ML, FY + 9.5
-  );
-
+  doc.text("3 Gwen Ln, Sandown, Sandton  ·  www.mymint.co.za  ·  info@mymint.co.za  ·  +27 10 276 0531", ML, FY + 9.5);
   tc(doc, [160, 140, 200]);
-  doc.text("Page 1 of 1",         PW - MR, FY + 4,   { align: "right" });
+  doc.text("Page 1 of 2",         PW - MR, FY + 4,   { align: "right" });
   doc.text(`Generated ${isoDate}`, PW - MR, FY + 9.5, { align: "right" });
 
-  // ─── Output — mobile + desktop friendly download ─────────────────────────
-  const blob = doc.output("blob");
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href     = url;
-  a.download = `${name.replace(/[^a-zA-Z0-9]/g, "_")}_Factsheet_${isoDate}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 12000);
+  // ═════════════════════════════════════════════════════════════════════════════
+  //  PAGE 2 — FULL DISCLOSURES
+  // ═════════════════════════════════════════════════════════════════════════════
+  addDisclosurePage(doc, name, dateStr, monthStr, isoDate);
+
+  // ── Output — open in new tab (mobile + desktop friendly) ─────────────────────
+  try {
+    const pdfBlob = doc.output("blob");
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const newTab  = window.open(blobUrl, "_blank");
+    // Fallback: if popup was blocked, trigger download
+    if (!newTab || newTab.closed || typeof newTab.closed === "undefined") {
+      const a    = document.createElement("a");
+      a.href     = blobUrl;
+      a.download = `${name.replace(/[^a-zA-Z0-9]/g, "_")}_Factsheet_${isoDate}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+  } catch (err) {
+    console.error("[PDF] open fallback triggered:", err);
+    doc.save(`${name.replace(/[^a-zA-Z0-9]/g, "_")}_Factsheet_${isoDate}.pdf`);
+  }
 }
