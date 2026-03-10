@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { ArrowDownRight, ArrowDownLeft, ArrowUpRight, MoreHorizontal, X, Search, TrendingUp, CreditCard, Wallet, RefreshCw, Gift } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, MoreHorizontal, X, Search, TrendingUp, CreditCard, Wallet, RefreshCw, Gift } from "lucide-react";
 import { generateMintStatement } from "../lib/generateMintStatement";
 import { useProfile } from "../lib/useProfile";
 import NotificationBell from "../components/NotificationBell";
@@ -379,18 +379,19 @@ const StatementsPage = ({ onOpenNotifications }) => {
     }
   };
 
-  const pdfLabel    = pdfLoading ? "Generating…" : !dataReady ? "Loading…" : "Download PDF";
+  const pdfLabel    = pdfLoading ? "Generating…" : !dataReady ? "Loading…" : "Download Statement PDF";
   const btnDisabled = !dataReady || pdfLoading;
 
   // ── Date range pill selector ───────────────────────────────────────────────
-  const DateRangePills = ({ compact = false }) => (
-    <div className={`flex rounded-full bg-white/10 p-0.5 gap-0.5 ${compact ? "" : "flex-1"}`}>
+  // Rendered as an inline block — parent controls width
+  const DateRangePills = () => (
+    <div className="flex rounded-full bg-white/10 p-0.5 gap-0.5 w-full">
       {[null, 30, 60, 90].map((d) => (
         <button
           key={d ?? "all"}
           type="button"
           onClick={() => setDateRange(d)}
-          className={`rounded-full px-3 py-1.5 text-xs font-semibold transition whitespace-nowrap ${
+          className={`flex-1 rounded-full px-2 py-1.5 text-xs font-semibold transition whitespace-nowrap text-center ${
             dateRange === d
               ? "bg-white text-slate-900 shadow-sm"
               : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -405,9 +406,12 @@ const StatementsPage = ({ onOpenNotifications }) => {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
+
       {/* ── Header gradient ── */}
       <div className="rounded-b-[36px] bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 pb-10 pt-8 text-white">
         <div className="mx-auto flex w-full max-w-md flex-col gap-4">
+
+          {/* Top bar: avatar | title | bell */}
           <header className="flex items-center justify-between">
             <div>
               {profile?.avatarUrl
@@ -428,49 +432,53 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
           {/* Tabs */}
           <div className="grid w-full grid-cols-3 rounded-full bg-white/10 p-1 backdrop-blur-md">
-            {[{ id: "strategy", label: "Strategy" }, { id: "holdings", label: "Individual Stocks" }, { id: "activity", label: "Transaction History" }].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={activeTab === tab.id
-                  ? "w-full rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-sm"
-                  : "w-full rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white"}>
+            {[
+              { id: "strategy",  label: "Strategy" },
+              { id: "holdings",  label: "Individual Stocks" },
+              { id: "activity",  label: "Transaction History" },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={
+                  activeTab === tab.id
+                    ? "w-full rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-900 shadow-sm"
+                    : "w-full rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+                }
+              >
                 {tab.label}
               </button>
             ))}
           </div>
 
-          {/* Date range + PDF button row */}
-          {activeTab !== "activity" ? (
+          {/* ── Controls block — always two rows, never overflows ── */}
+          <div className="flex flex-col gap-2 w-full">
+
+            {/* Row 1: search (strategy/holdings only) + date pills */}
             <div className="flex items-center gap-2 w-full">
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-24 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs text-white placeholder:text-white/70 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white/40"
-              />
+              {activeTab !== "activity" && (
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-20 flex-shrink-0 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-xs text-white placeholder:text-white/50 shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white/40"
+                />
+              )}
               <DateRangePills />
-              <button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={btnDisabled}
-                className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                {pdfLabel}
-              </button>
             </div>
-          ) : (
-            <div className="flex items-center gap-2 w-full">
-              <DateRangePills />
-              <button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={btnDisabled}
-                className="rounded-full bg-white/90 px-3 py-2 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                {pdfLabel}
-              </button>
-            </div>
-          )}
+
+            {/* Row 2: full-width download button */}
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={btnDisabled}
+              className="w-full rounded-full bg-white py-2.5 text-xs font-semibold text-slate-900 shadow-sm transition hover:bg-white/90 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {pdfLabel}
+            </button>
+
+          </div>
         </div>
       </div>
 
@@ -502,7 +510,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
                       <div className={`h-6 w-6 rounded-full ${bg} flex items-center justify-center`}><Icon className={`h-3 w-3 ${ic}`} /></div>
                       <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
                     </div>
-                    <p className="text-lg font-bold text-slate-900">R{val.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <p className="text-lg font-bold text-slate-900">
+                      R{val.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -519,7 +529,10 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   className="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-10 py-3 text-sm text-slate-700 placeholder-slate-400 focus:border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-50 transition"
                 />
                 {activitySearchQuery && (
-                  <button onClick={() => setActivitySearchQuery("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300">
+                  <button
+                    onClick={() => setActivitySearchQuery("")}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full bg-slate-200 text-slate-500 hover:bg-slate-300"
+                  >
                     <X className="h-3 w-3" />
                   </button>
                 )}
@@ -528,8 +541,16 @@ const StatementsPage = ({ onOpenNotifications }) => {
               {/* Filter pills */}
               <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-none">
                 {activityFilters.map(f => (
-                  <button key={f} type="button" onClick={() => setActivityFilter(f)}
-                    className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${activityFilter === f ? "bg-slate-900 text-white shadow-sm" : "bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100"}`}>
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setActivityFilter(f)}
+                    className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${
+                      activityFilter === f
+                        ? "bg-slate-900 text-white shadow-sm"
+                        : "bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100"
+                    }`}
+                  >
                     {f}
                   </button>
                 ))}
@@ -560,8 +581,12 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 mb-4">
                     {activitySearchQuery ? <Search className="h-7 w-7" /> : <TrendingUp className="h-7 w-7" />}
                   </div>
-                  <p className="text-sm font-semibold text-slate-900 mb-1">{activitySearchQuery ? "No results found" : "No activity yet"}</p>
-                  <p className="text-xs text-slate-500">{activitySearchQuery ? `No transactions matching "${activitySearchQuery}"` : "Your transactions will appear here"}</p>
+                  <p className="text-sm font-semibold text-slate-900 mb-1">
+                    {activitySearchQuery ? "No results found" : "No activity yet"}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {activitySearchQuery ? `No transactions matching "${activitySearchQuery}"` : "Your transactions will appear here"}
+                  </p>
                 </div>
               ) : (
                 <section className="mt-3 space-y-5">
@@ -577,11 +602,22 @@ const StatementsPage = ({ onOpenNotifications }) => {
                               {item.holding_logos?.length > 0 ? (
                                 <div className="flex -space-x-2 flex-shrink-0">
                                   {item.holding_logos.slice(0, 3).map((hl, hi) => (
-                                    <img key={`${hl.symbol}-${hi}`} src={hl.logo_url} alt={hl.name || hl.symbol} className="h-9 w-9 rounded-full object-cover bg-white border-2 border-white shadow-sm" onError={e => { e.target.style.display = "none"; }} />
+                                    <img
+                                      key={`${hl.symbol}-${hi}`}
+                                      src={hl.logo_url}
+                                      alt={hl.name || hl.symbol}
+                                      className="h-9 w-9 rounded-full object-cover bg-white border-2 border-white shadow-sm"
+                                      onError={e => { e.target.style.display = "none"; }}
+                                    />
                                   ))}
                                 </div>
                               ) : item.logo_url ? (
-                                <img src={item.logo_url} alt="" className="h-11 w-11 flex-shrink-0 rounded-full object-cover bg-slate-50 border border-slate-100" onError={e => { e.target.style.display = "none"; }} />
+                                <img
+                                  src={item.logo_url}
+                                  alt=""
+                                  className="h-11 w-11 flex-shrink-0 rounded-full object-cover bg-slate-50 border border-slate-100"
+                                  onError={e => { e.target.style.display = "none"; }}
+                                />
                               ) : (
                                 <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full ${colors.bg}`}>
                                   <Icon className={`h-5 w-5 ${colors.text}`} />
@@ -591,20 +627,28 @@ const StatementsPage = ({ onOpenNotifications }) => {
                                 <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                   <p className="text-[11px] text-slate-400">{item.displayDate}</p>
-                                  {item.time && <><span className="text-slate-300">&middot;</span><p className="text-[11px] text-slate-400">{item.time}</p></>}
-                                  {item.settlement_status && item.settlement_status !== "confirmed"
-                                    ? <><span className="text-slate-300">&middot;</span><SettlementBadge status={item.settlement_status} size="xs" /></>
-                                    : item.status
-                                      ? <><span className="text-slate-300">&middot;</span>
-                                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                                            ["successful","completed","posted"].includes(item.status) ? "bg-emerald-50 text-emerald-600"
-                                              : item.status === "pending" ? "bg-amber-50 text-amber-600"
-                                              : item.status === "failed"  ? "bg-rose-50 text-rose-500"
-                                              : "bg-slate-100 text-slate-500"}`}>
-                                            {["successful","completed","posted"].includes(item.status) ? "Completed" : item.status === "pending" ? "Pending" : item.status === "failed" ? "Failed" : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-                                          </span>
-                                        </>
-                                      : null}
+                                  {item.time && (
+                                    <><span className="text-slate-300">&middot;</span><p className="text-[11px] text-slate-400">{item.time}</p></>
+                                  )}
+                                  {item.settlement_status && item.settlement_status !== "confirmed" ? (
+                                    <><span className="text-slate-300">&middot;</span><SettlementBadge status={item.settlement_status} size="xs" /></>
+                                  ) : item.status ? (
+                                    <>
+                                      <span className="text-slate-300">&middot;</span>
+                                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                        ["successful","completed","posted"].includes(item.status) ? "bg-emerald-50 text-emerald-600"
+                                          : item.status === "pending" ? "bg-amber-50 text-amber-600"
+                                          : item.status === "failed"  ? "bg-rose-50 text-rose-500"
+                                          : "bg-slate-100 text-slate-500"
+                                      }`}>
+                                        {["successful","completed","posted"].includes(item.status)
+                                          ? "Completed"
+                                          : item.status === "pending" ? "Pending"
+                                          : item.status === "failed"  ? "Failed"
+                                          : item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                                      </span>
+                                    </>
+                                  ) : null}
                                 </div>
                               </div>
                               <p className="text-sm font-bold tabular-nums flex-shrink-0 text-slate-900">{item.amount}</p>
@@ -652,7 +696,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   {activeTab === "strategy" ? "No strategies subscribed" : "No data available"}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {activeTab === "strategy" ? "You haven't subscribed to any strategies yet." : "There are no items to display for this view."}
+                  {activeTab === "strategy"
+                    ? "You haven't subscribed to any strategies yet."
+                    : "There are no items to display for this view."}
                 </p>
               </div>
             ) : (
@@ -663,32 +709,53 @@ const StatementsPage = ({ onOpenNotifications }) => {
                     const hasPct   = pct != null && isFinite(pct);
                     const snapshot = strategySnapshotsMap.get(row.title) || [];
                     return (
-                      <button key={idx} type="button" onClick={() => setSelectedCard(row)}
-                        className="w-full rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97] transition-all">
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedCard(row)}
+                        className="w-full rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97] transition-all"
+                      >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center gap-1.5">
                               <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
-                              {(() => { const s = row.settlement_status || holdingSettlementStatus; return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null; })()}
+                              {(() => {
+                                const s = row.settlement_status || holdingSettlementStatus;
+                                return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
+                              })()}
                             </div>
                             <p className="text-xs text-slate-600 line-clamp-1">{row.riskLevel || row.meta} • {row.desc}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-sm font-semibold text-slate-900">{row.amount}</p>
-                            {hasPct && <p className={`text-xs font-semibold ${pct >= 0 ? "text-emerald-600" : "text-red-600"}`}>{pct >= 0 ? "+" : ""}{pct.toFixed(2)}%</p>}
+                            {hasPct && (
+                              <p className={`text-xs font-semibold ${pct >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                {pct >= 0 ? "+" : ""}{pct.toFixed(2)}%
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="mt-3 flex items-center justify-between">
-                          {row.riskLevel && <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">{row.riskLevel}</span>}
+                          {row.riskLevel && (
+                            <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                              {row.riskLevel}
+                            </span>
+                          )}
                           {snapshot.length > 0 && (
                             <div className="flex items-center gap-2">
                               <div className="flex -space-x-2">
                                 {snapshot.slice(0, 3).map(h => (
                                   <div key={`${row.title}-${h.id || h.symbol}`} className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm">
-                                    {h.logo_url ? <img src={h.logo_url} alt={h.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">{h.symbol?.substring(0, 2)}</div>}
+                                    {h.logo_url
+                                      ? <img src={h.logo_url} alt={h.name} className="h-full w-full object-cover" />
+                                      : <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">{h.symbol?.substring(0, 2)}</div>}
                                   </div>
                                 ))}
-                                {snapshot.length > 3 && <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">+{snapshot.length - 3}</div>}
+                                {snapshot.length > 3 && (
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
+                                    +{snapshot.length - 3}
+                                  </div>
+                                )}
                               </div>
                               <span className="text-[11px] text-slate-400">Holdings</span>
                             </div>
@@ -699,21 +766,29 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   }
 
                   if (row.type === "Holdings") {
-                    const pnlText = row.unrealizedPL || "—";
+                    const pnlText  = row.unrealizedPL || "—";
                     const pnlColor = pnlText.startsWith("+") ? "text-emerald-600" : pnlText.startsWith("-") ? "text-red-600" : "text-slate-400";
                     return (
-                      <button key={idx} type="button" onClick={() => setSelectedCard(row)}
-                        className="w-full rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97] transition-all">
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setSelectedCard(row)}
+                        className="w-full rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_24px_-4px_rgba(0,0,0,0.12)] active:scale-[0.97] transition-all"
+                      >
                         <div className="flex items-start gap-3">
                           {row.logoUrl
                             ? <img src={row.logoUrl} alt={row.ticker} className="h-10 w-10 rounded-full border border-slate-100 object-cover" />
-                            : <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-bold text-white">{row.ticker?.substring(0, 2) || "—"}</div>}
+                            : <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-bold text-white">{row.ticker?.substring(0, 2) || "—"}</div>
+                          }
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
-                                  {(() => { const s = row.settlement_status || holdingSettlementStatus; return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null; })()}
+                                  {(() => {
+                                    const s = row.settlement_status || holdingSettlementStatus;
+                                    return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
+                                  })()}
                                 </div>
                                 <p className="text-xs text-slate-500">{row.desc}</p>
                               </div>
@@ -734,9 +809,21 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
             {/* Pagination */}
             <div className="flex items-center justify-center gap-2 pt-4">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">Previous</button>
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
               <span className="text-sm text-slate-600">Page {page} of {pages}</span>
-              <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages} className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">Next</button>
+              <button
+                onClick={() => setPage(p => Math.min(pages, p + 1))}
+                disabled={page === pages}
+                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
             </div>
           </div>
         </div>
@@ -749,54 +836,85 @@ const StatementsPage = ({ onOpenNotifications }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4">
           <button type="button" className="absolute inset-0 h-full w-full cursor-default" onClick={() => setSelectedCard(null)} />
           <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-center justify-center pt-3 pb-1"><div className="h-1.5 w-12 rounded-full bg-slate-200" /></div>
+            <div className="flex items-center justify-center pt-3 pb-1">
+              <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+            </div>
             <div className="max-h-[75vh] overflow-y-auto px-6 pb-6 pt-2">
               <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900">
-                  {selectedCard.type === "Holdings" ? "Stock Details" : selectedCard.type === "Strategy" ? "Strategy Details" : "Transaction Details"}
+                  {selectedCard.type === "Holdings"  ? "Stock Details"
+                    : selectedCard.type === "Strategy" ? "Strategy Details"
+                    : "Transaction Details"}
                 </h2>
-                <button type="button" onClick={() => setSelectedCard(null)} className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCard(null)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
+              {/* ── Holdings detail ── */}
               {selectedCard.type === "Holdings" && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-                      {selectedCard.logoUrl ? <img src={selectedCard.logoUrl} alt={selectedCard.title} className="h-full w-full object-contain" /> : <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 text-lg font-bold text-white">{selectedCard.ticker?.substring(0, 2) || "—"}</div>}
+                      {selectedCard.logoUrl
+                        ? <img src={selectedCard.logoUrl} alt={selectedCard.title} className="h-full w-full object-contain" />
+                        : <div className="flex h-full w-full items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 text-lg font-bold text-white">{selectedCard.ticker?.substring(0, 2) || "—"}</div>}
                     </div>
-                    <div><p className="text-base font-bold text-slate-900">{selectedCard.title}</p><p className="text-sm text-slate-500">{selectedCard.desc}</p></div>
+                    <div>
+                      <p className="text-base font-bold text-slate-900">{selectedCard.title}</p>
+                      <p className="text-sm text-slate-500">{selectedCard.desc}</p>
+                    </div>
                   </div>
                   <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 text-center">
                     <p className="text-2xl font-bold text-slate-900">{selectedCard.amount}</p>
-                    <p className={`mt-1 text-sm font-semibold ${selectedCard.unrealizedPL?.startsWith("+") ? "text-emerald-600" : selectedCard.unrealizedPL?.startsWith("-") ? "text-red-600" : "text-slate-400"}`}>{selectedCard.unrealizedPL || "—"}</p>
+                    <p className={`mt-1 text-sm font-semibold ${
+                      selectedCard.unrealizedPL?.startsWith("+") ? "text-emerald-600"
+                        : selectedCard.unrealizedPL?.startsWith("-") ? "text-red-600"
+                        : "text-slate-400"
+                    }`}>{selectedCard.unrealizedPL || "—"}</p>
                     <p className="mt-0.5 text-xs text-slate-400">Unrealised P/L</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {[["Quantity", selectedCard.quantity], ["Avg Cost", selectedCard.avgCost], ["Market Price", selectedCard.marketPrice], ["Market Value", selectedCard.marketValue]].map(([label, value]) => (
+                    {[
+                      ["Quantity",     selectedCard.quantity],
+                      ["Avg Cost",     selectedCard.avgCost],
+                      ["Market Price", selectedCard.marketPrice],
+                      ["Market Value", selectedCard.marketValue],
+                    ].map(([label, value]) => (
                       <div key={label} className="rounded-2xl border border-slate-100 bg-white p-3.5">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
                         <p className="mt-1 text-sm font-semibold text-slate-900">{value || "—"}</p>
                       </div>
                     ))}
                   </div>
-                  {selectedCard.date && <p className="text-center text-xs text-slate-400">As of {selectedCard.date}</p>}
+                  {selectedCard.date && (
+                    <p className="text-center text-xs text-slate-400">As of {selectedCard.date}</p>
+                  )}
                 </div>
               )}
 
+              {/* ── Strategy detail ── */}
               {selectedCard.type === "Strategy" && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    {(() => { const snap = strategySnapshotsMap.get(selectedCard.title) || []; return snap.length > 0 ? (
-                      <div className="flex -space-x-2">
-                        {snap.slice(0, 3).map(h => (
-                          <div key={`modal-${h.id || h.symbol}`} className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-white shadow-sm">
-                            {h.logo_url ? <img src={h.logo_url} alt={h.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">{h.symbol?.substring(0, 2)}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null; })()}
+                    {(() => {
+                      const snap = strategySnapshotsMap.get(selectedCard.title) || [];
+                      return snap.length > 0 ? (
+                        <div className="flex -space-x-2">
+                          {snap.slice(0, 3).map(h => (
+                            <div key={`modal-${h.id || h.symbol}`} className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-white shadow-sm">
+                              {h.logo_url
+                                ? <img src={h.logo_url} alt={h.name} className="h-full w-full object-cover" />
+                                : <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">{h.symbol?.substring(0, 2)}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
                     <div className="flex-1 min-w-0">
                       <p className="text-base font-bold text-slate-900">{selectedCard.fullName || selectedCard.title}</p>
                       {selectedCard.objective && <p className="text-sm text-slate-500">{selectedCard.objective}</p>}
@@ -807,7 +925,11 @@ const StatementsPage = ({ onOpenNotifications }) => {
                     {selectedCard.changePct != null && isFinite(selectedCard.changePct) && (
                       <p className={`mt-1 text-sm font-semibold ${selectedCard.changePct >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                         {selectedCard.changePct >= 0 ? "+" : ""}{selectedCard.changePct.toFixed(2)}%
-                        {selectedCard.changeAbs != null && <span className="ml-1 text-xs font-normal text-slate-400">({selectedCard.changeAbs >= 0 ? "+" : ""}{formatCurrency(selectedCard.changeAbs)})</span>}
+                        {selectedCard.changeAbs != null && (
+                          <span className="ml-1 text-xs font-normal text-slate-400">
+                            ({selectedCard.changeAbs >= 0 ? "+" : ""}{formatCurrency(selectedCard.changeAbs)})
+                          </span>
+                        )}
                       </p>
                     )}
                     <p className="mt-0.5 text-xs text-slate-400">Current Value</p>
@@ -820,26 +942,39 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   <div className="rounded-2xl border border-slate-100 bg-white">
                     <p className="px-4 pt-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Performance</p>
                     <div className="divide-y divide-slate-50">
-                      {[["1 Week", selectedCard.r1w], ["1 Month", selectedCard.r1m], ["3 Months", selectedCard.r3m], ["6 Months", selectedCard.r6m], ["YTD", selectedCard.rytd], ["1 Year", selectedCard.r1y]]
-                        .filter(([, v]) => v != null).map(([label, val]) => (
-                          <div key={label} className="flex items-center justify-between px-4 py-2.5">
-                            <span className="text-sm text-slate-600">{label}</span>
-                            <span className={`text-sm font-semibold ${Number(val) >= 0 ? "text-emerald-600" : "text-red-600"}`}>{Number(val) >= 0 ? "+" : ""}{Number(val).toFixed(2)}%</span>
-                          </div>
-                        ))}
+                      {[
+                        ["1 Week",    selectedCard.r1w],
+                        ["1 Month",   selectedCard.r1m],
+                        ["3 Months",  selectedCard.r3m],
+                        ["6 Months",  selectedCard.r6m],
+                        ["YTD",       selectedCard.rytd],
+                        ["1 Year",    selectedCard.r1y],
+                      ].filter(([, v]) => v != null).map(([label, val]) => (
+                        <div key={label} className="flex items-center justify-between px-4 py-2.5">
+                          <span className="text-sm text-slate-600">{label}</span>
+                          <span className={`text-sm font-semibold ${Number(val) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                            {Number(val) >= 0 ? "+" : ""}{Number(val).toFixed(2)}%
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {[["Min Investment", selectedCard.minInvestment ? formatCurrency(selectedCard.minInvestment) : null], ["Provider", selectedCard.providerName], ["Mgmt Fee", selectedCard.managementFeeBps != null ? `${(selectedCard.managementFeeBps / 100).toFixed(2)}%` : null], ["As of", selectedCard.date]]
-                      .filter(([, v]) => v).map(([label, value]) => (
-                        <div key={label} className="rounded-2xl border border-slate-100 bg-white p-3.5">
-                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
-                          <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
-                        </div>
-                      ))}
+                    {[
+                      ["Min Investment", selectedCard.minInvestment ? formatCurrency(selectedCard.minInvestment) : null],
+                      ["Provider",       selectedCard.providerName],
+                      ["Mgmt Fee",       selectedCard.managementFeeBps != null ? `${(selectedCard.managementFeeBps / 100).toFixed(2)}%` : null],
+                      ["As of",          selectedCard.date],
+                    ].filter(([, v]) => v).map(([label, value]) => (
+                      <div key={label} className="rounded-2xl border border-slate-100 bg-white p-3.5">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
+
             </div>
           </div>
         </div>

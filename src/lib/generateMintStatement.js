@@ -7,29 +7,46 @@ const getMintAccountNumber = (profile) =>
     profile?.accountNumber ||
     (profile?.id ? `MINT-${String(profile.id).slice(0, 8).toUpperCase()}` : 'MINT-XXXXXXXX');
 
+/**
+ * Robustly parse a formatted currency / percentage string into a plain number.
+ *
+ * Handles all of:
+ *   "R1,234.56"   "+R1,234.56"   "\u2212R 1,234.56"   "-R1,234.56"
+ *   "+12.50%"     "—"            ""                    null
+ *
+ * Fixes vs the original:
+ *  1. Sign is detected BEFORE stripping — so the Unicode minus sign U+2212
+ *     ("−", used in the PDF summary row) is correctly treated as negative.
+ *  2. All non-numeric characters are removed in a single pass so parseFloat
+ *     always receives a clean decimal string.
+ */
 const parseAmount = (str) => {
     if (!str) return 0;
-    const v = parseFloat(String(str).replace(/[R$,\s]/g, '').replace(/\+/, ''));
-    return isNaN(v) ? 0 : v;
+    const s = String(str).trim();
+    const negative = s.startsWith('-') || s.startsWith('\u2212');
+    const cleaned  = s.replace(/[^0-9.]/g, '');
+    const v        = parseFloat(cleaned);
+    if (isNaN(v)) return 0;
+    return negative ? -v : v;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  generateMintPDF  — jsPDF statement
+//  generateMintStatement  — jsPDF statement
 // ─────────────────────────────────────────────────────────────────────────────
 export const generateMintStatement = async (
     profile,
     displayName,
     holdingsRows,
-    strategyRows = [],
+    strategyRows  = [],
     activityItems = [],
-    dateFrom = null,
-    dateTo = null,
+    dateFrom      = null,
+    dateTo        = null,
 ) => {
     const doc       = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
     const PW        = doc.internal.pageSize.getWidth();   // 595
     const PH        = doc.internal.pageSize.getHeight();  // 842
-    const M         = 40;   // margin
-    const SAFE_FOOT = 60;   // space to keep at bottom for footer
+    const M         = 40;
+    const SAFE_FOOT = 60;
 
     // Brand colours
     const PURPLE     = [59,  27,  122];
@@ -44,15 +61,10 @@ export const generateMintStatement = async (
     const toStr    = dateTo   ? new Date(dateTo).toLocaleDateString('en-GB')   : new Date().toLocaleDateString('en-GB');
     const isoDate  = new Date().toISOString().split('T')[0];
 
-    // ── Y cursor helpers ─────────────────────────────────────────────────────
+    // ── Y cursor ─────────────────────────────────────────────────────────────
     let y = M;
-
-    const newPage = () => {
-        doc.addPage();
-        y = M + 10;
-    };
-
-    const need = (pts) => { if (y + pts > PH - SAFE_FOOT) newPage(); };
+    const newPage = () => { doc.addPage(); y = M + 10; };
+    const need    = (pts) => { if (y + pts > PH - SAFE_FOOT) newPage(); };
 
     // ── Section heading ──────────────────────────────────────────────────────
     const sectionHeading = (label) => {
@@ -105,12 +117,22 @@ export const generateMintStatement = async (
     const RC = PW / 2 + 8;
 
     doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...PURPLE);
-    doc.text('CLIENT DETAILS',  LC, y + 14);
-    doc.text('STATEMENT INFO',  RC, y + 14);
+    doc.text('CLIENT DETAILS', LC, y + 14);
+    doc.text('STATEMENT INFO', RC, y + 14);
 
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...DARK);
-    const leftLines  = [`Name:        ${displayName || 'Client'}`, `Client ID:   ${profile?.idNumber || '—'}`, `Account:     ${mintAcct}`, `Email:       ${profile?.email || '—'}`];
-    const rightLines = [`Period:      ${fromStr} – ${toStr}`, `Generated:   ${new Date().toLocaleDateString('en-GB')}`, 'Currency:    ZAR', 'Platform:    MINT'];
+    const leftLines  = [
+        `Name:        ${displayName || 'Client'}`,
+        `Client ID:   ${profile?.idNumber || '—'}`,
+        `Account:     ${mintAcct}`,
+        `Email:       ${profile?.email || '—'}`,
+    ];
+    const rightLines = [
+        `Period:      ${fromStr} \u2013 ${toStr}`,
+        `Generated:   ${new Date().toLocaleDateString('en-GB')}`,
+        'Currency:    ZAR',
+        'Platform:    MINT',
+    ];
     leftLines .forEach((l, i) => doc.text(l, LC, y + 26 + i * 13));
     rightLines.forEach((l, i) => doc.text(l, RC, y + 26 + i * 13));
     y += boxH + 16;
@@ -118,32 +140,34 @@ export const generateMintStatement = async (
     // ── 1. Portfolio Summary ─────────────────────────────────────────────────
     const holdingsForPdf = holdingsRows.filter(r => r.type === 'Holdings');
 
-    const totalValue = holdingsForPdf.reduce((s, r) => s + parseAmount(r.marketValue), 0);
+    const totalValue = holdingsForPdf.reduce((s, r) => s + parseAmount(r.marketValue),  0);
     const totalPL    = holdingsForPdf.reduce((s, r) => s + parseAmount(r.unrealizedPL), 0);
 
     sectionHeading('1.  PORTFOLIO SUMMARY');
 
     autoTable(doc, {
         startY: y,
-        margin: { left: M, right: M },
-        tableWidth: PW - M * 2,
+        margin:      { left: M, right: M },
+        tableWidth:  PW - M * 2,
         head: [['Metric', 'Value (ZAR)']],
         body: [
-            ['Total Holdings Market Value', `R ${totalValue.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`],
-            ['Total Unrealised P/L',        `${totalPL >= 0 ? '+' : '−'}R ${Math.abs(totalPL).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}`],
-            ['Holdings Count',              `${holdingsForPdf.length}`],
-            ['Active Strategies',           `${strategyRows.length}`],
-            ['Transactions in Period',      `${activityItems.length}`],
+            ['Total Holdings Market Value',
+                `R ${totalValue.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+            ['Total Unrealised P/L',
+                `${totalPL >= 0 ? '+' : '\u2212'}R ${Math.abs(totalPL).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`],
+            ['Holdings Count',         `${holdingsForPdf.length}`],
+            ['Active Strategies',      `${strategyRows.length}`],
+            ['Transactions in Period', `${activityItems.length}`],
         ],
         styles:             { font: 'helvetica', fontSize: 9.5, cellPadding: 7 },
         headStyles:         { fillColor: PURPLE_MID, textColor: [255,255,255], fontStyle: 'bold', fontSize: 9 },
         alternateRowStyles: { fillColor: PALE },
-        columnStyles: { 1: { halign: 'right', fontStyle: 'bold' } },
+        columnStyles:       { 1: { halign: 'right', fontStyle: 'bold' } },
         didParseCell(d) {
             if (d.section === 'body' && d.column.index === 1) {
                 const txt = d.cell.text[0] || '';
-                if (txt.startsWith('+')) d.cell.styles.textColor = GREEN;
-                if (txt.startsWith('−')) d.cell.styles.textColor = RED;
+                if (txt.startsWith('+'))      d.cell.styles.textColor = GREEN;
+                if (txt.startsWith('\u2212')) d.cell.styles.textColor = RED;
             }
         },
     });
@@ -155,7 +179,7 @@ export const generateMintStatement = async (
     if (strategyRows.length > 0) {
         autoTable(doc, {
             startY: y,
-            margin: { left: M, right: M },
+            margin:     { left: M, right: M },
             tableWidth: PW - M * 2,
             head: [['Strategy', 'Risk Level', 'Current Value', 'Day Return', '1M Return']],
             body: strategyRows.map(s => {
@@ -164,7 +188,7 @@ export const generateMintStatement = async (
                 return [
                     s.fullName || s.title || '—',
                     s.riskLevel || '—',
-                    s.amount || '—',
+                    s.amount    || '—',
                     pct != null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '—',
                     r1m != null ? `${r1m >= 0 ? '+' : ''}${r1m.toFixed(2)}%` : '—',
                 ];
@@ -192,16 +216,16 @@ export const generateMintStatement = async (
     if (holdingsForPdf.length > 0) {
         autoTable(doc, {
             startY: y,
-            margin: { left: M, right: M },
+            margin:     { left: M, right: M },
             tableWidth: PW - M * 2,
             head: [['Instrument', 'Ticker', 'Qty', 'Avg Cost', 'Mkt Price', 'Mkt Value', 'Unreal. P/L']],
             body: holdingsForPdf.map(r => [
-                r.instrument || r.title || '—',
-                r.ticker    || '—',
-                r.quantity  || '—',
-                r.avgCost   || '—',
-                r.marketPrice || '—',
-                r.marketValue || '—',
+                r.instrument   || r.title || '—',
+                r.ticker       || '—',
+                r.quantity     || '—',
+                r.avgCost      || '—',
+                r.marketPrice  || '—',
+                r.marketValue  || '—',
                 r.unrealizedPL || '—',
             ]),
             styles:             { font: 'helvetica', fontSize: 8.5, cellPadding: 6 },
@@ -217,10 +241,10 @@ export const generateMintStatement = async (
             },
             didParseCell(d) {
                 if (d.section === 'body' && d.column.index === 6) {
-                    const v = parseAmount(d.cell.text[0]);
-                    const raw = d.cell.text[0] || '';
-                    const isNeg = raw.startsWith('-');
-                    d.cell.styles.textColor = (!isNeg && v !== 0) ? GREEN : (isNeg ? RED : DARK);
+                    const raw   = d.cell.text[0] || '';
+                    const isNeg = raw.trimStart().startsWith('-') || raw.trimStart().startsWith('\u2212');
+                    const v     = parseAmount(raw);
+                    d.cell.styles.textColor = isNeg ? RED : (v !== 0 ? GREEN : DARK);
                 }
             },
         });
@@ -236,12 +260,12 @@ export const generateMintStatement = async (
     if (activityItems.length > 0) {
         autoTable(doc, {
             startY: y,
-            margin: { left: M, right: M },
+            margin:     { left: M, right: M },
             tableWidth: PW - M * 2,
             head: [['Date', 'Description', 'Type', 'Status', 'Amount']],
             body: activityItems.map(t => [
                 t.displayDate || t.date || '—',
-                t.title || '—',
+                t.title  || '—',
                 t.direction === 'credit' ? 'IN' : 'OUT',
                 t.status ? t.status.charAt(0).toUpperCase() + t.status.slice(1) : '—',
                 t.amount || '—',
@@ -277,7 +301,7 @@ export const generateMintStatement = async (
 
     doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
     const disclosures = [
-        'MINT is a regulated financial services platform operating under the Financial Advisory and Intermediary Services Act, 2002 (FAIS). Client assets are held in custody with an approved third-party custodian and are fully segregated from MINT\'s own assets.',
+        "MINT is a regulated financial services platform operating under the Financial Advisory and Intermediary Services Act, 2002 (FAIS). Client assets are held in custody with an approved third-party custodian and are fully segregated from MINT's own assets.",
         'Past performance is not indicative of future results. Market values may fluctuate and capital invested is not guaranteed. This statement is for informational purposes only and does not constitute investment advice.',
         'Tax treatment depends on individual circumstances. Clients are responsible for obtaining independent tax advice. 3 Gwen Ln, Sandown, Sandton, 2031 | info@mymint.co.za | +27 10 276 0531',
     ];
@@ -296,11 +320,11 @@ export const generateMintStatement = async (
         doc.setFillColor(...PURPLE);
         doc.rect(0, fy, PW, 28, 'F');
         doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-        doc.text('MINT — Regulated Financial Services Platform', M, fy + 11);
+        doc.text('MINT \u2014 Regulated Financial Services Platform', M, fy + 11);
         doc.text(`${mintAcct}`, M, fy + 21);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
         doc.text(`Page ${p} of ${totalPages}`, PW - M, fy + 16, { align: 'right' });
-        doc.text(`Generated ${isoDate}`, PW - M, fy + 25, { align: 'right' });
+        doc.text(`Generated ${isoDate}`,        PW - M, fy + 25, { align: 'right' });
     }
 
     // ── Save ─────────────────────────────────────────────────────────────────
