@@ -2,351 +2,286 @@
   MINT APP — DEVELOPMENT AUDIT
   Developer: tsiemasilo-dev
   Repository: github.com/mihle-matimba/mint
-  Period: 21 January 2026 – 10 March 2026
+  Period: 12 February 2026 – 10 March 2026
 
-  Accounts used:
+  Accounts tracked:
     tsiemasilo-dev  ·  T-Dev  ·  Masilo  ·  MintDev  ·  masechabamaile
     manwhodevs  ·  AlgoDev  ·  patymca
-    MarDeveloper  ·  MarchDeveloper  (AI-assisted sessions, directed by tsiemasilo)
+    MarDeveloper  ·  MarchDeveloper  (AI-assisted sessions)
 
-  Total Commits: 837
+  Last updated: 10 March 2026
+  Total Commits: 215
 ================================================================================
 
 
 ────────────────────────────────────────────────────────────────────────────────
-  21 – 31 JANUARY 2026
-  Accounts: patymca (43 commits) · masechabamaile (22 commits) · tsiemasilo-dev
+  FEBRUARY 2026  (137 commits)
 ────────────────────────────────────────────────────────────────────────────────
 
-  Identity Verification — Sumsub & TruID Integration  [patymca]
-  · Added Sumsub identity verification and backend applicant creation — first
-    KYC system integrated into the onboarding flow
-  · Replaced the initial identity verification system with TruID Connect as a
-    new provider
-  · Integrated TruID Connect into the user onboarding flow end-to-end
-  · Updated identity verification to use TruID Connect instead of Sumsub
+  12 February 2026  [6 commits]
+  · [516cf54] manwhodevs         Add pending settlement badges to investment assets and strategies
+  · [e6ab524] manwhodevs         Add settlement status tracking for investments and transactions
+  · [46f31de] manwhodevs         Saved progress at the end of the loop
+  · [959cdd6] manwhodevs         Add pending status indicators for investments and transactions
+  · [1749768] manwhodevs         Saved progress at the end of the loop
+  · [eafd2ab] manwhodevs         Saved progress at the end of the loop
 
-  Financial Data & Outstanding Actions  [masechabamaile]
-  · Improved financial data calculations and transaction display accuracy
-  · Updated bank and identity verification statuses across pages
-  · Built the outstanding actions section — dynamically displays and redirects
-    users to incomplete tasks
-  · Updated actions to show real completion state and redirect correctly
+  13 February 2026  [14 commits]
+  · [3b46cfd] manwhodevs         Add a fallback route to the API server to prevent errors
+  · [189d609] manwhodevs         Improve onboarding flow for already verified users
+  · [ae1ba3d] manwhodevs         Update base URL in Vite configuration for proper routing
+  · [2245044] manwhodevs         Update identity and onboarding completion logic
+  · [cf6f7b9] manwhodevs         Saved progress at the end of the loop
+  · [72297e2] manwhodevs         Update actions tab and onboarding process to show KYC status
+  · [d897fa0] manwhodevs         Improve KYC resubmission flow to preserve user progress
+  · [8693b36] manwhodevs         Saved progress at the end of the loop
+  · [86824c8] manwhodevs         Enable users to resubmit documents after verification fails
+  · [441809f] manwhodevs         Saved progress at the end of the loop
+  · [ad0217f] manwhodevs         Add authentication and onboarding to applicant tracking
+  · [6eeb7b7] manwhodevs         Saved progress at the end of the loop
+  · [71b5e52] manwhodevs         Add ability to save and complete user onboarding progress
+  · [79a5cd4] manwhodevs         Restored to '516cf54548e188b3cba85b7cdd64f213fe197d81'
 
-  Auth & UI Cleanup  [tsiemasilo-dev]
-  · [dc765d8] Guided existing users to the password reset flow on signup —
-              prevents confusion when an email already exists
-  · [6e65179] Removed the Mint Balance footer notice for a cleaner UI
-  · [ca938b2] Merged Pull Request #59: remove-mint-balance-information-section
+  14 February 2026  [1 commit]
+  · [90c4082] manwhodevs         Update pending badge labels to simplify status display
 
+  16 February 2026  [50 commits]
+  · [b4be055] manwhodevs         Saved progress at the end of the loop
+  · [d90fc1f] manwhodevs         Ensure user onboarding completes by fixing database record creation
+  · [1047e7a] manwhodevs         Ensure users are correctly marked as fully onboarded
+  · [2c548e7] manwhodevs         Update status logic to correctly show documents required
+  · [b3ae359] manwhodevs         Ensure correct document status is displayed after verification changes
+  · [11a99a7] manwhodevs         Saved progress at the end of the loop
+  · [ee19751] manwhodevs         Improve identity verification status and descriptions for users
+  · [410d474] manwhodevs         Saved progress at the end of the loop
+  · [84af681] manwhodevs         Improve onboarding completion by using authenticated database clients
+  · [912336c] manwhodevs         Add target dates to the goals display on the new portfolio page
+  · [baf8bcd] manwhodevs         Add target date display to home page goals and fix related database queries
+  · [42de3f9] manwhodevs         Add ability to display target dates for investment goals
+  · [8b8298e] manwhodevs         Add edit functionality and display target dates for user goals
+  · [d14fc0f] manwhodevs         Saved progress at the end of the loop
+  · [e74ad1d] manwhodevs         Add investment goals table to home page and fix goal display
+  · [7003f35] manwhodevs         Saved progress at the end of the loop
+  · [ad1aba6] manwhodevs         Improve discretion selection display with recommended badge
+  · [1d893ea] manwhodevs         Update mandate saving to occur only at the end of onboarding
+  · [c4e08d5] manwhodevs         Add navigation buttons to move between sections within the viewer
+  · [c167aff] manwhodevs         Add recommended label and fix mandate data storage
+  · [960ccdf] manwhodevs         Improve onboarding page layout for better mobile viewing
+  · [85aaa76] manwhodevs         Saved progress at the end of the loop
+  · [32271ac] manwhodevs         Add ability to save and load mandate details during onboarding
+  · [e31ae99] manwhodevs         Show discretion sections only after selection
+  · [70f44b5] manwhodevs         Add a selection and scrolling mechanism for mandate types
+  · [0b0c173] manwhodevs         Saved progress at the end of the loop
+  · [ebc6fe5] manwhodevs         Allow users to choose between full or limited discretion schedules
+  · [615f3d7] manwhodevs         Restored to '551d6b33a1fd259038015334471a7af39ecafdfe'
+  · [ee23d8d] manwhodevs         Restored to '2bb8448d793af16a982bdf082b0ff67580fa23e4'
+  · [74ee873] manwhodevs         Update mandate checkboxes to require all selections for full discretion
+  · [551d6b3] manwhodevs         Update agreement checkboxes and advisor information display
+  · [2bb8448] manwhodevs         Update investment advisor instruction text and make it read-only
+  · [d64540e] manwhodevs         Saved progress at the end of the loop
+  · [6d258cc] manwhodevs         Improve mandate section validation and user experience
+  · [b59d84c] manwhodevs         Improve document appearance and user input capabilities
+  · [497170d] manwhodevs         Add real-time initials input that populates across all pages
+  · [c2b4a19] manwhodevs         Saved progress at the end of the loop
+  · [6268dd3] manwhodevs         Add interactive mandate viewer with auto-populated client details
+  · [1e3ab13] manwhodevs         Display the mandate as an embedded HTML document
+  · [f814c81] manwhodevs         Update mandate details to include full legal content and terms
+  · [80bdefa] manwhodevs         Update user onboarding flow to include mandate and expand to five steps
+  · [901a4a3] manwhodevs         Add button to encourage first-time stock investments on a dedicated tab
+  · [0ebe2a5] manwhodevs         Saved progress at the end of the loop
+  · [bef31d3] manwhodevs         Improve how pending investments are displayed on portfolio and stock pages
+  · [845a0ae] manwhodevs         Saved progress at the end of the loop
+  · [5a5be4c] manwhodevs         Add ability to link investments to financial goals and update goal tracking
+  · [94a4e94] manwhodevs         Update identity verification status display on the home page
+  · [22aa71c] manwhodevs         Consolidate identity and onboarding notifications into a single item
+  · [135d8d9] manwhodevs         Revert changes to onboarding flow navigation logic
+  · [f703086] manwhodevs         Ensure user onboarding flow correctly includes employment details
 
-────────────────────────────────────────────────────────────────────────────────
-  02 – 05 FEBRUARY 2026
-  Accounts: Masilo (49 commits) · MintDev (57 commits)
-────────────────────────────────────────────────────────────────────────────────
+  17 February 2026  [17 commits]
+  · [577172b] manwhodevs         Allow special characters in user names for signups and mint numbers
+  · [9d3b852] manwhodevs         Saved progress at the end of the loop
+  · [0d6dc72] manwhodevs         Improve mint number generation with ID fallback and backfilling
+  · [a3fe027] manwhodevs         Restored to 'f4a2251eaa0856d3d813c3772aa2fa8a8c20148c'
+  · [ff3c1ee] manwhodevs         Saved progress at the end of the loop
+  · [fe7cfd1] manwhodevs         Add debug logging to strategy analytics data retrieval
+  · [f4a2251] manwhodevs         Update payment display to show total cost including fees
+  · [3c875ee] manwhodevs         Saved progress at the end of the loop
+  · [194dad1] manwhodevs         Correctly charge users for all fees during investment and stock purchases
+  · [4c81fbd] manwhodevs         Improve the display of the mint number heading on the balance card
+  · [8c4d3aa] manwhodevs         Add and style mint number display on the balance card
+  · [940feef] manwhodevs         Improve the visibility and formatting of the mint number display
+  · [66b65d4] manwhodevs         Add mint number display to balance card and improve profile loading
+  · [c6afae8] manwhodevs         Saved progress at the end of the loop
+  · [804ef40] manwhodevs         Add detailed fee breakdown for investment strategies and individual assets
+  · [9565a41] manwhodevs         Saved progress at the end of the loop
+  · [6acdb51] manwhodevs         Make client details editable and add required field validation
 
-  Card Animations & Swipe UX  [Masilo]
-  · Built 3D card flip animation that follows the user's swipe direction
-  · Improved swiping animation to feel natural and directional
-  · Added smooth animated transitions to match finger movement exactly
-  · Refined card appearance — removed the circular background element for a
-    cleaner look
+  18 February 2026  [5 commits]
+  · [bbdac8e] manwhodevs         Update user verification to save details when status check is completed
+  · [b075f35] manwhodevs         Add user verification details to onboarding pack
+  · [b313165] manwhodevs         Add verification check for previously verified users
+  · [772c359] manwhodevs         Update investment goal modal and fee labels for clarity
+  · [d0ccf2d] manwhodevs         Mark already verified users as complete without re-verification
 
-  Android Navigation, Server Config & Security  [MintDev]
-  · Updated Android navigation and fixed KYC status determination logic
-  · Restored browser history navigation and updated server configuration
-  · Removed browser history handling to prevent duplicate page navigation
-  · Cleaned up sensitive token accidentally committed to project history
+  19 February 2026  [20 commits]
+  · [9f87ce9] AlgoDev            Fix issues with tracking investment goal progress and amounts
+  · [5ef9b1d] AlgoDev            Improve investment goal tracking and updates after asset purchase
+  · [4cbd723] AlgoDev            Sync sideways holdings scroll with dropdown selection
+  · [f2acdc3] AlgoDev            Make holdings scrollable and selectable on the investment card
+  · [ab835fc] AlgoDev            Improve balance card to show all holdings with sideways scrolling
+  · [c74f54f] AlgoDev            Add more space below holdings and hide scrollbar on card
+  · [c39225e] AlgoDev            Make displaying user investments more organized on the card
+  · [220c76c] AlgoDev            Improve card display by preventing overlapping text on holdings
+  · [9d3c713] AlgoDev            Enforce investment limits for users on the free plan
+  · [f6837de] AlgoDev            Add a button to redirect users to complete onboarding from modals
+  · [759f61f] AlgoDev            Require users to complete onboarding before investing or buying assets
+  · [36a5ed7] AlgoDev            Update homepage onboarding status to include mandate verification
+  · [ec2a4de] AlgoDev            Integrate mandate signing into the onboarding completion process
+  · [d8cef44] AlgoDev            Add a separate step to sign the discretionary mandate
+  · [e683ef3] AlgoDev            Fix investment recording and display of user strategies
+  · [3691c47] AlgoDev            Fix issue when creating a new investment goal
+  · [e748e84] AlgoDev            Add subscription plan badge to user profile on More tab
+  · [78adc36] AlgoDev            Saved progress at the end of the loop
+  · [3d868e6] AlgoDev            Add password visibility toggle and onboarding/upgrade modals
+  · [7626cd3] AlgoDev            Saved progress at the end of the loop
 
+  20 February 2026  [5 commits]
+  · [9938007] AlgoDev            Saved progress at the end of the loop
+  · [f86eff1] AlgoDev            Show performance gains and losses on asset and strategy cards
+  · [bb5c5d1] AlgoDev            Saved progress at the end of the loop
+  · [e788569] AlgoDev            Add payment reconciliation and improve investment recording
+  · [e7e8f4b] AlgoDev            Allow users to input their own share amounts when buying stocks
 
-────────────────────────────────────────────────────────────────────────────────
-  04 FEBRUARY 2026
-  Account: tsiemasilo-dev
-────────────────────────────────────────────────────────────────────────────────
-
-  · [492cee9] Built and updated the in-app notification system
-
-
-────────────────────────────────────────────────────────────────────────────────
-  05 – 10 FEBRUARY 2026  (Major Build Sprint)
-  Account: T-Dev (438 commits total) · tsiemasilo-dev
-────────────────────────────────────────────────────────────────────────────────
-
-  Portfolio Page — Full Redesign  [T-Dev]
-  · Redesigned the entire portfolio page with a modern fintech dashboard layout
-  · Built deep purple gradient background with glowing chart line effect
-  · Added portfolio value, holdings count, and asset distribution chart
-  · Integrated Recharts library for live portfolio value charting
-  · Added time-period filter buttons (1D, 1W, 1M, 3M, 1Y) with animated styles
-  · Connected user's actual name to the portfolio greeting
-  · Refined gradient and glow positioning for seamless blending with navigation
-  · Added smooth fade effects to chart line edges
-
-  Strategy & Allocation Views  [T-Dev]
-  · Built interactive dropdown for selecting investment strategies on portfolio
-  · Displayed real strategy names and financial data dynamically
-  · Updated allocation view to show investment history and top assets
-  · Applied consistent gradient styling to the allocations page
-
-  Holdings & Stock Display  [T-Dev]
-  · Connected portfolio holdings to real financial data from the database
-  · Added company logos to portfolio holdings display
-  · Updated holdings tab to show stock details with logos and current values
-  · Updated navigation tabs — renamed Strategy to Strategies, added Holdings
-
-  Individual Stock View — Built from Scratch  [T-Dev]
-  · Built functionality to view individual stock performance and market data
-  · Integrated live JSE stock market data into the individual stocks view
-  · Migrated stock data from external API to internal Supabase database
-  · Added dedicated section displaying stocks currently held by the user
-  · Added pagination to stock lists with navigation buttons
-  · Updated charts to use TradingView for richer data
-
-  Pie Chart  [T-Dev]
-  · Built portfolio allocation pie chart with hover animations
-  · Added iOS-style tooltips and smooth animated slice interactions
-  · Improved mobile tooltip visibility and positioning
-  · Refined labels and moved them outside the chart for clarity
-
-  Bottom Navigation Bar  [T-Dev]
-  · Fixed plus button positioning within the navigation bar
-  · Ensured the plus button renders above the overlay layer via a portal
-  · Improved stability and responsiveness of the bottom navigation bar
-  · Added bottom navigation bar to the portfolio page
-
-  Bank Account Linking — TruID  [T-Dev]
-  · Built standalone bank account linking page (separated from credit flow)
-  · Enabled users to link multiple bank accounts to their profile
-  · Displayed actual linked bank account details with bank logos
-  · Added dedicated success page after bank linking
-  · Built the option to unlink specific bank accounts
-  · Improved data extraction from TruID webhook for linked accounts
-
-  Holdings P&L & Real-Time Data  [T-Dev]
-  · Updated holdings to reflect accurate gains and losses using cost basis
-  · Set default displayed stock to the user's actual holdings
-  · Added real-time price updates for the investment portfolio
-  · Updated all pages to auto-refresh strategy data in real-time
-
-  Statements & Activity  [T-Dev]
-  · Replaced the Financials tab with the Activity page on Statements
-  · Updated Statements page to show full transaction history with a loader
-
-  Onboarding Steps  [T-Dev]
-  · Added new steps to the onboarding process: bank, mandate, risk, source of
-    funds
-  · Handled existing KYC verification status to skip re-verification
-  · Fixed onboarding progress not saving correctly
-  · Added onboarding completion status to the outstanding actions on home tab
-  · Saved user's source of funds and investment details to the database
-
-  PRs Merged  [tsiemasilo-dev]
-  · [3289142] Merged feature/sumsub/Tsie into main — Sumsub KYC integration
-  · [712462c] Merged Android.v1 into main — Android/Capacitor build
-  · [db8eb09] Merged remote-tracking branch origin/main into Merge/Version1
-
-
-────────────────────────────────────────────────────────────────────────────────
-  12 – 18 FEBRUARY 2026
-  Account: manwhodevs (93 commits)
-────────────────────────────────────────────────────────────────────────────────
-
-  User Verification & Onboarding Pack  [manwhodevs]
-  · Built verification check — marks already-verified users as complete
-    without re-running verification
-  · Saved user verification details to the onboarding pack on completion
-  · Updated user verification to save all details when status check completes
-  · Added verification detail fields to the onboarding pack data structure
-
-  Investment Goal & Fees  [manwhodevs]
-  · Updated investment goal modal content and fee label clarity
-  · Improved how fees are labelled and displayed throughout the investment flow
-
-  PR Merged  [tsiemasilo-dev]
-  · [0ff8e4f] Merged Pull Request #92: MergeUpdate into main
-
-
-────────────────────────────────────────────────────────────────────────────────
-  19 – 24 FEBRUARY 2026
-  Account: AlgoDev (44 commits) · tsiemasilo-dev
-────────────────────────────────────────────────────────────────────────────────
-
-  Mint Number Card Display  [AlgoDev]
-  · Adjusted card layout to cleanly display the user's Mint number
-  · Removed asset details from the card to improve spacing
-  · Refined spacing and font size for the Mint number within the card
-  · Improved overall card layout for a polished fintech card feel
-
-  UI Update  [tsiemasilo-dev]
-  · [0ecd311] Updated swipeable card component
+  24 February 2026  [19 commits]
+  · [b99ab8c] AlgoDev            Adjust spacing and font size for the mint number display
+  · [b6172d6] AlgoDev            Adjust spacing for mint number within the card layout
+  · [b70ab44] AlgoDev            Adjust card layout to cleanly display mint number
+  · [daa36ef] AlgoDev            Improve card layout by removing asset details and adjusting spacing
+  · [a3f274e] AlgoDev            Saved progress at the end of the loop
+  · [f85b74b] AlgoDev            Update email system to poll for new articles instead of real-time updates
+  · [c40de7c] AlgoDev            Apply consistent article formatting to all news items
+  · [9ab266c] AlgoDev            Structure article content into distinct email cards
+  · [10cd3ac] AlgoDev            Format article body text with line breaks and section headers
+  · [6c2cd3c] AlgoDev            Update email content to match new template with specific formatting
+  · [8f16945] AlgoDev            Update email template to match new design specifications
+  · [2432ace] AlgoDev            Update email template to precisely match the provided design specification
+  · [74df225] AlgoDev            Update email template to match new design specifications
+  · [a456bba] AlgoDev            Filter emails to only send articles with specific content types
+  · [000e14d] AlgoDev            Add ability to send test emails to a specific address
+  · [bc0c6f4] AlgoDev            Update sender email address for automated daily newsletters
+  · [f007446] AlgoDev            Saved progress at the end of the loop
+  · [888e9e1] AlgoDev            Add daily email newsletter for users
+  · [fc3e0e6] AlgoDev            Add daily email feature for users with daily newsletters
 
 
 ────────────────────────────────────────────────────────────────────────────────
-  02 – 04 MARCH 2026
-  Account: MarchDeveloper (30 commits, AI-assisted session)
+  MARCH 2026  (78 commits)
 ────────────────────────────────────────────────────────────────────────────────
 
-  Investment Rules & Navigation  [MarchDeveloper]
-  · Enforced minimum investment of R1,000 for all assets
-  · Ensured all individual asset purchases meet the minimum investment value
-  · Fixed back button navigation across multiple pages
-  · Removed "if applicable" text from factsheets for cleaner copy
+  02 March 2026  [13 commits]
+  · [a77e329] MarchDeveloper     Saved progress at the end of the loop
+  · [84bd19f] MarchDeveloper     Remove scheduled test email functionality
+  · [3c5f319] MarchDeveloper     Schedule a test email to be sent at 16:06 SAST
+  · [19396c4] MarchDeveloper     Remove scheduled test email functionality
+  · [2b7191c] MarchDeveloper     Schedule a test email to be sent at a specific time
+  · [9c2b9ba] MarchDeveloper     Update sender email address for morning newsletters
+  · [0aace09] MarchDeveloper     Improve email sending by logging detailed Resend responses
+  · [585fb95] MarchDeveloper     Schedule daily news emails to send in the morning
+  · [1931d9c] MarchDeveloper     Restore Resend API key functionality for email sending
+  · [db0f015] MarchDeveloper     Integrate Resend email service securely using Replit connections
+  · [f9d0b74] MarchDeveloper     Saved progress at the end of the loop
+  · [a2ff779] MarchDeveloper     Safely render strategy modals and filter sheets using portals
+  · [067495d] MarchDeveloper     Update project dependencies and lazily initialize email service
 
+  03 March 2026  [12 commits]
+  · [f81f9a3] MarchDeveloper     Remove the balance tab from the home page navigation
+  · [43b4b84] MarchDeveloper     Redesign bank selection and account details for improved user experience
+  · [f41319d] MarchDeveloper     Improve bank account details UI with a new card design
+  · [e475f4a] MarchDeveloper     Update the order of steps in the onboarding process
+  · [d9bb883] MarchDeveloper     Add a step to collect user bank account details during onboarding
+  · [3fe3fc2] MarchDeveloper     Saved progress at the end of the loop
+  · [c145833] MarchDeveloper     Improve user onboarding flow by ensuring records exist before proceeding
+  · [a3db302] MarchDeveloper     Add persistent filters to user interface for market and strategy views
+  · [675a556] MarchDeveloper     Increase background session timeout to 4 minutes
+  · [59482b6] MarchDeveloper     Send emails to all users one at a time with proper rate limiting
+  · [b471842] MarchDeveloper     Implement scheduled email delivery using Vercel Cron Jobs
+  · [c50f384] MarchDeveloper     Improve scheduled email sending reliability and add catch-up logic
 
-────────────────────────────────────────────────────────────────────────────────
-  04 – 05 MARCH 2026
-  Account: MarDeveloper (AI-assisted session) · tsiemasilo-dev
-────────────────────────────────────────────────────────────────────────────────
+  04 March 2026  [17 commits]
+  · [25cf5c7] MarDeveloper       Improve dropdown behavior by closing it when clicking outside
+  · [0d3b474] MarDeveloper       Add consistent starting point to asset and strategy charts
+  · [d0d78de] MarDeveloper       Add consistent starting point to all performance charts
+  · [f25fbdb] MarDeveloper       Improve chart axis labels to accurately show profit and loss
+  · [50b37b2] MarDeveloper       Update profit calculations to use actual cost basis for accurate charting
+  · [fe69900] MarDeveloper       Improve chart display for assets and strategies across all filters
+  · [4dfd121] MarDeveloper       Improve chart axis display to always show R0 baseline
+  · [8f7b7de] MarDeveloper       Make investment charts display performance starting from zero
+  · [f35a0e5] MarDeveloper       Update investment performance charts to show profit and loss
+  · [4d36065] MarDeveloper       Update chart filters and display Y axis with price labels
+  · [7963f09] MarDeveloper       Add historical performance charting for user portfolios and strategies
+  · [bef59ba] MarDeveloper       Update project dependencies and configurations for Replit environment
+  · [0e24610] MarchDeveloper     Remove "if applicable" text from factsheets
+  · [3e92398] MarchDeveloper     Fix back button navigation across multiple pages
+  · [5a78b11] MarchDeveloper     Enforce minimum investment amount when buying stocks
+  · [43383e8] MarchDeveloper     Enforce a minimum investment of R1,000 for all assets
+  · [a9e9433] MarchDeveloper     Ensure all individual assets meet a minimum investment value
 
-  Environment Setup  [MarDeveloper]
-  · Updated project dependencies and configurations for Replit environment
+  05 March 2026  [13 commits]
+  · [c68ea64] MarDeveloper       Update minimum investment calculation to prioritize dynamic values
+  · [af4f1f1] MarDeveloper       Update PDF to display the correct minimum investment amount
+  · [0bb63ca] MarDeveloper       Fix server crash by ensuring API key is present
+  · [5b6ddec] MarDeveloper       Open PDF factsheets in a new browser tab instead of downloading
+  · [3bf9284] MarDeveloper       Improve layout to display full asset names above their bars
+  · [cace126] MarDeveloper       Display full asset names above their corresponding bars in the PDF
+  · [595886d] MarDeveloper       Update the PDF to show asset allocation instead of sector allocation
+  · [45924d2] MarDeveloper       Remove ISIN column from investment portfolio PDF reports
+  · [24fa682] MarDeveloper       Add ISIN numbers to the portfolio holdings PDF report
+  · [c60ccfd] MarDeveloper       Update factsheet to show actual purchase fees
+  · [dd905b8] MarDeveloper       Add manual plugin application for PDF generation
+  · [754f82d] MarDeveloper       Add ability to download a personalized strategy factsheet PDF
+  · [1d4045b] MarDeveloper       Add investment management document for analysis
 
-  Historical Performance Charting — Built from Scratch  [MarDeveloper]
-  · Built full historical performance charting for user portfolios and
-    strategies with real Supabase data
-  · Added time-period filters (1D, 1W, 1M, 3M, 1Y) and formatted Y-axis labels
-  · Updated charts to display profit and loss over time from actual cost basis
-  · Set all charts to begin from R0 baseline for immediate visual clarity
-  · Fixed Y-axis to always include R0 even when all values are positive
-  · Added consistent starting data point to all asset and strategy charts
-  · Fixed dropdown menus to close on outside click
+  09 March 2026  [19 commits]
+  · [6cf6825] MarDeveloper       Improve real-time data subscriptions and error handling
+  · [35fae16] MarDeveloper       Add banking details to user profiles and enable branch code auto-fill
+  · [21a7f38] MarDeveloper       Add branch code auto-population to bank selection
+  · [75ecda1] MarDeveloper       Update user onboarding status and session handling
+  · [84ed0c8] MarDeveloper       Add missing API endpoints for Vercel deployment and improve session handling
+  · [ad97990] MarDeveloper       Improve session timeout resilience and logging
+  · [ef086dc] MarDeveloper       Improve navigation by allowing users to go back to previous incomplete steps
+  · [e8c8da7] MarDeveloper       Improve onboarding completion checks for existing and new users
+  · [6b574f5] MarDeveloper       Update onboarding flow to show unified steps and fix session issues
+  · [25a6dfd] MarDeveloper       Improve onboarding flow to correctly skip completed steps
+  · [36c5b73] MarDeveloper       Unify and clarify onboarding status across the application
+  · [4245eeb] MarDeveloper       Ensure onboarding completion checks are consistent across all pages
+  · [849a2cf] MarDeveloper       Improve accuracy of required action completion status
+  · [51c41a4] MarDeveloper       Update user onboarding to include Identity Check step
+  · [429eac1] MarDeveloper       Improve onboarding flow by intelligently skipping completed steps
+  · [05b9299] MarDeveloper       Expand onboarding checks to ensure all steps are completed
+  · [b4de824] MarDeveloper       Allow users to freely edit previous onboarding steps and pre-fill saved data
+  · [19ff1af] MarDeveloper       Improve onboarding flow by saving progress and respecting completed steps
+  · [9024a13] MarDeveloper       Add checkpoints and saving for onboarding progress
 
-  Strategy Factsheet PDF — Built from Scratch  [MarDeveloper]
-  · Built personalised strategy factsheet PDF — downloadable per user and
-    strategy
-  · Configured PDF generation plugin at build time
-  · Displayed actual purchase fees, ISIN numbers, and asset allocation chart
-  · Replaced sector allocation with actual asset breakdown
-  · Fixed full asset names to display above their allocation bars
-  · Changed PDFs to open in a new tab instead of downloading
-  · Fixed minimum investment to show correct dynamic value from database
-  · Fixed server crash caused by missing API key guard
-
-  PR Merged  [tsiemasilo-dev]
-  · [c629336] Merged Pull Request #102: feature/MinDisclosureDocument
-
-
-────────────────────────────────────────────────────────────────────────────────
-  09 MARCH 2026
-  Account: MarDeveloper (AI-assisted) · tsiemasilo-dev
-────────────────────────────────────────────────────────────────────────────────
-
-  Onboarding Flow Overhaul  [MarDeveloper]
-  · Added checkpoints and progress saving throughout onboarding
-  · Improved flow to save each step and respect already-completed steps
-  · Enabled free back-navigation with pre-filled saved data
-  · Expanded completion checks to all five steps (KYC, bank, mandate, risk,
-    source of funds)
-  · Built intelligent step-skipping for already-completed steps
-  · Added Identity Check (Sumsub) as a formal onboarding step
-  · Unified onboarding status logic into a single shared source
-  · Fixed flow for both returning users and first-time users
-
-  Session & API Stability  [MarDeveloper]
-  · Improved session timeout resilience — graceful logging instead of crashes
-  · Added missing API endpoints required for Vercel deployment
-  · Fixed session handling across the full server
-
-  Banking Details  [MarDeveloper]
-  · Added automatic branch code population when a user selects their bank
-  · Saved full banking details to user profile with read-only branch code
-
-  Real-Time Data  [MarDeveloper]
-  · Improved Supabase real-time subscriptions and error handling
-
-  PRs Merged  [tsiemasilo-dev]
-  · [a86cac2] Merged Pull Request #103: Precheck-ID-on-samsub
-  · [1908668] Merged origin/main and resolved onboarding conflicts — smart
-              step skipping retained correctly
-
-
-────────────────────────────────────────────────────────────────────────────────
-  10 MARCH 2026
-  Account: MarDeveloper (AI-assisted session)
-────────────────────────────────────────────────────────────────────────────────
-
-  Order Email Notification System — Built from Scratch  [MarDeveloper]
-  · Built the complete automated order email system using Resend:
-              - order_emails table in Supabase (one row per order)
-              - sendOrderConfirmationEmail() — fires immediately after payment
-              - sendOrderFillEmail() — fires on CSDP/broker settlement (T+3)
-              - Idempotency checks to prevent any duplicate sends
-  · Split into two distinct email types: Confirmation and Settlement Fill
-  · Redesigned both email templates to match the Mint brand:
-              - Deep purple gradient header
-              - Bordered detail cards per order field
-              - Amber "Pending Settlement" / Purple "Settled" status badges
-              - Purple CTA button — Track Your Order / View My Portfolio
-  · Consolidated to one shared template file used by both Vercel serverless
-    functions and the Express server — single source of truth
+  10 March 2026  [4 commits]
+  · [8d1e353] MarDeveloper       Update email designs to use consistent branding and consolidate templates
+  · [57a6bc8] MarDeveloper       Update email designs to a cleaner and more modern appearance
+  · [34b178a] MarDeveloper       Update order email system to send separate confirmation and fill emails
+  · [52f980d] MarDeveloper       Add email notifications for investment order confirmations and settlements
 
 
 ────────────────────────────────────────────────────────────────────────────────
   ACCOUNTS SUMMARY
 ────────────────────────────────────────────────────────────────────────────────
 
-  Account             Commits    Period                  Focus Area
-  ──────────────────────────────────────────────────────────────────────────────
-  T-Dev                 438      05 Feb – 10 Feb         Portfolio, charts,
-                                                         stocks, bank linking,
-                                                         onboarding, real-time
-  manwhodevs             93      12 Feb – 18 Feb         Verification, onboard-
-                                                         ing pack, investment
-                                                         goal & fees
-  MintDev                57      03 Feb – 05 Feb         Android nav, server
-                                                         config, KYC status,
-                                                         security cleanup
-  MarDeveloper           48      04 Mar – 10 Mar         Perf charts, PDF facts-
-  (AI-assisted)                                          heet, onboarding, emails
-  Masilo                 49      02 Feb – 03 Feb         Card flip animations,
-                                                         swipe UX
-  AlgoDev                44      19 Feb – 24 Feb         Mint number card layout
-  patymca                43      21 Jan – 31 Jan         KYC: Sumsub + TruID
-  MarchDeveloper         30      02 Mar – 04 Mar         Min investment, back nav,
-  (AI-assisted)                                          factsheet fixes
-  masechabamaile         22      28 Jan – 30 Jan         Financial calculations,
-                                                         outstanding actions
-  tsiemasilo-dev         13      27 Jan – 09 Mar         Direct merges, PRs,
-  (direct GitHub)                                        branch management
-  ──────────────────────────────────────────────────────────────────────────────
-  TOTAL                 837      21 Jan 2026 –
-                                 10 Mar 2026
+  Account                Commits    First Commit       Last Commit
+  ---------------------------------------------------------------------------
+  manwhodevs             93         12 February 2026   18 February 2026
+  MarDeveloper           48         04 March 2026      10 March 2026
+  AlgoDev                44         19 February 2026   24 February 2026
+  MarchDeveloper         30         02 March 2026      04 March 2026
+  ---------------------------------------------------------------------------
+  TOTAL                  215
 
-
-────────────────────────────────────────────────────────────────────────────────
-  FULL FEATURE SUMMARY
-────────────────────────────────────────────────────────────────────────────────
-
-  ✓  KYC identity verification — Sumsub integration
-  ✓  KYC identity verification — TruID Connect integration & migration
-  ✓  Financial data calculations and transaction display
-  ✓  Outstanding actions section — dynamic, real-time completion tracking
-  ✓  Authentication — password reset guidance for existing users
-  ✓  In-app notification system
-  ✓  Card flip and swipe animations (3D, direction-following)
-  ✓  Android / Capacitor navigation and build configuration
-  ✓  Portfolio page — full redesign with deep purple fintech dashboard
-  ✓  Dashboard gradient background with glowing purple chart line
-  ✓  Recharts portfolio chart with time filters and R0 baseline
-  ✓  Strategy selector, allocation view, and holdings tab
-  ✓  Portfolio pie chart with animations and iOS-style tooltips
-  ✓  Individual stock view with live JSE price data
-  ✓  Stock logos and company branding throughout holdings
-  ✓  Bank account linking with TruID (multiple accounts, logos, unlinking)
-  ✓  Holdings P&L display using actual cost basis
-  ✓  Statements page with full transaction activity
-  ✓  Real-time Supabase price and strategy data subscriptions
-  ✓  Mint number card display and layout
-  ✓  User verification onboarding pack and fee labels
-  ✓  Minimum investment enforcement (R1,000 per asset)
-  ✓  Historical performance charting (P&L, time filters, R0 baseline)
-  ✓  Personalised strategy factsheet PDF with asset allocation
-  ✓  SA ID precheck against Sumsub — prevents duplicate registrations
-  ✓  Complete onboarding flow overhaul (step skipping, saving, back-nav)
-  ✓  Branch code auto-population for banking details
-  ✓  Session management resilience and Vercel API endpoint fixes
-  ✓  Order confirmation and fill email notifications (Resend integration)
-  ✓  Shared email template system — one source of truth for all emails
 
 ================================================================================
   End of Audit — Mint App (github.com/mihle-matimba/mint)
