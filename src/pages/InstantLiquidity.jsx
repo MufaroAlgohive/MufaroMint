@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { 
   Zap, 
   ChevronRight, 
@@ -20,7 +21,16 @@ import NotificationBell from "../components/NotificationBell";
 const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [draftFilter, setDraftFilter] = useState("all");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [portalTarget, setPortalTarget] = useState(null);
+  
+  // Sheet Drag State
+  const [sheetOffset, setSheetOffset] = useState(0);
+  const dragStartY = useRef(null);
+  const isDragging = useRef(false);
+
+  useEffect(() => { setPortalTarget(document.body); }, []);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const initials = displayName.split(" ").filter(Boolean).slice(0, 2).map(p => p[0]).join("").toUpperCase() || "MN";
@@ -48,9 +58,38 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
 
   const sparklineData = [{ v: 40 }, { v: 35 }, { v: 55 }, { v: 45 }, { v: 60 }, { v: 50 }, { v: 75 }];
 
+  // Sheet Logic
+  const resetSheetPosition = () => {
+    setSheetOffset(0);
+    dragStartY.current = null;
+    isDragging.current = false;
+  };
+
+  const handleSheetPointerDown = (e) => {
+    dragStartY.current = e.clientY;
+    isDragging.current = true;
+  };
+
+  const handleSheetPointerMove = (e) => {
+    if (!isDragging.current || dragStartY.current === null) return;
+    const delta = e.clientY - dragStartY.current;
+    setSheetOffset(delta > 0 ? delta : 0);
+  };
+
+  const handleSheetPointerUp = () => {
+    if (!isDragging.current) return;
+    if (sheetOffset > 100) setIsFilterOpen(false);
+    resetSheetPosition();
+  };
+
+  const applyFilters = () => {
+    setActiveFilter(draftFilter);
+    setIsFilterOpen(false);
+  };
+
   return (
     <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900">
-      {/* 1. Restored Signature Gradient Background */}
+      {/* Background Gradient */}
       <div className="absolute inset-x-0 top-0 -z-10 h-full">
         <div 
           className="absolute inset-x-0 top-0"
@@ -63,7 +102,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
       </div>
 
       <div className="px-5 pt-12 pb-8">
-        {/* 2. Exact Header Sync with HomePage */}
         <header className="relative flex items-center justify-between mb-10 text-white">
           <div className="flex items-center gap-3">
             {profile?.avatarUrl ? (
@@ -91,15 +129,15 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
           <NotificationBell onClick={onOpenNotifications} />
         </header>
 
-        {/* 3. Hero Card with Integrated Pledge All Button */}
-        <div className="bg-[#111111]/40 backdrop-blur-3xl rounded-[36px] p-6 shadow-2xl border border-white/10 mb-8 relative overflow-hidden">
+        {/* Top Tab - Updated to White Glass */}
+        <div className="bg-white/30 backdrop-blur-3xl rounded-[36px] p-6 shadow-xl border border-white/60 mb-8 relative overflow-hidden">
           <div className="flex justify-between items-start mb-6">
             <div className="max-w-[200px]">
-              <p className="text-white/60 text-[12px] leading-tight font-medium" style={{ fontFamily: fonts.text }}>
-                Pledge qualifying strategies and assets to unlock <span className="text-white font-bold">instant liquidity</span>.
+              <p className="text-slate-700 text-[12px] leading-tight font-medium" style={{ fontFamily: fonts.text }}>
+                Pledge qualifying strategies and assets to unlock <span className="text-slate-900 font-bold">instant liquidity</span>.
               </p>
             </div>
-            <div className="text-6xl font-black text-white/10" style={{ fontFamily: fonts.display }}>
+            <div className="text-6xl font-black text-slate-900/5" style={{ fontFamily: fonts.display }}>
               {portfolioItems.length}
             </div>
           </div>
@@ -127,7 +165,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
           </div>
         </div>
 
-        {/* 4. Quick Actions */}
+        {/* Quick Actions */}
         <div className="grid grid-cols-4 gap-4 mb-10 px-1">
           {[
             { label: "Apply", icon: Plus },
@@ -144,7 +182,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
           ))}
         </div>
 
-        {/* 5. Search & Filter Modal Trigger */}
+        {/* Search & Filter */}
         <div className="flex gap-2 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -158,14 +196,17 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
             />
           </div>
           <button 
-            onClick={() => setIsFilterOpen(true)}
+            onClick={() => {
+                setIsFilterOpen(true);
+                setDraftFilter(activeFilter);
+            }}
             className="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg transition active:scale-95"
           >
             <SlidersHorizontal size={20} />
           </button>
         </div>
 
-        {/* 6. Portfolio List with "Market Insights" Heading Style */}
+        {/* Assets List */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1 mb-4">
             <p className="text-sm font-semibold text-slate-900" style={{ fontFamily: fonts.text }}>Qualifying Assets</p>
@@ -198,7 +239,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={sparklineData}>
                         <YAxis hide domain={['dataMin - 10', 'dataMax + 10']} />
-                        <Line type="monotone" dataKey="v" stroke="#7c3aed" strokeWidth={2} dot={false} animationDuration={1000} />
+                        <Line type="monotone" dataKey="v" stroke="#7c3aed" strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                  </div>
@@ -218,45 +259,83 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
         </div>
       </div>
 
-      {/* Filter Modal Popup */}
-      <AnimatePresence>
-        {isFilterOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsFilterOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100]"
-            />
-            <motion.div 
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 inset-x-0 bg-white rounded-t-[32px] p-8 z-[101] shadow-2xl shadow-slate-900/20"
-            >
-              <div className="flex justify-between items-center mb-8">
-                <h3 className="text-lg font-bold text-slate-900" style={{ fontFamily: fonts.display }}>Filter Portfolio</h3>
-                <button onClick={() => setIsFilterOpen(false)} className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
-                  <X size={18} />
-                </button>
+      {/* Sheet-Style Filter Portal */}
+      {isFilterOpen && portalTarget && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm px-4 pb-6">
+          <button
+            type="button"
+            className="absolute inset-0 h-full w-full cursor-default"
+            aria-label="Close filters"
+            onClick={() => {
+              setIsFilterOpen(false);
+              resetSheetPosition();
+            }}
+          />
+          <div
+            className="relative z-10 flex h-[50vh] w-full max-w-sm flex-col overflow-hidden rounded-[32px] bg-white shadow-2xl"
+            style={{ 
+                transform: `translateY(${sheetOffset}px)`,
+                transition: isDragging.current ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+            }}
+            onPointerDown={handleSheetPointerDown}
+            onPointerMove={handleSheetPointerMove}
+            onPointerUp={handleSheetPointerUp}
+            onPointerCancel={handleSheetPointerUp}
+          >
+            {/* Drag Handle */}
+            <div className="flex items-center justify-center pt-3 pb-2">
+              <div className="h-1.5 w-12 rounded-full bg-slate-200" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 pb-4 pt-3">
+              <h3 className="text-lg font-bold text-slate-900" style={{ fontFamily: fonts.display }}>Filters</h3>
+              <button
+                type="button"
+                onClick={() => setDraftFilter("all")}
+                className="text-sm font-semibold text-slate-500"
+              >
+                Reset
+              </button>
+            </div>
+
+            {/* Filter Options */}
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="space-y-4">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Asset Type</p>
+                <div className="space-y-3">
+                  {["all", "strategy", "stock"].map((filter) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      onClick={() => setDraftFilter(filter)}
+                      className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                        draftFilter === filter 
+                          ? "border-violet-500 bg-violet-50 text-violet-700 shadow-sm" 
+                          : "border-slate-100 bg-slate-50 text-slate-600"
+                      }`}
+                    >
+                      <span className="text-sm font-bold capitalize">{filter}s</span>
+                      {draftFilter === filter && <Check size={18} className="text-violet-600" />}
+                    </button>
+                  ))}
+                </div>
               </div>
-              
-              <div className="space-y-3">
-                {["all", "strategy", "stock"].map((filter) => (
-                  <button
-                    key={filter}
-                    onClick={() => { setActiveFilter(filter); setIsFilterOpen(false); }}
-                    className={`w-full flex items-center justify-between p-5 rounded-2xl border transition-all ${
-                      activeFilter === filter ? "border-violet-500 bg-violet-50 text-violet-700" : "border-slate-100 bg-slate-50 text-slate-600"
-                    }`}
-                  >
-                    <span className="text-sm font-bold uppercase tracking-widest">{filter}s</span>
-                    {activeFilter === filter && <Check size={18} />}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            </div>
+
+            {/* Apply Button */}
+            <div className="border-t border-slate-100 bg-white px-6 pb-8 pt-4">
+              <button
+                type="button"
+                onClick={applyFilters}
+                className="w-full rounded-2xl bg-gradient-to-r from-[#111111] via-[#3b1b7a] to-[#5b21b6] py-4 text-sm font-bold text-white shadow-lg shadow-violet-200/60 transition active:scale-[0.98]"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      , portalTarget)}
     </div>
   );
 };
