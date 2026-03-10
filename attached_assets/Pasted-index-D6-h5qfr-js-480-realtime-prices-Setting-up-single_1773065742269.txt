@@ -1,0 +1,26 @@
+index-D6-h5qfr.js:480 [realtime-prices] Setting up singleton subscription
+index-D6-h5qfr.js:480 Setting up SINGLETON notifications subscription
+index-D6-h5qfr.js:480 [realtime-prices] Subscription status: SUBSCRIBED
+index-D6-h5qfr.js:480 Notifications singleton status: SUBSCRIBED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/profiles?select=notification_preferences&id=eq.4d0f1b60-698f-40d9-8ca4-16d47e9cc643:1  Failed to load resource: the server responded with a status of 400 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/user_balances?select=*&user_id=eq.4d0f1b60-698f-40d9-8ca4-16d47e9cc643:1  Failed to load resource: the server responded with a status of 404 ()
+index-D6-h5qfr.js:480 Setting up SINGLETON real-time subscription: required-actions-singleton
+index-D6-h5qfr.js:480 KYC status check: stored="verified" current="verified"
+index-D6-h5qfr.js:480 Singleton subscription status: SUBSCRIBED
+/api/settlement/config:1  Failed to load resource: the server responded with a status of 404 ()
+index-D6-h5qfr.js:577 [HomePage] No user strategies found
+index-D6-h5qfr.js:496 The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+$6 @ index-D6-h5qfr.js:496
+index-D6-h5qfr.js:480 [realtime-prices] Tearing down subscription
+index-D6-h5qfr.js:480 [realtime-prices] Subscription status: CLOSED
+/api/onboarding/status:1  Failed to load resource: the server responded with a status of 404 ()
+/api/sessions/validate?fingerprint=sf_1770892410291_1mf8g4rh:1  Failed to load resource: the server responded with a status of 404 ()
+index-D6-h5qfr.js:480 Polling Sumsub status...
+index-D6-h5qfr.js:480 KYC status check: stored="verified" current="verified"
+index-D6-h5qfr.js:480 Polling Sumsub status...
+index-D6-h5qfr.js:480 KYC status check: stored="verified" current="verified"
+index-D6-h5qfr.js:480 Polling Sumsub status...
+index-D6-h5qfr.js:480 KYC status check: stored="verified" current="verified"

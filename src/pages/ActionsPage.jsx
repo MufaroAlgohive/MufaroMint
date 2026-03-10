@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   ArrowLeft,
-  BadgeCheck,
   ChevronRight,
   CheckCircle2,
   FileText,
@@ -9,6 +8,7 @@ import {
 import ActionsSkeleton from "../components/ActionsSkeleton";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { supabase } from "../lib/supabase";
+import { parseOnboardingFlags } from "../lib/checkOnboardingComplete";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
   const { kycVerified, kycPending, kycNeedsResubmission, loading: kycLoading, rejectLabels } = useSumsubStatus();
@@ -52,24 +52,20 @@ const ActionsPage = ({ onBack, onNavigate }) => {
   const onboardingMarkedComplete = onboardingData?.kyc_status === "onboarding_complete" || onboardingData?.kyc_status === "verified";
   const identityComplete = kycVerified && (employmentDone || onboardingMarkedComplete);
 
-  let mandateAgreed = false;
-  if (onboardingData?.sumsub_raw) {
-    try {
-      const raw = typeof onboardingData.sumsub_raw === "string" ? JSON.parse(onboardingData.sumsub_raw) : onboardingData.sumsub_raw;
-      mandateAgreed = !!raw?.mandate_data?.agreedMandate;
-    } catch {}
-  }
-  const allOnboardingComplete = onboardingMarkedComplete && mandateAgreed;
+  const { bankDone, mandateAgreed, riskDone, sofDone, allComplete: allOnboardingComplete } = parseOnboardingFlags(onboardingData);
 
-  const getIdentityStatus = () => {
-    if (identityComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
+  const getOnboardingStatus = () => {
+    if (allOnboardingComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
     if (kycNeedsResubmission) return { text: "Documents Required", style: "bg-amber-100 text-amber-700" };
     if (kycPending) return { text: "Under Review", style: "bg-blue-100 text-blue-600" };
-    return { text: "Action Required", style: "bg-red-50 text-red-600" };
+    if (!identityComplete) return { text: "Action Required", style: "bg-red-50 text-red-600" };
+    return { text: "Required", style: "bg-slate-100 text-slate-500" };
   };
 
-  const getIdentityDescription = () => {
-    if (identityComplete) return "Employment details and identity verification complete";
+  const onboardingStatus = getOnboardingStatus();
+
+  const getOnboardingDescription = () => {
+    if (allOnboardingComplete) return "Identity verified and all onboarding steps complete";
     if (kycNeedsResubmission) {
       if (rejectLabels && rejectLabels.length > 0) {
         const labelMap = {
@@ -86,36 +82,17 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       return "Some documents need to be submitted or resubmitted";
     }
     if (kycPending) return "Your documents are being reviewed";
-    return "Verify your identity to get started";
-  };
-
-  const identityStatus = getIdentityStatus();
-
-  const getOnboardingStatus = () => {
-    if (!identityComplete) return { text: "Awaiting Identity", style: "bg-slate-100 text-slate-500" };
-    if (allOnboardingComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
-    return { text: "Required", style: "bg-slate-100 text-slate-500" };
-  };
-
-  const onboardingStatus = getOnboardingStatus();
-
-  const getOnboardingDescription = () => {
-    if (allOnboardingComplete) return "Risk disclosure, source of funds, mandate, and agreements complete";
-    if (onboardingMarkedComplete && !mandateAgreed) return "Discretionary mandate still needs to be signed";
-    return "Risk disclosure, source of funds, mandate, and agreements";
+    if (!identityComplete) return "Verify your identity to get started";
+    const missing = [];
+    if (!bankDone) missing.push("bank details");
+    if (!mandateAgreed) missing.push("mandate");
+    if (!riskDone) missing.push("risk disclosure");
+    if (!sofDone) missing.push("source of funds");
+    if (missing.length > 0) return `Still needed: ${missing.join(", ")}`;
+    return "Complete your onboarding steps";
   };
 
   const allActions = [
-    {
-      id: "identity",
-      title: "Complete identity",
-      description: getIdentityDescription(),
-      status: identityStatus.text,
-      statusStyle: identityStatus.style,
-      icon: BadgeCheck,
-      completed: identityComplete,
-      navigateTo: "identityCheck",
-    },
     {
       id: "onboarding",
       title: "Complete onboarding",
@@ -125,7 +102,6 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       icon: FileText,
       completed: allOnboardingComplete,
       navigateTo: "identityCheck",
-      disabled: !identityComplete,
     },
   ];
 

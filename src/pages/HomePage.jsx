@@ -28,6 +28,7 @@ import {
 import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
+import { parseOnboardingFlags } from "../lib/checkOnboardingComplete";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import { useRealtimePrices } from "../lib/useRealtimePrices";
 import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, getStrategyCurrentValue } from "../lib/strategyUtils";
@@ -345,15 +346,8 @@ const HomePage = ({
         .order("created_at", { ascending: false })
         .limit(1);
       const record = data?.[0];
-      const kycDone = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
-      let mandateAgreed = false;
-      if (record?.sumsub_raw) {
-        try {
-          const raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : record.sumsub_raw;
-          mandateAgreed = !!raw?.mandate_data?.agreedMandate;
-        } catch {}
-      }
-      setOnboardingComplete(kycDone && mandateAgreed);
+      const { allComplete } = parseOnboardingFlags(record);
+      setOnboardingComplete(allComplete);
       setOnboardingChecked(true);
     } catch (err) {
       console.error("[Onboarding Check] Error:", err);
@@ -676,8 +670,8 @@ const HomePage = ({
 
   const actionsData = [
     {
-      id: "identity",
-      title: "Complete identity",
+      id: "onboarding",
+      title: "Complete onboarding",
       description: getIdentityDescription(),
       priority: 1,
       status: identityStatusHome.text,

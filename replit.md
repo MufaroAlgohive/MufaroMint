@@ -102,3 +102,18 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
 - **Personalization**: Fetches user's transaction history for the strategy to calculate invested amount, current value, and return
 - **Data sources**: `strategies` table (objective, fees, benchmark, inception via `created_at`), `strategy_analytics` (curves, summary, calendar_returns), `securities` (sector data for holdings)
 - **Fees**: FactsheetPage fees section now reads from `management_fee_bps` database column instead of hardcoded values
+
+### Vercel Serverless API Endpoints
+- **`api/onboarding/status.js`** — GET, returns user's latest onboarding record (id, kyc_status, employment_status). Mirrors Express server endpoint.
+- **`api/onboarding/complete.js`** — POST, marks onboarding complete, saves bank details to sumsub_raw.
+- **`api/onboarding/check-id-number.js`** — POST, validates SA ID number against onboarding pack records.
+- **`api/onboarding/save-mandate.js`** — POST, saves discretionary mandate data.
+- **`api/sessions/record.js`** — POST, records session fingerprint. Graceful no-op (user_sessions table not yet in Supabase).
+- **`api/sessions/validate.js`** — GET, validates session fingerprint. Always returns valid:true (user_sessions table not yet in Supabase).
+- **`api/_lib/supabase.js`** — Shared Supabase client (anon + admin) for Vercel serverless functions.
+
+### Onboarding Completion Checks
+- **Shared utility**: `src/lib/checkOnboardingComplete.js` — `parseOnboardingFlags(record)` returns `{ kycDone, bankDone, mandateAgreed, riskDone, sofDone, allComplete }`
+- **Mandate check**: checks BOTH `sumsub_raw.mandate_data.agreedMandate` (legacy flow) AND `sumsub_raw.mandate_accepted` (new flow)
+- **Used by**: HomePage, ActionsPage, IdentityCheckPage — single source of truth for completion status
+- **Smart step navigation**: `getNextIncompleteStep()` (forward) and `getPrevIncompleteStep()` (back) in UserOnboardingPage skip already-completed steps

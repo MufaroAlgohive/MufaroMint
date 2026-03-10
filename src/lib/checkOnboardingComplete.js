@@ -1,5 +1,28 @@
 import { supabase } from "./supabase";
 
+export function parseOnboardingFlags(record) {
+  const kycDone = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
+
+  let bankDone = false;
+  let mandateAgreed = false;
+  let riskDone = false;
+  let sofDone = false;
+
+  if (record?.sumsub_raw) {
+    try {
+      const raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : record.sumsub_raw;
+      bankDone = !!raw?.bank_details_saved;
+      mandateAgreed = !!raw?.mandate_data?.agreedMandate || !!raw?.mandate_accepted;
+      riskDone = !!raw?.risk_disclosure_accepted;
+      sofDone = !!raw?.source_of_funds_accepted;
+    } catch {}
+  }
+
+  const allComplete = kycDone && bankDone && mandateAgreed && riskDone && sofDone;
+
+  return { kycDone, bankDone, mandateAgreed, riskDone, sofDone, allComplete };
+}
+
 export async function checkOnboardingComplete() {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -14,19 +37,8 @@ export async function checkOnboardingComplete() {
 
     if (error || !data?.length) return false;
 
-    const record = data[0];
-    const kycDone = record.kyc_status === "onboarding_complete" || record.kyc_status === "verified";
-    if (!kycDone) return false;
-
-    let mandateAgreed = false;
-    if (record.sumsub_raw) {
-      try {
-        const raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : record.sumsub_raw;
-        mandateAgreed = !!raw?.mandate_data?.agreedMandate;
-      } catch {}
-    }
-
-    return kycDone && mandateAgreed;
+    const { allComplete } = parseOnboardingFlags(data[0]);
+    return allComplete;
   } catch {
     return false;
   }

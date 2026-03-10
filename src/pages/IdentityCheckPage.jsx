@@ -4,6 +4,7 @@ import UserOnboardingPage from "./UserOnboardingPage";
 import SumsubVerification from "../components/SumsubVerification";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { supabase } from "../lib/supabase";
+import { parseOnboardingFlags } from "../lib/checkOnboardingComplete";
 
 const IdentityCheckPage = ({ onBack, onComplete }) => {
   const { kycVerified, kycPending, kycNeedsResubmission, loading, refetch } = useSumsubStatus();
@@ -26,12 +27,13 @@ const IdentityCheckPage = ({ onBack, onComplete }) => {
         }
         const { data } = await supabase
           .from("user_onboarding")
-          .select("kyc_status")
+          .select("kyc_status, sumsub_raw")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(1);
         const record = data?.[0];
-        if (record?.kyc_status === "onboarding_complete") {
+        const { allComplete } = parseOnboardingFlags(record);
+        if (allComplete) {
           setOnboardingComplete(true);
         }
       } catch {
