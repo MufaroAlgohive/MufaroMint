@@ -27,7 +27,7 @@ const timeframeOptions = [
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding }) => {
-  const [timeframe, setTimeframe] = useState("1M");
+  const [timeframe, setTimeframe] = useState("YTD");
   const [activeLabel, setActiveLabel] = useState(null);
   const [selectedMetricModal, setSelectedMetricModal] = useState(null);
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
