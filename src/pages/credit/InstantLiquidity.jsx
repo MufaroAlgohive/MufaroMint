@@ -13,17 +13,16 @@ import {
   Check
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts';
-import { formatZar } from "../lib/formatCurrency";
-import NotificationBell from "../components/NotificationBell";
+import { formatZar } from "../../lib/formatCurrency";
+import NotificationBell from "../../components/NotificationBell";
 
 const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
-  const [draftFilter, setDraftFilter] = useState("all"); // Used for the "Apply" logic
+  const [draftFilter, setDraftFilter] = useState("all"); 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [portalTarget, setPortalTarget] = useState(null);
 
-  // --- Sheet Drag Logic from MarketsPage.jsx ---
   const [sheetOffset, setSheetOffset] = useState(0);
   const dragStartY = useRef(null);
   const isDragging = useRef(false);
@@ -108,7 +107,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <div className="flex items-center rounded-full bg-white/10 p-1 backdrop-blur-md">
               <button 
-                onClick={() => onTabChange("home")} // FIXED: Redirects to HomePage
+                onClick={() => onTabChange("home")} 
                 className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 hover:bg-white/10 transition-all"
               >
                 Wealth
@@ -123,7 +122,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
           <NotificationBell onClick={onOpenNotifications} />
         </header>
 
-        {/* Top Tab - FIXED: White Glass Aesthetic */}
         <div className="bg-white/40 backdrop-blur-3xl rounded-[36px] p-6 shadow-xl border border-white/80 mb-8 relative overflow-hidden">
           <div className="flex justify-between items-start mb-6">
             <div className="max-w-[200px]">
