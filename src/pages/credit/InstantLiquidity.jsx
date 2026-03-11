@@ -24,9 +24,9 @@ import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts';
 import { formatZar } from "../../lib/formatCurrency";
 import NotificationBell from "../../components/NotificationBell";
 import NavigationPill from "../../components/NavigationPill";
+import { supabase } from "../../lib/supabase";
 
 // --- IMPORT SUB-PAGES ---
-// These ensure you are routing to your separate, updated files
 import LiquidityHistory from "./LiquidityHistory";
 import ActiveLiquidity from "./ActiveLiquidity";
 import RepayLiquidity from "./RepayLiquidity";
@@ -80,6 +80,11 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
   const [repaymentDate, setRepaymentDate] = useState("");
 
+  // Security State
+  const [userPin, setUserPin] = useState(null);
+  const [pinInput, setPinInput] = useState("");
+  const [newPin, setNewPin] = useState("");
+
   useEffect(() => { setPortalTarget(document.body); }, []);
 
   const fonts = {
@@ -87,42 +92,97 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
 
-  // --- DATE CONSTRAINTS ---
   const dateConstraints = useMemo(() => {
     const minDateObj = new Date();
     minDateObj.setDate(minDateObj.getDate() + 14);
-    
     const maxDateObj = new Date();
     maxDateObj.setMonth(maxDateObj.getMonth() + 6);
-    
     return {
       min: minDateObj.toISOString().split('T')[0],
       max: maxDateObj.toISOString().split('T')[0]
     };
   }, []);
 
-  // --- PORTFOLIO ENGINE (Mock Data & Calculations) ---
-  const portfolioItems = useMemo(() => [
-    { id: 1, name: "Naspers Ltd", balance: 600000, type: "stock", code: "NPN", marketCap: 1500e9, advt: 120e6, volatility: 0.22, sector: "Technology", exchange: "JSE", spark: [45, 48, 52, 49, 55, 58, 62], dividendYield: 1.2 },
-    { id: 2, name: "Standard Bank", balance: 250000, type: "stock", code: "SBK", marketCap: 320e9, advt: 45e6, volatility: 0.18, sector: "Financials", exchange: "JSE", spark: [30, 32, 31, 35, 34, 38, 36], dividendYield: 4.8 },
-    { id: 3, name: "Global Equity Strategy", balance: 150000, type: "strategy", code: "GES", marketCap: 210e9, advt: 30e6, volatility: 0.25, sector: "Diversified", risk_level: "Balanced", spark: [12, 14, 13, 16, 15, 18, 17] },
-  ], []);
+  const [portfolioItems, setPortfolioItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // --- 1. FETCH ASSETS, RISK METRICS, AND PIN ---
+  useEffect(() => {
+    async function initData() {
+      if (!profile?.id) return;
+      setLoading(true);
+
+      // Fetch PIN from profile
+      const { data: profData } = await supabase
+        .from('profiles')
+        .select('pin')
+        .eq('id', profile.id)
+        .single();
+      setUserPin(profData?.pin);
+
+      const { data, error } = await supabase
+        .from('stock_holdings')
+        .select(`
+          quantity,
+          securities!inner (
+            id, symbol, name, last_price, market_cap,
+            pbc_screen_results (
+              eligible, score_composite, ltv, margin_call, auto_liquidation
+            )
+          )
+        `)
+        .eq('user_id', profile.id);
+
+      if (error) {
+        console.error("Error fetching portfolio:", error);
+      } else {
+        const formatted = await Promise.all(data.map(async item => {
+          const sec = item.securities;
+          const risk = sec.pbc_screen_results?.[0];
+          
+          // --- 2. CONNECT SPARKLINE DATA ---
+          const { data: priceHistory } = await supabase
+            .from('security_prices')
+            .select('close_price')
+            .eq('security_id', sec.id)
+            .order('ts', { ascending: false })
+            .limit(7);
+
+          const spark = (priceHistory && priceHistory.length > 0) 
+            ? priceHistory.map(p => parseFloat(p.close_price)).reverse()
+            : [0, 0, 0, 0, 0, 0, 0];
+
+          return {
+            id: sec.id,
+            name: sec.name,
+            code: sec.symbol,
+            quantity: item.quantity,
+            balance: item.quantity * (sec.last_price || 0),
+            isEligible: risk?.eligible || false,
+            score: risk?.score_composite || 0,
+            ltv: risk?.ltv || 0,
+            marginCall: risk?.margin_call || 0,
+            liquidation: risk?.auto_liquidation || 0,
+            marketCap: sec.market_cap,
+            spark
+          };
+        }));
+        setPortfolioItems(formatted);
+      }
+      setLoading(false);
+    }
+    initData();
+  }, [profile?.id]);
 
   const totalPortfolioValue = portfolioItems.reduce((acc, item) => acc + item.balance, 0);
+  
   const maxPerCounter = totalPortfolioValue * 0.45;
 
   const enrichedItems = useMemo(() => portfolioItems.map(item => {
-    const isEligible = item.marketCap >= 10e9 && item.advt >= 10e6 && item.volatility <= 0.5;
-    const liqScore = Math.min(item.advt / 100e6, 1);
-    const volScore = 1 - (item.volatility / 0.5);
-    const capScore = Math.min(item.marketCap / 200e9, 1);
-    const score = (0.4 * liqScore) + (0.4 * volScore) + (0.2 * capScore);
-    const ltv = score >= 0.8 ? 0.55 : score >= 0.5 ? 0.50 : 0.30;
-    
     const recognizedValue = Math.min(item.balance, maxPerCounter);
-    const available = isEligible ? recognizedValue * ltv : 0;
+    const available = item.isEligible ? recognizedValue * item.ltv : 0;
     
-    return { ...item, isEligible, score, ltv, recognizedValue, available, isCapped: item.balance > maxPerCounter };
+    return { ...item, recognizedValue, available, isCapped: item.balance > maxPerCounter };
   }), [portfolioItems, maxPerCounter]);
 
   const totalAvailable = enrichedItems.reduce((acc, item) => acc + item.available, 0);
@@ -146,6 +206,83 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     
     return results;
   }, [searchQuery, selectedSort, selectedTypes, selectedRisks, selectedSectors, selectedExchanges, enrichedItems]);
+
+  // --- 3. THE TRIPLE-WRITE PLEDGE + WALLET UPDATE ---
+  const handleConfirmPledge = async () => {
+    if (pinInput !== userPin) {
+      alert("Incorrect Security PIN.");
+      setPinInput("");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+        const principal = parseFloat(pledgeAmount);
+        const interestCost = (principal * 0.105) / 12;
+
+        // Step 1: Record Loan Application
+        const { data: loan, error: loanErr } = await supabase
+            .from('loan_application')
+            .insert({
+                user_id: profile.id,
+                principal_amount: principal,
+                interest_rate: 10.5,
+                amount_repayable: principal + interestCost,
+                status: 'approved',
+                first_repayment_date: repaymentDate
+            })
+            .select().single();
+
+        if (loanErr) throw loanErr;
+
+        // Step 2: Lock Collateral
+        await supabase.from('pbc_collateral_pledges').insert({
+            user_id: profile.id,
+            loan_application_id: loan.id,
+            symbol: selectedItem === 'all' ? 'PORTFOLIO_AGG' : selectedItem.code,
+            pledged_quantity: selectedItem === 'all' ? 0 : selectedItem.quantity,
+            pledged_value: selectedItem === 'all' ? totalPortfolioValue : selectedItem.balance,
+            recognised_value: selectedItem === 'all' ? totalAvailable : selectedItem.recognizedValue,
+            ltv_applied: selectedItem === 'all' ? 0.5 : selectedItem.ltv,
+            loan_value: principal
+        });
+
+        // Step 3: Update Wallet / Credit Account Balance
+        const { data: account } = await supabase
+            .from('credit_accounts')
+            .select('loan_balance, available_credit')
+            .eq('user_id', profile.id)
+            .single();
+
+        await supabase.from('credit_accounts').update({
+            loan_balance: (account?.loan_balance || 0) + principal,
+            available_credit: (account?.available_credit || 0) + principal,
+            updated_at: new Date().toISOString()
+        }).eq('user_id', profile.id);
+
+        setWorkflowStep("success");
+    } catch (err) {
+        console.error("Auth failed:", err.message);
+        alert("Transaction could not be completed.");
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const handleSetupPin = async () => {
+    if (newPin.length !== 5) return;
+    setIsProcessing(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ pin: newPin })
+      .eq('id', profile.id);
+
+    if (!error) {
+      setUserPin(newPin);
+      setWorkflowStep("auth");
+    }
+    setIsProcessing(false);
+  };
 
   const handleOpenDetail = (item) => {
     if (item !== 'all' && !item.isEligible) return;
@@ -271,7 +408,8 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
         {/* Asset List */}
         <div className="space-y-4">
           <div className="px-5 mb-2 flex items-center justify-between"><p className="text-sm font-semibold text-slate-900">Eligible Collateral</p><button onClick={() => setInfoModal('score')}><Info className="h-4 w-4 text-slate-300" /></button></div>
-          {filteredItems.map((item) => (
+          {loading && <div className="text-center py-10 opacity-40 text-xs font-black uppercase tracking-widest">Refreshing Market Data...</div>}
+          {!loading && filteredItems.map((item) => (
             <button key={item.id} onClick={() => handleOpenDetail(item)} disabled={!item.isEligible} className={`relative w-full overflow-hidden bg-white rounded-[28px] p-5 shadow-sm border text-left transition-all ${!item.isEligible ? 'opacity-40 grayscale pointer-events-none' : 'active:scale-[0.98] border-slate-100'}`}>
               <div className="flex justify-between items-start mb-4">
                  <div className="flex items-center gap-3">
@@ -419,6 +557,18 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
       {/* --- DRAWDOWN AUTHORIZATION MODALS --- */}
       {workflowStep !== "idle" && portalTarget && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-md px-6 pb-20">
+            
+            {/* Setup PIN Stage */}
+            {workflowStep === "setup_pin" && (
+                <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">
+                    <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><ShieldCheck size={28} /></div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Set Security PIN</h3>
+                    <p className="text-xs text-slate-400 mb-8 font-medium leading-relaxed">Please set a 5-digit PIN to secure your credit transactions.</p>
+                    <input type="password" maxLength={5} value={newPin} onChange={(e) => setNewPin(e.target.value)} placeholder="00000" className="w-full h-14 bg-slate-50 rounded-2xl text-center text-2xl font-black tracking-[0.5em] mb-8 outline-none border border-slate-100" />
+                    <button onClick={handleSetupPin} disabled={newPin.length !== 5 || isProcessing} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-xl">Save & Continue</button>
+                </div>
+            )}
+
             {workflowStep === "contract" && (
                 <div className="bg-white w-full max-w-sm rounded-[36px] p-8 shadow-2xl animate-in zoom-in-95">
                     <div className="flex items-center gap-3 mb-6"><div className="h-10 w-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center"><FileText size={20} /></div><h3 className="text-xl font-bold text-slate-900">Final Confirmation</h3></div>
@@ -454,20 +604,22 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                     </label>
 
                     <div className="flex flex-col gap-3">
-                        <button disabled={!disclaimerChecked || !repaymentDate} onClick={() => setWorkflowStep("auth")} className="w-full bg-slate-900 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl disabled:opacity-30">Agree & Drawdown</button>
+                        <button disabled={!disclaimerChecked || !repaymentDate} onClick={() => setWorkflowStep(userPin ? "auth" : "setup_pin")} className="w-full bg-slate-900 text-white py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-xl disabled:opacity-30">Agree & Drawdown</button>
                         <button onClick={() => setWorkflowStep("idle")} className="w-full py-2 text-xs font-bold text-slate-400 uppercase">Go Back</button>
                     </div>
                 </div>
             )}
+
             {workflowStep === "auth" && (
                 <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl">
                     <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><Lock size={28} /></div>
                     <h3 className="text-xl font-bold text-slate-900 mb-2">Authorize</h3>
-                    <p className="text-xs text-slate-400 mb-8 font-medium uppercase tracking-widest">Enter Secure PIN</p>
-                    <div className="flex justify-center gap-3 my-8">{[1,2,3,4].map(i => <div key={i} className="h-12 w-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300 font-bold tracking-widest">•</div>)}</div>
-                    <button onClick={() => { setIsProcessing(true); setTimeout(() => { setIsProcessing(false); setWorkflowStep("success"); }, 1500); }} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-xl">{isProcessing ? "Processing..." : "Confirm PIN"}</button>
+                    <p className="text-xs text-slate-400 mb-8 font-medium uppercase tracking-widest">Enter 5-digit PIN</p>
+                    <input type="password" maxLength={5} value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="•••••" className="w-full h-14 bg-slate-50 rounded-2xl text-center text-2xl font-black tracking-[0.5em] mb-8 outline-none border border-slate-100" />
+                    <button onClick={handleConfirmPledge} disabled={pinInput.length !== 5 || isProcessing} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-xl">{isProcessing ? "Processing..." : "Confirm Transaction"}</button>
                 </div>
             )}
+
             {workflowStep === "success" && (
                 <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl">
                     <div className="h-20 w-20 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-6 shadow-inner"><Check size={40} strokeWidth={3} /></div>

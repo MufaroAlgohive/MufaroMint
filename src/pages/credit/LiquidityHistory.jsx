@@ -26,7 +26,6 @@ const LiquidityHistory = ({ onBack }) => {
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
 
-  // --- Expanded History Data showing Loan Lifecycles ---
   const historyData = useMemo(() => [
     { 
       id: 1, 
@@ -249,7 +248,7 @@ const LiquidityHistory = ({ onBack }) => {
             )}
         </div>
 
-        {/* Modern Pagination Controls */}
+        {/* Pagination Controls */}
         {totalPages > 1 && (
             <div className="px-6 py-12 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -276,7 +275,6 @@ const LiquidityHistory = ({ onBack }) => {
         )}
       </div>
 
-      {/* Raised Safe Area to clear persistent navbars */}
       <div className="h-28 bg-transparent" />
     </div>
   );
