@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import SumsubVerification from "../components/SumsubVerification";
 import MandateViewer from "../components/MandateViewer";
-import PdfViewer from "../components/PdfViewer";
 import { supabase } from "../lib/supabase";
 import { useProfile } from "../lib/useProfile";
 import "../styles/onboarding-process.css";
@@ -137,7 +136,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [showProceed, setShowProceed] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
-  const [pdfLoaded, setPdfLoaded] = useState(false);
   const [existingOnboardingId, setExistingOnboardingId] = useState(null);
   const [agreedRiskDisclosure, setAgreedRiskDisclosure] = useState(false);
   const [agreedMandate, setAgreedMandate] = useState(false);
@@ -1433,171 +1431,64 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 <div className="progress-step active"></div>
               </div>
 
-              <div className="agreement-card animate-fade-in delay-2" style={{padding: 0, overflow: 'hidden'}}>
-                <PdfViewer
-                  file="/strategy-disclosures.pdf"
-                  style={{ height: '65vh' }}
-                  onLoadComplete={() => setPdfLoaded(true)}
-                />
-              </div>
+              <div className="agreement-card animate-fade-in delay-2">
+                <div className="agreement-title">Terms and Conditions</div>
 
-              <div style={{display: 'none'}}>
                 <div className="agreement-section">
-                  <div className="section-title">Investment Strategy Provider</div>
+                  <div className="section-title">1. Introduction</div>
                   <div className="agreement-text">
-                    Mint Platforms (Pty) Ltd (Registration Number: 2024/644796/07) trading as MINT ("Mint" or "the Manager"), with its registered address at 3 Gwen Lane, Sandown, Sandton, Johannesburg, Gauteng, South Africa, provides investment strategy design and portfolio management services through managed investment strategies available on the Mint platform.
-                    <br /><br />
-                    Mint offers investment strategies and managed portfolios, and not collective investment schemes or pooled funds unless explicitly stated otherwise.
-                    <br /><br />
-                    This information does not constitute financial advice as defined in the Financial Advisory and Intermediary Services Act, No. 37 of 2002 (FAIS) and is provided for informational purposes only. Investors should seek independent financial advice prior to making investment decisions.
-                    <br /><br />
-                    Mint may have representatives acting under supervision where applicable.
+                    Welcome to MINT. By accessing or using our services, you agree to be bound by these Terms and Conditions. Please read them carefully before proceeding. These terms govern your use of our platform and all related services.
                   </div>
                 </div>
 
                 <div className="agreement-section">
-                  <div className="section-title">Custody and Asset Safekeeping</div>
+                  <div className="section-title">2. User Account</div>
                   <div className="agreement-text">
-                    Client assets are held in custody through Computershare Investor Services (Pty) Ltd, a Central Securities Depository Participant (CSDP), with securities held through its nominee structure Computershare Nominees Proprietary Limited (Registration Number: 1999/008543/07).
-                    <br /><br />
-                    Computershare Investor Services (Pty) Ltd, Rosebank Towers, 15 Biermann Avenue, Rosebank, Johannesburg, 2196, South Africa.
-                    <br /><br />
-                    Computershare acts as the custodian and record keeper of securities held through the platform. Client assets remain segregated from the operating assets of Mint.
+                    You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must provide accurate, current, and complete information during the registration process and keep your information updated.
                   </div>
                 </div>
 
                 <div className="agreement-section">
-                  <div className="section-title">Nature of Investment Strategies</div>
+                  <div className="section-title">3. Privacy and Data Protection</div>
                   <div className="agreement-text">
-                    Investment strategies offered on the Mint platform are actively managed portfolios where Mint may rebalance, adjust or change portfolio allocations on behalf of clients in accordance with the stated strategy mandate.
-                    <br /><br />
-                    Rebalancing and portfolio adjustments may occur at the discretion of the investment manager and at any time, including but not limited to:
-                    <ul style={{paddingLeft: '1.2rem', margin: '0.5rem 0'}}>
-                      <li>strategic reallocation</li>
-                      <li>tactical positioning</li>
-                      <li>risk management adjustments</li>
-                      <li>optimisation of portfolio exposures</li>
-                    </ul>
-                    These strategies are designed to align with defined investment objectives and risk parameters.
+                    We collect, process, and store your personal data in accordance with our Privacy Policy. By using our services, you consent to such processing and warrant that all data provided by you is accurate. We implement industry-standard security measures to protect your information.
                   </div>
                 </div>
 
                 <div className="agreement-section">
-                  <div className="section-title">Performance Disclosure</div>
+                  <div className="section-title">4. Use of Services</div>
                   <div className="agreement-text">
-                    Performance information presented may include historical realised performance, and back-tested or simulated performance results.
-                    <br /><br />
-                    Back-tested performance is based on historical data and simulated portfolio construction and does not represent actual trading results. Back-tested results have inherent limitations because they are constructed with the benefit of hindsight, do not reflect the impact of actual trading conditions, and may not account for market liquidity constraints, slippage, or real-world execution costs.
-                    <br /><br />
-                    Past performance, whether actual or simulated, is not necessarily a reliable indicator of future performance. Performance shown is gross of management and performance fees unless otherwise stated.
-                    <br /><br />
-                    Individual investor performance may differ depending on timing of investment, deposits or withdrawals, transaction costs, custody costs, and taxes applicable to the investor.
+                    You agree to use our services only for lawful purposes and in accordance with these Terms. You must not use our services in any way that could damage, disable, or impair our platform, or interfere with any other party's use of our services.
                   </div>
                 </div>
 
                 <div className="agreement-section">
-                  <div className="section-title">Fees and Charges</div>
+                  <div className="section-title">5. Intellectual Property</div>
                   <div className="agreement-text">
-                    <strong>Performance Fee:</strong> A performance fee of 20% of investment profits generated by the strategy applies. Mint does not charge a management fee or AUM-based fee. Performance fees are calculated based on the net profits generated by the strategy over the relevant performance measurement period.
-                    <br /><br />
-                    <strong>Transaction Fees:</strong> A transaction fee of 0.25% per transaction applies to trades executed within a portfolio.
-                    <br /><br />
-                    <strong>Custody Fees:</strong> Custody and administrative fees charged by the custodian may apply and will be displayed transparently at checkout prior to investment confirmation.
-                    <br /><br />
-                    A full schedule of fees, charges and transaction costs is available on request from Mint.
+                    All content, features, and functionality of our services, including but not limited to text, graphics, logos, and software, are the exclusive property of MINT and are protected by international copyright, trademark, and other intellectual property laws.
                   </div>
                 </div>
 
                 <div className="agreement-section">
-                  <div className="section-title">Investment Risk Disclosure</div>
+                  <div className="section-title">6. Limitation of Liability</div>
                   <div className="agreement-text">
-                    Investment strategies offered through the Mint platform are subject to market risk. The value of investments may increase or decrease, and investors may lose part or all of their invested capital.
-                    <br /><br />
-                    Investment performance may be affected by a variety of factors including but not limited to equity market volatility, interest rate changes, currency fluctuations, macroeconomic conditions, geopolitical developments, liquidity constraints, and changes in regulatory or tax environments.
-                    <br /><br />
-                    Where strategies include foreign investments, performance may also be affected by foreign exchange risk, political and regulatory risk, settlement risk, and international market volatility.
+                    MINT shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use or inability to use our services. Our total liability shall not exceed the amount paid by you, if any, for accessing our services.
                   </div>
                 </div>
 
                 <div className="agreement-section">
-                  <div className="section-title">Liquidity and Withdrawal Considerations</div>
+                  <div className="section-title">7. Modifications</div>
                   <div className="agreement-text">
-                    Investments in Mint strategies are subject to market liquidity. In circumstances where large withdrawals occur or where underlying market liquidity is constrained, withdrawal requests may be processed over time to ensure orderly portfolio management and investor protection.
-                  </div>
-                </div>
-
-                <div className="agreement-section">
-                  <div className="section-title">Conflicts of Interest and Fair Treatment</div>
-                  <div className="agreement-text">
-                    Mint is committed to fair treatment of all investors. No investor will receive preferential fee or liquidity terms within the same investment strategy unless explicitly disclosed. Where commissions or incentives are payable to third parties, such arrangements will be disclosed in accordance with applicable regulatory requirements.
-                  </div>
-                </div>
-
-                <div className="agreement-section">
-                  <div className="section-title">Disclaimer</div>
-                  <div className="agreement-text">
-                    This document is confidential and issued for the information of the addressee and clients of Mint Platforms (Pty) Ltd (Registration Number: 2024/644796/07) trading as MINT only. It is subject to copyright and may not be reproduced, distributed or published in whole or in part without the prior written permission of the Manager.
-                    <br /><br />
-                    The information, opinions, methodologies and strategy descriptions contained herein are provided for informational purposes only and must be construed solely as statements of opinion and not statements of fact. While the Manager believes the information contained in this document to be reliable, no representation or warranty, express or implied, is given as to the accuracy, timeliness, completeness or suitability of any information contained herein.
-                    <br /><br />
-                    The Manager makes no representation or warranty that any investment strategy described in this document will achieve its stated objectives or generate profits. All investments carry risk, and investors may lose part or all of their invested capital.
-                    <br /><br />
-                    This document may include simulated, modelled or back-tested performance results. Back-tested performance is hypothetical and is provided for illustrative purposes only. Such results are based on historical data and assumptions applied retrospectively with the benefit of hindsight. Back-tested performance does not represent actual trading and may not accurately reflect the impact of market factors such as liquidity constraints, slippage, transaction costs, market disruptions or changing market conditions. Accordingly, actual investment results may differ materially from back-tested or simulated results.
-                    <br /><br />
-                    Performance figures presented are gross of fees unless otherwise stated. Actual investor returns will be affected by applicable fees, transaction costs, custody charges and taxes.
-                    <br /><br />
-                    This document does not constitute financial advice, an offer to sell, a solicitation of an offer to buy, or a recommendation to invest in any security, financial instrument or investment strategy. Nothing in this document should be construed as advice as defined in the Financial Advisory and Intermediary Services Act, No. 37 of 2002 (FAIS).
-                    <br /><br />
-                    The Manager accepts no liability whatsoever for any direct, indirect or consequential loss arising from the use of, or reliance on, any information, statement, opinion or strategy described in this document. Investment strategies may be modified, updated or withdrawn at the discretion of the Manager without prior notice.
-                  </div>
-                </div>
-
-                <div className="agreement-section">
-                  <div className="section-title">Strategy Risk Factors</div>
-                  <div className="agreement-text">
-                    Investment strategies offered through the Mint platform are subject to a range of risks which may impact portfolio performance and capital values. Investors should carefully consider the following risk factors before investing.
-                    <br /><br />
-                    <strong>Market Risk:</strong> Investment strategies are exposed to general market movements. The value of financial instruments may fluctuate due to changes in economic conditions, interest rates, political developments, inflation expectations, and global financial market conditions.
-                    <br /><br />
-                    <strong>Equity Risk:</strong> Strategies that invest in equities are exposed to fluctuations in share prices. Equity prices may decline due to company-specific factors such as earnings performance, management decisions, competitive pressures, or broader economic and sector conditions.
-                    <br /><br />
-                    <strong>Volatility Risk:</strong> Volatility refers to the degree of variation in the price of an instrument or portfolio over time. Strategies that pursue higher return objectives may experience greater volatility.
-                    <br /><br />
-                    <strong>Derivative Risk:</strong> Certain strategies may utilise derivatives or structured instruments to obtain market exposure or manage risk. Derivatives derive their value from underlying assets and may be more sensitive to market changes than traditional securities. The use of derivatives may amplify both gains and losses.
-                    <br /><br />
-                    <strong>Leverage Risk:</strong> Some strategies may utilise leverage to enhance exposure to investment opportunities. Leverage magnifies both potential gains and potential losses and may increase portfolio volatility.
-                    <br /><br />
-                    <strong>Liquidity Risk:</strong> Liquidity risk arises when securities cannot be bought or sold quickly enough to prevent or minimise losses. In certain market environments, liquidity may deteriorate and the execution of trades may occur at prices that differ from expected levels.
-                    <br /><br />
-                    <strong>Counterparty Risk:</strong> Counterparty risk refers to the risk that a financial institution or trading counterparty may fail to fulfil its contractual obligations. This may arise in relation to derivative contracts, settlement arrangements or other financial transactions.
-                    <br /><br />
-                    <strong>Concentration Risk:</strong> A strategy may at times hold concentrated positions in particular securities, sectors, asset classes or geographic regions. Concentration can increase the sensitivity of the portfolio to events affecting those positions.
-                    <br /><br />
-                    <strong>Correlation Risk:</strong> Correlation risk arises when investments that are expected to behave differently move in the same direction during periods of market stress. This may reduce the diversification benefits within a portfolio.
-                    <br /><br />
-                    <strong>Foreign Market Risk:</strong> Where strategies invest in international securities, performance may be affected by foreign exchange movements, regulatory changes, political developments, taxation differences, and settlement risks in foreign jurisdictions.
-                    <br /><br />
-                    <strong>Strategy Risk:</strong> Investment strategies are constructed using defined models, methodologies and portfolio construction techniques. There is no assurance that the strategy will achieve its intended investment objective. Market conditions may change in ways that reduce the effectiveness of a strategy.
-                    <br /><br />
-                    <strong>Rebalancing Risk:</strong> Mint actively manages and rebalances portfolios on behalf of investors in accordance with the strategy mandate. While rebalancing is intended to maintain portfolio alignment with strategy objectives, it may result in transaction costs and may not always produce favourable outcomes.
-                    <br /><br />
-                    <strong>Model and Back-Test Risk:</strong> Certain strategies may rely on quantitative models, historical analysis or back-tested simulations. Back-tested results are hypothetical and constructed using historical data with the benefit of hindsight. As a result, actual investment outcomes may differ materially from simulated results.
+                    We reserve the right to modify these Terms at any time. We will notify users of any material changes via email or through our platform. Your continued use of our services after such modifications constitutes acceptance of the updated Terms.
                   </div>
                 </div>
               </div>
 
-              {!pdfLoaded && (
-                <p className="text-xs text-center mt-3 animate-fade-in" style={{ color: "hsl(270 20% 60%)" }}>
-                  Please wait for the document to load before agreeing
-                </p>
-              )}
-
-              <div className="checkbox-container animate-fade-in delay-3" style={{ opacity: pdfLoaded ? 1 : 0.4, pointerEvents: pdfLoaded ? "auto" : "none", transition: "opacity 0.4s ease" }}>
+              <div className="checkbox-container animate-fade-in delay-3">
                 <label className="checkbox-item">
                   <input
                     type="checkbox"
                     checked={agreedTerms}
-                    disabled={!pdfLoaded}
                     onChange={(event) => setAgreedTerms(event.target.checked)}
                   />
                   <span className="checkbox-label">
@@ -1609,7 +1500,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   <input
                     type="checkbox"
                     checked={agreedPrivacy}
-                    disabled={!pdfLoaded}
                     onChange={(event) => setAgreedPrivacy(event.target.checked)}
                   />
                   <span className="checkbox-label">

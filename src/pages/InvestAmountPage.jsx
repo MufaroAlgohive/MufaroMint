@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
-import { ArrowLeft, Info, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Info, Plus, Minus, ChevronDown, ChevronUp, X } from "lucide-react";
 import { formatCurrency } from "../lib/formatCurrency";
+import PdfViewer from "../components/PdfViewer";
 
 const BROKER_FEE_RATE = 0.0025;
 const ISIN_FEE_PER_ASSET = 62;
@@ -18,6 +19,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
   
   const [amount, setAmount] = useState(minimumInvestment || 0);
   const [agreementChecked, setAgreementChecked] = useState(false);
+  const [showMandateModal, setShowMandateModal] = useState(false);
   const [feeExpanded, setFeeExpanded] = useState(false);
 
   const holdingsData = currentStrategy.holdingsWithLogos || currentStrategy.holdings || [];
@@ -197,7 +199,14 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
             />
             <div className="flex-1">
               <p className="text-xs font-semibold text-slate-900">
-                I agree to Risk Disclosure, Fee Schedule & Mandate
+                I agree to Risk Disclosure, Fee Schedule &{" "}
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); setShowMandateModal(true); }}
+                  className="underline text-violet-700 hover:text-violet-900"
+                >
+                  Strategy Mandate
+                </button>
               </p>
               <p className="text-xs text-slate-600 mt-1">
                 By continuing, you confirm you have reviewed and agree to all terms and conditions
@@ -205,6 +214,25 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
             </div>
           </label>
         </section>
+
+        {/* Strategy Mandate PDF Modal */}
+        {showMandateModal && (
+          <div className="fixed inset-0 z-50 flex flex-col bg-white">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <h2 className="text-sm font-semibold text-slate-900">Strategy Mandate</h2>
+              <button
+                type="button"
+                onClick={() => setShowMandateModal(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5 text-slate-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <PdfViewer file="/strategy-disclosures.pdf" style={{ height: '100%' }} />
+            </div>
+          </div>
+        )}
 
         {/* Info */}
         <div className="mb-6 flex items-start gap-2 rounded-lg bg-violet-50 p-3">
