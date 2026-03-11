@@ -1,7 +1,11 @@
 import jsPDF from "jspdf";
 import { applyPlugin } from "jspdf-autotable";
-import mintLogo from "../../mint-icon-transparent.png"; // ← local white logo
 applyPlugin(jsPDF);
+
+// ─── Embedded MINT SVG logo (white, base64) ───────────────────────────────────
+// Logo aspect ratio: 6293.27 × 2757.71  →  ~2.28 : 1
+const MINT_LOGO_B64 =
+  "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMiIgZGF0YS1uYW1lPSJMYXllciAyIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2MjkzLjI3IDI3NTcuNzEiPgogIDxkZWZzPgogICAgPHN0eWxlPgogICAgICAuY2xzLTEgewogICAgICAgIGZpbGw6ICNmZmY7CiAgICAgIH0KICAgIDwvc3R5bGU+CiAgPC9kZWZzPgogIDxnIGlkPSJMYXllcl8xLTIiIGRhdGEtbmFtZT0iTGF5ZXIgMSI+CiAgICA8Zz4KICAgICAgPGc+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMzMzMy4xOSwyODAuOGMyNi43OSwxMy4wNywxNy42OCw1My4zNS0xMi4xMyw1My42Mmgwcy01NDIuNjMsMC01NDIuNjMsMGMtMTUuNiwwLTI4LjI0LDEyLjY0LTI4LjI0LDI4LjI0djI0MS40YzAsMTUuNi0xMi42NCwyOC4yNC0yOC4yNCwyOC4yNGgtNTE0LjM2Yy0xNS42LDAtMjguMjQtMTIuNjQtMjguMjQtMjguMjR2LTI2My4yM2MwLTEwLjExLDUuNC0xOS40NSwxNC4xNy0yNC40OEwyNzM3LjIzLDMuNzZjOC4xMy00LjY3LDE4LjA0LTUuMDEsMjYuNDYtLjlsNTY5LjUsMjc3Ljk0WiIvPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTI5NjAuMDcsNDg0LjYyYy0yNi43OS0xMy4wNy0xNy42OC01My4zNSwxMi4xMy01My42MmgwczU0Mi42MywwLDU0Mi42MywwYzE1LjYsMCwyOC4yNC0xMi42NCwyOC4yNC0yOC4yNHYtMjQxLjRjMC0xNS42LDEyLjY0LTI4LjI0LDI4LjI0LTI4LjI0aDUxNC4zNmMxNS42LDAsMjguMjQsMTIuNjQsMjguMjQsMjguMjR2MjYzLjIzYzAsMTAuMTEtNS40LDE5LjQ1LTE0LjE3LDI0LjQ4bC01NDMuNzEsMzEyLjU5Yy04LjEzLDQuNjctMTguMDQsNS4wMS0yNi40Ni45bC01NjkuNS0yNzcuOTRaIi8+CiAgICAgIDwvZz4KICAgICAgPGc+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMCwyMzM3LjM2di05MjYuMjNjMC05MS4yOSwzMi4yOC0xNjkuNTgsOTYuODUtMjM0LjksNjUuMy02NC41NywxNDMuNjEtOTYuODUsMjM0LjktOTYuODVoMjQuNDljMTA0LjY1LDAsMTk0LjA3LDM3LjEzLDI2OC4yOSwxMTEuMzMsNDAuODEsNDAuODMsNzAuNSw4Ni40Nyw4OS4wNiwxMzYuOTNsMzMwLjYzLDY2Mi4zOCwzMzAuNjQtNjYyLjM4YzE4LjU0LTUwLjQ2LDQ4LjYtOTYuMSw5MC4xOC0xMzYuOTMsNzQuMjEtNzQuMiwxNjMuNjUtMTExLjMzLDI2OC4yOS0xMTEuMzNoMjMuMzhjOTIuMDIsMCwxNzAuMzMsMzIuMjgsMjM0LjksOTYuODUsNjUuMyw2NS4zMiw5Ny45NywxNDMuNjIsOTcuOTcsMjM0Ljl2OTI2LjIzaC0zNzkuNjJ2LTc4My43M2MwLTEyLjYxLTQuODQtMjMuNzQtMTQuNDctMzMuNC05LjY1LTguOS0yMC43OS0xMy4zNi0zMy40LTEzLjM2LTYuNjgsMC0xMi45OSwxLjEyLTE4LjkyLDMuMzQtNS4yMSwyLjIyLTEwLjAyLDUuNTctMTQuNDgsMTAuMDJoLTEuMTFsLTQwOC41Nyw4MTcuMTRoLTM0OC40NWwtMTkwLjM3LTM3OS42My0yMTkuMzEtNDM3LjUxYy00LjQ2LTQuNDUtOS42NS03Ljc5LTE1LjU5LTEwLjAyLTUuOTQtMi4yMi0xMS44OC0zLjM0LTE3LjgxLTMuMzQtMTMuMzYsMC0yNC44OCw0LjQ2LTM0LjUyLDEzLjM2LTguOSw5LjY2LTEzLjM2LDIwLjgtMTMuMzYsMzMuNHY3ODMuNzNIMFoiLz4KICAgICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik0yMjc5Ljk2LDIzMzcuMzZ2LTEyMzQuNmgzNzkuNjJ2MTIzNC42aC0zNzkuNjJaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNDIyNy4wNiwyMzYwLjczYy0xMDQuNjYsMC0xOTQuMDktMzYuNzMtMjY4LjMxLTExMC4yMS0yLjk4LTIuMjItNS41NS00LjgyLTcuNzktNy43OWgtMS4xMmwtMTMuMzQtMTYuN2MtMi45OC0yLjk1LTUuNTctNS45Mi03LjgxLTguOWwtNDU0LjItNTQ0LjM5LTE3MS40NC0yMDUuOTVjLTIuMjQtMS40Ny00Ljg1LTIuOTYtNy44MS00LjQ1LTUuOTQtMi4yMi0xMS44OC0zLjM0LTE3LjgxLTMuMzQtMTMuMzYsMC0yNC44OCw0LjgzLTM0LjUyLDE0LjQ4LTguOSw4LjktMTMuMzYsMjAuMDMtMTMuMzYsMzMuMzl2ODMwLjVoLTM3OS42MnYtOTI2LjIzYzAtOTEuMjksMzIuMjgtMTY5LjU4LDk2Ljg1LTIzNC45LDY1LjMtNjQuNTcsMTQzLjYxLTk2Ljg1LDIzNC45LTk2Ljg1aDI0LjQ5YzEwNC42NCwwLDE5NC4wNywzNy4xMywyNjguMywxMTEuMzMsMi4yMSwyLjIyLDQuNDUsNC40NSw2LjY3LDYuNjdoMS4xbDE0LjQ4LDE2LjdjMi4yMiwyLjk4LDQuNDYsNS45NSw2LjY3LDguOTFsNjI1LjY3LDc1MC4zNGMyLjIyLDIuMjIsNC44MiwzLjcxLDcuNzksNC40NSw1Ljk0LDIuMjIsMTIuMjQsMy4zNCwxOC45MywzLjM0LDEyLjYxLDAsMjMuNzQtNC40NiwzMy40LTEzLjM2LDkuNjMtOS42NSwxNC40Ni0yMC43OCwxNC40Ni0zMy40di04MzEuNmgzNzkuNjF2OTI2LjIzYzAsOTIuMDQtMzIuNjcsMTcwLjMyLTk3Ljk2LDIzNC44OS02NC41Nyw2NC41Ny0xNDIuODgsOTYuODUtMjM0LjksOTYuODVoLTIzLjM2WiIvPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTUyOTUuNzksMjMzNy4zNnYtOTQ5LjYxaC02MTYuNzZ2LTI4NWgxNjE0LjIzdjI4NWgtNjE3Ljg2djk0OS42MWgtMzc5LjYxWiIvPgogICAgICA8L2c+CiAgICAgIDxnPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTAsMjc1NC40NnYtMTU1LjdoMjAuNDRsNTYuNDQsMTE3LjA5LDU2LjExLTExNy4wOWgyMC42NXYxNTUuNTloLTIxLjQxdi0xMDYuNTFsLTUwLjI4LDEwNi42MWgtMTAuMjdsLTUwLjM4LTEwNi42MXYxMDYuNjFIMFoiLz4KICAgICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik01NDAuODQsMjc1Ny43MWMtMTUuNTcsMC0yOC44NC0zLjQxLTM5Ljc5LTEwLjIyLTEwLjk2LTYuODEtMTkuMzQtMTYuMy0yNS4xNC0yOC40OS01LjgtMTIuMTgtOC43LTI2LjMxLTguNy00Mi4zOHMyLjktMzAuMjEsOC43LTQyLjM4YzUuOC0xMi4xOSwxNC4xOC0yMS42OCwyNS4xNC0yOC41LDEwLjk1LTYuODEsMjQuMjItMTAuMjEsMzkuNzktMTAuMjFzMjguNzQsMy40MSwzOS43MywxMC4yMWMxMC45OSw2LjgxLDE5LjM3LDE2LjMxLDI1LjE0LDI4LjUsNS43NywxMi4xOCw4LjY1LDI2LjMxLDguNjUsNDIuMzhzLTIuODgsMzAuMjEtOC42NSw0Mi4zOGMtNS43NywxMi4xOS0xNC4xNSwyMS42OC0yNS4xNCwyOC40OS0xMC45OSw2LjgxLTI0LjI0LDEwLjIyLTM5LjczLDEwLjIyWk01NDAuODQsMjczNi4xOWMxMS4wMy4xNSwyMC4yLTIuMjksMjcuNTItNy4zLDcuMzEtNSwxMi44MS0xMiwxNi40OS0yMC45NywzLjY3LTguOTgsNS41MS0xOS40MSw1LjUxLTMxLjNzLTEuODQtMjIuMjktNS41MS0zMS4yYy0zLjY4LTguOS05LjE4LTE1Ljg0LTE2LjQ5LTIwLjgxLTcuMzItNC45OC0xNi40OS03LjUtMjcuNTItNy41Ny0xMS4wMy0uMTQtMjAuMiwyLjI3LTI3LjUyLDcuMjUtNy4zMiw0Ljk3LTEyLjgxLDExLjk2LTE2LjQ5LDIwLjk3LTMuNjcsOS4wMi01LjU1LDE5LjQ2LTUuNjIsMzEuMzYtLjA3LDExLjg5LDEuNzMsMjIuMjksNS40MSwzMS4xOSwzLjY4LDguOSw5LjIxLDE1Ljg0LDE2LjYsMjAuODIsNy4zOSw0Ljk4LDE2LjYsNy41LDI3LjYzLDcuNTdaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNOTI3LjkyLDI3NTQuNDZ2LTE1NS43aDIyLjkybDc2LjY2LDExNS42OXYtMTE1LjY5aDIyLjkydjE1NS43aC0yMi45MmwtNzYuNjYtMTE1Ljh2MTE1LjhoLTIyLjkyWiIvPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTEzNzIuNjQsMjc1NC40NnYtMTU1LjdoOTkuNDd2MjEuM2gtNzYuODh2NDMuNjhoNjMuOXYyMS4zaC02My45djQ4LjExaDc2Ljg4djIxLjNoLTk5LjQ3WiIvPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTE4MjcuNTIsMjc1NC40NnYtNjQuMzNsLTUyLjY2LTkxLjM2aDI2LjM4bDM3LjczLDY1LjQxLDM3LjczLTY1LjQxaDI2LjM4bC01Mi42Niw5MS4zNnY2NC4zM2gtMjIuOTJaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMjUzOC44NywyNzU0LjQ2di0xNTUuN2gyMi42djE1NS43aC0yMi42WiIvPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTI4ODUuODQsMjc1NC40NnYtMTU1LjdoMjIuOTJsNzYuNjYsMTE1LjY5di0xMTUuNjloMjIuOTJ2MTU1LjdoLTIyLjkybC03Ni42Ni0xMTUuOHYxMTUuOGgtMjIuOTJaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMzcwNC41NiwyNzU0LjQ2di0xMzQuNGgtNTEuOHYtMjEuM2gxMjYuMTh2MjEuM2gtNTEuNzl2MTM0LjRoLTIyLjZaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNDA4OC4xOCwyNzU0LjQ2di0xNTUuN2g2Mi45M2MxLjUxLDAsMy4zOS4wNSw1LjYyLjE2LDIuMjMuMTEsNC4zNi4zNCw2LjM4LjcsOC42NSwxLjM3LDE1Ljg3LDQuMzMsMjEuNjgsOC44Nyw1LjgsNC41NCwxMC4xNCwxMC4yNywxMy4wMiwxNy4xOSwyLjg5LDYuOTIsNC4zMywxNC41Niw0LjMzLDIyLjkzLDAsMTIuNC0zLjE3LDIzLjA4LTkuNTIsMzIuMDYtNi4zNCw4Ljk4LTE1Ljg2LDE0LjU4LTI4LjU0LDE2LjgxbC05LjE5LDEuMDhoLTQ0LjEydjU1LjloLTIyLjZaTTQxMTAuNzgsMjY3Ny4xNmgzOS40NmMxLjQ0LDAsMy4wNS0uMDcsNC44MS0uMjIsMS43Ni0uMTUsMy40NC0uMzksNS4wMy0uNzYsNC42MS0xLjA4LDguMzMtMy4wOCwxMS4xNC02LDIuODEtMi45Miw0LjgzLTYuMjksNi4wNS0xMC4xMSwxLjIyLTMuODIsMS44NC03LjY0LDEuODQtMTEuNDZzLS42MS03LjYyLTEuODQtMTEuNDFjLTEuMjItMy43OS0zLjI1LTcuMTQtNi4wNS0xMC4wNS0yLjgxLTIuOTItNi41My00LjkyLTExLjE0LTYtMS41OS0uNDMtMy4yNy0uNzItNS4wMy0uODctMS43Ny0uMTQtMy4zNy0uMjEtNC44MS0uMjFoLTM5LjQ2djU3LjA5Wk00MTc5LjIyLDI3NTQuNDZsLTMwLjcxLTYzLjM2LDIyLjgxLTUuODQsMzMuNzQsNjkuMmgtMjUuODRaIi8+CiAgICAgICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNDUwOS45NywyNzU0LjQ2bDUwLjYxLTE1NS43aDMyLjU0bDUwLjYxLDE1NS43aC0yMy40NmwtNDYuNjEtMTQyLjA4aDUuODRsLTQ2LjA2LDE0Mi4wOGgtMjMuNDdaTTQ1MzYuMjUsMjcxOS4zMnYtMjEuMmg4MS4zMXYyMS4yaC04MS4zMVoiLz4KICAgICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik00OTU1LjEyLDI3NTQuNDZ2LTE1NS43aDIyLjkzbDc2LjY2LDExNS42OXYtMTE1LjY5aDIyLjkydjE1NS43aC0yMi45MmwtNzYuNjYtMTE1Ljh2MTE1LjhoLTIyLjkzWiIvPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTU0NTYuMjgsMjc1Ny43MWMtMTEuMTcsMC0yMS4yNC0xLjkzLTMwLjIyLTUuNzktOC45OC0zLjg2LTE2LjM2LTkuMzctMjIuMTctMTYuNTQtNS44LTcuMTctOS41Ny0xNS43LTExLjMtMjUuNTdsMjMuNTctMy41N2MyLjM4LDkuNTIsNy4zNSwxNi45MiwxNC45MiwyMi4yMiw3LjU3LDUuMywxNi40LDcuOTUsMjYuNSw3Ljk1LDYuMjcsMCwxMi4wNC0uOTksMTcuMy0yLjk4LDUuMjctMS45OCw5LjUtNC44MiwxMi43MS04LjU0LDMuMjEtMy43MSw0LjgxLTguMTcsNC44MS0xMy4zNSwwLTIuODEtLjQ5LTUuMy0xLjQ2LTcuNDYtLjk3LTIuMTYtMi4zMS00LjA1LTQtNS42Ny0xLjctMS42My0zLjc1LTMuMDMtNi4xNy00LjIyLTIuNDEtMS4xOS01LjA2LTIuMjItNy45NS0zLjA4bC0zOS44OS0xMS43OGMtMy44OS0xLjE1LTcuODYtMi42NS0xMS45LTQuNDktNC4wNC0xLjg0LTcuNzMtNC4yNS0xMS4wOC03LjI0LTMuMzYtMi45OS02LjA3LTYuNy04LjE3LTExLjE0LTIuMDktNC40My0zLjE0LTkuODItMy4xNC0xNi4xNiwwLTkuNTksMi40Ny0xNy43Miw3LjQxLTI0LjM4LDQuOTMtNi42NywxMS42Mi0xMS43MSwyMC4wNi0xNS4xMyw4LjQzLTMuNDIsMTcuODctNS4xNCwyOC4zMy01LjE0LDEwLjUyLjE1LDE5Ljk1LDIuMDIsMjguMjgsNS42Miw4LjMzLDMuNiwxNS4yNSw4Ljc4LDIwLjc2LDE1LjUxLDUuNTEsNi43NCw5LjMxLDE0LjksMTEuNCwyNC40OWwtMjQuMjIsNC4xMWMtMS4wOC01Ljg0LTMuMzktMTAuODctNi45Mi0xNS4wOS0zLjUzLTQuMjItNy44Ni03LjQ2LTEyLjk3LTkuNzMtNS4xMi0yLjI3LTEwLjY3LTMuNDQtMTYuNjYtMy41Mi01Ljc3LS4xNC0xMS4wNC43My0xNS44NCwyLjYtNC43OSwxLjg3LTguNjIsNC41MS0xMS40Niw3Ljg5LTIuODUsMy4zOS00LjI3LDcuMjktNC4yNywxMS42OHMxLjI2LDcuODIsMy43OSwxMC40OWMyLjUyLDIuNjcsNS42NCw0Ljc4LDkuMzUsNi4zMywzLjcyLDEuNTUsNy40MSwyLjgzLDExLjA5LDMuODRsMjguNzYsOC4xMWMzLjYsMS4wMSw3LjY5LDIuMzcsMTIuMjgsNC4wNSw0LjU4LDEuNyw5LjAxLDQuMDUsMTMuMyw3LjA4LDQuMjksMy4wMyw3Ljg0LDcuMDUsMTAuNjUsMTIuMDYsMi44MSw1LjAxLDQuMjIsMTEuMyw0LjIyLDE4Ljg3cy0xLjU4LDE0Ljc2LTQuNzYsMjAuN2MtMy4xNyw1Ljk1LTcuNTEsMTAuOTMtMTMuMDMsMTQuOTItNS41MSw0LTExLjg4LDcuMDEtMTkuMDgsOS4wMy03LjIxLDIuMDEtMTQuODEsMy4wMy0yMi44MSwzLjAzWiIvPgogICAgICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTU4MzMuMDksMjc1NC40NnYtMTU1LjdoMjIuNnYxNTUuN2gtMjIuNloiLz4KICAgICAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik02MjE4Ljg4LDI3NTQuNDZ2LTEzNC40aC01MS44di0yMS4zaDEyNi4xOHYyMS4zaC01MS43OXYxMzQuNGgtMjIuNloiLz4KICAgICAgPC9nPgogICAgPC9nPgogIDwvZz4KPC9zdmc+";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const P        = [59,  27,  122];   // #3b1b7a  deep brand purple
@@ -44,8 +48,6 @@ function fmtPct(v) {
   return `${n >= 0 ? "+" : ""}${n.toFixed(2)}%`;
 }
 
-// FIX: use en-US locale for consistent comma formatting (avoids "R 5 151,00"
-//      produced by en-ZA on certain runtimes/browsers).
 function fmtR(v) {
   if (v == null || isNaN(+v)) return "N/A";
   const n = +v;
@@ -63,7 +65,7 @@ function secHead(doc, label, x, y, w) {
   doc.setFontSize(7);
   tc(doc, WHITE);
   doc.text(label.toUpperCase(), x + 3, y);
-  return y + (PILL_H - 4.5) + 4;   // bottom of pill + 4 mm gap
+  return y + (PILL_H - 4.5) + 4;
 }
 
 // ─── Sub-heading for right-column cards ──────────────────────────────────────
@@ -128,33 +130,6 @@ function drawChart(doc, data, x, y, w, h) {
   if (pts.length) { fc(doc, P); doc.circle(pts[pts.length-1].px, pts[pts.length-1].py, 0.8, "F"); }
 }
 
-// ─── Horizontal allocation bars ───────────────────────────────────────────────
-function drawBars(doc, items, x, y, w) {
-  if (!items?.length) return y;
-  const BAR_H  = 4.2, GAP_B = 2.5, LBL_W = 27, PCT_W = 9;
-  const barX   = x + LBL_W + 1;
-  const barMax = w - LBL_W - PCT_W - 2;
-  const maxVal = Math.max(...items.map(s => Math.abs(s.weight)));
-
-  items.forEach(s => {
-    const lines = doc.splitTextToSize(s.name, LBL_W);
-    const baseY = y + BAR_H / 2 + 1.5 - ((lines.length - 1) * 2.0);
-    doc.setFontSize(5.2); tc(doc, BODY); doc.setFont("helvetica", "normal");
-    lines.forEach((ln, i) => doc.text(ln, x, baseY + i * 2.0));
-
-    const bw = (Math.abs(s.weight) / maxVal) * barMax;
-    fc(doc, P_PALE);
-    doc.roundedRect(barX, y, barMax, BAR_H, 0.8, 0.8, "F");
-    fc(doc, s.weight >= 0 ? P_MID : RED);
-    doc.roundedRect(barX, y, Math.max(bw, 0.5), BAR_H, 0.8, 0.8, "F");
-    doc.setFontSize(5.2); tc(doc, DARK); doc.setFont("helvetica", "bold");
-    doc.text(`${s.weight.toFixed(1)}%`, barX + barMax + 1.5, y + BAR_H / 2 + 1.5);
-
-    y += BAR_H + GAP_B + Math.max(0, lines.length - 1) * 2.0;
-  });
-  return y;
-}
-
 // ─── pct colour hook for autoTable ───────────────────────────────────────────
 function pctHook(d, col) {
   if (d.section === "body" && d.column.index === col) {
@@ -162,6 +137,160 @@ function pctHook(d, col) {
     d.cell.styles.textColor = t.startsWith("+") ? GREEN : t.startsWith("-") ? RED : DARK;
     d.cell.styles.fontStyle = "bold";
   }
+}
+
+// ─── Yahoo Finance live sector fetch (with CORS proxy fallbacks) ─────────────
+//
+// Strategy:
+//   1. Direct Yahoo Finance query1 endpoint
+//   2. Direct Yahoo Finance query2 endpoint (different CDN, sometimes unblocked)
+//   3. allorigins.win CORS proxy  → wraps the query2 URL
+//   4. corsproxy.io CORS proxy    → wraps the query2 URL
+//
+// Each attempt has a 5 s timeout. On any failure we silently move to the next.
+// If all four fail the function returns null and the holding's existing
+// sector metadata (h.sector / h.gics_sector / h.industry) is used instead.
+
+const SECTOR_TIMEOUT_MS = 5000;
+
+function _abortSignal() {
+  if (typeof AbortSignal !== "undefined" && AbortSignal.timeout) {
+    return AbortSignal.timeout(SECTOR_TIMEOUT_MS);
+  }
+  // Fallback for environments without AbortSignal.timeout
+  const ctrl = new AbortController();
+  setTimeout(() => ctrl.abort(), SECTOR_TIMEOUT_MS);
+  return ctrl.signal;
+}
+
+async function _tryFetch(url, headers = {}) {
+  try {
+    const res = await fetch(url, { headers: { Accept: "application/json", ...headers }, signal: _abortSignal() });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+function _extractSector(json) {
+  // Standard Yahoo Finance quoteSummary shape
+  return json?.quoteSummary?.result?.[0]?.summaryProfile?.sector ?? null;
+}
+
+async function fetchSectorFromYahoo(ticker) {
+  if (!ticker) return null;
+
+  // Bare JSE tickers (no dot) get the .JO exchange suffix for Yahoo Finance
+  const yhTicker = ticker.includes(".") ? ticker : `${ticker}.JO`;
+  const encodedTicker = encodeURIComponent(yhTicker);
+  const YF_PATH  = `/v10/finance/quoteSummary/${encodedTicker}?modules=summaryProfile`;
+
+  // ── Attempt 1: Direct query1 ──────────────────────────────────────────────
+  let json = await _tryFetch(`https://query1.finance.yahoo.com${YF_PATH}`);
+  if (_extractSector(json)) return _extractSector(json);
+
+  // ── Attempt 2: Direct query2 (different CDN) ──────────────────────────────
+  json = await _tryFetch(`https://query2.finance.yahoo.com${YF_PATH}`);
+  if (_extractSector(json)) return _extractSector(json);
+
+  // ── Attempt 3: allorigins.win proxy ──────────────────────────────────────
+  const targetUrl = encodeURIComponent(`https://query2.finance.yahoo.com${YF_PATH}`);
+  json = await _tryFetch(`https://api.allorigins.win/get?url=${targetUrl}`);
+  // allorigins wraps the response: { contents: "<json string>" }
+  if (json?.contents) {
+    try {
+      const inner = JSON.parse(json.contents);
+      if (_extractSector(inner)) return _extractSector(inner);
+    } catch { /* malformed — fall through */ }
+  }
+
+  // ── Attempt 4: corsproxy.io proxy ────────────────────────────────────────
+  json = await _tryFetch(`https://corsproxy.io/?${targetUrl}`);
+  if (_extractSector(json)) return _extractSector(json);
+
+  // All attempts exhausted — caller will use existing metadata fallback
+  return null;
+}
+
+// ─── Donut / Pie chart drawn with jsPDF polygon primitives ───────────────────
+const PIE_COLORS = [
+  [91,  33,  182],  // brand purple
+  [22,  163, 74 ],  // green
+  [234, 88,  12 ],  // orange
+  [14,  165, 233],  // sky blue
+  [168, 85,  247],  // violet
+  [234, 179, 8  ],  // amber
+  [236, 72,  153],  // pink
+  [20,  184, 166],  // teal
+  [99,  102, 241],  // indigo
+  [239, 68,  68 ],  // red
+];
+
+/**
+ * Draw a donut pie chart.
+ * @param {jsPDF}  doc    - jsPDF instance
+ * @param {Array}  slices - [{ name, pct }]  (pct values already sum to 100)
+ * @param {number} cx     - centre X (mm)
+ * @param {number} cy     - centre Y (mm)
+ * @param {number} r      - outer radius (mm)
+ * @returns {number}      - bottom Y of the chart (cy + r + 1)
+ */
+function drawPieChart(doc, slices, cx, cy, r) {
+  if (!slices?.length) return cy + r + 1;
+
+  const total  = slices.reduce((s, sl) => s + sl.pct, 0) || 1;
+  const STEPS  = 60;   // polygon segments per full circle — smooth enough at PDF scale
+  let   angle  = -Math.PI / 2;  // start at 12 o'clock
+
+  slices.forEach((sl, i) => {
+    const sweep = (sl.pct / total) * 2 * Math.PI;
+    const col   = PIE_COLORS[i % PIE_COLORS.length];
+
+    // Build polygon points: centre → arc
+    const pts = [[cx, cy]];
+    for (let s = 0; s <= STEPS; s++) {
+      const a = angle + (sweep * s) / STEPS;
+      pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+
+    fc(doc, col);
+    dc(doc, WHITE);
+    doc.setLineWidth(0.3);
+
+    // jsPDF lines() draws relative segments; convert absolute pts → relative deltas
+    const deltas = pts.slice(1).map((p, j) => [p[0] - pts[j][0], p[1] - pts[j][1]]);
+    doc.lines(deltas, pts[0][0], pts[0][1], [1, 1], "FD", true);
+
+    angle += sweep;
+  });
+
+  // ── White centre hole (donut) ──────────────────────────────────────────────
+  fc(doc, WHITE);
+  dc(doc, WHITE);
+  doc.setLineWidth(0);
+  doc.circle(cx, cy, r * 0.46, "F");
+
+  // ── Legend to the right of the pie ────────────────────────────────────────
+  const LEG_X  = cx + r + 5;
+  const LEG_SQ = 2.6;
+  const LEG_LH = 4.4;
+  let   legY   = cy - r + 1;
+
+  slices.forEach((sl, i) => {
+    const col = PIE_COLORS[i % PIE_COLORS.length];
+    fc(doc, col);
+    dc(doc, col);
+    doc.rect(LEG_X, legY - LEG_SQ + 0.8, LEG_SQ, LEG_SQ, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(5);
+    tc(doc, BODY);
+    const label = sl.name.length > 17 ? sl.name.slice(0, 16) + "…" : sl.name;
+    doc.text(`${label}  ${sl.pct.toFixed(1)}%`, LEG_X + LEG_SQ + 1.8, legY);
+    legY += LEG_LH;
+  });
+
+  return cy + r + 2;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -175,15 +304,24 @@ function addDisclosurePage(doc, name, dateStr, monthStr, isoDate) {
   fc(doc, P_MID); doc.rect(0, 0, PW, 1.8, "F");
   fc(doc, P_MID); doc.rect(0, HDR, PW, 0.7, "F");
 
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13); tc(doc, WHITE);
-  doc.text("MINT", ML, 10);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); tc(doc, [185, 155, 230]);
-  doc.text("Money in Transit", ML, 15.5);
-  hl(doc, ML, 18, ML + 60, 18, [120, 90, 180], 0.25);
+  const LOGO_ASPECT_D2 = 6293.27 / 2757.71;
+  const D2_LOGO_H = 8;
+  const D2_LOGO_W = D2_LOGO_H * LOGO_ASPECT_D2;
+  const D2_LOGO_X = PW - MR - D2_LOGO_W;
+  doc.addImage(MINT_LOGO_B64, "SVG", D2_LOGO_X, (HDR - D2_LOGO_H) / 2, D2_LOGO_W, D2_LOGO_H);
+
   doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); tc(doc, WHITE);
-  doc.text("Important Disclosures, Risk Factors & Legal Notice", ML, 23);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [160, 130, 210]);
-  doc.text(`${name.toUpperCase()}  ·  STRATEGY FACTSHEET  ·  ${dateStr}`, ML, 27.5);
+  doc.text("MINT STRATEGY FACTSHEET", ML, 11);
+  hl(doc, ML, 14, ML + 80, 14, [120, 90, 180], 0.25);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(7); tc(doc, WHITE);
+  doc.text("Important Disclosures, Risk Factors & Legal Notice", ML, 19);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5); tc(doc, [160, 130, 210]);
+  doc.text(`${name.toUpperCase()}  ·  ${dateStr}`, ML, 23.5);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(4.5); tc(doc, [185, 155, 230]);
+  doc.text(
+    "MINT (Pty) Ltd · Authorised FSP 55118 · Regulated by the FSCA · Registered Credit Provider NCRCP22892 · © 2026 MINT. All rights reserved.",
+    ML, 27.5, { maxWidth: D2_LOGO_X - 4 - ML }
+  );
 
   // ── Page background ─────────────────────────────────────────────────────────
   fc(doc, [252, 250, 255]); doc.rect(0, HDR + 0.7, PW, PH - HDR - 0.7, "F");
@@ -193,9 +331,6 @@ function addDisclosurePage(doc, name, dateStr, monthStr, isoDate) {
   const LINE_H      = 2.9;
   const SECTION_GAP = 5.5;
 
-  // FIX: removed ● and ◆ unicode chars — jsPDF's built-in helvetica does not
-  //      include these glyphs and renders them as garbage (%Ï / %Æ).
-  //      Replaced with a small drawn rectangle as the bullet indicator.
   const sections = [
     { title: "Investment Strategy Provider", isDiamond: false,
       body: "Mint Platforms (Pty) Ltd (Reg. 2024/644796/07) trading as MINT, 3 Gwen Lane, Sandown, Sandton, provides investment strategy design and portfolio management services through managed investment strategies. Strategies on the MINT platform are not collective investment schemes or pooled funds unless explicitly stated. This document does not constitute financial advice as defined under FAIS Act No. 37 of 2002 and is provided for informational purposes only. Investors should seek independent financial advice prior to investing." },
@@ -225,7 +360,7 @@ function addDisclosurePage(doc, name, dateStr, monthStr, isoDate) {
 
   const leftSections  = sections.filter((_, i) => i % 2 === 0);
   const rightSections = sections.filter((_, i) => i % 2 === 1);
-  let startY = HDR + 10;
+  const startY = HDR + 10;
 
   function renderSectionColumn(secList, colX, colW, startY) {
     let y = startY;
@@ -238,7 +373,6 @@ function addDisclosurePage(doc, name, dateStr, monthStr, isoDate) {
       fc(doc, headerBg);
       doc.roundedRect(colX, y, colW, PILL_H, 1, 1, "F");
 
-      // Draw a small square bullet instead of a unicode glyph
       fc(doc, dotCol);
       doc.rect(colX + 3, y + 2.3, 1.5, 1.5, "F");
 
@@ -296,22 +430,27 @@ function addDisclosurePage(doc, name, dateStr, monthStr, isoDate) {
   const FY = PH - 12;
   fc(doc, P);     doc.rect(0, FY,   PW, 12,  "F");
   fc(doc, P_MID); doc.rect(0, FY,   PW, 1.2, "F");
-  doc.setFont("helvetica", "bold");   doc.setFontSize(7);   tc(doc, WHITE);
-  doc.text("MINT", ML, FY + 4);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(5); tc(doc, [160, 130, 205]);
-  doc.text("Money in Transit", ML, FY + 7.5);
+
+  const FL2_H = 4.5;
+  const FL2_W = FL2_H * (6293.27 / 2757.71);
+  doc.addImage(MINT_LOGO_B64, "SVG", ML, FY + 2.5, FL2_W, FL2_H);
+
   doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [185, 160, 225]);
-  doc.text(`${name}  ·  Disclosures & Risk Factors  ·  ${monthStr}`, ML + 28, FY + 5.5);
-  doc.text("3 Gwen Ln, Sandown, Sandton  ·  www.mymint.co.za  ·  info@mymint.co.za  ·  +27 10 276 0531", ML, FY + 9.5);
+  doc.text(`${name}  ·  Disclosures & Risk Factors  ·  ${monthStr}`, ML + FL2_W + 4, FY + 5.5);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(4.5); tc(doc, [160, 130, 205]);
+  doc.text(
+    "MINT (Pty) Ltd · Authorised FSP 55118 · FSCA Regulated · Registered Credit Provider NCRCP22892 · © 2026 MINT. All rights reserved.",
+    ML, FY + 9.5
+  );
   tc(doc, [160, 140, 200]);
   doc.text("Page 2 of 2",         PW - MR, FY + 4,   { align: "right" });
   doc.text(`Generated ${isoDate}`, PW - MR, FY + 9.5, { align: "right" });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-//  MAIN EXPORT
+//  MAIN EXPORT  (async — awaits Yahoo Finance sector fetches)
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function generateFactsheetPdf({
+export default async function generateFactsheetPdf({
   strategy,
   analytics,
   holdingsWithMetrics,
@@ -327,6 +466,48 @@ export default function generateFactsheetPdf({
   const isoDate  = now.toISOString().split("T")[0];
 
   // ═════════════════════════════════════════════════════════════════════════════
+  //  PRE-FETCH — Live sector data from Yahoo Finance for all holdings
+  //  Runs in parallel before any PDF drawing begins so the chart is ready.
+  // ═════════════════════════════════════════════════════════════════════════════
+  const holdings = (holdingsWithMetrics || []).filter(
+    h => String(h.symbol || h.ticker || "").toUpperCase() !== "CASH"
+  );
+
+  // Build sectorMap: { "Technology": 42.5, "Financials": 18.0, ... }
+  const sectorMap = {};
+
+  await Promise.all(
+    holdings.map(async h => {
+      const ticker = h.symbol || h.ticker || "";
+      const wt     = h.weightNorm != null ? h.weightNorm * 100 : (+h.weight || 0);
+
+      // 1. Try Yahoo Finance (live)
+      let sector = await fetchSectorFromYahoo(ticker);
+
+      // 2. Fall back to existing holding metadata
+      if (!sector) {
+        sector = h.sector ?? h.gics_sector ?? h.industry ?? h.asset_class ?? "Other";
+      }
+
+      sectorMap[sector] = (sectorMap[sector] || 0) + wt;
+    })
+  );
+
+  // Normalise to 100 % and keep top 10 by weight
+  let sectorSlices = Object.entries(sectorMap)
+    .map(([name, pct]) => ({ name, pct: +pct.toFixed(2) }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 10);
+
+  const sliceTotal = sectorSlices.reduce((s, sl) => s + sl.pct, 0);
+  if (sliceTotal > 0) {
+    sectorSlices = sectorSlices.map(sl => ({
+      ...sl,
+      pct: +((sl.pct / sliceTotal) * 100).toFixed(1),
+    }));
+  }
+
+  // ═════════════════════════════════════════════════════════════════════════════
   //  PAGE 1 — FACTSHEET
   // ═════════════════════════════════════════════════════════════════════════════
 
@@ -335,22 +516,29 @@ export default function generateFactsheetPdf({
   fc(doc, P_MID); doc.rect(0, 0, PW, 1.8, "F");
   fc(doc, P_MID); doc.rect(0, HDR, PW, 0.7, "F");
 
-  const ICON_H = 9;
-  const ICON_W = ICON_H * (2000 / 791);
-  const ICON_X = PW - MR - ICON_W;
-  const ICON_Y = (HDR - ICON_H) / 2;
-  doc.addImage(mintLogo, "PNG", ICON_X, ICON_Y, ICON_W, ICON_H);
+  // SVG logo — aspect ratio 6293.27 : 2757.71 ≈ 2.283 : 1
+  const LOGO_ASPECT = 6293.27 / 2757.71;
+  const LOGO_H = 8;
+  const LOGO_W = LOGO_H * LOGO_ASPECT;
+  const LOGO_X = PW - MR - LOGO_W;
+  const LOGO_Y = (HDR - LOGO_H) / 2;
+  doc.addImage(MINT_LOGO_B64, "SVG", LOGO_X, LOGO_Y, LOGO_W, LOGO_H);
 
-  doc.setFont("helvetica", "bold");   doc.setFontSize(13); tc(doc, WHITE);
-  doc.text("MINT", ML, 10);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); tc(doc, [185, 155, 230]);
-  doc.text("Money in Transit", ML, 15.5);
-  hl(doc, ML, 18, ML + 60, 18, [120, 90, 180], 0.25);
+  // Title block
   doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); tc(doc, WHITE);
+  doc.text("MINT STRATEGY FACTSHEET", ML, 11);
+  hl(doc, ML, 14, ML + 80, 14, [120, 90, 180], 0.25);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(7); tc(doc, WHITE);
   const sn = name.length > 52 ? name.slice(0, 52) + "…" : name;
-  doc.text(sn, ML, 23, { maxWidth: ICON_X - 4 - ML });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [160, 130, 210]);
-  doc.text(`STRATEGY FACTSHEET  ·  ${dateStr}`, ML, 27.5);
+  doc.text(sn, ML, 19, { maxWidth: LOGO_X - 4 - ML });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(5); tc(doc, [160, 130, 210]);
+  doc.text(`STRATEGY FACTSHEET  ·  ${dateStr}`, ML, 23.5);
+  // Legal tagline
+  doc.setFont("helvetica", "normal"); doc.setFontSize(4.5); tc(doc, [185, 155, 230]);
+  doc.text(
+    "MINT (Pty) Ltd · Authorised FSP 55118 · Regulated by the FSCA · Registered Credit Provider NCRCP22892 · © 2026 MINT. All rights reserved.",
+    ML, 27.5, { maxWidth: LOGO_X - 4 - ML }
+  );
 
   // ── Content ───────────────────────────────────────────────────────────────────
   let ly = HDR + 6;
@@ -513,35 +701,27 @@ export default function generateFactsheetPdf({
   });
   ry += 7;
 
-  // ── Sector Allocation ─────────────────────────────────────────────────────────
+  // ── Sector Allocation — Donut Pie Chart (live from Yahoo Finance) ─────────────
   ry = subHead(doc, "Sector Allocation", LX, ry, RW - 6) + 2;
 
-  // FIX: normalise sector weights to sum to 100% so bars display correctly
-  //      instead of showing "Other 108%" when raw position weights are used.
-  const sectorMap = {};
-  (holdingsWithMetrics || []).forEach(h => {
-    const sec = h.sector ?? h.gics_sector ?? h.industry ?? h.asset_class ?? "Other";
-    const wt  = h.weightNorm != null ? h.weightNorm * 100 : (+h.weight || 0);
-    sectorMap[sec] = (sectorMap[sec] || 0) + wt;
-  });
+  // Source note: live data badge
+  doc.setFont("helvetica", "italic"); doc.setFontSize(4.8); tc(doc, P_DIM);
+  doc.text("Live data via Yahoo Finance", LX, ry);
+  ry += 3.5;
 
-  let sectorBars = Object.entries(sectorMap)
-    .map(([n, weight]) => ({ name: n, weight: +weight.toFixed(2) }))
-    .sort((a, b) => b.weight - a.weight)
-    .slice(0, 8);
+  if (sectorSlices.length) {
+    // Pie fits in the right column: radius sized to available width
+    // RW ≈ 62 mm.  We need: pie diameter + legend.
+    // Pie radius = 16 mm, legend starts at cx + r + 5 = LX + 16 + 5 = LX + 21
+    // Legend max width ≈ RW - 6 - 21 = 35 mm — enough for 17 chars + pct
+    const PIE_R  = 16;
+    const PIE_CX = LX + PIE_R + 1;
+    const PIE_CY = ry + PIE_R + 1;
 
-  const sectorTotal = sectorBars.reduce((s, b) => s + Math.abs(b.weight), 0);
-  if (sectorTotal > 0) {
-    sectorBars = sectorBars.map(b => ({
-      ...b,
-      weight: +((b.weight / sectorTotal) * 100).toFixed(1),
-    }));
-  }
-
-  if (sectorBars.length) {
-    ry = drawBars(doc, sectorBars, LX, ry, RW - 6) + 5;
+    const pieBottom = drawPieChart(doc, sectorSlices, PIE_CX, PIE_CY, PIE_R);
+    ry = pieBottom + 5;
   } else {
-    doc.setFontSize(6); tc(doc, P_DIM);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6); tc(doc, P_DIM);
     doc.text("Sector data unavailable", LX, ry + 3);
     ry += 9;
   }
@@ -661,13 +841,18 @@ export default function generateFactsheetPdf({
   fc(doc, P);     doc.rect(0, FY,   PW, 12,  "F");
   fc(doc, P_MID); doc.rect(0, FY,   PW, 1.2, "F");
 
-  doc.setFont("helvetica", "bold");   doc.setFontSize(7);   tc(doc, WHITE);
-  doc.text("MINT", ML, FY + 4);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(5); tc(doc, [160, 130, 205]);
-  doc.text("Money in Transit", ML, FY + 7.5);
+  // Logo in footer
+  const FL_H = 4.5;
+  const FL_W = FL_H * LOGO_ASPECT;
+  doc.addImage(MINT_LOGO_B64, "SVG", ML, FY + 2.5, FL_W, FL_H);
+
   doc.setFont("helvetica", "normal"); doc.setFontSize(5.5); tc(doc, [185, 160, 225]);
-  doc.text(`${name}  ·  Strategy Factsheet  ·  ${monthStr}`, ML + 28, FY + 5.5);
-  doc.text("3 Gwen Ln, Sandown, Sandton  ·  www.mymint.co.za  ·  info@mymint.co.za  ·  +27 10 276 0531", ML, FY + 9.5);
+  doc.text(`${name}  ·  Strategy Factsheet  ·  ${monthStr}`, ML + FL_W + 4, FY + 5.5);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(4.5); tc(doc, [160, 130, 205]);
+  doc.text(
+    "MINT (Pty) Ltd · Authorised FSP 55118 · FSCA Regulated · Registered Credit Provider NCRCP22892 · © 2026 MINT. All rights reserved.",
+    ML, FY + 9.5
+  );
   tc(doc, [160, 140, 200]);
   doc.text("Page 1 of 2",         PW - MR, FY + 4,   { align: "right" });
   doc.text(`Generated ${isoDate}`, PW - MR, FY + 9.5, { align: "right" });
