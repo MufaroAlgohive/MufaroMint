@@ -4418,6 +4418,105 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// ── News_articles diagnostic endpoint ─────────────────────────────────────────
+app.get('/api/diagnose/news-articles', async (req, res) => {
+  const db = supabaseAdmin || supabase;
+  const results = {
+    supabase_connected: !!db,
+    table_readable: false,
+    table_writable: false,
+    row_count: null,
+    latest_article: null,
+    latest_article_created_at: null,
+    write_test: null,
+    write_error: null,
+    read_error: null,
+    allbrf_count: null,
+  };
+
+  if (!db) {
+    return res.status(500).json({ ...results, error: 'Supabase client not initialized — check VITE_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY secrets.' });
+  }
+
+  // 1. Read test
+  try {
+    const { data, error, count } = await db
+      .from('News_articles')
+      .select('id, title, source, published_at, content_types, created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      results.read_error = error.message;
+    } else {
+      results.table_readable = true;
+      results.row_count = count;
+      if (data && data.length > 0) {
+        results.latest_article = data[0].title;
+        results.latest_article_created_at = data[0].created_at;
+      }
+    }
+  } catch (e) {
+    results.read_error = e.message;
+  }
+
+  // 2. Count ALLBRF articles and get latest
+  try {
+    const { count: allbrfCount, error: allbrfErr } = await db
+      .from('News_articles')
+      .select('id', { count: 'exact', head: true })
+      .filter('content_types', 'cs', '"ALLBRF"');
+    if (!allbrfErr) results.allbrf_count = allbrfCount;
+
+    const { data: recentAllbrf } = await db
+      .from('News_articles')
+      .select('title, published_at, source')
+      .filter('content_types', 'cs', '"ALLBRF"')
+      .order('published_at', { ascending: false })
+      .limit(5);
+    results.latest_allbrf_articles = (recentAllbrf || []).map(a => ({
+      title: a.title,
+      published_at: a.published_at,
+      source: a.source,
+    }));
+  } catch (e) {}
+
+  // 3. Write test — insert a clearly labelled test row then delete it
+  const testDocId = Date.now(); // doc_id is bigint
+  try {
+    const { data: inserted, error: insertErr } = await db
+      .from('News_articles')
+      .insert({
+        id: testDocId,
+        doc_id: testDocId,
+        title: '[DIAGNOSTIC TEST] News_articles write test',
+        source: 'Mint Diagnostic',
+        published_at: new Date().toISOString(),
+        body_text: 'This is an automated diagnostic write test. It will be deleted immediately.',
+        content_types: ['DIAG'],
+      })
+      .select('id')
+      .single();
+
+    if (insertErr) {
+      results.write_test = 'FAILED';
+      results.write_error = insertErr.message;
+    } else {
+      results.table_writable = true;
+      results.write_test = 'SUCCESS';
+      // Clean up the test row
+      await db.from('News_articles').delete().eq('id', inserted.id);
+      results.write_test = 'SUCCESS (test row deleted)';
+    }
+  } catch (e) {
+    results.write_test = 'FAILED';
+    results.write_error = e.message;
+  }
+
+  const status = results.table_readable && results.table_writable ? 200 : 500;
+  return res.status(status).json(results);
+});
+
 // Catch-all 404 handler - MUST be after all route definitions
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", message: "This is the API server. The frontend is served separately." });
