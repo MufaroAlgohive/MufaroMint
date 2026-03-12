@@ -879,7 +879,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                     <button
                       type="button"
                       className="continue-button proceed-button"
-                      onClick={() => goToStep(3)}
+                      onClick={() => goToStep(getNextIncompleteStep(2, 2))}
                     >
                       Skip for now
                     </button>
