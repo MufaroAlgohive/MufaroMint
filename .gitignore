@@ -10,3 +10,7 @@ node_modules
 
 # local audit file
 tsiemasiloAudit.txt
+
+# admin dashboard files (belong to MyMintAdmin repo)
+dashboard_admin_updated.html
+*_admin_updated.html
