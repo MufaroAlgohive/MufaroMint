@@ -82,8 +82,9 @@ export const useFinancialData = () => {
         return bGain - aGain;
       });
 
+      const liveVal = (h) => h.last_price != null && h.quantity != null ? (h.last_price * h.quantity) / 100 : (h.market_value || 0) / 100;
       const bestAssets = sortedHoldings.slice(0, 5).map((h) => {
-        const currentValue = (h.market_value || 0) / 100;
+        const currentValue = liveVal(h);
         const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
         const changePercent = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
         return {
@@ -95,7 +96,7 @@ export const useFinancialData = () => {
         };
       });
 
-      const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
+      const totalInvestments = holdings.reduce((sum, h) => sum + liveVal(h), 0);
       
       const incomeTypes = ["credit"];
       const expenseTypes = ["debit"];
@@ -173,8 +174,10 @@ export const useMintBalance = () => {
         const recentTransactions = allServerTransactions.slice(0, 10);
         const allTransactions = allServerTransactions;
         
-        const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
-        const dailyChange = holdings.reduce((sum, h) => sum + ((h.unrealized_pnl || 0) / 100), 0);
+        const liveV = (h) => h.last_price != null && h.quantity != null ? (h.last_price * h.quantity) / 100 : (h.market_value || 0) / 100;
+        const totalInvestments = holdings.reduce((sum, h) => sum + liveV(h), 0);
+        const costBasisTotal = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
+        const dailyChange = totalInvestments - costBasisTotal;
         
         const incomeTypes = ["credit"];
         const expenseTypes = ["debit"];
@@ -358,15 +361,17 @@ export const useInvestments = () => {
 
       const goals = goalsResult.data || [];
 
-      const totalInvestments = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
-      const monthlyChange = holdings.reduce((sum, h) => sum + ((h.unrealized_pnl || 0) / 100), 0);
-      const monthlyChangePercent = totalInvestments > 0 ? (monthlyChange / totalInvestments) * 100 : 0;
+      const liveHV = (h) => h.last_price != null && h.quantity != null ? (h.last_price * h.quantity) / 100 : (h.market_value || 0) / 100;
+      const totalInvestments = holdings.reduce((sum, h) => sum + liveHV(h), 0);
+      const costBasisAll = holdings.reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
+      const monthlyChange = totalInvestments - costBasisAll;
+      const monthlyChangePercent = costBasisAll > 0 ? (monthlyChange / costBasisAll) * 100 : 0;
 
       const assetClasses = {};
       holdings.forEach((h) => {
         const assetClass = h.asset_class || "Other";
-        const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
-        assetClasses[assetClass] = (assetClasses[assetClass] || 0) + costBasis;
+        const holdingValue = liveHV(h);
+        assetClasses[assetClass] = (assetClasses[assetClass] || 0) + holdingValue;
       });
 
       const portfolioMix = Object.entries(assetClasses).map(([label, value]) => ({
@@ -383,7 +388,7 @@ export const useInvestments = () => {
             (h) => h.security_id === g.linked_security_id || h.strategy_id === g.linked_strategy_id
           );
           if (linkedHolding) {
-            const marketVal = (linkedHolding.market_value || 0) / 100;
+            const marketVal = linkedHolding.last_price != null && linkedHolding.quantity != null ? (linkedHolding.last_price * linkedHolding.quantity) / 100 : (linkedHolding.market_value || 0) / 100;
             const costBasis = ((linkedHolding.avg_fill || 0) * (linkedHolding.quantity || 0)) / 100;
             const gainLoss = marketVal - costBasis;
             currentValue = invested + (costBasis > 0 ? (gainLoss / costBasis) * invested : 0);

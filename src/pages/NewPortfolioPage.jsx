@@ -233,8 +233,13 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     return () => { cancelled = true; };
   }, [calendarFilter, strategies, rawHoldings]);
 
+  const liveHoldingValue = (h) => {
+    if (h.last_price != null && h.quantity != null) return (h.last_price * h.quantity) / 100;
+    return (h.market_value || 0) / 100;
+  };
+
   const displayAccountValue = useMemo(() => {
-    const holdingsValue = (rawHoldings || []).reduce((sum, h) => sum + ((h.market_value || 0) / 100), 0);
+    const holdingsValue = (rawHoldings || []).reduce((sum, h) => sum + liveHoldingValue(h), 0);
     const strategiesValue = strategies.reduce((sum, s) => sum + (s.currentValue || s.investedAmount || 0), 0);
     return holdingsValue + strategiesValue;
   }, [rawHoldings, strategies]);
@@ -242,10 +247,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
   const allStrategyHoldings = useMemo(() => {
     const holdingsMap = new Map();
     if (rawHoldings && rawHoldings.length > 0) {
-      const totalValue = rawHoldings.reduce((sum, h) => sum + ((h.market_value || 0) / 100), 0);
+      const totalValue = rawHoldings.reduce((sum, h) => sum + liveHoldingValue(h), 0);
       rawHoldings.forEach(h => {
         const sym = h.symbol || "N/A";
-        const currentValue = (h.market_value || 0) / 100;
+        const currentValue = liveHoldingValue(h);
         const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
         const changePct = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
         const weight = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
@@ -1057,7 +1062,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 <div className="mb-3 px-1">
                   {(() => {
                     if (isMyStock && userHolding && userQuantity > 0) {
-                      const holdingMarketValue = (userHolding.market_value || 0) / 100;
+                      const holdingMarketValue = liveHoldingValue(userHolding);
                       const costBasis = ((userHolding.avg_fill || 0) * userQuantity) / 100;
                       const pnl = holdingMarketValue - costBasis;
                       const pnlPct = costBasis > 0 ? ((pnl / costBasis) * 100) : 0;
