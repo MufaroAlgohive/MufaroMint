@@ -52,7 +52,8 @@ export const calculateMinInvestment = (strategy, holdingsBySymbol) => {
   const holdings = getHoldingsArray(strategy);
   if (!holdings.length) {
     const strategyPrice = Number(strategy?.last_close || strategy?.nav || 0);
-    return getMinFromPrice(strategyPrice);
+    if (!strategyPrice || strategyPrice <= 0 || !isFinite(strategyPrice)) return null;
+    return Math.round(strategyPrice);
   }
   let total = 0;
   let matched = 0;
@@ -63,20 +64,17 @@ export const calculateMinInvestment = (strategy, holdingsBySymbol) => {
     if (security?.last_price != null) {
       const pricePerShare = Number(security.last_price) / 100;
       if (!pricePerShare || pricePerShare <= 0 || !isFinite(pricePerShare)) continue;
-      let shares = Number(holding.shares || holding.quantity || 1);
-      const holdingValue = shares * pricePerShare;
-      if (holdingValue < MIN_ASSET_VALUE) {
-        shares = Math.ceil(MIN_ASSET_VALUE / pricePerShare);
-      }
+      const shares = Number(holding.shares || holding.quantity || 1);
       total += shares * pricePerShare;
       matched++;
     }
   }
   if (matched === 0) {
     const strategyPrice = Number(strategy?.last_close || strategy?.nav || 0);
-    return getMinFromPrice(strategyPrice);
+    if (!strategyPrice || strategyPrice <= 0 || !isFinite(strategyPrice)) return null;
+    return Math.round(strategyPrice);
   }
-  return Math.max(Math.round(total), MIN_ASSET_VALUE);
+  return Math.round(total);
 };
 
 export const getAdjustedShares = (holding, holdingsBySymbol) => {
