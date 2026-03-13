@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Eye, EyeOff, ChevronDown, ChevronRight, ChevronLeft, ArrowLeft, TrendingUp, TrendingDown, Plus } from "lucide-react";
-import { Area, ComposedChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { Area, ComposedChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, ReferenceLine } from 'recharts';
 import { useInvestments } from "../lib/useFinancialData";
 import { useRealtimePrices } from "../lib/useRealtimePrices";
 import { useProfile } from "../lib/useProfile";
@@ -296,23 +296,31 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
 
   const getChartData = () => {
     if (realChartData && realChartData.length > 0) {
-      const investedAmount = currentStrategy.currentValue || currentStrategy.investedAmount || 0;
-      if (investedAmount > 0 && realChartData.length > 0) {
+      const currentValue = currentStrategy.currentValue || 0;
+      const costBasis = currentStrategy.investedAmount || 0;
+      if (currentValue > 0 && realChartData.length > 0) {
         const latestNav = realChartData[realChartData.length - 1].value;
-        if (!latestNav || latestNav <= 0) return realChartData;
-        const scaleFactor = investedAmount / latestNav;
-        return realChartData.map(d => ({
-          ...d,
-          value: Number((d.value * scaleFactor).toFixed(2)),
-        }));
+        if (!latestNav || latestNav <= 0) return [];
+        const scaleFactor = currentValue / latestNav;
+        const points = [];
+        points.push({ ...realChartData[0], day: '', value: 0 });
+        realChartData.forEach(d => {
+          const marketValueAtDate = d.value * scaleFactor;
+          const pnl = marketValueAtDate - costBasis;
+          points.push({ ...d, value: Number(pnl.toFixed(2)) });
+        });
+        return points;
       }
-      return realChartData;
     }
     return [];
   };
 
   const currentChartData = getChartData();
   const isLoadingData = strategiesLoading || chartLoading;
+
+  const strategyPnl = (currentStrategy.currentValue || 0) - (currentStrategy.investedAmount || 0);
+  const isStrategyPositive = strategyPnl >= 0;
+  const strategyChartColor = isStrategyPositive ? '#10B981' : '#FB7185';
 
   const formatCurrency = (value) => {
     return `R${value.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -694,9 +702,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 >
                   <defs>
                     <linearGradient id="glowGradientVertical" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
-                      <stop offset="50%" stopColor="#a78bfa" stopOpacity="0.2" />
-                      <stop offset="100%" stopColor="#c4b5fd" stopOpacity="0.02" />
+                      <stop offset="0%" stopColor={strategyChartColor} stopOpacity="0.3" />
+                      <stop offset="100%" stopColor={strategyChartColor} stopOpacity="0.02" />
                     </linearGradient>
                   </defs>
                   
@@ -714,34 +721,37 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                     tickLine={false}
                     tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
                     tickFormatter={(val) => {
-                      if (val >= 10000) return `R${(val / 1000).toFixed(0)}k`;
-                      if (val >= 1000) return `R${(val / 1000).toFixed(1)}k`;
-                      if (val >= 100) return `R${val.toFixed(1)}`;
-                      return `R${val.toFixed(2)}`;
+                      const sign = val < 0 ? '-' : '';
+                      const abs = Math.abs(val);
+                      if (abs >= 10000) return `${sign}R${(abs / 1000).toFixed(0)}k`;
+                      if (abs >= 1000) return `${sign}R${(abs / 1000).toFixed(1)}k`;
+                      if (abs >= 100) return `${sign}R${abs.toFixed(0)}`;
+                      return `${sign}R${abs.toFixed(2)}`;
                     }}
                     width={55}
                     tickCount={5}
                     domain={([dataMin, dataMax]) => {
                       const range = dataMax - dataMin;
                       const padding = range > 0 ? Math.max(range * 0.15, 0.5) : 1;
-                      return [dataMin - padding, dataMax + padding];
+                      const lo = Math.min(dataMin - padding, -padding);
+                      const hi = Math.max(dataMax + padding, padding);
+                      return [lo, hi];
                     }}
                   />
+
+                  <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth={1} />
                   
                   <Tooltip
                     content={({ active, payload, label }) => {
                       if (active && payload && payload.length) {
                         const fullDate = payload[0]?.payload?.fullDate || label;
+                        const val = payload[0].value;
+                        const isPos = val >= 0;
                         return (
-                          <div className="rounded-xl px-4 py-2 shadow-2xl border border-purple-400/30"
-                            style={{
-                              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(124, 58, 237, 0.95) 100%)',
-                              backdropFilter: 'blur(12px)',
-                            }}
-                          >
-                            <div className="text-xs text-purple-200 mb-0.5">{fullDate}</div>
-                            <div className="text-sm font-bold text-white">
-                              R{payload[0].value.toLocaleString()}
+                          <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 shadow-md">
+                            <div className="text-xs text-slate-500 mb-0.5">{fullDate}</div>
+                            <div className={`text-sm font-bold ${isPos ? 'text-emerald-600' : 'text-rose-500'}`}>
+                              {isPos ? '+' : '-'}R{Math.abs(val).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                           </div>
                         );
@@ -755,7 +765,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="transparent"
+                    stroke="none"
                     fill="url(#glowGradientVertical)"
                     fillOpacity={1}
                   />
@@ -763,15 +773,15 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke="#7c3aed"
+                    stroke={strategyChartColor}
                     strokeWidth={2.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     dot={false}
                     activeDot={{
                       r: 6,
-                      fill: '#7c3aed',
-                      stroke: '#c4b5fd',
+                      fill: strategyChartColor,
+                      stroke: isStrategyPositive ? '#6ee7b7' : '#fda4af',
                       strokeWidth: 2,
                     }}
                   />
@@ -960,11 +970,25 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         const isMyStock = myStockIds.has(selectedStock?.id);
         const userHolding = isMyStock && selectedSecurityId ? (rawHoldings || []).find(h => h.security_id === selectedSecurityId) : null;
         const userQuantity = userHolding ? (userHolding.quantity || 0) : 0;
+        const avgFillRands = userHolding ? (userHolding.avg_fill || 0) / 100 : 0;
+        const costBasisStock = avgFillRands * userQuantity;
+        const showStockPnl = isMyStock && userQuantity > 0 && avgFillRands > 0;
         const stockChartData = liveStockChartData.length > 0
-          ? (isMyStock && userQuantity > 0
-              ? liveStockChartData.map(d => ({ ...d, value: Number((d.value * userQuantity).toFixed(2)) }))
+          ? (showStockPnl
+              ? (() => {
+                  const pts = [{ ...liveStockChartData[0], day: '', value: 0 }];
+                  liveStockChartData.forEach(d => {
+                    pts.push({ ...d, value: Number(((d.value * userQuantity) - costBasisStock).toFixed(2)) });
+                  });
+                  return pts;
+                })()
               : liveStockChartData)
           : [];
+        const currentStockPnl = showStockPnl && stockChartData.length > 1
+          ? stockChartData[stockChartData.length - 1].value
+          : 0;
+        const isStockPositive = !showStockPnl || currentStockPnl >= 0;
+        const stockChartColor = showStockPnl ? (isStockPositive ? '#10B981' : '#FB7185') : '#7c3aed';
         if (!selectedStock) {
           if (quotesLoading || holdingsLoading) {
             return <div className="text-center py-10 text-slate-500">Loading stocks...</div>;
@@ -1103,9 +1127,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       >
                         <defs>
                           <linearGradient id="stockGlowGradientVertical" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
-                            <stop offset="50%" stopColor="#a78bfa" stopOpacity="0.2" />
-                            <stop offset="100%" stopColor="#c4b5fd" stopOpacity="0.02" />
+                            <stop offset="0%" stopColor={stockChartColor} stopOpacity="0.3" />
+                            <stop offset="100%" stopColor={stockChartColor} stopOpacity="0.02" />
                           </linearGradient>
                         </defs>
 
@@ -1123,34 +1146,39 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                           tickLine={false}
                           tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
                           tickFormatter={(val) => {
-                            if (val >= 10000) return `R${(val / 1000).toFixed(0)}k`;
-                            if (val >= 1000) return `R${(val / 1000).toFixed(1)}k`;
-                            if (val >= 100) return `R${val.toFixed(1)}`;
-                            return `R${val.toFixed(2)}`;
+                            const sign = val < 0 ? '-' : '';
+                            const abs = Math.abs(val);
+                            if (abs >= 10000) return `${sign}R${(abs / 1000).toFixed(0)}k`;
+                            if (abs >= 1000) return `${sign}R${(abs / 1000).toFixed(1)}k`;
+                            if (abs >= 100) return `${sign}R${abs.toFixed(0)}`;
+                            return `${sign}R${abs.toFixed(2)}`;
                           }}
                           width={55}
                           tickCount={5}
                           domain={([dataMin, dataMax]) => {
                             const range = dataMax - dataMin;
                             const padding = range > 0 ? Math.max(range * 0.15, 0.5) : 1;
-                            return [dataMin - padding, dataMax + padding];
+                            const lo = Math.min(dataMin - padding, -padding);
+                            const hi = Math.max(dataMax + padding, padding);
+                            return [lo, hi];
                           }}
                         />
+
+                        {showStockPnl && (
+                          <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth={1} />
+                        )}
 
                         <Tooltip
                           content={({ active, payload, label }) => {
                             if (active && payload && payload.length) {
                               const fullDate = payload[0]?.payload?.fullDate || label;
+                              const val = payload[0].value;
+                              const isPos = val >= 0;
                               return (
-                                <div className="rounded-xl px-4 py-2 shadow-2xl border border-purple-400/30"
-                                  style={{
-                                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(124, 58, 237, 0.95) 100%)',
-                                    backdropFilter: 'blur(12px)',
-                                  }}
-                                >
-                                  <div className="text-xs text-purple-200 mb-0.5">{fullDate}</div>
-                                  <div className="text-sm font-bold text-white">
-                                    R{payload[0].value.toLocaleString()}
+                                <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 shadow-md">
+                                  <div className="text-xs text-slate-500 mb-0.5">{fullDate}</div>
+                                  <div className={`text-sm font-bold ${showStockPnl ? (isPos ? 'text-emerald-600' : 'text-rose-500') : 'text-violet-600'}`}>
+                                    {showStockPnl ? (isPos ? '+' : '-') : ''}R{showStockPnl ? Math.abs(val).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : val.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </div>
                                 </div>
                               );
@@ -1164,7 +1192,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         <Area
                           type="monotone"
                           dataKey="value"
-                          stroke="transparent"
+                          stroke="none"
                           fill="url(#stockGlowGradientVertical)"
                           fillOpacity={1}
                         />
@@ -1172,15 +1200,15 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         <Line
                           type="monotone"
                           dataKey="value"
-                          stroke="#7c3aed"
+                          stroke={stockChartColor}
                           strokeWidth={2.5}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           dot={false}
                           activeDot={{
                             r: 6,
-                            fill: '#7c3aed',
-                            stroke: '#c4b5fd',
+                            fill: stockChartColor,
+                            stroke: isStockPositive ? '#6ee7b7' : '#fda4af',
                             strokeWidth: 2,
                           }}
                         />
