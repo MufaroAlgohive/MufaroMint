@@ -1452,7 +1452,6 @@
       const factsheetBackBtn = document.getElementById("factsheetBackBtn");
 
       let allStrategiesData = [];
-      let _overviewSecMap = null;
       let allStrategiesFullData = [];
       let formHoldings = [];
       let editingStrategyId = null;
@@ -1629,14 +1628,10 @@
           "No description provided.";
         const sector = strategy.sector ? `• ${strategy.sector}` : "";
         const risk = (strategy.risk_level || "unspecified").toLowerCase();
-        const _holdings = Array.isArray(strategy.holdings) ? strategy.holdings : [];
-        const _liveMin = (_overviewSecMap && _holdings.length > 0)
-          ? calculateMinInvestmentFromHoldings(_holdings, _overviewSecMap)
-          : null;
-        const _minVal = _liveMin || (strategy.min_investment ? Number(strategy.min_investment) : null);
-        const minInvestment = _minVal
-          ? formatCurrency(_minVal, strategy.base_currency || "ZAR")
-          : "Not calculated";
+        const minInvestment = formatCurrency(
+          strategy.min_investment,
+          strategy.base_currency || "ZAR",
+        );
 
         wrapper.innerHTML = `
         <div class="strategy-item-copy">
@@ -1796,13 +1791,10 @@
 
       const renderTop5Strategies = () => {
         if (!topStrategiesList) return;
-        const scored = [...allStrategiesFullData].map((item) => {
-          const _h = Array.isArray(item.holdings) ? item.holdings : [];
-          const _live = (_overviewSecMap && _h.length > 0)
-            ? calculateMinInvestmentFromHoldings(_h, _overviewSecMap)
-            : null;
-          return { item, score: _live || Number(item.min_investment) || 0 };
-        });
+        const scored = [...allStrategiesFullData].map((item) => ({
+          item,
+          score: Number(item.min_investment) || 0,
+        }));
 
         scored.sort((a, b) => b.score - a.score);
         const top5 = scored.slice(0, 5).map((entry) => entry.item);
@@ -1822,12 +1814,10 @@
             const name =
               strategy.short_name || strategy.name || "Untitled strategy";
             const currency = strategy.base_currency || "ZAR";
-            const _h5 = Array.isArray(strategy.holdings) ? strategy.holdings : [];
-            const _live5 = (_overviewSecMap && _h5.length > 0)
-              ? calculateMinInvestmentFromHoldings(_h5, _overviewSecMap)
-              : null;
-            const _min5 = _live5 || (strategy.min_investment ? Number(strategy.min_investment) : null);
-            const minInvestment = _min5 ? formatCurrency(_min5, currency) : "Not calculated";
+            const minInvestment = formatCurrency(
+              strategy.min_investment,
+              currency,
+            );
 
             row.innerHTML = `
             <div class="flex items-center gap-3 min-w-0">
@@ -3501,36 +3491,6 @@
         );
         allStrategiesData = strategies;
         allStrategiesFullData = strategies;
-
-        // Build live securities price map for overview min investment display
-        const _allSyms = [...new Set(strategies.flatMap((s) => {
-          const h = Array.isArray(s.holdings) ? s.holdings : [];
-          return h.flatMap((hld) => {
-            const sym = hld.ticker || hld.symbol || "";
-            const norm = normalizeSymbol(sym);
-            return (norm && norm !== sym) ? [sym, norm] : [sym];
-          });
-        }).filter(Boolean))];
-        _overviewSecMap = null;
-        if (_allSyms.length > 0) {
-          const _chunkSize = 50;
-          const _chunks = [];
-          for (let i = 0; i < _allSyms.length; i += _chunkSize)
-            _chunks.push(_allSyms.slice(i, i + _chunkSize));
-          const _secResults = await Promise.all(
-            _chunks.map((syms) =>
-              supabaseClient.from("securities").select("symbol, last_price").in("symbol", syms)
-            )
-          );
-          _overviewSecMap = new Map();
-          _secResults.forEach(({ data: secs }) => {
-            if (secs) secs.forEach((s) => {
-              _overviewSecMap.set(s.symbol, s);
-              const norm = normalizeSymbol(s.symbol || "");
-              if (norm && norm !== s.symbol) _overviewSecMap.set(norm, s);
-            });
-          });
-        }
 
         renderOverviewList(
           featuredStrategies,
