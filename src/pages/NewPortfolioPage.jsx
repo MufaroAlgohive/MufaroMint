@@ -285,6 +285,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     return holdingsValue + strategiesValue;
   }, [rawHoldings, strategies]);
 
+  const displayTotalCostBasis = useMemo(() => {
+    const holdingsBasis = (rawHoldings || []).reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
+    const strategiesBasis = strategies.reduce((sum, s) => sum + (s.investedAmount || 0), 0);
+    return holdingsBasis + strategiesBasis;
+  }, [rawHoldings, strategies]);
+
   const allStrategyHoldings = useMemo(() => {
     const holdingsMap = new Map();
     if (rawHoldings && rawHoldings.length > 0) {
@@ -578,7 +584,23 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 )}
               </button>
             </div>
-            <p className="mt-1 text-sm text-white/60">Account Value</p>
+            {(() => {
+              const totalPnl = displayAccountValue - displayTotalCostBasis;
+              const totalPnlPct = displayTotalCostBasis > 0 ? (totalPnl / displayTotalCostBasis) * 100 : 0;
+              const isPnlPos = totalPnl >= 0;
+              if (!balanceVisible) return <p className="mt-1 text-sm text-white/60">Account Value</p>;
+              return (
+                <div className="mt-1 flex items-center gap-2">
+                  <span className={`text-sm font-semibold ${isPnlPos ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {isPnlPos ? '+' : '-'}R{Math.abs(totalPnl).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isPnlPos ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                    {isPnlPos ? '+' : ''}{totalPnlPct.toFixed(1)}%
+                  </span>
+                  <span className="text-xs text-white/50">Account Value</span>
+                </div>
+              );
+            })()}
           </section>
 
           {/* Tabs: Strategy, Individual Stocks, Goals */}
