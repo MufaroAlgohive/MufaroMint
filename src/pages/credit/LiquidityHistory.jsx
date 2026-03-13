@@ -1,24 +1,37 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { 
   ChevronLeft, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
   Search, 
   ChevronRight,
   Calendar,
   Filter,
-  HandCoins,
   History,
   Lock,
   Unlock,
   ReceiptText,
-  Clock
+  Clock,
+  Info,
+  X,
+  ShieldAlert,
+  ArrowRight
 } from "lucide-react";
 import { formatZar } from "../../lib/formatCurrency";
+import { supabase } from "../../lib/supabase";
 
-const LiquidityHistory = ({ onBack }) => {
+/**
+ * LiquidityHistory Component
+ * Tracks the full lifecycle of portfolio-backed credit events including pledges, 
+ * repayments, and margin adjustments based on risk parameters [cite: 59-61, 93-94].
+ */
+const LiquidityHistory = ({ onBack, profile }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [historyData, setHistoryData] = useState([]);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [portalTarget, setPortalTarget] = useState(null);
+  
   const itemsPerPage = 6;
 
   const fonts = {
@@ -26,74 +39,74 @@ const LiquidityHistory = ({ onBack }) => {
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
 
-  const historyData = useMemo(() => [
-    { 
-      id: 1, 
-      type: 'pledge', 
-      asset: 'Naspers Ltd', 
-      code: 'NPN',
-      amount: 450000, 
-      date: '2026-03-08', 
-      status: 'active', 
-      interestAccrued: 450.20, 
-      ltv: '55%',
-      details: 'Initial drawdown against 150 shares.'
-    },
-    { 
-      id: 2, 
-      type: 'repayment', 
-      asset: 'Standard Bank', 
-      code: 'SBK',
-      amount: 120000, 
-      date: '2026-03-05', 
-      status: 'completed', 
-      interestPaid: 840.00, 
-      ltv: '50%',
-      loanDuration: '45 days',
-      details: 'Full settlement of Feb 1st drawdown.'
-    },
-    { 
-      id: 3, 
-      type: 'pledge', 
-      asset: 'Capitec Bank', 
-      code: 'CPI',
-      amount: 85000, 
-      date: '2026-03-01', 
-      status: 'active', 
-      interestAccrued: 112.50, 
-      ltv: '50%',
-      details: 'Collateral locked at R150,000 market value.'
-    },
-    { 
-      id: 4, 
-      type: 'margin_call', 
-      asset: 'Portfolio Wide', 
-      code: 'PORT',
-      amount: 15000, 
-      date: '2026-02-28', 
-      status: 'resolved', 
-      ltv: '65%',
-      details: 'Automatic adjustment due to market volatility.'
-    },
-    { 
-      id: 5, 
-      type: 'repayment', 
-      asset: 'Naspers Ltd', 
-      code: 'NPN',
-      amount: 50000, 
-      date: '2026-02-15', 
-      status: 'completed', 
-      interestPaid: 120.00, 
-      ltv: '55%',
-      loanDuration: '12 days',
-      details: 'Partial repayment to improve LTV buffer.'
-    }
-  ], []);
+  useEffect(() => { 
+    setPortalTarget(document.body); 
+  }, []);
 
+  // --- DATA FETCHING (Live Supabase Integration) ---
+  useEffect(() => {
+    async function fetchHistory() {
+      if (!profile?.id) return;
+      setLoading(true);
+
+      // Fetch pledges joined with their master loan application to track status and terms [cite: 1, 56-58]
+      const { data, error } = await supabase
+        .from('pbc_collateral_pledges')
+        .select(`
+          id,
+          symbol,
+          pledged_value,
+          recognised_value,
+          ltv_applied,
+          loan_value,
+          created_at,
+          loan_application (
+            id,
+            status,
+            interest_rate,
+            amount_repayable,
+            first_repayment_date
+          )
+        `)
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        const formatted = data.map(item => ({
+          id: item.id,
+          type: 'pledge', 
+          asset: item.symbol,
+          code: item.symbol,
+          amount: item.loan_value,
+          date: item.created_at,
+          status: item.loan_application?.status || 'active',
+          interestRate: item.loan_application?.interest_rate,
+          ltv: `${(item.ltv_applied * 100).toFixed(0)}%`,
+          details: `Drawdown of ${formatZar(item.loan_value)} against ${item.symbol} collateral.`,
+          recognisedCollateral: item.recognised_value
+        }));
+        setHistoryData(formatted);
+      }
+      setLoading(false);
+    }
+    fetchHistory();
+  }, [profile?.id]);
+
+  // --- DYNAMIC SUMMARY CALCULATIONS ---
+  const summary = useMemo(() => {
+    const active = historyData.filter(h => h.status === 'active' || h.status === 'approved');
+    return {
+      totalActiveDebt: active.reduce((sum, h) => sum + h.amount, 0),
+      totalRecognisedCollateral: active.reduce((sum, h) => sum + h.recognisedCollateral, 0),
+      // Calculates estimated lifecycle interest based on the 10.5% prime rate [cite: 104]
+      estimatedInterest: active.reduce((sum, h) => sum + (h.amount * (h.interestRate / 100) / 12), 0)
+    };
+  }, [historyData]);
+
+  // --- SEARCH & PAGINATION LOGIC ---
   const filteredHistory = useMemo(() => {
     return historyData.filter(item => 
       item.asset.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.code.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [searchQuery, historyData]);
@@ -106,9 +119,9 @@ const LiquidityHistory = ({ onBack }) => {
 
   const getStatusStyle = (status) => {
     switch(status) {
-      case 'active': return 'text-amber-600 bg-amber-50 border-amber-100';
-      case 'completed': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-      case 'resolved': return 'text-blue-600 bg-blue-50 border-blue-100';
+      case 'active': case 'approved': return 'text-amber-600 bg-amber-50 border-amber-100';
+      case 'completed': case 'settled': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
+      case 'margin_call': return 'text-rose-600 bg-rose-50 border-rose-100'; // Risk trigger [cite: 96]
       default: return 'text-slate-400 bg-slate-50 border-slate-100';
     }
   };
@@ -122,39 +135,43 @@ const LiquidityHistory = ({ onBack }) => {
           </button>
           <div className="text-center">
             <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Liquidity Archive</h3>
-            <p className="text-[10px] font-bold text-violet-600">Lifetime Tracking</p>
+            <p className="text-[10px] font-bold text-violet-600">Dynamic Risk Tracking</p>
           </div>
-          <button className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 active:scale-95">
+          <button className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600">
               <Filter size={18} />
           </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Loan Performance Summary - Updated to Light Purple Brand Color */}
+        {/* Dynamic Summary Card - Visualizing Risk Concentration [cite: 67-68] */}
         <div className="px-6 py-8">
-            <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 rounded-[32px] p-8 shadow-xl shadow-violet-900/5 relative overflow-hidden">
-                <div className="relative z-10">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
+                <div className="relative z-10 text-white">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-500 mb-1">Total Life-cycle Interest</p>
-                            <h2 className="text-4xl font-light tracking-tight text-slate-900" style={{ fontFamily: fonts.display }}>{formatZar(6535.40)}</h2>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-1">Active Debt Exposure</p>
+                            <h2 className="text-4xl font-light tracking-tight" style={{ fontFamily: fonts.display }}>{formatZar(summary.totalActiveDebt)}</h2>
                         </div>
-                        <div className="bg-white p-2 rounded-2xl border border-violet-100 shadow-sm">
-                            <ReceiptText className="text-violet-600" size={24} />
+                        <div className="bg-white/10 p-2 rounded-2xl backdrop-blur-md border border-white/10">
+                            <ReceiptText className="text-violet-400" size={24} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-violet-200/50">
+                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/10">
                         <div>
-                            <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Active Collateral</p>
-                            <p className="text-sm font-bold text-slate-900">{formatZar(535000)}</p>
+                            <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Recognized Collateral</p>
+                            <p className="text-sm font-bold text-white">{formatZar(summary.totalRecognisedCollateral)}</p>
                         </div>
                         <div>
-                            <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Avg. Loan Term</p>
-                            <p className="text-sm font-bold text-emerald-600">22 Days</p>
+                            <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Current LTV Pool</p>
+                            <p className="text-sm font-bold text-emerald-400">
+                                {summary.totalRecognisedCollateral > 0 
+                                    ? ((summary.totalActiveDebt / summary.totalRecognisedCollateral) * 100).toFixed(1) 
+                                    : 0}%
+                            </p>
                         </div>
                     </div>
                 </div>
-                <div className="absolute -right-10 -bottom-10 opacity-50 text-violet-200">
+                <div className="absolute -right-10 -bottom-10 opacity-10 text-white">
                     <History size={180} />
                 </div>
             </div>
@@ -166,7 +183,7 @@ const LiquidityHistory = ({ onBack }) => {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
                     type="text" 
-                    placeholder="Search by asset name or ticker..." 
+                    placeholder="Filter by Ticker (e.g. NPN)..." 
                     value={searchQuery}
                     onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                     className="w-full bg-white border border-slate-200 rounded-[22px] py-4 pl-12 pr-4 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-500/20 shadow-sm transition-all"
@@ -174,23 +191,29 @@ const LiquidityHistory = ({ onBack }) => {
             </div>
         </div>
 
-        {/* Dynamic History List */}
+        {/* Dynamic Event List */}
         <div className="px-6 space-y-4">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-2">Loan Events</p>
-            {paginatedData.map((item) => (
-                <div key={item.id} className="bg-white rounded-[28px] p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] transition-all">
+            {loading && (
+              <div className="text-center py-10 text-[10px] font-black text-slate-400 animate-pulse uppercase tracking-widest">
+                Reconstructing Ledger...
+              </div>
+            )}
+            
+            {!loading && paginatedData.map((item) => (
+                <button 
+                    key={item.id} 
+                    onClick={() => setSelectedEvent(item)}
+                    className="w-full bg-white rounded-[28px] p-6 border border-slate-100 shadow-sm transition-all active:scale-[0.98] text-left"
+                >
                     <div className="flex justify-between items-start mb-5">
                         <div className="flex items-center gap-4">
-                            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center border ${item.type === 'pledge' ? 'bg-rose-50 border-rose-100' : 'bg-emerald-50 border-emerald-100'}`}>
-                                {item.type === 'pledge' ? <Lock className="text-rose-500" size={20} /> : <Unlock className="text-emerald-500" size={20} />}
+                            <div className={`h-12 w-12 rounded-2xl flex items-center justify-center border ${item.type === 'pledge' ? 'bg-violet-50 border-violet-100' : 'bg-emerald-50 border-emerald-100'}`}>
+                                {item.type === 'pledge' ? <Lock className="text-violet-500" size={20} /> : <Unlock className="text-emerald-500" size={20} />}
                             </div>
                             <div>
-                                <div className="flex items-center gap-2">
-                                    <h4 className="text-sm font-bold text-slate-900">{item.asset}</h4>
-                                    <span className="text-[10px] font-black text-slate-300 uppercase tracking-tighter">{item.code}</span>
-                                </div>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mt-0.5">
-                                    {item.type === 'pledge' ? 'Drawdown Initiated' : 'Repayment Settled'}
+                                <h4 className="text-sm font-bold text-slate-900">{item.asset} <span className="text-[10px] text-slate-300 ml-1">{item.code}</span></h4>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                                  {item.type === 'pledge' ? 'Asset Drawdown' : 'Debt Settlement'}
                                 </p>
                             </div>
                         </div>
@@ -199,51 +222,23 @@ const LiquidityHistory = ({ onBack }) => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-y-4 mb-5 pb-5 border-b border-slate-50">
+                    <div className="flex justify-between items-end border-t border-slate-50 pt-4">
                         <div>
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Transaction Value</p>
-                            <p className={`text-base font-bold ${item.type === 'repayment' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                {item.type === 'repayment' ? '-' : '+'}{formatZar(item.amount)}
-                            </p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Loan Value</p>
+                            <p className="text-base font-bold text-slate-900">{formatZar(item.amount)}</p>
                         </div>
                         <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">LTV Utilization</p>
-                            <p className="text-base font-bold text-slate-900">{item.ltv}</p>
-                        </div>
-                        <div>
                             <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Date</p>
-                            <div className="flex items-center gap-1.5 text-slate-600">
-                                <Calendar size={12} className="text-slate-400" />
-                                <p className="text-xs font-bold">{new Date(item.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1">{item.type === 'pledge' ? 'Current Interest' : 'Final Interest'}</p>
-                            <p className="text-xs font-bold text-rose-500">{formatZar(item.interestAccrued || item.interestPaid)}</p>
+                            <p className="text-xs font-bold text-slate-600">{new Date(item.date).toLocaleDateString('en-ZA')}</p>
                         </div>
                     </div>
-
-                    <div className="flex items-center justify-between bg-slate-50/50 rounded-2xl p-3">
-                        <div className="flex items-center gap-2">
-                            <Clock size={12} className="text-slate-300" />
-                            <p className="text-[10px] font-medium text-slate-500 italic">"{item.details}"</p>
-                        </div>
-                        {item.loanDuration && (
-                            <span className="text-[9px] font-bold text-violet-600 uppercase bg-white px-2 py-0.5 rounded-lg border border-slate-100 shadow-sm">
-                                Term: {item.loanDuration}
-                            </span>
-                        )}
-                    </div>
-                </div>
+                </button>
             ))}
 
-            {filteredHistory.length === 0 && (
-                <div className="text-center py-24 bg-white rounded-[32px] border border-dashed border-slate-200">
-                    <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Search className="text-slate-300" size={32} />
-                    </div>
-                    <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">No matching history</p>
-                    <p className="text-xs text-slate-300 mt-1">Try searching for a different asset or ticker.</p>
+            {!loading && filteredHistory.length === 0 && (
+                <div className="text-center py-20 bg-white rounded-[32px] border border-dashed border-slate-200">
+                    <Search className="text-slate-200 mx-auto mb-4" size={40} />
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No matching history</p>
                 </div>
             )}
         </div>
@@ -251,31 +246,68 @@ const LiquidityHistory = ({ onBack }) => {
         {/* Pagination Controls */}
         {totalPages > 1 && (
             <div className="px-6 py-12 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-violet-600"></div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Page {currentPage} of {totalPages}</p>
-                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page {currentPage}/{totalPages}</p>
                 <div className="flex gap-3">
                     <button 
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(p => p - 1)}
-                        className="h-12 w-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 disabled:opacity-30 active:scale-90 transition-all shadow-sm"
+                      disabled={currentPage === 1} 
+                      onClick={() => setCurrentPage(p => p - 1)} 
+                      className="h-12 w-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 disabled:opacity-30"
                     >
-                        <ChevronLeft size={20} />
+                      <ChevronLeft size={20} />
                     </button>
                     <button 
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(p => p + 1)}
-                        className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white disabled:opacity-30 active:scale-90 transition-all shadow-lg shadow-slate-900/20"
+                      disabled={currentPage === totalPages} 
+                      onClick={() => setCurrentPage(p => p + 1)} 
+                      className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white disabled:opacity-30"
                     >
-                        <ChevronRight size={20} />
+                      <ChevronRight size={20} />
                     </button>
                 </div>
             </div>
         )}
       </div>
 
-      <div className="h-28 bg-transparent" />
+      {/* --- EVENT AUDIT MODAL (Working React Portal) --- */}
+      {selectedEvent && portalTarget && createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-6">
+              <div className="bg-white rounded-[40px] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95">
+                  <div className="flex justify-between items-start mb-8">
+                      <div className="h-14 w-14 rounded-3xl bg-violet-50 text-violet-600 flex items-center justify-center">
+                        <Info size={28} />
+                      </div>
+                      <button onClick={() => setSelectedEvent(null)} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center">
+                        <X size={20} />
+                      </button>
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Transaction Audit</h3>
+                  <p className="text-sm text-slate-500 mb-8 italic">"{selectedEvent.details}"</p>
+                  
+                  <div className="space-y-4 mb-8">
+                      <div className="flex justify-between items-center py-3 border-b border-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recognized Value</span>
+                          <span className="text-sm font-bold">{formatZar(selectedEvent.recognisedCollateral)}</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b border-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Interest Applied</span>
+                          <span className="text-sm font-bold text-rose-500">{selectedEvent.interestRate}% p.a.</span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 border-b border-slate-50">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">LTV Threshold</span>
+                          <span className="text-sm font-bold">{selectedEvent.ltv}</span>
+                      </div>
+                  </div>
+
+                  <button 
+                    onClick={() => setSelectedEvent(null)} 
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-xl active:scale-95 transition-all"
+                  >
+                    Close Audit Record
+                  </button>
+              </div>
+          </div>
+      , portalTarget)}
+      
+      <div className="h-28" />
     </div>
   );
 };

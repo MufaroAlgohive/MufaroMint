@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { 
   ChevronLeft, 
   ShieldCheck, 
@@ -9,58 +10,106 @@ import {
   Calendar,
   ArrowUpRight,
   TrendingUp,
-  Search
+  Search,
+  X,
+  ShieldAlert,
+  ArrowRight
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { formatZar } from "../../lib/formatCurrency";
+import { supabase } from "../../lib/supabase";
 
-const ActiveLiquidity = ({ onBack, fonts }) => {
+const ActiveLiquidity = ({ onBack, fonts, profile }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [activeLoans, setActiveLoans] = useState([]);
+  const [selectedLoan, setSelectedLoan] = useState(null);
+  const [portalTarget, setPortalTarget] = useState(null);
+  
   const itemsPerPage = 6;
 
-  // --- Enhanced Mock Data: List of Individual Active Loans ---
-  const activeLoans = useMemo(() => [
-    { 
-      id: "LN-8821", 
-      asset: "Naspers Ltd", 
-      code: "NPN", 
-      amount: 150000, 
-      nextPayment: "2026-03-15", 
-      status: "overdue", 
-      ltv: 62.1, 
-      interestAccrued: 1250.40 
-    },
-    { 
-      id: "LN-9042", 
-      asset: "Standard Bank", 
-      code: "SBK", 
-      amount: 85000, 
-      nextPayment: "2026-04-01", 
-      status: "active", 
-      ltv: 52.4, 
-      interestAccrued: 420.15 
-    },
-    { 
-      id: "LN-9211", 
-      asset: "Capitec Bank", 
-      code: "CPI", 
-      amount: 21450, 
-      nextPayment: "2026-04-10", 
-      status: "active", 
-      ltv: 48.9, 
-      interestAccrued: 88.50 
-    }
-  ], []);
+  useEffect(() => { setPortalTarget(document.body); }, []);
 
-  // Aggregates for the Hero Card
-  const totalBalance = activeLoans.reduce((acc, loan) => acc + loan.amount + loan.interestAccrued, 0);
-  const avgLtv = activeLoans.length > 0 ? (activeLoans.reduce((acc, loan) => acc + loan.ltv, 0) / activeLoans.length).toFixed(1) : 0;
+  // --- LIVE DATA FETCHING (Supabase) ---
+  useEffect(() => {
+    async function fetchActiveLoans() {
+      if (!profile?.id) return;
+      setLoading(true);
+
+      // Fetch active loan applications and their associated collateral pledges [cite: 1]
+      const { data, error } = await supabase
+        .from('loan_application')
+        .select(`
+          id,
+          principal_amount,
+          amount_repayable,
+          interest_rate,
+          status,
+          first_repayment_date,
+          created_at,
+          pbc_collateral_pledges (
+            symbol,
+            pledged_value,
+            recognised_value,
+            ltv_applied
+          )
+        `)
+        .eq('user_id', profile.id)
+        .in('status', ['approved', 'active', 'partially_paid'])
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        const formatted = data.map(loan => {
+          const pledge = loan.pbc_collateral_pledges?.[0]; // Assuming 1:1 for this view
+          const nextPayment = new Date(loan.first_repayment_date);
+          const isOverdue = nextPayment < new Date() && loan.status !== 'completed';
+
+          return {
+            id: `LN-${loan.id.toString().slice(-4)}`,
+            dbId: loan.id,
+            asset: pledge?.symbol || "Portfolio Pool",
+            code: pledge?.symbol || "AGG",
+            amount: loan.principal_amount,
+            repayable: loan.amount_repayable,
+            nextPayment: loan.first_repayment_date,
+            status: isOverdue ? "overdue" : "active",
+            ltv: pledge?.ltv_applied ? (pledge.ltv_applied * 100) : 50,
+            interestAccrued: loan.amount_repayable - loan.principal_amount,
+            recognisedValue: pledge?.recognised_value || 0,
+            pledgedValue: pledge?.pledged_value || 0
+          };
+        });
+        setActiveLoans(formatted);
+      }
+      setLoading(false);
+    }
+    fetchActiveLoans();
+  }, [profile?.id]);
+
+  // --- AGGREGATE CALCULATIONS ---
+  const totalBalance = useMemo(() => 
+    activeLoans.reduce((acc, loan) => acc + loan.repayable, 0), 
+  [activeLoans]);
+
+  const avgLtv = useMemo(() => {
+    if (activeLoans.length === 0) return 0;
+    const totalRecognised = activeLoans.reduce((acc, l) => acc + l.recognisedValue, 0);
+    return totalRecognised > 0 ? ((totalBalance / totalRecognised) * 100).toFixed(1) : 0;
+  }, [activeLoans, totalBalance]);
+
   const overdueCount = activeLoans.filter(l => l.status === "overdue").length;
 
-  const ltvTrend = [{ v: 52 }, { v: 54 }, { v: 58 }, { v: 57 }, { v: 61 }, { v: 59 }, { v: avgLtv }];
+  // Determine Credit Health based on Step 6 Forced Liquidation Buffer [cite: 93-97]
+  const creditHealth = useMemo(() => {
+    if (avgLtv > 70) return { label: "Critical", color: "text-rose-600" };
+    if (avgLtv > 65) return { label: "Margin Call", color: "text-amber-600" }; // Triggered at 65% [cite: 96]
+    return { label: "Good", color: "text-emerald-600" };
+  }, [avgLtv]);
 
-  // --- Search & Pagination Logic ---
+  const ltvTrend = [{ v: 52 }, { v: 54 }, { v: 58 }, { v: 57 }, { v: 61 }, { v: 59 }, { v: parseFloat(avgLtv) }];
+
+  // --- SEARCH & PAGINATION ---
   const filteredLoans = useMemo(() => {
     return activeLoans.filter(loan => 
       loan.asset.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -87,12 +136,12 @@ const ActiveLiquidity = ({ onBack, fonts }) => {
             <p className="text-[10px] font-bold text-violet-600">{activeLoans.length} Outstanding Loans</p>
         </div>
         <div className="h-10 w-10 flex items-center justify-center">
-            <ShieldCheck className="text-emerald-500" size={20} />
+            <ShieldCheck className={avgLtv > 65 ? "text-amber-500" : "text-emerald-500"} size={20} />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Total Exposure Card - Updated to Light Mode */}
+        {/* Total Exposure Card */}
         <div className="px-6 pt-8 pb-6">
           <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 rounded-[36px] p-8 shadow-xl shadow-violet-900/5 relative overflow-hidden">
             <div className="relative z-10">
@@ -112,15 +161,14 @@ const ActiveLiquidity = ({ onBack, fonts }) => {
               <div className="grid grid-cols-2 gap-8 pt-6 border-t border-violet-200/50">
                 <div>
                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Portfolio LTV</p>
-                   <p className="text-sm font-bold text-amber-600 whitespace-nowrap">{avgLtv}%</p>
+                   <p className={`text-sm font-bold whitespace-nowrap ${avgLtv > 65 ? 'text-rose-500' : 'text-amber-600'}`}>{avgLtv}%</p>
                 </div>
                 <div className="text-right">
                    <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Credit Health</p>
-                   <p className="text-sm font-bold text-emerald-600 uppercase tracking-widest whitespace-nowrap">Good</p>
+                   <p className={`text-sm font-bold uppercase tracking-widest whitespace-nowrap ${creditHealth.color}`}>{creditHealth.label}</p>
                 </div>
               </div>
             </div>
-            <div className="absolute -right-10 -top-10 h-40 w-40 bg-violet-600/5 blur-[60px] rounded-full" />
           </div>
         </div>
 
@@ -142,10 +190,11 @@ const ActiveLiquidity = ({ onBack, fonts }) => {
         <div className="px-6 space-y-4">
           <div className="flex items-center justify-between mb-2 px-2">
              <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Loan Portfolio</h4>
-             <span className="text-[10px] font-bold text-slate-400">Sort by Date</span>
           </div>
           
-          {paginatedLoans.map((loan) => (
+          {loading && <div className="text-center py-10 opacity-40 text-[10px] font-black uppercase tracking-widest animate-pulse">Scanning Active Ledger...</div>}
+
+          {!loading && paginatedLoans.map((loan) => (
             <div key={loan.id} className="bg-white rounded-[28px] p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.05)] transition-all active:scale-[0.98]">
               <div className="flex justify-between items-start mb-5">
                 <div className="flex items-center gap-4">
@@ -168,11 +217,11 @@ const ActiveLiquidity = ({ onBack, fonts }) => {
               <div className="grid grid-cols-2 gap-y-4 mb-5 pb-5 border-b border-slate-50">
                 <div>
                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Settlement Balance</p>
-                    <p className="text-base font-bold text-slate-900 whitespace-nowrap">{formatZar(loan.amount + loan.interestAccrued)}</p>
+                    <p className="text-base font-bold text-slate-900 whitespace-nowrap">{formatZar(loan.repayable)}</p>
                 </div>
                 <div className="text-right">
                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Asset LTV</p>
-                    <p className={`text-base font-bold whitespace-nowrap ${loan.ltv > 60 ? 'text-amber-500' : 'text-slate-900'}`}>{loan.ltv}%</p>
+                    <p className={`text-base font-bold whitespace-nowrap ${loan.ltv > 65 ? 'text-rose-500' : loan.ltv > 60 ? 'text-amber-500' : 'text-slate-900'}`}>{loan.ltv.toFixed(1)}%</p>
                 </div>
                 <div>
                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Next Payment</p>
@@ -184,12 +233,15 @@ const ActiveLiquidity = ({ onBack, fonts }) => {
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Interest Accrued</p>
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Interest Cost</p>
                     <p className="text-xs font-bold text-rose-500 whitespace-nowrap">+{formatZar(loan.interestAccrued)}</p>
                 </div>
               </div>
 
-              <button className="w-full flex items-center justify-between group">
+              <button 
+                onClick={() => setSelectedLoan(loan)}
+                className="w-full flex items-center justify-between group"
+              >
                   <div className="flex items-center gap-2">
                       <TrendingUp size={14} className="text-violet-600" />
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">View Risk Analysis</p>
@@ -198,45 +250,66 @@ const ActiveLiquidity = ({ onBack, fonts }) => {
               </button>
             </div>
           ))}
-
-          {filteredLoans.length === 0 && (
-              <div className="text-center py-20 bg-white rounded-[32px] border border-dashed border-slate-200">
-                  <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Search className="text-slate-300" size={32} />
-                  </div>
-                  <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">No matching loans</p>
-              </div>
-          )}
         </div>
 
-        {/* Modern Pagination Controls */}
+        {/* Pagination Controls */}
         {totalPages > 1 && (
             <div className="px-6 py-8 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-violet-600"></div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Page {currentPage} of {totalPages}</p>
-                </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] whitespace-nowrap">Page {currentPage} of {totalPages}</p>
                 <div className="flex gap-3">
-                    <button 
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(p => p - 1)}
-                        className="h-12 w-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 disabled:opacity-30 active:scale-90 transition-all shadow-sm"
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-                    <button 
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(p => p + 1)}
-                        className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white disabled:opacity-30 active:scale-90 transition-all shadow-lg shadow-slate-900/20"
-                    >
-                        <ChevronRight size={20} />
-                    </button>
+                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-12 w-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 disabled:opacity-30"><ChevronLeft size={20} /></button>
+                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white disabled:opacity-30"><ChevronRight size={20} /></button>
                 </div>
             </div>
         )}
       </div>
 
-      {/* Raised Safe Area to clear persistent navbars (Replaces the bottom buttons) */}
+      {/* --- RISK ANALYSIS MODAL --- */}
+      {selectedLoan && portalTarget && createPortal(
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-6">
+              <div className="bg-white rounded-[40px] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95">
+                  <div className="flex justify-between items-start mb-8">
+                      <div className="h-14 w-14 rounded-3xl bg-violet-50 text-violet-600 flex items-center justify-center">
+                        <ShieldAlert size={28} />
+                      </div>
+                      <button onClick={() => setSelectedLoan(null)} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center">
+                        <X size={20} />
+                      </button>
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">Liquidation Analysis</h3>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">Loan ID: {selectedLoan.id}</p>
+                  
+                  <div className="space-y-4 mb-8">
+                      <div className="bg-slate-50 rounded-2xl p-4">
+                        <div className="flex justify-between mb-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Margin Call Trigger</span>
+                            <span className="text-xs font-bold text-amber-600">65% LTV</span>
+                        </div>
+                        <div className="relative h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-amber-500" style={{ width: `${(selectedLoan.ltv / 65) * 100}%` }} />
+                        </div>
+                      </div>
+                      <div className="bg-slate-50 rounded-2xl p-4">
+                        <div className="flex justify-between mb-2">
+                            <span className="text-[10px] font-black text-slate-400 uppercase">Auto-Liquidation</span>
+                            <span className="text-xs font-bold text-rose-600">70% LTV</span>
+                        </div>
+                        <div className="relative h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                            <div className="h-full bg-rose-500" style={{ width: `${(selectedLoan.ltv / 70) * 100}%` }} />
+                        </div>
+                      </div>
+                  </div>
+
+                  <button 
+                    onClick={() => setSelectedLoan(null)} 
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-xl"
+                  >
+                    Return to Portfolio
+                  </button>
+              </div>
+          </div>
+      , portalTarget)}
+
       <div className="h-28 bg-transparent" />
     </div>
   );

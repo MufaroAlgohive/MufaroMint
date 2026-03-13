@@ -127,15 +127,35 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     initData();
   }, [profile?.id]);
 
-  // --- LOGIC CALCULATIONS ---
+// --- LOGIC CALCULATIONS ---
   const totalPortfolioValue = portfolioItems.reduce((acc, item) => acc + item.balance, 0);
-  const maxPerCounter = totalPortfolioValue * 0.45;
+  const maxPerCounter = totalPortfolioValue * 0.45; 
+  const maxPerSector = totalPortfolioValue * 0.50;  
 
-  const enrichedItems = useMemo(() => portfolioItems.map(item => {
-    const recognizedValue = Math.min(item.balance, maxPerCounter);
-    const available = item.isEligible ? recognizedValue * item.ltv : 0;
-    return { ...item, recognizedValue, available, isCapped: item.balance > maxPerCounter };
-  }), [portfolioItems, maxPerCounter]);
+  const enrichedItems = useMemo(() => {
+    const sectorTotals = {};
+    portfolioItems.forEach(item => {
+      const sector = item.sector || "Uncategorized";
+      sectorTotals[sector] = (sectorTotals[sector] || 0) + item.balance;
+    });
+
+    return portfolioItems.map(item => {
+      const counterCappedValue = Math.min(item.balance, maxPerCounter);
+
+      const currentSectorTotal = sectorTotals[item.sector] || 0;
+      const sectorFactor = currentSectorTotal > maxPerSector ? (maxPerSector / currentSectorTotal) : 1;
+
+      const recognizedValue = counterCappedValue * sectorFactor;
+      const available = item.isEligible ? recognizedValue * item.ltv : 0;
+
+      return { 
+        ...item, 
+        recognizedValue, 
+        available, 
+        isCapped: item.balance > maxPerCounter || currentSectorTotal > maxPerSector 
+      };
+    });
+  }, [portfolioItems, maxPerCounter, maxPerSector]);
 
   const totalAvailable = enrichedItems.reduce((acc, item) => acc + item.available, 0);
   const qualifyingCount = enrichedItems.filter(i => i.isEligible).length;
@@ -158,6 +178,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   const totalSelectedAvailable = selectedAssets.reduce((sum, item) => sum + item.available, 0);
   const totalSelectedBalance = selectedAssets.reduce((sum, item) => sum + item.balance, 0);
 
+
   // --- EVENT HANDLERS ---
   const toggleAsset = (asset) => {
     if (!asset.isEligible) return;
@@ -171,7 +192,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
   const handleOpenPledgeModal = () => {
     if (selectedAssets.length === 0) return;
     setWorkflowStep("idle");
-    setPledgeAmount(totalSelectedAvailable * 0.5); // Default to 50% drawdown
+    setPledgeAmount(totalSelectedAvailable * 0.5); 
     setIsDetailOpen(true);
   };
 
