@@ -16,6 +16,47 @@ import PortfolioSkeleton from "../components/PortfolioSkeleton";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+const formatPnlAxis = (value) => {
+  const num = Number(value);
+  if (Math.abs(num) < 0.5) return "R0";
+  const sign = num < 0 ? "-" : "";
+  const abs = Math.abs(num);
+  if (abs >= 1e6) return `${sign}R${(abs / 1e6).toFixed(1)}m`;
+  if (abs >= 1e3) return `${sign}R${(abs / 1e3).toFixed(0)}k`;
+  return `${sign}R${abs.toFixed(0)}`;
+};
+
+const computePnlAxisConfig = (data, dataKey = "value") => {
+  if (!data || data.length === 0) return { domain: [-10, 10], ticks: [-10, 0, 10] };
+  const values = data.map((p) => p[dataKey]);
+  let dataMin = Math.min(...values);
+  let dataMax = Math.max(...values);
+  if (Math.abs(dataMax - dataMin) < 1) {
+    dataMin = Math.min(dataMin, -5);
+    dataMax = Math.max(dataMax, 5);
+  }
+  let axisMin, axisMax;
+  if (dataMin >= 0) {
+    axisMin = 0;
+    axisMax = dataMax * 1.15 || 10;
+  } else if (dataMax <= 0) {
+    axisMin = dataMin * 1.15 || -10;
+    axisMax = 0;
+  } else {
+    const absMax = Math.max(Math.abs(dataMin), Math.abs(dataMax));
+    axisMin = -(absMax * 1.15);
+    axisMax = absMax * 1.15;
+  }
+  const totalRange = axisMax - axisMin;
+  const step = Math.round(totalRange / 3) || 1;
+  const ticks = [];
+  let t = Math.round(axisMin);
+  while (t <= axisMax + 0.5) { ticks.push(t); t += step; }
+  if (!ticks.includes(0)) { ticks.push(0); ticks.sort((a, b) => a - b); }
+  const unique = [...new Set(ticks)].sort((a, b) => a - b);
+  return { domain: [axisMin, axisMax], ticks: unique.length >= 2 ? unique : [0, 5, 10] };
+};
+
 const getReturnColor = (value) => {
   if (value == null) return "bg-slate-50 text-slate-600";
   if (value > 0) return "bg-emerald-50 text-emerald-600";
@@ -318,9 +359,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
   const currentChartData = getChartData();
   const isLoadingData = strategiesLoading || chartLoading;
 
-  const strategyPnl = (currentStrategy.currentValue || 0) - (currentStrategy.investedAmount || 0);
-  const isStrategyPositive = strategyPnl >= 0;
-  const strategyChartColor = isStrategyPositive ? '#10B981' : '#FB7185';
+  const strategyAxisConfig = computePnlAxisConfig(currentChartData);
 
   const formatCurrency = (value) => {
     return `R${value.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -702,8 +741,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 >
                   <defs>
                     <linearGradient id="glowGradientVertical" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={strategyChartColor} stopOpacity="0.3" />
-                      <stop offset="100%" stopColor={strategyChartColor} stopOpacity="0.02" />
+                      <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
+                      <stop offset="50%" stopColor="#a78bfa" stopOpacity="0.2" />
+                      <stop offset="100%" stopColor="#c4b5fd" stopOpacity="0.02" />
                     </linearGradient>
                   </defs>
                   
@@ -717,26 +757,13 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   />
 
                   <YAxis
+                    domain={strategyAxisConfig.domain}
+                    ticks={strategyAxisConfig.ticks}
+                    tickFormatter={formatPnlAxis}
+                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
-                    tickFormatter={(val) => {
-                      const sign = val < 0 ? '-' : '';
-                      const abs = Math.abs(val);
-                      if (abs >= 10000) return `${sign}R${(abs / 1000).toFixed(0)}k`;
-                      if (abs >= 1000) return `${sign}R${(abs / 1000).toFixed(1)}k`;
-                      if (abs >= 100) return `${sign}R${abs.toFixed(0)}`;
-                      return `${sign}R${abs.toFixed(2)}`;
-                    }}
                     width={55}
-                    tickCount={5}
-                    domain={([dataMin, dataMax]) => {
-                      const range = dataMax - dataMin;
-                      const padding = range > 0 ? Math.max(range * 0.15, 0.5) : 1;
-                      const lo = Math.min(dataMin - padding, -padding);
-                      const hi = Math.max(dataMax + padding, padding);
-                      return [lo, hi];
-                    }}
                   />
 
                   <ReferenceLine y={0} stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth={1} />
@@ -750,7 +777,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         return (
                           <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 shadow-md">
                             <div className="text-xs text-slate-500 mb-0.5">{fullDate}</div>
-                            <div className={`text-sm font-bold ${isPos ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            <div className="text-sm font-bold text-violet-700">
                               {isPos ? '+' : '-'}R{Math.abs(val).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </div>
                           </div>
@@ -773,15 +800,15 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   <Line
                     type="monotone"
                     dataKey="value"
-                    stroke={strategyChartColor}
+                    stroke="#7c3aed"
                     strokeWidth={2.5}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     dot={false}
                     activeDot={{
                       r: 6,
-                      fill: strategyChartColor,
-                      stroke: isStrategyPositive ? '#6ee7b7' : '#fda4af',
+                      fill: '#7c3aed',
+                      stroke: '#c4b5fd',
                       strokeWidth: 2,
                     }}
                   />
@@ -984,11 +1011,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 })()
               : liveStockChartData)
           : [];
-        const currentStockPnl = showStockPnl && stockChartData.length > 1
-          ? stockChartData[stockChartData.length - 1].value
-          : 0;
-        const isStockPositive = !showStockPnl || currentStockPnl >= 0;
-        const stockChartColor = showStockPnl ? (isStockPositive ? '#10B981' : '#FB7185') : '#7c3aed';
+        const stockAxisConfig = computePnlAxisConfig(stockChartData);
         if (!selectedStock) {
           if (quotesLoading || holdingsLoading) {
             return <div className="text-center py-10 text-slate-500">Loading stocks...</div>;
@@ -1127,8 +1150,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       >
                         <defs>
                           <linearGradient id="stockGlowGradientVertical" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={stockChartColor} stopOpacity="0.3" />
-                            <stop offset="100%" stopColor={stockChartColor} stopOpacity="0.02" />
+                            <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
+                            <stop offset="50%" stopColor="#a78bfa" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="#c4b5fd" stopOpacity="0.02" />
                           </linearGradient>
                         </defs>
 
@@ -1142,26 +1166,13 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         />
 
                         <YAxis
+                          domain={stockAxisConfig.domain}
+                          ticks={stockAxisConfig.ticks}
+                          tickFormatter={formatPnlAxis}
+                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 500 }}
-                          tickFormatter={(val) => {
-                            const sign = val < 0 ? '-' : '';
-                            const abs = Math.abs(val);
-                            if (abs >= 10000) return `${sign}R${(abs / 1000).toFixed(0)}k`;
-                            if (abs >= 1000) return `${sign}R${(abs / 1000).toFixed(1)}k`;
-                            if (abs >= 100) return `${sign}R${abs.toFixed(0)}`;
-                            return `${sign}R${abs.toFixed(2)}`;
-                          }}
                           width={55}
-                          tickCount={5}
-                          domain={([dataMin, dataMax]) => {
-                            const range = dataMax - dataMin;
-                            const padding = range > 0 ? Math.max(range * 0.15, 0.5) : 1;
-                            const lo = Math.min(dataMin - padding, -padding);
-                            const hi = Math.max(dataMax + padding, padding);
-                            return [lo, hi];
-                          }}
                         />
 
                         {showStockPnl && (
@@ -1177,8 +1188,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                               return (
                                 <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-3 py-1.5 shadow-md">
                                   <div className="text-xs text-slate-500 mb-0.5">{fullDate}</div>
-                                  <div className={`text-sm font-bold ${showStockPnl ? (isPos ? 'text-emerald-600' : 'text-rose-500') : 'text-violet-600'}`}>
-                                    {showStockPnl ? (isPos ? '+' : '-') : ''}R{showStockPnl ? Math.abs(val).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : val.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  <div className="text-sm font-bold text-violet-700">
+                                    {showStockPnl ? (isPos ? '+' : '-') + 'R' + Math.abs(val).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'R' + val.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </div>
                                 </div>
                               );
@@ -1200,15 +1211,15 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         <Line
                           type="monotone"
                           dataKey="value"
-                          stroke={stockChartColor}
+                          stroke="#7c3aed"
                           strokeWidth={2.5}
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           dot={false}
                           activeDot={{
                             r: 6,
-                            fill: stockChartColor,
-                            stroke: isStockPositive ? '#6ee7b7' : '#fda4af',
+                            fill: '#7c3aed',
+                            stroke: '#c4b5fd',
                             strokeWidth: 2,
                           }}
                         />
