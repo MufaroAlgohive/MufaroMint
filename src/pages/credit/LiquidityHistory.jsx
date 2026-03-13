@@ -19,11 +19,6 @@ import {
 import { formatZar } from "../../lib/formatCurrency";
 import { supabase } from "../../lib/supabase";
 
-/**
- * LiquidityHistory Component
- * Tracks the full lifecycle of portfolio-backed credit events including pledges, 
- * repayments, and margin adjustments based on risk parameters [cite: 59-61, 93-94].
- */
 const LiquidityHistory = ({ onBack, profile }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,46 +43,49 @@ const LiquidityHistory = ({ onBack, profile }) => {
     async function fetchHistory() {
       if (!profile?.id) return;
       setLoading(true);
-
-      // Fetch pledges joined with their master loan application to track status and terms [cite: 1, 56-58]
-      const { data, error } = await supabase
-        .from('pbc_collateral_pledges')
-        .select(`
-          id,
-          symbol,
-          pledged_value,
-          recognised_value,
-          ltv_applied,
-          loan_value,
-          created_at,
-          loan_application (
+      try {
+        const { data, error } = await supabase
+          .from('pbc_collateral_pledges')
+          .select(`
             id,
-            status,
-            interest_rate,
-            amount_repayable,
-            first_repayment_date
-          )
-        `)
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false });
+            symbol,
+            pledged_value,
+            recognised_value,
+            ltv_applied,
+            loan_value,
+            created_at,
+            loan_application (
+              id,
+              status,
+              interest_rate,
+              amount_repayable,
+              first_repayment_date
+            )
+          `)
+          .eq('user_id', profile.id)
+          .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        const formatted = data.map(item => ({
-          id: item.id,
-          type: 'pledge', 
-          asset: item.symbol,
-          code: item.symbol,
-          amount: item.loan_value,
-          date: item.created_at,
-          status: item.loan_application?.status || 'active',
-          interestRate: item.loan_application?.interest_rate,
-          ltv: `${(item.ltv_applied * 100).toFixed(0)}%`,
-          details: `Drawdown of ${formatZar(item.loan_value)} against ${item.symbol} collateral.`,
-          recognisedCollateral: item.recognised_value
-        }));
-        setHistoryData(formatted);
+        if (!error && data) {
+          const formatted = data.map(item => ({
+            id: item.id,
+            type: 'pledge', 
+            asset: item.symbol,
+            code: item.symbol,
+            amount: item.loan_value,
+            date: item.created_at,
+            status: item.loan_application?.status || 'active',
+            interestRate: item.loan_application?.interest_rate,
+            ltv: `${(item.ltv_applied * 100).toFixed(0)}%`,
+            details: `Drawdown of ${formatZar(item.loan_value)} against ${item.symbol} collateral.`,
+            recognisedCollateral: item.recognised_value
+          }));
+          setHistoryData(formatted);
+        }
+      } catch (err) {
+        console.error("Ledger retrieval error:", err);
+      } finally {
+        setLoading(false); // Stops the scanning state
       }
-      setLoading(false);
     }
     fetchHistory();
   }, [profile?.id]);
@@ -98,8 +96,6 @@ const LiquidityHistory = ({ onBack, profile }) => {
     return {
       totalActiveDebt: active.reduce((sum, h) => sum + h.amount, 0),
       totalRecognisedCollateral: active.reduce((sum, h) => sum + h.recognisedCollateral, 0),
-      // Calculates estimated lifecycle interest based on the 10.5% prime rate [cite: 104]
-      estimatedInterest: active.reduce((sum, h) => sum + (h.amount * (h.interestRate / 100) / 12), 0)
     };
   }, [historyData]);
 
@@ -111,7 +107,7 @@ const LiquidityHistory = ({ onBack, profile }) => {
     );
   }, [searchQuery, historyData]);
 
-  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(filteredHistory.length / itemsPerPage));
   const paginatedData = filteredHistory.slice(
     (currentPage - 1) * itemsPerPage, 
     currentPage * itemsPerPage
@@ -121,7 +117,7 @@ const LiquidityHistory = ({ onBack, profile }) => {
     switch(status) {
       case 'active': case 'approved': return 'text-amber-600 bg-amber-50 border-amber-100';
       case 'completed': case 'settled': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-      case 'margin_call': return 'text-rose-600 bg-rose-50 border-rose-100'; // Risk trigger [cite: 96]
+      case 'margin_call': return 'text-rose-600 bg-rose-50 border-rose-100';
       default: return 'text-slate-400 bg-slate-50 border-slate-100';
     }
   };
@@ -143,27 +139,29 @@ const LiquidityHistory = ({ onBack, profile }) => {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* Dynamic Summary Card - Visualizing Risk Concentration [cite: 67-68] */}
+        {/* Updated Summary Card - Light Purple Style */}
         <div className="px-6 py-8">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[32px] p-8 shadow-2xl relative overflow-hidden">
-                <div className="relative z-10 text-white">
+            <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 rounded-[32px] p-8 shadow-xl shadow-violet-900/5 relative overflow-hidden">
+                <div className="relative z-10">
                     <div className="flex justify-between items-start mb-6">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-1">Active Debt Exposure</p>
-                            <h2 className="text-4xl font-light tracking-tight" style={{ fontFamily: fonts.display }}>{formatZar(summary.totalActiveDebt)}</h2>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-500 mb-1">Active Debt Exposure</p>
+                            <h2 className="text-4xl font-light tracking-tight text-slate-900" style={{ fontFamily: fonts.display }}>
+                              {loading ? "..." : formatZar(summary.totalActiveDebt)}
+                            </h2>
                         </div>
-                        <div className="bg-white/10 p-2 rounded-2xl backdrop-blur-md border border-white/10">
-                            <ReceiptText className="text-violet-400" size={24} />
+                        <div className="bg-white p-2 rounded-2xl border border-violet-100 shadow-sm">
+                            <ReceiptText className="text-violet-600" size={24} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-white/10">
+                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-violet-200/50">
                         <div>
-                            <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Recognized Collateral</p>
-                            <p className="text-sm font-bold text-white">{formatZar(summary.totalRecognisedCollateral)}</p>
+                            <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Recognized Collateral</p>
+                            <p className="text-sm font-bold text-slate-900">{formatZar(summary.totalRecognisedCollateral)}</p>
                         </div>
                         <div>
-                            <p className="text-[9px] font-black text-white/40 uppercase tracking-widest mb-1">Current LTV Pool</p>
-                            <p className="text-sm font-bold text-emerald-400">
+                            <p className="text-[9px] font-black text-violet-400 uppercase tracking-widest mb-1">Current LTV Pool</p>
+                            <p className="text-sm font-bold text-emerald-600">
                                 {summary.totalRecognisedCollateral > 0 
                                     ? ((summary.totalActiveDebt / summary.totalRecognisedCollateral) * 100).toFixed(1) 
                                     : 0}%
@@ -171,7 +169,7 @@ const LiquidityHistory = ({ onBack, profile }) => {
                         </div>
                     </div>
                 </div>
-                <div className="absolute -right-10 -bottom-10 opacity-10 text-white">
+                <div className="absolute -right-10 -bottom-10 opacity-50 text-violet-100">
                     <History size={180} />
                 </div>
             </div>
@@ -193,13 +191,22 @@ const LiquidityHistory = ({ onBack, profile }) => {
 
         {/* Dynamic Event List */}
         <div className="px-6 space-y-4">
-            {loading && (
+            {loading ? (
               <div className="text-center py-10 text-[10px] font-black text-slate-400 animate-pulse uppercase tracking-widest">
                 Reconstructing Ledger...
               </div>
-            )}
-            
-            {!loading && paginatedData.map((item) => (
+            ) : historyData.length === 0 ? (
+              <div className="p-10 border-2 border-dashed border-slate-200 rounded-[32px] text-center">
+                  <AlertCircle className="mx-auto text-slate-200 mb-3" size={32} />
+                  <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No History Found</p>
+              </div>
+            ) : filteredHistory.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-[32px] border border-dashed border-slate-200">
+                  <Search className="text-slate-200 mx-auto mb-4" size={40} />
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No matching history</p>
+              </div>
+            ) : (
+              paginatedData.map((item) => (
                 <button 
                     key={item.id} 
                     onClick={() => setSelectedEvent(item)}
@@ -233,41 +240,23 @@ const LiquidityHistory = ({ onBack, profile }) => {
                         </div>
                     </div>
                 </button>
-            ))}
-
-            {!loading && filteredHistory.length === 0 && (
-                <div className="text-center py-20 bg-white rounded-[32px] border border-dashed border-slate-200">
-                    <Search className="text-slate-200 mx-auto mb-4" size={40} />
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No matching history</p>
-                </div>
+              ))
             )}
         </div>
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
+        {!loading && totalPages > 1 && (
             <div className="px-6 py-12 flex items-center justify-between">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page {currentPage}/{totalPages}</p>
                 <div className="flex gap-3">
-                    <button 
-                      disabled={currentPage === 1} 
-                      onClick={() => setCurrentPage(p => p - 1)} 
-                      className="h-12 w-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 disabled:opacity-30"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <button 
-                      disabled={currentPage === totalPages} 
-                      onClick={() => setCurrentPage(p => p + 1)} 
-                      className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white disabled:opacity-30"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
+                    <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-12 w-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 disabled:opacity-30 active:scale-90 transition-all"><ChevronLeft size={20} /></button>
+                    <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white disabled:opacity-30 active:scale-90 transition-all shadow-lg shadow-slate-900/20"><ChevronRight size={20} /></button>
                 </div>
             </div>
         )}
       </div>
 
-      {/* --- EVENT AUDIT MODAL (Working React Portal) --- */}
+      {/* --- EVENT AUDIT MODAL --- */}
       {selectedEvent && portalTarget && createPortal(
           <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-6">
               <div className="bg-white rounded-[40px] p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95">
@@ -275,7 +264,7 @@ const LiquidityHistory = ({ onBack, profile }) => {
                       <div className="h-14 w-14 rounded-3xl bg-violet-50 text-violet-600 flex items-center justify-center">
                         <Info size={28} />
                       </div>
-                      <button onClick={() => setSelectedEvent(null)} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center">
+                      <button onClick={() => setSelectedEvent(null)} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center transition-all active:scale-90">
                         <X size={20} />
                       </button>
                   </div>
