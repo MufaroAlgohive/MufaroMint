@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from "../../lib/supabase"; 
-
+import { supabase } from "../../lib/supabase";
 import { 
   Search, SlidersHorizontal, ChevronRight, X, ShieldCheck, 
-  ArrowRight, Check, AlertCircle, Banknote, Clock, Wallet, Percent
+  ArrowRight, Check, AlertCircle, Banknote, Clock, Wallet, Percent,
+  CreditCard, ArrowUpRight, ArrowDownLeft, RefreshCw, FileText, Settings, HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -30,8 +30,8 @@ export default function InstantLiquidity({ profile }) {
     return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
       currency: 'ZAR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value || 0);
   };
 
@@ -95,7 +95,7 @@ export default function InstantLiquidity({ profile }) {
           autoLiq: screen.auto_liquidation,
           change: (Math.random() * 5) - 2.5, // Dummy change
           spark: spark,
-          type: "Equities" // Defaulting type for filter
+          type: security.exchange === 'MINT' ? 'Strategies' : 'Equities' // Basic categorisation
         };
       });
 
@@ -238,7 +238,6 @@ export default function InstantLiquidity({ profile }) {
     });
   }, [portfolio, searchQuery, selectedFilter]);
 
-
   // Mini Chart Component
   const AssetMiniChart = ({ data, isPositive }) => {
     const min = Math.min(...data);
@@ -267,147 +266,195 @@ export default function InstantLiquidity({ profile }) {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
+      
       {/* Header */}
-      <div className="bg-white px-6 pt-12 pb-4 border-b border-slate-100 sticky top-0 z-20">
-        <h1 className="text-2xl font-bold text-slate-900">Instant Liquidity</h1>
-        <p className="text-slate-500 text-sm mt-1">Unlock capital without selling your assets</p>
+      <div className="px-6 pt-12 pb-6 bg-slate-50">
+        <h1 className="text-3xl font-bold text-slate-900 mb-1">Credit & Loans</h1>
+        <p className="text-slate-500 text-sm">Manage your liquidity and credit facilities</p>
       </div>
 
-      <div className="p-6 space-y-6">
-        {/* Main Hero Card */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-emerald-500/10 rounded-full blur-2xl -ml-10 -mb-10"></div>
+      <div className="px-6">
+        
+        {/* Main Hero Card (Your Original Styling) */}
+        <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden mb-6">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl -ml-10 -mb-10"></div>
           
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-8">
               <div>
-                <p className="text-slate-400 text-sm font-medium mb-1">Max Recognised Liquidity</p>
+                <p className="text-slate-400 text-sm font-medium mb-1">Available to Borrow</p>
                 <h2 className="text-4xl font-bold tracking-tight">
                   {formatZAR(totalAvailable)}
                 </h2>
               </div>
               <div className="bg-white/10 p-3 rounded-2xl backdrop-blur-md">
-                <Banknote className="w-6 h-6 text-emerald-400" />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/10 mb-6">
-              <div>
-                <p className="text-slate-400 text-xs mb-1">Total Portfolio Value</p>
-                <p className="text-lg font-semibold">{formatZAR(totalBalance)}</p>
-              </div>
-              <div className="h-8 w-px bg-white/10"></div>
-              <div>
-                <p className="text-slate-400 text-xs mb-1">Active Loans</p>
-                <p className="text-lg font-semibold">{formatZAR(creditAccount?.loan_balance || 0)}</p>
+                <CreditCard className="w-6 h-6 text-blue-400" />
               </div>
             </div>
 
             <div className="flex gap-3">
               <button 
                 onClick={handlePledgeAll}
-                className="flex-1 bg-blue-500 hover:bg-blue-400 text-white py-3 rounded-xl font-medium shadow-lg shadow-blue-500/25 transition-colors"
+                className="flex-1 bg-blue-500 hover:bg-blue-400 text-white py-3 px-4 rounded-xl font-medium shadow-lg shadow-blue-500/25 transition-colors flex items-center justify-center gap-2"
               >
-                Pledge All
+                <ArrowDownLeft className="w-5 h-5" />
+                Get Cash
               </button>
-              <button className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 rounded-xl font-medium backdrop-blur-md transition-colors">
-                Manage Active
+              <button className="flex-1 bg-white/10 hover:bg-white/20 text-white py-3 px-4 rounded-xl font-medium backdrop-blur-md transition-colors flex items-center justify-center gap-2">
+                <ArrowUpRight className="w-5 h-5" />
+                Repay
               </button>
             </div>
           </div>
         </div>
 
-        {/* Filters & Search */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 relative">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Search assets..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          <button className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors">
-            <SlidersHorizontal className="w-5 h-5" />
+        {/* Quick Actions (Your Original Styling) */}
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[
+            { icon: RefreshCw, label: "Auto-Pay", color: "text-blue-600", bg: "bg-blue-50" },
+            { icon: FileText, label: "Statements", color: "text-purple-600", bg: "bg-purple-50" },
+            { icon: Settings, label: "Settings", color: "text-slate-600", bg: "bg-slate-100" },
+            { icon: HelpCircle, label: "Support", color: "text-emerald-600", bg: "bg-emerald-50" },
+          ].map((action, i) => (
+            <button key={i} className="flex flex-col items-center gap-2">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${action.bg}`}>
+                <action.icon className={`w-6 h-6 ${action.color}`} />
+              </div>
+              <span className="text-xs font-medium text-slate-600">{action.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex p-1 bg-slate-200/50 rounded-xl mb-6">
+          <button
+            onClick={() => setActiveTab("borrow")}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              activeTab === "borrow" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+            }`}
+          >
+            Credit
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-colors ${
+              activeTab === "history" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+            }`}
+          >
+            History
           </button>
         </div>
 
-        {/* Eligible Assets List */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-end mb-2">
-            <h3 className="text-lg font-bold text-slate-900">Eligible Collateral</h3>
-            <span className="text-sm font-medium text-blue-600">{filteredPortfolio.filter(i => i.isEligible).length} Assets</span>
-          </div>
+        {activeTab === "borrow" && (
+          <div className="space-y-6">
+            
+            {/* Search & Filter */}
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex-1 relative">
+                <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search collateral..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
 
-          {isLoading ? (
-            <div className="text-center py-10 text-slate-500">Loading portfolio...</div>
-          ) : (
-            filteredPortfolio.map((item) => {
-              const isSelected = selectedAssets.some(a => a.id === item.id);
-              
-              return (
-                <div 
-                  key={item.id}
-                  onClick={() => item.isEligible && toggleAsset(item)}
-                  className={`p-4 rounded-2xl border relative ${
-                    item.isEligible 
-                      ? isSelected
-                        ? "bg-blue-50/50 border-blue-400 shadow-sm"
-                        : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all" 
-                      : "bg-slate-50 border-slate-100 opacity-60 grayscale"
+            {/* Categories */}
+            <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-hide">
+              {["All", "Equities", "Crypto", "Strategies"].map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedFilter(category)}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors border ${
+                    selectedFilter === category 
+                      ? "bg-slate-900 text-white border-slate-900" 
+                      : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                   }`}
                 >
-                  {/* Selection Indicator */}
-                  {item.isEligible && (
-                    <div className={`absolute top-4 right-4 rounded-full p-1 border ${
-                      isSelected ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 text-transparent"
-                    }`}>
-                      <Check className="w-3 h-3" strokeWidth={3} />
-                    </div>
-                  )}
+                  {category}
+                </button>
+              ))}
+            </div>
 
-                  <div className="flex justify-between items-start mb-4 pr-8">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">
-                        {item.code.substring(0,2)}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-slate-900 leading-tight">{item.code}</h4>
-                        <p className="text-xs text-slate-500 truncate max-w-[120px]">{item.name}</p>
-                      </div>
-                    </div>
-                    {item.isEligible && (
-                      <div className="text-right">
-                        <AssetMiniChart data={item.spark} isPositive={item.change >= 0} />
-                      </div>
-                    )}
-                  </div>
+            {/* Eligible Assets List (New Selectable List Style) */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-end mb-2">
+                <h3 className="text-lg font-bold text-slate-900">Eligible Collateral</h3>
+                <span className="text-sm font-medium text-blue-600">{filteredPortfolio.filter(i => i.isEligible).length} Assets</span>
+              </div>
 
-                  <div className="grid grid-cols-2 gap-4 mt-2">
-                    <div>
-                      <p className="text-xs text-slate-500 mb-0.5">Holdings Value</p>
-                      <p className="font-semibold text-slate-900">{formatZAR(item.balance)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-500 mb-0.5">Available Limit ({item.ltv * 100}%)</p>
-                      <p className="font-semibold text-emerald-600">{formatZAR(item.available)}</p>
-                    </div>
-                  </div>
+              {isLoading ? (
+                <div className="text-center py-10 text-slate-500">Loading portfolio...</div>
+              ) : (
+                filteredPortfolio.map((item) => {
+                  const isSelected = selectedAssets.some(a => a.id === item.id);
+                  
+                  return (
+                    <div 
+                      key={item.id}
+                      onClick={() => item.isEligible && toggleAsset(item)}
+                      className={`p-4 rounded-2xl border relative ${
+                        item.isEligible 
+                          ? isSelected
+                            ? "bg-blue-50/50 border-blue-400 shadow-sm"
+                            : "bg-white border-slate-200 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all" 
+                          : "bg-slate-50 border-slate-100 opacity-60 grayscale"
+                      }`}
+                    >
+                      {/* Selection Indicator */}
+                      {item.isEligible && (
+                        <div className={`absolute top-4 right-4 rounded-full p-1 border ${
+                          isSelected ? "bg-blue-600 border-blue-600 text-white" : "border-slate-300 text-transparent"
+                        }`}>
+                          <Check className="w-3 h-3" strokeWidth={3} />
+                        </div>
+                      )}
 
-                  {!item.isEligible && (
-                    <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2 text-xs text-slate-500">
-                      <AlertCircle className="w-4 h-4" />
-                      Does not meet current liquidity requirements
+                      <div className="flex justify-between items-start mb-4 pr-8">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">
+                            {item.code.substring(0,2)}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 leading-tight">{item.code}</h4>
+                            <p className="text-xs text-slate-500 truncate max-w-[120px]">{item.name}</p>
+                          </div>
+                        </div>
+                        {item.isEligible && (
+                          <div className="text-right">
+                            <AssetMiniChart data={item.spark} isPositive={item.change >= 0} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div>
+                          <p className="text-xs text-slate-500 mb-0.5">Holdings Value</p>
+                          <p className="font-semibold text-slate-900">{formatZAR(item.balance)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-slate-500 mb-0.5">Available Limit ({item.ltv * 100}%)</p>
+                          <p className="font-semibold text-emerald-600">{formatZAR(item.available)}</p>
+                        </div>
+                      </div>
+
+                      {!item.isEligible && (
+                        <div className="mt-4 pt-3 border-t border-slate-200 flex items-center gap-2 text-xs text-slate-500">
+                          <AlertCircle className="w-4 h-4" />
+                          Does not meet current liquidity requirements
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Multi-Select Floating Action Bar */}
