@@ -219,6 +219,7 @@ export default async function handler(req, res) {
             unrealized_pnl: 0,
             as_of_date: new Date().toISOString().split("T")[0],
             Status: "active",
+            strategy_id: strategyId || null,
           })
           .select();
         holdingResult = { data, error };

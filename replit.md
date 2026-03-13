@@ -31,9 +31,9 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
 - **Biometric Authentication**: Integration with `capacitor-face-id` for native iOS/Android biometrics (Face ID/Touch ID) for secure login alternatives, configurable via settings.
 - **PIN Lock Screen**: A 5-digit PIN setup and lock screen with SHA-256 hashing for enhanced session security.
 - **User Onboarding**: A 6-step identification process including employment details, Sumsub KYC verification, discretionary mandate, risk disclosure, source of funds declaration, bank account details collection, and T&C agreements. Bank details (name, account number, branch code) are saved to both dedicated `user_onboarding` columns and the `sumsub_raw` JSON field.
-- **Minimum Investment Enforcement**: R1,000 minimum per individual asset holding, enforced in `src/lib/strategyUtils.js`. `calculateMinInvestment` adjusts share counts upward so each holding meets R1,000 floor, with fallbacks to strategy-level `last_close`/`nav` price when holdings data is unavailable. The total strategy minimum is also floored at R1,000. Display uses "Min. investment" label in bottom sheets on MarketsPage and OpenStrategiesPage.
+- **Minimum Investment Enforcement**: No R1,000 floor on `calculateMinInvestment` — sums raw `shares × (last_price/100)` directly, returns `Math.round(total)` or null. `getAdjustedShares()` still uses R1,000 floor for individual asset purchases.
 - **Notification System**: Centralized real-time notifications via Supabase subscriptions, grouped by date, with swipe-to-delete, "mark all as read" functionality, and user-configurable notification type preferences.
-- **Settlement Status Tracking**: Real-time detection of CSDP and broker integration via environment variables, with a settlement lifecycle (pending_csdp → pending_broker → confirmed) and status badges on holdings.
+- **Settlement Config**: `/api/settlement/config.js` returns `fullyIntegrated: true`. CSDP settlement logic has been removed from the portfolio page (`NewPortfolioPage.jsx`). Portfolio tabs now display data based purely on `stock_holdings` records and strategy matching via transaction names.
 
 ### Feature Specifications
 - **Dashboard**: Investment portfolio dashboard with strategy selection and performance charts.
