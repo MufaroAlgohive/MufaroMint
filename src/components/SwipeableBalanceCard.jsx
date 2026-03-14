@@ -758,6 +758,8 @@ const SwipeableBalanceCard = ({
                           {item.symbol}
                         </span>
                         {(() => {
+                          const isSettlementActive = settlementCfg.csdpEnabled || settlementCfg.brokerEnabled || settlementCfg.fullyIntegrated;
+                          if (!isSettlementActive) return null;
                           const s = item.settlement_status || holdingSettlementStatus;
                           return s && s !== "confirmed" ? (
                             <SettlementBadge status={s} size="xs" />

@@ -813,6 +813,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
                             <div className="flex items-center gap-1.5">
                               <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
                               {(() => {
+                                const isSettlementActive = settlementCfg.csdpEnabled || settlementCfg.brokerEnabled || settlementCfg.fullyIntegrated;
+                                if (!isSettlementActive) return null;
                                 const s = row.settlement_status || holdingSettlementStatus;
                                 return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
                               })()}
@@ -886,6 +888,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
                                 <div className="flex items-center gap-1.5">
                                   <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
                                   {(() => {
+                                    const isSettlementActive = settlementCfg.csdpEnabled || settlementCfg.brokerEnabled || settlementCfg.fullyIntegrated;
+                                    if (!isSettlementActive) return null;
                                     const s = row.settlement_status || holdingSettlementStatus;
                                     return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
                                   })()}
