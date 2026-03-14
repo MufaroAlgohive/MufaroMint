@@ -621,20 +621,19 @@ export const getMonthlyReturns = async (strategyId, startDate = null) => {
       }
     }
 
-    if (startDate) {
-      const startYM = startDate.slice(0, 7);
-      const [startYear, startMonth] = startYM.split("-");
-      for (const year of Object.keys(result)) {
-        if (year < startYear) {
-          delete result[year];
-        } else if (year === startYear) {
-          for (const month of Object.keys(result[year])) {
-            if (month < startMonth) {
-              delete result[year][month];
-            }
+    const filterStart = startDate || `${new Date().getFullYear()}-01-01`;
+    const startYM = filterStart.slice(0, 7);
+    const [startYear, startMonth] = startYM.split("-");
+    for (const year of Object.keys(result)) {
+      if (year < startYear) {
+        delete result[year];
+      } else if (year === startYear) {
+        for (const month of Object.keys(result[year])) {
+          if (month < startMonth) {
+            delete result[year][month];
           }
-          if (Object.keys(result[year]).length === 0) delete result[year];
         }
+        if (Object.keys(result[year]).length === 0) delete result[year];
       }
     }
 
@@ -680,20 +679,19 @@ export const getStockMonthlyReturns = async (securityId, startDate = null) => {
       }
     }
 
-    if (startDate) {
-      const startYM = startDate.slice(0, 7);
-      const [startYear, startMonth] = startYM.split("-");
-      for (const year of Object.keys(result)) {
-        if (year < startYear) {
-          delete result[year];
-        } else if (year === startYear) {
-          for (const month of Object.keys(result[year])) {
-            if (month < startMonth) {
-              delete result[year][month];
-            }
+    const filterStart = startDate || `${new Date().getFullYear()}-01-01`;
+    const startYM = filterStart.slice(0, 7);
+    const [startYear, startMonth] = startYM.split("-");
+    for (const year of Object.keys(result)) {
+      if (year < startYear) {
+        delete result[year];
+      } else if (year === startYear) {
+        for (const month of Object.keys(result[year])) {
+          if (month < startMonth) {
+            delete result[year][month];
           }
-          if (Object.keys(result[year]).length === 0) delete result[year];
         }
+        if (Object.keys(result[year]).length === 0) delete result[year];
       }
     }
 

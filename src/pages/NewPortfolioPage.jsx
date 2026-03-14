@@ -1362,7 +1362,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                             <div className="flex items-center gap-1.5">
                               <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
                             </div>
-                            <p className="text-xs text-slate-500 font-medium">{stockQty > 0 ? `${stockQty} shares · ${formatCurrency(livePrice)}/share` : stock.ticker}</p>
+                            <p className="text-xs text-slate-500 font-medium">{stockQty > 0 ? `${Math.round(stockQty)} shares` : stock.ticker}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-sm font-bold text-slate-900">{formatCurrency(displayPrice)}</p>

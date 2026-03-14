@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
     const { data: transactions, error: txError } = await db
       .from("transactions")
-      .select("id, name, amount, direction, transaction_date")
+      .select("id, name, amount, direction, transaction_date, created_at")
       .eq("user_id", userId)
       .eq("direction", "debit");
 
@@ -52,9 +52,10 @@ export default async function handler(req, res) {
           strategyInvestments[strategyName] = 0;
         }
         strategyInvestments[strategyName] += Math.abs(tx.amount || 0);
-        if (tx.transaction_date) {
-          if (!strategyFirstDate[strategyName] || tx.transaction_date < strategyFirstDate[strategyName]) {
-            strategyFirstDate[strategyName] = tx.transaction_date;
+        const txDate = tx.transaction_date || (tx.created_at ? tx.created_at.slice(0, 10) : null);
+        if (txDate) {
+          if (!strategyFirstDate[strategyName] || txDate < strategyFirstDate[strategyName]) {
+            strategyFirstDate[strategyName] = txDate;
           }
         }
       }
