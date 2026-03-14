@@ -320,6 +320,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           .slice(0, 3)
           .map(h => h.logo_url || null)
           .filter(Boolean);
+        const sCv = s.currentValue || s.investedAmount || 0;
+        const sIa = s.investedAmount || 0;
+        const sPnlPct = sIa > 0 ? ((sCv - sIa) / sIa) * 100 : 0;
         holdingsMap.set(sym, {
           symbol: sym,
           name: s.name || "Strategy",
@@ -327,8 +330,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           logo: null,
           isStrategy: true,
           topLogos,
-          currentValue: s.currentValue || s.investedAmount || 0,
-          change: s.previousMonthChange || 0,
+          currentValue: sCv,
+          change: sPnlPct,
         });
       }
     });
@@ -339,7 +342,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     return Array.from(holdingsMap.values()).sort((a, b) => b.weight - a.weight);
   }, [rawHoldings, strategies, stocksList, liveQuotes]);
 
-  const holdings = allStrategyHoldings.slice(0, 5);
+  const holdings = allStrategyHoldings;
 
   const getChartData = () => {
     if (realChartData && realChartData.length > 0) {
@@ -885,7 +888,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm font-semibold text-slate-900">Portfolio Holdings</p>
           </div>
-          <p className="text-xs text-slate-400 mb-4">Top holdings by weight</p>
+          <p className="text-xs text-slate-400 mb-4">All holdings by weight</p>
           
           <div className="space-y-3">
             {holdings.map((holding) => (
@@ -923,9 +926,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                     <p className="text-xs text-slate-500">{holding.name}</p>
                   </div>
                 </div>
-                <p className="text-sm font-semibold text-emerald-600">
-                  {holding.weight.toFixed(1)}%
-                </p>
+                <div className="text-right">
+                  <p className={`text-sm font-semibold ${holding.change >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {holding.change >= 0 ? '+' : ''}{holding.change.toFixed(1)}%
+                  </p>
+                  <p className="text-[10px] text-slate-400">{holding.weight.toFixed(1)}% of portfolio</p>
+                </div>
               </div>
             ))}
           </div>
@@ -1721,6 +1727,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
               <div className="space-y-3">
                 {pagedHoldings.map((stock) => {
                   const pctValue = totalValue > 0 ? ((stock.currentValue / totalValue) * 100) : 0;
+                  const changePnl = stock.change || 0;
                   return (
                   <div 
                     key={stock.id}
@@ -1759,9 +1766,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         <p className="text-sm font-bold text-slate-900">
                           {formatCurrency(stock.currentValue)}
                         </p>
-                        <p className="text-xs font-semibold text-emerald-500">
-                          {pctValue.toFixed(1)}%
+                        <p className={`text-xs font-semibold ${changePnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {changePnl >= 0 ? '+' : ''}{changePnl.toFixed(1)}%
                         </p>
+                        <p className="text-[10px] text-slate-400">{pctValue.toFixed(1)}% of portfolio</p>
                       </div>
                     </div>
                   </div>
