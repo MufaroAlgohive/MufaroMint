@@ -331,11 +331,35 @@ const SwipeableBalanceCard = ({
       const stockHoldings = holdingsToChart.filter(
         (h) => h.security_id && !h.isStrategy,
       );
+      const strategyHoldings = holdingsToChart.filter(
+        (h) => h.isStrategy && h.strategyId,
+      );
 
-      if (stockHoldings.length === 0) {
-        setChartData([]);
-        setChartLoading(false);
-        return;
+      const strategyPnlByDate = {};
+      const timeframeMap = { d: "1W", w: "1M", m: "3M" };
+      const tf = timeframeMap[activeTab] || "1M";
+      for (const sh of strategyHoldings) {
+        try {
+          let priceHistory = await getStrategyPriceHistory(sh.strategyId, tf);
+          const pDateStr = sh.firstInvestedDate ? sh.firstInvestedDate.slice(0, 10) : null;
+          if (pDateStr && priceHistory && priceHistory.length > 0) {
+            const afterP = priceHistory.filter(p => p.ts.split("T")[0] >= pDateStr);
+            priceHistory = afterP.length >= 1 ? afterP : [];
+          }
+          if (priceHistory && priceHistory.length > 0) {
+            const latestNav = priceHistory[priceHistory.length - 1].nav;
+            const currentMV = Number(sh.market_value || 0) / 100;
+            const cost = (Number(sh.avg_fill || 0) * Number(sh.quantity || 1)) / 100;
+            if (latestNav > 0) {
+              priceHistory.forEach((p) => {
+                const dateKey = p.ts.split("T")[0];
+                const valueAtDate = currentMV * (p.nav / latestNav);
+                const pnl = valueAtDate - cost;
+                strategyPnlByDate[dateKey] = (strategyPnlByDate[dateKey] || 0) + pnl;
+              });
+            }
+          }
+        } catch (e) {}
       }
 
       const pricePromises = stockHoldings.map(async (h) => {
@@ -373,8 +397,9 @@ const SwipeableBalanceCard = ({
       });
 
       const allPriceData = (await Promise.all(pricePromises)).filter(Boolean);
+      const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;
 
-      if (allPriceData.length === 0) {
+      if (allPriceData.length === 0 && !hasStrategyData) {
         setChartData([]);
         setChartLoading(false);
         return;
@@ -384,6 +409,7 @@ const SwipeableBalanceCard = ({
       allPriceData.forEach(({ prices }) =>
         prices.forEach((p) => dateSet.add(p.ts)),
       );
+      Object.keys(strategyPnlByDate).forEach((d) => dateSet.add(d));
       const sortedDates = Array.from(dateSet).sort();
 
       const rawPriceByDate = {};
@@ -426,6 +452,11 @@ const SwipeableBalanceCard = ({
             totalPnl += quantity * (price - avgFill);
             hasData = true;
           }
+        }
+
+        if (strategyPnlByDate[dateKey] !== undefined) {
+          totalPnl += strategyPnlByDate[dateKey];
+          hasData = true;
         }
 
         if (hasData) {
