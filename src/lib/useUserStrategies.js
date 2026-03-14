@@ -195,63 +195,63 @@ export const useStrategyChartData = (strategyId, timeFilter = "W", purchaseDate 
   return { chartData, loading };
 };
 
+function parseDateParts(ts) {
+  const dateStr = ts.split("T")[0];
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dayOfWeek = new Date(y, m - 1, d).getDay();
+  return { year: y, month: m, day: d, dayOfWeek };
+}
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
 function formatChartData(priceHistory, timeFilter) {
   if (!priceHistory || priceHistory.length === 0) return [];
 
   switch (timeFilter) {
-    case "D": {
-      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      return priceHistory.map((p, idx) => {
-        const date = new Date(p.ts);
-        return {
-          day: dayNames[date.getDay()] + ' ' + date.getDate(),
-          value: p.nav,
-          fullDate: date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' }),
-        };
-      });
-    }
+    case "D":
     case "W": {
-      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      return priceHistory.map((p, idx) => {
-        const date = new Date(p.ts);
+      return priceHistory.map((p) => {
+        const { day, month, dayOfWeek } = parseDateParts(p.ts);
         return {
-          day: dayNames[date.getDay()] + ' ' + date.getDate(),
+          day: DAY_NAMES[dayOfWeek] + ' ' + day,
           value: p.nav,
-          fullDate: date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' }),
+          fullDate: `${DAY_NAMES[dayOfWeek]}, ${day} ${MONTH_NAMES_SHORT[month - 1]}`,
         };
       });
     }
     case "M": {
-      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      return priceHistory.map((p, idx) => {
-        const date = new Date(p.ts);
+      return priceHistory.map((p) => {
+        const { year, day, month } = parseDateParts(p.ts);
         return {
-          day: date.getDate() + ' ' + monthNames[date.getMonth()],
+          day: day + ' ' + MONTH_NAMES_SHORT[month - 1],
           value: p.nav,
-          fullDate: date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
+          fullDate: `${day} ${MONTH_NAMES_SHORT[month - 1]} ${year}`,
         };
       });
     }
     case "ALL": {
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
       const grouped = {};
       priceHistory.forEach((p) => {
-        const date = new Date(p.ts);
-        const key = `${monthNames[date.getMonth()]} '${date.getFullYear().toString().slice(-2)}`;
+        const { year, month } = parseDateParts(p.ts);
+        const key = `${MONTH_NAMES_SHORT[month - 1]} '${String(year).slice(-2)}`;
         grouped[key] = p.nav;
       });
       const entries = Object.entries(grouped);
-      return entries.map(([day, value], idx) => ({
+      return entries.map(([day, value]) => ({
         day,
         value,
         fullDate: day,
       }));
     }
     default:
-      return priceHistory.map((p) => ({
-        day: new Date(p.ts).toLocaleDateString(),
-        value: p.nav,
-        fullDate: new Date(p.ts).toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }),
-      }));
+      return priceHistory.map((p) => {
+        const { year, month, day, dayOfWeek } = parseDateParts(p.ts);
+        return {
+          day: `${day} ${MONTH_NAMES_SHORT[month - 1]}`,
+          value: p.nav,
+          fullDate: `${DAY_NAMES[dayOfWeek]}, ${day} ${MONTH_NAMES_SHORT[month - 1]} ${year}`,
+        };
+      });
   }
 }

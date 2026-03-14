@@ -601,39 +601,70 @@ export const getMonthlyReturns = async (strategyId, startDate = null) => {
       }
     });
 
-    const monthlyNav = {};
+    const filterStart = startDate ? startDate.slice(0, 10) : null;
+    const startYM = filterStart ? filterStart.slice(0, 7) : null;
+
+    const monthlyLastNav = {};
+    const monthlyFirstNavAfterPurchase = {};
     Object.entries(navByDate).forEach(([dateKey, nav]) => {
       const [year, month] = dateKey.split("-");
       const key = `${year}-${month}`;
-      monthlyNav[key] = nav;
+      monthlyLastNav[key] = nav;
+      if (filterStart && key === startYM && dateKey >= filterStart) {
+        if (!monthlyFirstNavAfterPurchase[key]) {
+          monthlyFirstNavAfterPurchase[key] = nav;
+        }
+      }
     });
 
-    const sortedMonths = Object.keys(monthlyNav).sort();
+    const sortedMonths = Object.keys(monthlyLastNav).sort();
     const result = {};
 
     for (let i = 1; i < sortedMonths.length; i++) {
-      const prevNav = monthlyNav[sortedMonths[i - 1]];
-      const currNav = monthlyNav[sortedMonths[i]];
-      if (prevNav && prevNav > 0) {
-        const [year, month] = sortedMonths[i].split("-");
+      const currKey = sortedMonths[i];
+      const currNav = monthlyLastNav[currKey];
+      let baseNav;
+
+      if (startYM && currKey === startYM) {
+        if (monthlyFirstNavAfterPurchase[currKey]) {
+          baseNav = monthlyFirstNavAfterPurchase[currKey];
+        } else {
+          continue;
+        }
+      } else {
+        baseNav = monthlyLastNav[sortedMonths[i - 1]];
+      }
+
+      if (baseNav && baseNav > 0) {
+        const [year, month] = currKey.split("-");
         if (!result[year]) result[year] = {};
-        result[year][month] = (currNav - prevNav) / prevNav;
+        result[year][month] = (currNav - baseNav) / baseNav;
       }
     }
 
-    const filterStart = startDate || `${new Date().getFullYear()}-01-01`;
-    const startYM = filterStart.slice(0, 7);
-    const [startYear, startMonth] = startYM.split("-");
-    for (const year of Object.keys(result)) {
-      if (year < startYear) {
-        delete result[year];
-      } else if (year === startYear) {
-        for (const month of Object.keys(result[year])) {
-          if (month < startMonth) {
-            delete result[year][month];
+    if (startYM && sortedMonths[0] === startYM && monthlyFirstNavAfterPurchase[startYM]) {
+      const baseNav = monthlyFirstNavAfterPurchase[startYM];
+      const currNav = monthlyLastNav[startYM];
+      if (baseNav && currNav && baseNav > 0) {
+        const [year, month] = startYM.split("-");
+        if (!result[year]) result[year] = {};
+        result[year][month] = (currNav - baseNav) / baseNav;
+      }
+    }
+
+    if (startYM) {
+      const [startYear, startMonth] = startYM.split("-");
+      for (const year of Object.keys(result)) {
+        if (year < startYear) {
+          delete result[year];
+        } else if (year === startYear) {
+          for (const month of Object.keys(result[year])) {
+            if (month < startMonth) {
+              delete result[year][month];
+            }
           }
+          if (Object.keys(result[year]).length === 0) delete result[year];
         }
-        if (Object.keys(result[year]).length === 0) delete result[year];
       }
     }
 
@@ -658,40 +689,71 @@ export const getStockMonthlyReturns = async (securityId, startDate = null) => {
     const priceSeries = await getSecurityPrices(securityId, "1Y");
     if (!priceSeries || priceSeries.length < 2) return {};
 
-    const monthlyNav = {};
+    const filterStart = startDate ? startDate.slice(0, 10) : null;
+    const startYM = filterStart ? filterStart.slice(0, 7) : null;
+
+    const monthlyLastNav = {};
+    const monthlyFirstNavAfterPurchase = {};
     priceSeries.forEach(p => {
       const dateKey = p.ts.split("T")[0];
       const [year, month] = dateKey.split("-");
       const key = `${year}-${month}`;
-      monthlyNav[key] = p.close;
+      monthlyLastNav[key] = p.close;
+      if (filterStart && key === startYM && dateKey >= filterStart) {
+        if (!monthlyFirstNavAfterPurchase[key]) {
+          monthlyFirstNavAfterPurchase[key] = p.close;
+        }
+      }
     });
 
-    const sortedMonths = Object.keys(monthlyNav).sort();
+    const sortedMonths = Object.keys(monthlyLastNav).sort();
     const result = {};
 
     for (let i = 1; i < sortedMonths.length; i++) {
-      const prevNav = monthlyNav[sortedMonths[i - 1]];
-      const currNav = monthlyNav[sortedMonths[i]];
-      if (prevNav && prevNav > 0) {
-        const [year, month] = sortedMonths[i].split("-");
+      const currKey = sortedMonths[i];
+      const currNav = monthlyLastNav[currKey];
+      let baseNav;
+
+      if (startYM && currKey === startYM) {
+        if (monthlyFirstNavAfterPurchase[currKey]) {
+          baseNav = monthlyFirstNavAfterPurchase[currKey];
+        } else {
+          continue;
+        }
+      } else {
+        baseNav = monthlyLastNav[sortedMonths[i - 1]];
+      }
+
+      if (baseNav && baseNav > 0) {
+        const [year, month] = currKey.split("-");
         if (!result[year]) result[year] = {};
-        result[year][month] = (currNav - prevNav) / prevNav;
+        result[year][month] = (currNav - baseNav) / baseNav;
       }
     }
 
-    const filterStart = startDate || `${new Date().getFullYear()}-01-01`;
-    const startYM = filterStart.slice(0, 7);
-    const [startYear, startMonth] = startYM.split("-");
-    for (const year of Object.keys(result)) {
-      if (year < startYear) {
-        delete result[year];
-      } else if (year === startYear) {
-        for (const month of Object.keys(result[year])) {
-          if (month < startMonth) {
-            delete result[year][month];
+    if (startYM && sortedMonths[0] === startYM && monthlyFirstNavAfterPurchase[startYM]) {
+      const baseNav = monthlyFirstNavAfterPurchase[startYM];
+      const currNav = monthlyLastNav[startYM];
+      if (baseNav && currNav && baseNav > 0) {
+        const [year, month] = startYM.split("-");
+        if (!result[year]) result[year] = {};
+        result[year][month] = (currNav - baseNav) / baseNav;
+      }
+    }
+
+    if (startYM) {
+      const [startYear, startMonth] = startYM.split("-");
+      for (const year of Object.keys(result)) {
+        if (year < startYear) {
+          delete result[year];
+        } else if (year === startYear) {
+          for (const month of Object.keys(result[year])) {
+            if (month < startMonth) {
+              delete result[year][month];
+            }
           }
+          if (Object.keys(result[year]).length === 0) delete result[year];
         }
-        if (Object.keys(result[year]).length === 0) delete result[year];
       }
     }
 

@@ -83,26 +83,32 @@ export function useStockChart(securityId, timeFilter, purchaseDate = null) {
           prices = afterPurchase.length >= 1 ? afterPurchase : [];
         }
 
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         const formatted = (prices || []).map(p => {
-          const date = new Date(p.ts);
+          const dateStr = p.ts.split("T")[0];
+          const [yr, mo, dy] = dateStr.split("-").map(Number);
+          const localDate = new Date(yr, mo - 1, dy);
+          const dow = localDate.getDay();
           let label;
 
           if (timeFilter === 'D') {
-            const dayPart = date.toLocaleString('en-US', { weekday: 'short' });
-            const timePart = date.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-            label = dayPart + '|' + timePart;
+            const timePart = p.ts.includes("T")
+              ? new Date(p.ts).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+              : `${dy}`;
+            label = dayNames[dow] + '|' + timePart;
           } else if (timeFilter === 'W') {
-            label = date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' });
+            label = dayNames[dow] + ' ' + dy;
           } else if (timeFilter === 'M') {
-            label = date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+            label = dy + ' ' + monthNames[mo - 1];
           } else {
-            label = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            label = monthNames[mo - 1] + " '" + String(yr).slice(-2);
           }
 
           return {
             day: label,
             value: Number(p.close.toFixed(2)),
-            timestamp: new Date(p.ts).getTime(),
+            timestamp: localDate.getTime(),
           };
         });
 
