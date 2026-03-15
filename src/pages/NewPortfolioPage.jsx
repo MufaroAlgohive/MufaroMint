@@ -65,7 +65,7 @@ const getReturnColor = (value) => {
 };
 
 
-const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies, onBack }) => {
+const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies, onBack, deepLink, onDeepLinkConsumed }) => {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("stocks");
   const [timeFilter, setTimeFilter] = useState("W");
@@ -103,6 +103,20 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
       };
     }
   }, [currentView]);
+
+  useEffect(() => {
+    if (!deepLink) return;
+    if (deepLink.tab) {
+      const oldIdx = tabOrder.indexOf(activeTab);
+      const newIdx = tabOrder.indexOf(deepLink.tab);
+      setTabDirection(newIdx > oldIdx ? 1 : -1);
+      setActiveTab(deepLink.tab);
+    }
+    if (deepLink.strategyId) {
+      setExpandedStrategyId(deepLink.strategyId);
+    }
+    if (onDeepLinkConsumed) onDeepLinkConsumed();
+  }, [deepLink]);
 
   const { lastUpdated: pricesLastUpdated } = useRealtimePrices();
   const { securities: allSecurities, quotes: liveQuotes, loading: quotesLoading, refetch: refetchStocks } = useStockQuotes(true);

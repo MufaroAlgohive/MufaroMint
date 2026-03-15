@@ -116,6 +116,7 @@ const HomePage = ({
   onOpenWithdraw,
   onOpenSettings,
   onOpenStrategies,
+  onOpenStrategyInPortfolio,
   onOpenMarkets,
   onOpenNews,
   onOpenNewsArticle,
@@ -1081,7 +1082,7 @@ const HomePage = ({
                   <button
                     key={strategy.id}
                     type="button"
-                    onClick={() => onOpenStrategies && onOpenStrategies(strategy)}
+                    onClick={() => onOpenStrategyInPortfolio ? onOpenStrategyInPortfolio(strategy.id) : onOpenStrategies && onOpenStrategies(strategy)}
                     className="flex-shrink-0 w-[280px] snap-start rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all active:scale-[0.97]"
                   >
                     <div className="flex items-start gap-3">

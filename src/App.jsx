@@ -89,6 +89,7 @@ const App = () => {
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [selectedArticleId, setSelectedArticleId] = useState(null);
   const [marketsInitialView, setMarketsInitialView] = useState(null);
+  const [portfolioDeepLink, setPortfolioDeepLink] = useState(null);
   const [investmentAmount, setInvestmentAmount] = useState(0);
   const [baseInvestmentAmount, setBaseInvestmentAmount] = useState(0);
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0, baseAmount: 0 });
@@ -960,6 +961,7 @@ const App = () => {
           onOpenMarkets={() => { setMarketsInitialView("invest"); navigateTo("markets"); }}
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
+          onOpenStrategyInPortfolio={(strategyId) => { setPortfolioDeepLink({ tab: "holdings", strategyId }); setCurrentPage("investments"); }}
         />
       </AppLayout>
     );
@@ -1062,6 +1064,8 @@ const App = () => {
           }}
           onOpenInvest={() => navigateTo("markets")}
           onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
+          deepLink={portfolioDeepLink}
+          onDeepLinkConsumed={() => setPortfolioDeepLink(null)}
         />
       </AppLayout>
     );
