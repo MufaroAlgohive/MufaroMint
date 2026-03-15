@@ -137,6 +137,7 @@ const HomePage = ({
   const [homeTab, setHomeTab] = useState("invest");
   const [userId, setUserId] = useState(null);
   const [localBestAssets, setLocalBestAssets] = useState([]);
+  const [hasAnyHoldings, setHasAnyHoldings] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
@@ -221,6 +222,7 @@ const HomePage = ({
       if (holdingsError) throw holdingsError;
 
       if (holdings && holdings.length > 0) {
+        setHasAnyHoldings(true);
         const securityIds = holdings.map(h => h.security_id).filter(Boolean);
         let securitiesMap = {};
         let metricsMap = {};
@@ -259,7 +261,7 @@ const HomePage = ({
             };
           });
 
-        const sorted = formatted.sort((a, b) => b.pnlPct - a.pnlPct).slice(0, 5);
+        const sorted = formatted.filter(a => a.pnlPct > 0).sort((a, b) => b.pnlPct - a.pnlPct).slice(0, 5);
         setLocalBestAssets(sorted);
         return;
       }
@@ -712,7 +714,8 @@ const HomePage = ({
     }
   };
 
-  const hasInvestments = assetsToDisplay.length > 0;
+  const hasProfitableAssets = assetsToDisplay.length > 0;
+  const hasInvestments = hasAnyHoldings || assetsToDisplay.length > 0;
   const hasStrategies = bestStrategies && bestStrategies.length > 0;
 
   return (
@@ -970,7 +973,7 @@ const HomePage = ({
             )}
           </div>
           
-          {hasInvestments ? (
+          {hasProfitableAssets ? (
             <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {assetsToDisplay.slice(0, 5).map((asset) => (
                 <div
@@ -1023,15 +1026,24 @@ const HomePage = ({
               <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
                 <TrendingUp className="h-8 w-8" />
               </div>
-              <p className="text-sm font-semibold text-slate-900 mb-1">No investments yet</p>
-              <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
-              <button
-                type="button"
-                onClick={() => onOpenInvest && onOpenInvest("invest")}
-                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
-              >
-                Make your first investment
-              </button>
+              {hasInvestments ? (
+                <>
+                  <p className="text-sm font-semibold text-slate-900 mb-1">No profitable assets yet</p>
+                  <p className="text-xs text-slate-500">Your best performers will appear here once any of your assets are in profit.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-slate-900 mb-1">No investments yet</p>
+                  <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
+                  <button
+                    type="button"
+                    onClick={() => onOpenInvest && onOpenInvest("invest")}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
+                  >
+                    Make your first investment
+                  </button>
+                </>
+              )}
             </div>
           )}
         </section>
