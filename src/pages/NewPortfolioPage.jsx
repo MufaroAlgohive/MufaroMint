@@ -302,10 +302,16 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
       } else {
         const matchedStrategy = strategies.find(s => s.strategyId === calendarFilter);
         if (matchedStrategy) {
-          data = await getMonthlyReturns(calendarFilter, matchedStrategy.firstInvestedDate || null);
+          const invested = matchedStrategy.investedAmount || 0;
+          const current = matchedStrategy.currentValue || 0;
+          const actualPnlPct = invested > 0 ? (current - invested) / invested : null;
+          data = await getMonthlyReturns(calendarFilter, matchedStrategy.firstInvestedDate || null, actualPnlPct);
         } else {
           const matchedHolding = (rawHoldings || []).find(h => h.security_id === calendarFilter && !h.strategy_id);
-          data = await getStockMonthlyReturns(calendarFilter, matchedHolding?.created_at || null);
+          const investedVal = matchedHolding ? (matchedHolding.avg_fill * matchedHolding.quantity) / 100 : 0;
+          const currentVal = matchedHolding ? (matchedHolding.market_value || 0) / 100 : 0;
+          const actualPnlPct = investedVal > 0 ? (currentVal - investedVal) / investedVal : null;
+          data = await getStockMonthlyReturns(calendarFilter, matchedHolding?.created_at || null, actualPnlPct);
         }
       }
       if (!cancelled) {
