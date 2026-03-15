@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
+import { getStrategyPriceHistory } from "./strategyData";
 
 export const useUserStrategies = () => {
   const [data, setData] = useState({
