@@ -6,6 +6,7 @@ function parseOnboardingFlags(record) {
     || record?.kyc_status === "onboarding_complete"
     || record?.kyc_status === "verified";
 
+  let taxDone = false;
   let bankDone = false;
   let mandateAgreed = false;
   let riskDone = false;
@@ -17,6 +18,7 @@ function parseOnboardingFlags(record) {
       const raw = typeof record.sumsub_raw === "string"
         ? JSON.parse(record.sumsub_raw)
         : record.sumsub_raw;
+      taxDone = !!raw?.tax_details_saved;
       bankDone = !!raw?.bank_details_saved;
       mandateAgreed = !!raw?.mandate_data?.agreedMandate || !!raw?.mandate_accepted;
       riskDone = !!raw?.risk_disclosure_accepted;
@@ -25,8 +27,8 @@ function parseOnboardingFlags(record) {
     } catch {}
   }
 
-  const allComplete = kycDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone;
-  return { kycDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, allComplete };
+  const allComplete = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone;
+  return { kycDone, taxDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, allComplete };
 }
 
 export default async function handler(req, res) {

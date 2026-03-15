@@ -12,6 +12,7 @@ export function parseOnboardingFlags(record) {
     || record?.kyc_status === "onboarding_complete"
     || record?.kyc_status === "verified";
 
+  let taxDone = false;
   let bankDone = false;
   let mandateAgreed = false;
   let riskDone = false;
@@ -21,6 +22,7 @@ export function parseOnboardingFlags(record) {
   if (record?.sumsub_raw) {
     try {
       const raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : record.sumsub_raw;
+      taxDone = !!raw?.tax_details_saved;
       bankDone = !!raw?.bank_details_saved;
       mandateAgreed = !!raw?.mandate_data?.agreedMandate || !!raw?.mandate_accepted;
       riskDone = !!raw?.risk_disclosure_accepted;
@@ -29,10 +31,10 @@ export function parseOnboardingFlags(record) {
     } catch {}
   }
 
-  // ALL steps must be complete — KYC identity AND all financial onboarding steps
-  const allComplete = kycDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone;
+  // ALL steps must be complete — KYC identity AND all financial onboarding steps including tax
+  const allComplete = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone;
 
-  return { kycDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, allComplete };
+  return { kycDone, taxDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, allComplete };
 }
 
 /**
