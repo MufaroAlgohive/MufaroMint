@@ -537,14 +537,20 @@ export default function AccountAgreementStep({
       const userId = session?.user?.id;
       if (!userId) throw new Error("Not authenticated.");
 
-      const fileName = `${userId}/agreement-${Date.now()}.pdf`;
-      const { error: upErr } = await supabase.storage
-        .from("signed-agreements")
-        .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: true });
-      if (upErr) throw upErr;
+      let publicUrl = "";
+      try {
+        const fileName = `${userId}/agreement-${Date.now()}.pdf`;
+        const { error: upErr } = await supabase.storage
+          .from("signed-agreements")
+          .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: true });
+        if (upErr) throw upErr;
 
-      const { data: urlData } = supabase.storage.from("signed-agreements").getPublicUrl(fileName);
-      const publicUrl = urlData?.publicUrl || "";
+        const { data: urlData } = supabase.storage.from("signed-agreements").getPublicUrl(fileName);
+        publicUrl = urlData?.publicUrl || "";
+      } catch (uploadErr) {
+        console.warn("Agreement upload failed, continuing onboarding without PDF URL:", uploadErr);
+      }
+
       setPdfUrl(publicUrl);
 
       await supabase.from("user_onboarding").update({
