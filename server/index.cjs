@@ -2529,7 +2529,121 @@ app.post("/api/record-investment", async (req, res) => {
     const isStrategyInvestment = !!strategyId;
 
     if (isStrategyInvestment) {
-      console.log("[record-investment] Strategy investment detected - strategyId:", strategyId, "- strategy subscriptions are derived from transactions");
+      console.log("[record-investment] Strategy investment detected - strategyId:", strategyId);
+
+      const { data: strategyData, error: stratError } = await db
+        .from("strategies")
+        .select("holdings")
+        .eq("id", strategyId)
+        .maybeSingle();
+
+      if (stratError || !strategyData?.holdings?.length) {
+        console.warn("[record-investment] Could not fetch strategy holdings:", stratError?.message);
+        return res.status(500).json({ success: false, error: "Could not load strategy holdings to record positions" });
+      }
+
+      const strategyHoldings = strategyData.holdings;
+      const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
+
+      const { data: securitiesData, error: secLookupError } = await db
+        .from("securities")
+        .select("id, symbol, last_price")
+        .in("symbol", symbols);
+
+      if (secLookupError) {
+        return res.status(500).json({ success: false, error: "Could not look up securities for strategy" });
+      }
+
+      const secBySymbol = {};
+      (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
+
+      const now = new Date().toISOString();
+      const today = now.split("T")[0];
+      const insertedHoldings = [];
+      const skippedSymbols = [];
+
+      for (const holding of strategyHoldings) {
+        const sec = secBySymbol[holding.symbol];
+        if (!sec) {
+          console.warn("[record-investment] Security not found for symbol:", holding.symbol);
+          skippedSymbols.push(holding.symbol);
+          continue;
+        }
+
+        const holdingQty = Number(holding.quantity || holding.shares || 0);
+        if (holdingQty <= 0) {
+          skippedSymbols.push(holding.symbol);
+          continue;
+        }
+
+        const priceCents = Number(sec.last_price || 0);
+        if (priceCents <= 0) {
+          console.warn("[record-investment] No price found for:", holding.symbol);
+          skippedSymbols.push(holding.symbol);
+          continue;
+        }
+
+        const { data: existing, error: lookupErr } = await db
+          .from("stock_holdings")
+          .select("id, quantity, avg_fill")
+          .eq("user_id", userId)
+          .eq("security_id", sec.id)
+          .eq("strategy_id", strategyId)
+          .maybeSingle();
+
+        if (lookupErr) {
+          console.error("[record-investment] Error looking up holding for", holding.symbol, lookupErr.message);
+          return res.status(500).json({ success: false, error: `Failed to look up holding for ${holding.symbol}` });
+        }
+
+        if (existing) {
+          const oldQty = Number(existing.quantity || 0);
+          const oldAvgFill = Number(existing.avg_fill || 0);
+          const newQty = oldQty + holdingQty;
+          const newAvgFill = newQty > 0
+            ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty
+            : priceCents;
+
+          const { error: updateErr } = await db.from("stock_holdings").update({
+            quantity: newQty,
+            avg_fill: Math.round(newAvgFill),
+            market_value: Math.round(newQty * priceCents),
+            as_of_date: today,
+            updated_at: now,
+          }).eq("id", existing.id);
+
+          if (updateErr) {
+            console.error("[record-investment] Failed to update holding for", holding.symbol, updateErr.message);
+            return res.status(500).json({ success: false, error: `Failed to update holding for ${holding.symbol}` });
+          }
+          console.log("[record-investment] Updated holding:", holding.symbol, "qty:", newQty);
+        } else {
+          const { error: insertErr } = await db.from("stock_holdings").insert({
+            user_id: userId,
+            security_id: sec.id,
+            strategy_id: strategyId,
+            quantity: holdingQty,
+            avg_fill: priceCents,
+            market_value: Math.round(holdingQty * priceCents),
+            unrealized_pnl: 0,
+            as_of_date: today,
+            Status: "active",
+          });
+
+          if (insertErr) {
+            console.error("[record-investment] Failed to insert holding for", holding.symbol, insertErr.message);
+            return res.status(500).json({ success: false, error: `Failed to record holding for ${holding.symbol}` });
+          }
+          console.log("[record-investment] Inserted holding:", holding.symbol, "qty:", holdingQty);
+        }
+
+        insertedHoldings.push({ symbol: holding.symbol, quantity: holdingQty, priceCents });
+      }
+
+      if (skippedSymbols.length > 0) {
+        console.warn("[record-investment] Skipped symbols (no security/price):", skippedSymbols.join(", "));
+      }
+      console.log("[record-investment] Strategy holdings recorded:", insertedHoldings.length, "skipped:", skippedSymbols.length);
     }
 
     console.log("[record-investment] Checking if securityId exists in securities table:", securityId);
