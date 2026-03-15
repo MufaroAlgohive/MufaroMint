@@ -79,6 +79,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
   const [myStocksPage, setMyStocksPage] = useState(0);
   const [otherStocksPage, setOtherStocksPage] = useState(0);
   const [holdingsPage, setHoldingsPage] = useState(0);
+  const [expandedStrategyId, setExpandedStrategyId] = useState(null);
   const [tabRipple, setTabRipple] = useState(null);
   const [tabDirection, setTabDirection] = useState(0);
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
@@ -333,10 +334,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         holdingsMap.set(sym, {
           symbol: sym,
           name: s.name || "Strategy",
+          strategyId: s.strategyId || s.id,
           weight: 0,
           logo: null,
           isStrategy: true,
           topLogos,
+          strategyHoldings: holdingsArr,
           currentValue: sCv,
           change: sPnlPct,
         });
@@ -1503,9 +1506,38 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           logo: h.logo,
           isStrategy: h.isStrategy || false,
           topLogos: h.topLogos || [],
+          strategyId: h.strategyId || null,
+          strategyHoldings: h.strategyHoldings || [],
           currentValue: h.currentValue || 0,
           change: h.change || 0,
         })).sort((a, b) => b.currentValue - a.currentValue);
+
+        const flatPieData = (() => {
+          const map = new Map();
+          holdingsData.forEach(h => {
+            if (h.isStrategy && h.strategyHoldings?.length > 0) {
+              const totalWeight = h.strategyHoldings.reduce((s, c) => s + (c.weight || 0), 0) || 100;
+              h.strategyHoldings.forEach(c => {
+                const pct = (c.weight || 0) / totalWeight;
+                const val = h.currentValue * pct;
+                const key = c.symbol || c.name;
+                if (map.has(key)) {
+                  map.get(key).value += val;
+                } else {
+                  map.set(key, { name: c.symbol || c.name, displayName: c.name || c.symbol, value: val });
+                }
+              });
+            } else if (!h.isStrategy) {
+              const key = h.ticker;
+              if (map.has(key)) {
+                map.get(key).value += h.currentValue;
+              } else {
+                map.set(key, { name: h.ticker, displayName: h.name, value: h.currentValue });
+              }
+            }
+          });
+          return Array.from(map.values()).sort((a, b) => b.value - a.value);
+        })();
 
         if (holdingsData.length === 0) {
           return (
@@ -1584,16 +1616,17 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         }
 
         const totalValue = holdingsData.reduce((sum, h) => sum + h.currentValue, 0);
-        const totalDistinct = holdingsData.length;
+        const totalDistinct = flatPieData.length;
 
-        const top10 = holdingsData.slice(0, 10).map((h, idx) => ({
-          name: h.ticker,
-          value: h.currentValue,
+        const top10 = flatPieData.slice(0, 10).map((h, idx) => ({
+          name: h.name,
+          displayName: h.displayName,
+          value: h.value,
           color: pieColors[idx % pieColors.length],
         }));
-        const othersValue = holdingsData.slice(10).reduce((sum, h) => sum + h.currentValue, 0);
+        const othersValue = flatPieData.slice(10).reduce((sum, h) => sum + h.value, 0);
         const pieData = othersValue > 0
-          ? [...top10, { name: "Others", value: othersValue, color: "#E9D5FF" }]
+          ? [...top10, { name: "Others", displayName: "Others", value: othersValue, color: "#E9D5FF" }]
           : top10;
 
         return (
@@ -1684,7 +1717,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                                 textAlign: 'center'
                               }}
                             >
-                              <p className="text-xs font-bold text-slate-800">{data.name}</p>
+                              <p className="text-xs font-bold text-slate-800">{data.displayName || data.name}</p>
                               <p className="text-base font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
                                 {percent}%
                               </p>
@@ -1737,50 +1770,86 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 {pagedHoldings.map((stock) => {
                   const pctValue = totalValue > 0 ? ((stock.currentValue / totalValue) * 100) : 0;
                   const changePnl = stock.change || 0;
+                  const isExpanded = stock.isStrategy && expandedStrategyId === stock.strategyId;
                   return (
-                  <div 
-                    key={stock.id}
-                    className="rounded-2xl bg-white/70 backdrop-blur-xl p-4 shadow-sm border border-slate-100/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-                        {stock.isStrategy && stock.topLogos?.length > 0 ? (
-                          <div className="flex -space-x-1.5 items-center justify-center h-full w-full bg-gradient-to-br from-violet-50 to-purple-50">
-                            {stock.topLogos.slice(0, 3).map((logo, li) => (
-                              <img key={li} src={logo} className="w-5 h-5 rounded-full object-cover border border-white shadow-sm" referrerPolicy="no-referrer" crossOrigin="anonymous" />
-                            ))}
-                          </div>
-                        ) : !stock.logo || failedLogos[stock.ticker] ? (
-                          <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-purple-100 text-xs font-bold text-violet-700">
-                            {stock.ticker.slice(0, 2)}
-                          </div>
-                        ) : (
-                          <img
-                            src={stock.logo}
-                            alt={stock.name}
-                            className="h-full w-full object-cover"
-                            onError={() => setFailedLogos(prev => ({ ...prev, [stock.ticker]: true }))}
-                          />
-                        )}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                  <div key={stock.id}>
+                    <div 
+                      className={`rounded-2xl bg-white/70 backdrop-blur-xl p-4 shadow-sm border transition-all duration-200 ${stock.isStrategy ? 'cursor-pointer active:scale-[0.98] border-violet-100/60' : 'border-slate-100/50'}`}
+                      onClick={stock.isStrategy ? () => setExpandedStrategyId(isExpanded ? null : stock.strategyId) : undefined}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
+                          {stock.isStrategy && stock.topLogos?.length > 0 ? (
+                            <div className="flex -space-x-1.5 items-center justify-center h-full w-full bg-gradient-to-br from-violet-50 to-purple-50">
+                              {stock.topLogos.slice(0, 3).map((logo, li) => (
+                                <img key={li} src={logo} className="w-5 h-5 rounded-full object-cover border border-white shadow-sm" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                              ))}
+                            </div>
+                          ) : !stock.logo || failedLogos[stock.ticker] ? (
+                            <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-purple-100 text-xs font-bold text-violet-700">
+                              {stock.ticker.slice(0, 2)}
+                            </div>
+                          ) : (
+                            <img
+                              src={stock.logo}
+                              alt={stock.name}
+                              className="h-full w-full object-cover"
+                              onError={() => setFailedLogos(prev => ({ ...prev, [stock.ticker]: true }))}
+                            />
+                          )}
                         </div>
-                        <p className="text-xs text-slate-500 font-medium">{stock.ticker}</p>
-                      </div>
-                      
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-bold text-slate-900">
-                          {formatCurrency(stock.currentValue)}
-                        </p>
-                        <p className={`text-xs font-semibold ${changePnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                          {changePnl >= 0 ? '+' : ''}{changePnl.toFixed(1)}%
-                        </p>
-                        <p className="text-[10px] text-slate-400">{pctValue.toFixed(1)}% of portfolio</p>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                            {stock.isStrategy && (
+                              <span className="text-[9px] font-semibold text-violet-500 bg-violet-50 rounded-full px-1.5 py-0.5 flex-shrink-0">Strategy</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 font-medium">{stock.isStrategy ? `${(stock.strategyHoldings || []).length} assets` : stock.ticker}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-slate-900">
+                              {formatCurrency(stock.currentValue)}
+                            </p>
+                            <p className={`text-xs font-semibold ${changePnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {changePnl >= 0 ? '+' : ''}{changePnl.toFixed(1)}%
+                            </p>
+                            <p className="text-[10px] text-slate-400">{pctValue.toFixed(1)}% of portfolio</p>
+                          </div>
+                          {stock.isStrategy && (
+                            <ChevronDown className={`h-4 w-4 text-slate-400 flex-shrink-0 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+                          )}
+                        </div>
                       </div>
                     </div>
+
+                    {/* Expandable constituent stocks */}
+                    {stock.isStrategy && isExpanded && stock.strategyHoldings?.length > 0 && (
+                      <div className="mt-1.5 ml-3 space-y-1.5 border-l-2 border-violet-100 pl-3">
+                        {stock.strategyHoldings.map((c, ci) => {
+                          const totalW = stock.strategyHoldings.reduce((s, x) => s + (x.weight || 0), 0) || 100;
+                          const constituentValue = stock.currentValue * ((c.weight || 0) / totalW);
+                          return (
+                            <div key={ci} className="rounded-xl bg-white/80 backdrop-blur-sm p-3 border border-slate-100/50 flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 flex items-center justify-center flex-shrink-0">
+                                <span className="text-[9px] font-bold text-violet-600">{(c.symbol || c.name || '').slice(0, 3)}</span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-slate-800 truncate">{c.name || c.symbol}</p>
+                                <p className="text-[10px] text-slate-500">{c.symbol}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-xs font-bold text-slate-800">{formatCurrency(constituentValue)}</p>
+                                <p className="text-[10px] font-semibold text-violet-500">{(c.weight || 0).toFixed(1)}% weight</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   );
                 })}
