@@ -80,7 +80,15 @@ export function useStockChart(securityId, timeFilter, purchaseDate = null) {
         if (purchaseDate && prices && prices.length > 0) {
           const purchaseDateStr = purchaseDate.slice(0, 10);
           const afterPurchase = prices.filter(p => p.ts.split("T")[0] >= purchaseDateStr);
-          prices = afterPurchase.length >= 1 ? afterPurchase : [];
+          if (afterPurchase.length >= 1) {
+            prices = afterPurchase;
+          } else {
+            const beforePurchase = prices.filter(p => p.ts.split("T")[0] < purchaseDateStr);
+            if (beforePurchase.length > 0) {
+              const last = beforePurchase[beforePurchase.length - 1];
+              prices = [last, { ...last, ts: purchaseDateStr + "T00:00:00Z" }];
+            }
+          }
         }
 
         const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
