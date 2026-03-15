@@ -347,7 +347,6 @@ const HomePage = ({
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
       if (token) {
-        let apiReachable = true;
         try {
           const res = await fetch("/api/onboarding/status", {
             headers: { Authorization: `Bearer ${token}` },
@@ -360,23 +359,18 @@ const HomePage = ({
           }
           console.warn("[Onboarding Check] API returned status", res.status);
         } catch (apiErr) {
-          apiReachable = false;
           console.warn("[Onboarding Check] API unreachable, using fallback:", apiErr?.message);
         }
-        if (!apiReachable) {
-          const { data } = await supabase
-            .from("user_onboarding")
-            .select("kyc_status, sumsub_raw")
-            .eq("user_id", profile.id)
-            .order("created_at", { ascending: false })
-            .limit(1);
-          const record = data?.[0];
-          const { allComplete } = parseOnboardingFlags(record);
-          setOnboardingComplete(allComplete);
-          setOnboardingChecked(true);
-          return;
-        }
       }
+      const { data } = await supabase
+        .from("user_onboarding")
+        .select("kyc_status, sumsub_raw")
+        .eq("user_id", profile.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const record = data?.[0];
+      const { allComplete } = parseOnboardingFlags(record);
+      setOnboardingComplete(allComplete);
       setOnboardingChecked(true);
     } catch (err) {
       console.error("[Onboarding Check] Error:", err);
