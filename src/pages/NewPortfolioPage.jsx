@@ -286,22 +286,23 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
   };
 
   const displayAccountValue = useMemo(() => {
-    const holdingsValue = (rawHoldings || []).reduce((sum, h) => sum + liveHoldingValue(h), 0);
+    const holdingsValue = (rawHoldings || []).filter(h => !h.strategy_id).reduce((sum, h) => sum + liveHoldingValue(h), 0);
     const strategiesValue = strategies.reduce((sum, s) => sum + (s.currentValue || s.investedAmount || 0), 0);
     return holdingsValue + strategiesValue;
   }, [rawHoldings, strategies]);
 
   const displayTotalCostBasis = useMemo(() => {
-    const holdingsBasis = (rawHoldings || []).reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
+    const holdingsBasis = (rawHoldings || []).filter(h => !h.strategy_id).reduce((sum, h) => sum + ((h.avg_fill || 0) * (h.quantity || 0)) / 100, 0);
     const strategiesBasis = strategies.reduce((sum, s) => sum + (s.investedAmount || 0), 0);
     return holdingsBasis + strategiesBasis;
   }, [rawHoldings, strategies]);
 
   const allStrategyHoldings = useMemo(() => {
     const holdingsMap = new Map();
-    if (rawHoldings && rawHoldings.length > 0) {
-      const totalValue = rawHoldings.reduce((sum, h) => sum + liveHoldingValue(h), 0);
-      rawHoldings.forEach(h => {
+    const standaloneHoldings = (rawHoldings || []).filter(h => !h.strategy_id);
+    if (standaloneHoldings.length > 0) {
+      const totalValue = standaloneHoldings.reduce((sum, h) => sum + liveHoldingValue(h), 0);
+      standaloneHoldings.forEach(h => {
         const sym = h.symbol || "N/A";
         const currentValue = liveHoldingValue(h);
         const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
@@ -383,7 +384,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
   const myStocks = useMemo(() => {
     if (!stocksList || stocksList.length === 0) return [];
     const holdingSymbols = new Set();
-    (rawHoldings || []).forEach(h => { if (h.symbol) holdingSymbols.add(h.symbol); });
+    (rawHoldings || []).filter(h => !h.strategy_id).forEach(h => { if (h.symbol) holdingSymbols.add(h.symbol); });
     allStrategyHoldings.forEach(h => { if (h.symbol && !h.isStrategy) holdingSymbols.add(h.symbol); });
     if (holdingSymbols.size === 0) return [];
     return stocksList.filter(stock => holdingSymbols.has(stock.ticker));

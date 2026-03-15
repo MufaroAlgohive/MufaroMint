@@ -185,7 +185,7 @@ const SwipeableBalanceCard = ({
           ])
         : [{ holdings: [] }, { strategies: [] }];
 
-      const stockHoldings = holdingsRes.holdings || [];
+      const stockHoldings = (holdingsRes.holdings || []).filter(h => !h.strategy_id);
       const strategyItems = await Promise.all((strategiesRes.strategies || []).map(async (s) => {
         const holdingsArr = s.holdings || [];
         const topLogos = holdingsArr
