@@ -400,15 +400,30 @@ const SwipeableBalanceCard = ({
           }
         }
 
+        const pDateStr = (h.created_at || h.as_of_date || "").split("T")[0];
+        const allMapped = data.map((p) => ({
+          ts: p.ts.split("T")[0],
+          close: Number(p.close_price) / 100,
+        }));
+        let filteredPrices = allMapped.filter((p) => p.ts >= pDateStr);
+        if (filteredPrices.length === 0) {
+          const before = allMapped.filter((p) => p.ts < pDateStr);
+          if (before.length > 0) {
+            const lastKnown = before[before.length - 1];
+            filteredPrices = [
+              lastKnown,
+              { ts: pDateStr, close: lastKnown.close },
+            ];
+          } else {
+            filteredPrices = allMapped;
+          }
+        }
         return {
           securityId: h.security_id,
           quantity: Number(h.quantity || 1),
           avgFill: Number(h.avg_fill || 0) / 100,
-          fillDate: (h.created_at || h.as_of_date || "").split("T")[0],
-          prices: data.map((p) => ({
-            ts: p.ts.split("T")[0],
-            close: Number(p.close_price) / 100,
-          })),
+          fillDate: pDateStr,
+          prices: filteredPrices,
         };
       });
 
