@@ -26,10 +26,23 @@ export default async function handler(req, res) {
     const db = supabaseAdmin || supabase;
     const userId = user.id;
 
-    const { data: holdings, error: holdingsError } = await db
+    let holdings, holdingsError;
+    const holdingsResult = await db
       .from("stock_holdings")
-      .select("id, user_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+      .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status")
       .eq("user_id", userId);
+
+    if (holdingsResult.error && holdingsResult.error.message && holdingsResult.error.message.includes("settlement_status")) {
+      const fallback = await db
+        .from("stock_holdings")
+        .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+        .eq("user_id", userId);
+      holdings = fallback.data;
+      holdingsError = fallback.error;
+    } else {
+      holdings = holdingsResult.data;
+      holdingsError = holdingsResult.error;
+    }
 
     if (holdingsError) {
       console.error("Error fetching holdings:", holdingsError);
