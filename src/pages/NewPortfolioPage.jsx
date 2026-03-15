@@ -80,6 +80,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
   const [otherStocksPage, setOtherStocksPage] = useState(0);
   const [holdingsPage, setHoldingsPage] = useState(0);
   const [expandedStrategyId, setExpandedStrategyId] = useState(null);
+  const expandedRowRef = useRef(null);
   const [tabRipple, setTabRipple] = useState(null);
   const [tabDirection, setTabDirection] = useState(0);
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
@@ -117,6 +118,21 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     }
     if (onDeepLinkConsumed) onDeepLinkConsumed();
   }, [deepLink]);
+
+  useEffect(() => {
+    if (!expandedStrategyId) return;
+    let attempts = 0;
+    const tryScroll = () => {
+      if (expandedRowRef.current) {
+        expandedRowRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else if (attempts < 10) {
+        attempts++;
+        setTimeout(tryScroll, 150);
+      }
+    };
+    const timer = setTimeout(tryScroll, 400);
+    return () => clearTimeout(timer);
+  }, [expandedStrategyId]);
 
   const { lastUpdated: pricesLastUpdated } = useRealtimePrices();
   const { securities: allSecurities, quotes: liveQuotes, loading: quotesLoading, refetch: refetchStocks } = useStockQuotes(true);
@@ -1714,7 +1730,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   const changePnl = stock.change || 0;
                   const isExpanded = stock.isStrategy && expandedStrategyId === stock.strategyId;
                   return (
-                  <div key={stock.id}>
+                  <div key={stock.id} ref={isExpanded ? expandedRowRef : null}>
                     <div 
                       className={`rounded-2xl bg-white/70 backdrop-blur-xl p-4 shadow-sm border transition-all duration-200 ${stock.isStrategy ? 'cursor-pointer active:scale-[0.98] border-violet-100/60' : 'border-slate-100/50'}`}
                       onClick={stock.isStrategy ? () => setExpandedStrategyId(isExpanded ? null : stock.strategyId) : undefined}
