@@ -1800,12 +1800,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
-                            {stock.isStrategy && (
-                              <span className="text-[9px] font-semibold text-violet-500 bg-violet-50 rounded-full px-1.5 py-0.5 flex-shrink-0">Strategy</span>
-                            )}
-                          </div>
+                          <p className="text-sm font-semibold text-slate-900">{stock.name}</p>
                           <p className="text-xs text-slate-500 font-medium">{stock.isStrategy ? `${(stock.strategyHoldings || []).length} assets` : stock.ticker}</p>
                         </div>
                         
@@ -1830,20 +1825,44 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                     {stock.isStrategy && isExpanded && stock.strategyHoldings?.length > 0 && (
                       <div className="mt-1.5 ml-3 space-y-1.5 border-l-2 border-violet-100 pl-3">
                         {stock.strategyHoldings.map((c, ci) => {
-                          const totalW = stock.strategyHoldings.reduce((s, x) => s + (x.weight || 0), 0) || 100;
-                          const constituentValue = stock.currentValue * ((c.weight || 0) / totalW);
+                          const matchedHolding = (rawHoldings || []).find(h => h.symbol === c.symbol);
+                          const matchedStock = stocksList?.find(s => s.ticker === c.symbol);
+                          const avgFill = matchedHolding?.avg_fill || 0;
+                          const lastPrice = matchedHolding?.last_price || avgFill;
+                          const qty = matchedHolding?.quantity || c.shares || 0;
+                          const pnlRands = ((lastPrice - avgFill) * qty) / 100;
+                          const pnlPct = avgFill > 0 ? ((lastPrice - avgFill) / avgFill) * 100 : 0;
+                          const logo = matchedHolding?.logo || matchedStock?.logo || null;
+                          const isGain = pnlRands >= 0;
                           return (
                             <div key={ci} className="rounded-xl bg-white/80 backdrop-blur-sm p-3 border border-slate-100/50 flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100 flex items-center justify-center flex-shrink-0">
-                                <span className="text-[9px] font-bold text-violet-600">{(c.symbol || c.name || '').slice(0, 3)}</span>
+                              <div className="h-8 w-8 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
+                                {logo && !failedLogos[c.symbol] ? (
+                                  <img
+                                    src={logo}
+                                    alt={c.symbol}
+                                    className="h-full w-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                    crossOrigin="anonymous"
+                                    onError={() => setFailedLogos(prev => ({ ...prev, [c.symbol]: true }))}
+                                  />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+                                    <span className="text-[9px] font-bold text-slate-500">{(c.symbol || '').slice(0, 3)}</span>
+                                  </div>
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold text-slate-800 truncate">{c.name || c.symbol}</p>
                                 <p className="text-[10px] text-slate-500">{c.symbol}</p>
                               </div>
                               <div className="text-right flex-shrink-0">
-                                <p className="text-xs font-bold text-slate-800">{formatCurrency(constituentValue)}</p>
-                                <p className="text-[10px] font-semibold text-violet-500">{(c.weight || 0).toFixed(1)}% weight</p>
+                                <p className={`text-xs font-bold ${isGain ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                  {isGain ? '+' : ''}{formatCurrency(pnlRands)}
+                                </p>
+                                <p className={`text-[10px] font-semibold ${isGain ? 'text-emerald-500' : 'text-rose-400'}`}>
+                                  {isGain ? '+' : ''}{pnlPct.toFixed(2)}%
+                                </p>
                               </div>
                             </div>
                           );
