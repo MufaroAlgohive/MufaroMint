@@ -2564,20 +2564,6 @@ app.post("/api/record-investment", async (req, res) => {
       const insertedHoldings = [];
       const skippedSymbols = [];
 
-      // Pre-compute execution total so we can scale avg_fill to match investAmount (baseAmount)
-      let executionTotalRands = 0;
-      for (const holding of strategyHoldings) {
-        const sec = secBySymbol[holding.symbol];
-        if (!sec) continue;
-        const qty = Number(holding.quantity || holding.shares || 0);
-        const price = Number(sec.last_price || 0);
-        if (qty > 0 && price > 0) executionTotalRands += (price * qty) / 100;
-      }
-      const scaleFactor = (investAmount > 0 && executionTotalRands > 0)
-        ? investAmount / executionTotalRands
-        : 1;
-      console.log("[record-investment] Strategy investAmount:", investAmount, "executionTotalRands:", executionTotalRands.toFixed(2), "scaleFactor:", scaleFactor.toFixed(6));
-
       for (const holding of strategyHoldings) {
         const sec = secBySymbol[holding.symbol];
         if (!sec) {
@@ -2592,14 +2578,12 @@ app.post("/api/record-investment", async (req, res) => {
           continue;
         }
 
-        const rawPriceCents = Number(sec.last_price || 0);
-        if (rawPriceCents <= 0) {
+        const priceCents = Number(sec.last_price || 0);
+        if (priceCents <= 0) {
           console.warn("[record-investment] No price found for:", holding.symbol);
           skippedSymbols.push(holding.symbol);
           continue;
         }
-        // Scale price proportionally so total cost basis = investAmount (the displayed min investment)
-        const priceCents = Math.round(rawPriceCents * scaleFactor);
 
         const { data: existing, error: lookupErr } = await db
           .from("stock_holdings")
