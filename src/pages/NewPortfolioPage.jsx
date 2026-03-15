@@ -341,6 +341,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           topLogos,
           strategyHoldings: holdingsArr,
           currentValue: sCv,
+          investedAmount: sIa,
           change: sPnlPct,
         });
       }
@@ -1827,12 +1828,13 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         {stock.strategyHoldings.map((c, ci) => {
                           const matchedHolding = (rawHoldings || []).find(h => h.symbol === c.symbol);
                           const matchedStock = stocksList?.find(s => s.ticker === c.symbol);
-                          const avgFill = matchedHolding?.avg_fill || 0;
-                          const lastPrice = matchedHolding?.last_price || avgFill;
-                          const qty = matchedHolding?.quantity || c.shares || 0;
-                          const pnlRands = ((lastPrice - avgFill) * qty) / 100;
-                          const pnlPct = avgFill > 0 ? ((lastPrice - avgFill) / avgFill) * 100 : 0;
                           const logo = matchedHolding?.logo || matchedStock?.logo || null;
+                          const totalW = stock.strategyHoldings.reduce((s, x) => s + (x.weight || 0), 0) || 100;
+                          const fraction = (c.weight || 0) / totalW;
+                          const constituentCurrentVal = stock.currentValue * fraction;
+                          const constituentCostBasis = (stock.investedAmount || stock.currentValue) * fraction;
+                          const pnlRands = constituentCurrentVal - constituentCostBasis;
+                          const pnlPct = constituentCostBasis > 0 ? (pnlRands / constituentCostBasis) * 100 : 0;
                           const isGain = pnlRands >= 0;
                           return (
                             <div key={ci} className="rounded-xl bg-white/80 backdrop-blur-sm p-3 border border-slate-100/50 flex items-center gap-3">
