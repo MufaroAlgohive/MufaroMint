@@ -182,6 +182,19 @@ export default async function handler(req, res) {
       const secBySymbol = {};
       (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
 
+      // Compute total basket cost at current prices so we can scale by investAmount
+      let totalBasketCostRands = 0;
+      for (const holding of strategyHoldings) {
+        const sec = secBySymbol[holding.symbol];
+        if (!sec) continue;
+        const qty = Number(holding.quantity || holding.shares || 0);
+        const priceCents = Number(sec.last_price || 0);
+        if (qty > 0 && priceCents > 0) totalBasketCostRands += (qty * priceCents) / 100;
+      }
+      // investAmount is how much the user actually put in (before fees)
+      const scalingRatio = totalBasketCostRands > 0 ? investAmount / totalBasketCostRands : 1;
+      console.log("[record-investment] Basket cost:", totalBasketCostRands.toFixed(2), "investAmount:", investAmount, "scalingRatio:", scalingRatio.toFixed(6));
+
       const now = new Date().toISOString();
       const today = now.split("T")[0];
       const insertedHoldings = [];
@@ -195,11 +208,14 @@ export default async function handler(req, res) {
           continue;
         }
 
-        const holdingQty = Number(holding.quantity || holding.shares || 0);
-        if (holdingQty <= 0) {
+        const rawHoldingQty = Number(holding.quantity || holding.shares || 0);
+        if (rawHoldingQty <= 0) {
           skippedSymbols.push(holding.symbol);
           continue;
         }
+
+        // Scale shares proportionally to what the user actually invested
+        const holdingQty = rawHoldingQty * scalingRatio;
 
         const priceCents = Number(sec.last_price || 0);
         if (priceCents <= 0) {
@@ -347,75 +363,6 @@ export default async function handler(req, res) {
 
       if (holdingResult.error) {
         return res.status(500).json({ success: false, error: holdingResult.error.message });
-      }
-    } else if (isStrategyInvestment) {
-      // Fetch the strategy to get its holdings
-      const { data: stratData, error: stratError } = await db
-        .from("strategies")
-        .select("holdings")
-        .eq("id", strategyId)
-        .maybeSingle();
-      
-      if (!stratError && stratData?.holdings && Array.isArray(stratData.holdings) && stratData.holdings.length > 0) {
-        const holdingsArr = stratData.holdings;
-        const holdingSymbols = holdingsArr.map(h => h.symbol).filter(Boolean);
-        
-        if (holdingSymbols.length > 0) {
-          const { data: secs } = await db
-            .from("securities")
-            .select("id, symbol, last_price")
-            .in("symbol", holdingSymbols);
-            
-          if (secs && secs.length > 0) {
-            const amountPerSecurityCents = Math.round((investAmount * 100) / secs.length);
-            const amountPerSecurityRands = investAmount / secs.length;
-            
-            for (const sec of secs) {
-              const secId = sec.id;
-              const secCurrentPriceCents = sec.last_price ? Number(sec.last_price) : null;
-              const secCurrentPriceRands = secCurrentPriceCents ? secCurrentPriceCents / 100 : amountPerSecurityRands;
-              
-              const secQty = secCurrentPriceRands > 0 ? amountPerSecurityRands / secCurrentPriceRands : 1;
-              const secAvgFillCents = secCurrentPriceCents || amountPerSecurityCents;
-              const secMarketValueCents = Math.round(secQty * secAvgFillCents);
-              
-              const { data: existingSecHolding } = await db
-                .from("stock_holdings")
-                .select("id, quantity, avg_fill")
-                .eq("user_id", userId)
-                .eq("security_id", secId)
-                .maybeSingle();
-                
-              if (existingSecHolding) {
-                const oldQty = Number(existingSecHolding.quantity || 0);
-                const oldAvgFill = Number(existingSecHolding.avg_fill || 0);
-                const newQty = oldQty + secQty;
-                const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (secAvgFillCents * secQty)) / newQty : secAvgFillCents;
-                const newMarketValue = Math.round(newQty * (secCurrentPriceCents || newAvgFill));
-                
-                await db.from("stock_holdings").update({
-                  quantity: newQty,
-                  avg_fill: Math.round(newAvgFill),
-                  market_value: newMarketValue,
-                  as_of_date: new Date().toISOString().split("T")[0],
-                  updated_at: new Date().toISOString(),
-                }).eq("id", existingSecHolding.id);
-              } else {
-                await db.from("stock_holdings").insert({
-                  user_id: userId,
-                  security_id: secId,
-                  quantity: secQty,
-                  avg_fill: secAvgFillCents,
-                  market_value: secMarketValueCents,
-                  unrealized_pnl: 0,
-                  as_of_date: new Date().toISOString().split("T")[0],
-                  Status: "active",
-                  strategy_id: strategyId,
-                });
-              }
-            }
-          }
-        }
       }
     }
 
