@@ -651,7 +651,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
               return (
                 <>
                   <div className="mt-1 flex items-center gap-2.5">
-                    <span className="text-lg font-bold text-white">
+                    <span className="text-lg font-bold" style={{ color: isPnlPos ? '#6ee7b7' : '#fca5a5' }}>
                       {isPnlPos ? '+' : '-'}R{Math.abs(totalPnl).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     <span className="px-2 py-0.5 rounded-full text-xs font-bold"
