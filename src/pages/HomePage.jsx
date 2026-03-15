@@ -216,9 +216,7 @@ const HomePage = ({
       const { data: holdings, error: holdingsError } = await supabase
         .from('stock_holdings')
         .select('id, security_id, quantity, avg_fill, market_value, unrealized_pnl')
-        .eq('user_id', profile.id)
-        .order('market_value', { ascending: false })
-        .limit(5);
+        .eq('user_id', profile.id);
 
       if (holdingsError) throw holdingsError;
 
@@ -228,7 +226,7 @@ const HomePage = ({
         let metricsMap = {};
         if (securityIds.length > 0) {
           const [secResult, metResult] = await Promise.all([
-            supabase.from('securities').select('id, symbol, name, logo_url').in('id', securityIds),
+            supabase.from('securities').select('id, symbol, name, logo_url, last_price').in('id', securityIds),
             supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
           ]);
           if (secResult.data) {
@@ -243,8 +241,11 @@ const HomePage = ({
           .filter(h => securitiesMap[h.security_id])
           .map(h => {
             const sec = securitiesMap[h.security_id];
-            const marketVal = (h.market_value || 0) / 100;
-            const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
+            const qty = Number(h.quantity || 0);
+            const avgFill = Number(h.avg_fill || 0);
+            const livePrice = Number(sec.last_price || avgFill);
+            const marketVal = (livePrice * qty) / 100;
+            const costBasis = (avgFill * qty) / 100;
             const pnlRands = marketVal - costBasis;
             const pnlPct = costBasis > 0 ? ((pnlRands / costBasis) * 100) : 0;
             return {
@@ -258,7 +259,8 @@ const HomePage = ({
             };
           });
 
-        setLocalBestAssets(formatted);
+        const sorted = formatted.sort((a, b) => b.pnlPct - a.pnlPct).slice(0, 5);
+        setLocalBestAssets(sorted);
         return;
       }
 
