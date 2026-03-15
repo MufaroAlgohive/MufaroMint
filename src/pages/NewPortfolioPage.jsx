@@ -1391,80 +1391,6 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 );
               })()}
 
-              {(() => {
-                const STOCKS_PER_PAGE = 6;
-                const otherTotalPages = Math.ceil(otherStocks.length / STOCKS_PER_PAGE);
-                const otherPagedStocks = otherStocks.slice(otherStocksPage * STOCKS_PER_PAGE, (otherStocksPage + 1) * STOCKS_PER_PAGE);
-                return (
-              <section
-                className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50"
-                style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif" }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-semibold text-slate-900">Other Stocks</p>
-                  {otherTotalPages > 1 && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setOtherStocksPage(p => Math.max(0, p - 1))}
-                        disabled={otherStocksPage === 0}
-                        className={`h-7 w-7 rounded-full flex items-center justify-center transition ${otherStocksPage === 0 ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-100 active:bg-slate-200'}`}
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <span className="text-xs font-medium text-slate-400 tabular-nums">{otherStocksPage + 1}/{otherTotalPages}</span>
-                      <button
-                        onClick={() => setOtherStocksPage(p => Math.min(otherTotalPages - 1, p + 1))}
-                        disabled={otherStocksPage >= otherTotalPages - 1}
-                        className={`h-7 w-7 rounded-full flex items-center justify-center transition ${otherStocksPage >= otherTotalPages - 1 ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-100 active:bg-slate-200'}`}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  {otherPagedStocks.map((stock) => {
-                    const livePrice = liveQuotes[stock.ticker]?.price || stock.price;
-                    const liveChange = liveQuotes[stock.ticker]?.changePercent ?? stock.dailyChange;
-                    const isPositive = liveChange >= 0;
-                    return (
-                      <button
-                        key={stock.id}
-                        onClick={() => setSelectedStock(stock)}
-                        className="w-full flex items-center gap-3 rounded-2xl bg-white/70 backdrop-blur-xl p-3 shadow-sm border border-slate-100/50 transition hover:bg-white/90 text-left"
-                      >
-                        <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
-                          {failedLogos[stock.ticker] ? (
-                            <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-purple-100 text-xs font-bold text-violet-700">
-                              {stock.ticker.slice(0, 2)}
-                            </div>
-                          ) : (
-                            <img
-                              src={stock.logo}
-                              alt={stock.name}
-                              className="h-full w-full object-cover"
-                              onError={() => setFailedLogos(prev => ({ ...prev, [stock.ticker]: true }))}
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
-                          <p className="text-xs text-slate-500 font-medium">{stock.ticker}</p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-bold text-slate-900">{formatCurrency(livePrice)}</p>
-                          <p className={`text-xs font-medium ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {isPositive ? '+' : ''}{liveChange.toFixed(2)}%
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-                );
-              })()}
-
               {!hasNoHoldings && (
               <button
                 onClick={() => onOpenInvest && onOpenInvest()}
@@ -1876,6 +1802,79 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 })}
               </div>
             </section>
+
+            {(() => {
+              const STOCKS_PER_PAGE = 6;
+              const holdingsOtherStocks = stocksList.filter(s => !myStockIds.has(s.id));
+              const otherTotalPages = Math.ceil(holdingsOtherStocks.length / STOCKS_PER_PAGE);
+              const otherPagedStocks = holdingsOtherStocks.slice(otherStocksPage * STOCKS_PER_PAGE, (otherStocksPage + 1) * STOCKS_PER_PAGE);
+              if (holdingsOtherStocks.length === 0) return null;
+              return (
+                <section className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50 mt-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-sm font-semibold text-slate-900">Other Stocks</p>
+                    {otherTotalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setOtherStocksPage(p => Math.max(0, p - 1))}
+                          disabled={otherStocksPage === 0}
+                          className={`h-7 w-7 rounded-full flex items-center justify-center transition ${otherStocksPage === 0 ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-100 active:bg-slate-200'}`}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <span className="text-xs font-medium text-slate-400 tabular-nums">{otherStocksPage + 1}/{otherTotalPages}</span>
+                        <button
+                          onClick={() => setOtherStocksPage(p => Math.min(otherTotalPages - 1, p + 1))}
+                          disabled={otherStocksPage >= otherTotalPages - 1}
+                          className={`h-7 w-7 rounded-full flex items-center justify-center transition ${otherStocksPage >= otherTotalPages - 1 ? 'text-slate-300' : 'text-slate-600 hover:bg-slate-100 active:bg-slate-200'}`}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-3">
+                    {otherPagedStocks.map((stock) => {
+                      const livePrice = liveQuotes[stock.ticker]?.price || stock.price;
+                      const liveChange = liveQuotes[stock.ticker]?.changePercent ?? stock.dailyChange;
+                      const isPositive = liveChange >= 0;
+                      return (
+                        <button
+                          key={stock.id}
+                          onClick={() => { setActiveTab('stocks'); setSelectedStock(stock); }}
+                          className="w-full flex items-center gap-3 rounded-2xl bg-white/70 backdrop-blur-xl p-3 shadow-sm border border-slate-100/50 transition hover:bg-white/90 text-left"
+                        >
+                          <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
+                            {failedLogos[stock.ticker] ? (
+                              <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-violet-100 to-purple-100 text-xs font-bold text-violet-700">
+                                {stock.ticker.slice(0, 2)}
+                              </div>
+                            ) : (
+                              <img
+                                src={stock.logo}
+                                alt={stock.name}
+                                className="h-full w-full object-cover"
+                                onError={() => setFailedLogos(prev => ({ ...prev, [stock.ticker]: true }))}
+                              />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                            <p className="text-xs text-slate-500 font-medium">{stock.ticker}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-bold text-slate-900">{formatCurrency(livePrice)}</p>
+                            <p className={`text-xs font-medium ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {isPositive ? '+' : ''}{liveChange.toFixed(2)}%
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })()}
 
             {investmentGoals && investmentGoals.length > 0 && (
               <section className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50 mt-4">
