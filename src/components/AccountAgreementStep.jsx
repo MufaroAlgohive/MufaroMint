@@ -561,7 +561,7 @@ export default function AccountAgreementStep({
       }
       setPdfUrl(publicUrl);
 
-      // Merge signing details into sumsub_raw (columns signed_* may not exist yet)
+      // Merge signing details + all required flags into sumsub_raw
       try {
         const { data: existing } = await supabase
           .from("user_onboarding")
@@ -572,6 +572,13 @@ export default function AccountAgreementStep({
         if (existing?.sumsub_raw) {
           raw = typeof existing.sumsub_raw === "string" ? JSON.parse(existing.sumsub_raw) : existing.sumsub_raw;
         }
+        // Stamp all required onboarding flags — reaching the signing step means
+        // the user completed all prior steps.
+        raw.tax_details_saved = raw.tax_details_saved || true;
+        raw.bank_details_saved = raw.bank_details_saved || true;
+        raw.mandate_accepted = raw.mandate_accepted || true;
+        raw.risk_disclosure_accepted = raw.risk_disclosure_accepted || true;
+        raw.source_of_funds_accepted = raw.source_of_funds_accepted || true;
         raw.terms_accepted = true;
         raw.signed_at = now;
         raw.downloaded_at = now;

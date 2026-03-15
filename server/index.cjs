@@ -198,7 +198,7 @@ const pgPool = process.env.DATABASE_URL ? new Pool({
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
 
 // Sumsub configuration
 const SUMSUB_APP_TOKEN = process.env.SUMSUB_APP_TOKEN;
