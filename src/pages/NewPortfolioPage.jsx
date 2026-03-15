@@ -65,7 +65,7 @@ const getReturnColor = (value) => {
 };
 
 
-const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies, onBack, deepLink, onDeepLinkConsumed }) => {
+const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies, onBack, deepLink, onDeepLinkConsumed, onOpenStockDetail }) => {
   const [balanceVisible, setBalanceVisible] = useState(true);
   const [activeTab, setActiveTab] = useState("stocks");
   const [timeFilter, setTimeFilter] = useState("W");
@@ -359,6 +359,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           name: h.name || "Unknown",
           weight,
           logo: h.logo_url || null,
+          securityId: h.security_id || null,
           currentValue,
           change: changePct,
         });
@@ -1477,6 +1478,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           ticker: h.symbol,
           logo: h.logo,
           isStrategy: h.isStrategy || false,
+          securityId: h.securityId || null,
           topLogos: h.topLogos || [],
           strategyId: h.strategyId || null,
           strategyHoldings: h.strategyHoldings || [],
@@ -1747,8 +1749,23 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   return (
                   <div key={stock.id} ref={isExpanded ? expandedRowRef : null}>
                     <div 
-                      className={`rounded-2xl bg-white/70 backdrop-blur-xl p-4 shadow-sm border transition-all duration-200 ${stock.isStrategy ? 'cursor-pointer active:scale-[0.98] border-violet-100/60' : 'border-slate-100/50'}`}
-                      onClick={stock.isStrategy ? () => setExpandedStrategyId(isExpanded ? null : stock.strategyId) : undefined}
+                      className={`rounded-2xl bg-white/70 backdrop-blur-xl p-4 shadow-sm border transition-all duration-200 cursor-pointer active:scale-[0.98] ${stock.isStrategy ? 'border-violet-100/60' : 'border-slate-100/50'}`}
+                      onClick={() => {
+                        if (stock.isStrategy) {
+                          setExpandedStrategyId(isExpanded ? null : stock.strategyId);
+                        } else if (onOpenStockDetail) {
+                          const sec = stocksList?.find(s => s.symbol === stock.ticker);
+                          onOpenStockDetail({
+                            ...(sec || {}),
+                            id: stock.securityId || sec?.id,
+                            symbol: stock.ticker,
+                            name: stock.name,
+                            logo_url: stock.logo,
+                            currentPrice: liveQuotes[stock.ticker]?.price || sec?.currentPrice,
+                            changePct: liveQuotes[stock.ticker]?.changePercent ?? stock.change,
+                          });
+                        }
+                      }}
                     >
                       <div className="flex items-center gap-3">
                         <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">

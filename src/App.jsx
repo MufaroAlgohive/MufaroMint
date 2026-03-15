@@ -1053,6 +1053,10 @@ const App = () => {
           }}
           onOpenInvest={() => navigateTo("markets")}
           onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
+          onOpenStockDetail={(security) => {
+            setSelectedSecurity(security);
+            navigateTo("stockDetail");
+          }}
           deepLink={portfolioDeepLink}
           onDeepLinkConsumed={() => setPortfolioDeepLink(null)}
         />
