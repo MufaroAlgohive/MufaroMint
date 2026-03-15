@@ -224,18 +224,29 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }
   };
 
-  const saveProgressFlag = async (flagKey) => {
+  const saveProgressFlag = async (flagKey, extraFields) => {
     if (!supabase) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const userId = session?.user?.id;
       if (!userId) return;
-      const { data: record } = await supabase.from("user_onboarding").select("sumsub_raw").eq("user_id", userId).maybeSingle();
+      const id = existingOnboardingId || null;
+      const query = supabase.from("user_onboarding").select("sumsub_raw");
+      const { data: record } = id
+        ? await query.eq("id", id).eq("user_id", userId).maybeSingle()
+        : await query.eq("user_id", userId).order("created_at", { ascending: false }).limit(1).maybeSingle();
       let raw = {};
       try { raw = typeof record?.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : (record?.sumsub_raw || {}); } catch {}
       raw[flagKey] = true;
-      await supabase.from("user_onboarding").update({ sumsub_raw: JSON.stringify(raw) }).eq("user_id", userId);
-    } catch {}
+      if (extraFields) Object.assign(raw, extraFields);
+      const updateQuery = supabase.from("user_onboarding").update({ sumsub_raw: JSON.stringify(raw) });
+      const { error } = id
+        ? await updateQuery.eq("id", id).eq("user_id", userId)
+        : await updateQuery.eq("user_id", userId);
+      if (error) console.error("[Onboarding] saveProgressFlag failed for", flagKey, error.message);
+    } catch (err) {
+      console.error("[Onboarding] saveProgressFlag error for", flagKey, err?.message);
+    }
   };
 
   const getNextIncompleteStep = (afterStep, justCompletedStep) => {
@@ -494,11 +505,14 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           setExistingOnboardingId(result.onboarding_id);
         }
 
-        const { data: record } = await supabase
+        const onboardingId = result.success && result.onboarding_id ? result.onboarding_id : null;
+        const recordQuery = supabase
           .from("user_onboarding")
           .select("bank_name, bank_account_number, bank_branch_code, sumsub_raw, kyc_status")
-          .eq("user_id", userId)
-          .maybeSingle();
+          .eq("user_id", userId);
+        const { data: record } = onboardingId
+          ? await recordQuery.eq("id", onboardingId).maybeSingle()
+          : await recordQuery.order("created_at", { ascending: false }).limit(1).maybeSingle();
 
         if (record) {
           if (record.bank_name && record.bank_account_number && record.bank_branch_code) {
@@ -949,8 +963,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   <button
                     type="button"
                     className="continue-button"
-                    onClick={() => {
+                    onClick={async () => {
                       if (taxNumber && taxNumber.length > 5) {
+                        await saveProgressFlag("tax_details_saved", {
+                          tax_details: { tax_number: taxNumber, savedAt: new Date().toISOString() },
+                        });
                         setTaxDone(true);
                         goToStep(getNextIncompleteStep(3));
                       }
@@ -1139,7 +1156,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                     } catch {}
                     await saveProgressFlag("bank_details_saved");
                     setBankDone(true);
-                    goToStep(getNextIncompleteStep(3, 3));
+                    goToStep(getNextIncompleteStep(4, 4));
                   }}
                 >
                   Continue
@@ -1152,7 +1169,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </p>
               </div>
             </div>
-          ) : step === 4 ? (
+          ) : step === 5 ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -1223,7 +1240,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${agreedMandate && mandateValid ? "enabled" : ""}`}
                   disabled={!agreedMandate || !mandateValid}
-                  onClick={async () => { await saveProgressFlag("mandate_accepted"); setMandateDone(true); goToStep(getNextIncompleteStep(4, 4)); }}
+                  onClick={async () => { await saveProgressFlag("mandate_accepted"); setMandateDone(true); goToStep(getNextIncompleteStep(5, 5)); }}
                 >
                   Continue
                 </button>
@@ -1235,7 +1252,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </p>
               </div>
             </div>
-          ) : step === 5 ? (
+          ) : step === 6 ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -1319,7 +1336,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${agreedRiskDisclosure ? "enabled" : ""}`}
                   disabled={!agreedRiskDisclosure}
-                  onClick={async () => { await saveProgressFlag("risk_disclosure_accepted"); setRiskDone(true); goToStep(getNextIncompleteStep(5, 5)); }}
+                  onClick={async () => { await saveProgressFlag("risk_disclosure_accepted"); setRiskDone(true); goToStep(getNextIncompleteStep(6, 6)); }}
                 >
                   Continue
                 </button>
@@ -1331,7 +1348,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </p>
               </div>
             </div>
-          ) : step === 6 ? (
+          ) : step === 7 ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -1465,7 +1482,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                     type="button"
                     className={`continue-button agreement-continue ${sofReady ? "enabled" : ""}`}
                     disabled={!sofReady}
-                    onClick={async () => { await saveProgressFlag("source_of_funds_accepted"); setSofDone(true); goToStep(getNextIncompleteStep(6, 6)); }}
+                    onClick={async () => { await saveProgressFlag("source_of_funds_accepted"); setSofDone(true); goToStep(getNextIncompleteStep(7, 7)); }}
                   >
                     Continue
                   </button>
