@@ -629,7 +629,9 @@ export const getMonthlyReturns = async (strategyId, startDate = null) => {
         if (monthlyFirstNavAfterPurchase[currKey]) {
           baseNav = monthlyFirstNavAfterPurchase[currKey];
         } else {
-          continue;
+          // Purchase date is after all available price data in the start month;
+          // fall back to previous month's close so the month still appears in the calendar
+          baseNav = monthlyLastNav[sortedMonths[i - 1]];
         }
       } else {
         baseNav = monthlyLastNav[sortedMonths[i - 1]];
@@ -718,7 +720,9 @@ export const getStockMonthlyReturns = async (securityId, startDate = null) => {
         if (monthlyFirstNavAfterPurchase[currKey]) {
           baseNav = monthlyFirstNavAfterPurchase[currKey];
         } else {
-          continue;
+          // Purchase date is after all available price data in the start month;
+          // fall back to previous month's close so the month still appears in the calendar
+          baseNav = monthlyLastNav[sortedMonths[i - 1]];
         }
       } else {
         baseNav = monthlyLastNav[sortedMonths[i - 1]];
