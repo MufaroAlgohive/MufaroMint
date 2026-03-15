@@ -595,7 +595,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       return;
     }
 
-    await saveProgressFlag("terms_accepted");
     setTermsDone(true);
 
     let completionSuccess = false;

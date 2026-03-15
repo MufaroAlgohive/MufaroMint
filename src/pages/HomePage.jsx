@@ -344,7 +344,22 @@ const HomePage = ({
   const fetchOnboardingStatus = React.useCallback(async () => {
     if (!supabase || !profile?.id) return;
     try {
-      const { data, error } = await supabase
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (token) {
+        try {
+          const res = await fetch("/api/onboarding/status", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const json = await res.json();
+            setOnboardingComplete(json.is_fully_onboarded === true);
+            setOnboardingChecked(true);
+            return;
+          }
+        } catch {}
+      }
+      const { data } = await supabase
         .from("user_onboarding")
         .select("kyc_status, sumsub_raw")
         .eq("user_id", profile.id)
