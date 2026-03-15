@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const { data: { user }, error: authErr } = await db.auth.getUser(token);
     if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
 
-    const { existing_onboarding_id, bank_name, bank_account_number, bank_branch_code, tax_number } = req.body;
+    const { existing_onboarding_id, bank_name, bank_account_name, bank_account_type, bank_account_number, bank_branch_code, tax_number } = req.body;
     const userId = user.id;
 
     try {
@@ -45,8 +45,10 @@ export default async function handler(req, res) {
       if (latest?.id) onboardingId = latest.id;
     }
 
-    const bankDetails = (bank_name || bank_account_number || bank_branch_code) ? {
+    const bankDetails = (bank_name || bank_account_name || bank_account_type || bank_account_number || bank_branch_code) ? {
       bank_name: bank_name || null,
+      bank_account_name: bank_account_name || null,
+      bank_account_type: bank_account_type || null,
       bank_account_number: bank_account_number || null,
       bank_branch_code: bank_branch_code || null,
       savedAt: new Date().toISOString(),

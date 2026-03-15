@@ -148,6 +148,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [agreedSourceOfFunds, setAgreedSourceOfFunds] = useState(false);
   const [sofDropdownOpen, setSofDropdownOpen] = useState(false);
   const [bankName, setBankName] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankAccountType, setBankAccountType] = useState("");
   const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [bankBranchCode, setBankBranchCode] = useState("");
   const [identityNumber, setIdentityNumber] = useState("");
@@ -194,7 +196,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }
   };
 
-  const bankDetailsReady = bankName && bankAccountNumber && bankBranchCode;
+  const bankDetailsReady = bankName && bankAccountName.trim() && bankAccountType && bankAccountNumber && bankBranchCode;
 
   const goToStep = (nextStep) => {
     setIsFading(true);
@@ -525,6 +527,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           }
           let raw = {};
           try { raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : (record.sumsub_raw || {}); } catch {}
+          if (raw.bank_details?.bank_account_name) setBankAccountName(raw.bank_details.bank_account_name);
+          if (raw.bank_details?.bank_account_type) setBankAccountType(raw.bank_details.bank_account_type);
           if (raw.tax_details?.tax_number) {
             setTaxNumber(raw.tax_details.tax_number);
             setTaxDone(true);
@@ -629,6 +633,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           agreed_privacy: agreedPrivacy || false,
           tax_number: taxNumber || null,
           bank_name: bankName || null,
+          bank_account_name: bankAccountName || null,
+          bank_account_type: bankAccountType || null,
           bank_account_number: bankAccountNumber || null,
           bank_branch_code: bankBranchCode || null,
         };
@@ -1099,6 +1105,44 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
                 <div className="bank-inputs-card">
                   <div className="bank-input-row">
+                    <label htmlFor="bank-account-name">Account Holder Name</label>
+                    <div className="bank-input-field">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18" className="bank-input-icon">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6.75a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.118a7.5 7.5 0 0 1 15 0A17.933 17.933 0 0 1 12 21.75a17.933 17.933 0 0 1-7.5-1.632Z" />
+                      </svg>
+                      <input
+                        type="text"
+                        id="bank-account-name"
+                        placeholder="Enter account holder full name"
+                        value={bankAccountName}
+                        onChange={(event) => setBankAccountName(event.target.value)}
+                        autoComplete="name"
+                      />
+                    </div>
+                  </div>
+                  <div className="bank-input-divider"></div>
+                  <div className="bank-input-row">
+                    <label htmlFor="bank-account-type">Account Type</label>
+                    <div className="bank-input-field">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18" className="bank-input-icon">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5m-16.5 5.25h16.5m-16.5 5.25h10.5" />
+                      </svg>
+                      <select
+                        id="bank-account-type"
+                        value={bankAccountType}
+                        onChange={(event) => setBankAccountType(event.target.value)}
+                      >
+                        <option value="">Select account type</option>
+                        <option value="savings">Savings</option>
+                        <option value="cheque">Cheque / Current</option>
+                        <option value="business">Business</option>
+                        <option value="transmission">Transmission</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="bank-input-divider"></div>
+                  <div className="bank-input-row">
                     <label htmlFor="bank-account-number">Account Number</label>
                     <div className="bank-input-field">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="18" height="18" className="bank-input-icon">
@@ -1163,7 +1207,16 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                         }).eq("user_id", userId);
                       }
                     } catch {}
-                    await saveProgressFlag("bank_details_saved");
+                    await saveProgressFlag("bank_details_saved", {
+                      bank_details: {
+                        bank_name: bankName || null,
+                        bank_account_name: bankAccountName || null,
+                        bank_account_type: bankAccountType || null,
+                        bank_account_number: bankAccountNumber || null,
+                        bank_branch_code: bankBranchCode || null,
+                        savedAt: new Date().toISOString(),
+                      },
+                    });
                     setBankDone(true);
                     goToStep(getNextIncompleteStep(4, 4));
                   }}
