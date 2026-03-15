@@ -659,7 +659,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       {isPnlPos ? '▲' : '▼'} {isPnlPos ? '+' : ''}{totalPnlPct.toFixed(1)}%
                     </span>
                   </div>
-                  <p className="mt-0.5 text-xs text-white/50">Account Value</p>
+                  <p className="mt-0.5 text-xs text-white/50">
+                    Account Value · Invested R{displayTotalCostBasis.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
                 </>
               );
             })()}
@@ -821,6 +823,11 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       {isPos ? '+' : ''}{pnlPct.toFixed(1)}%
                     </span>
                   </div>
+                  {ia > 0 && (
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Invested R{ia.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  )}
                 </>
               );
             })()}
