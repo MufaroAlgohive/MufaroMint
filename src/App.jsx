@@ -416,7 +416,6 @@ const App = () => {
 
   const sessionCheckSkipUntilRef = useRef(0);
 
-  const sessionCheckFailCountRef = useRef(0);
 
   useEffect(() => {
     if (!supabase || !isAuthenticated) return;
@@ -429,26 +428,16 @@ const App = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          if (!refreshed?.session) {
-            sessionCheckFailCountRef.current += 1;
-            console.log(`[session-check] No active session found (attempt ${sessionCheckFailCountRef.current}/5)`);
-            if (sessionCheckFailCountRef.current >= 5) {
-              sessionExpiredPageRef.current = currentPageRef.current;
-              setShowPinLock(false);
-              setShowSessionExpired(true);
-              sessionCheckFailCountRef.current = 0;
-            }
-            return;
-          }
+          // Silently try to refresh — if it succeeds great, if not we wait for
+          // onAuthStateChange(SIGNED_OUT) to show the expired screen.
+          await supabase.auth.refreshSession();
+          return;
         }
-        sessionCheckFailCountRef.current = 0;
-        const activeSession = session || (await supabase.auth.getSession()).data?.session;
         const fingerprint = localStorage.getItem('mint_session_fingerprint');
-        if (fingerprint && activeSession?.access_token) {
+        if (fingerprint && session?.access_token) {
           try {
             const res = await fetch(`/api/sessions/validate?fingerprint=${encodeURIComponent(fingerprint)}`, {
-              headers: { Authorization: `Bearer ${activeSession.access_token}` },
+              headers: { Authorization: `Bearer ${session.access_token}` },
             });
             if (res.ok) {
               const json = await res.json();
@@ -469,8 +458,8 @@ const App = () => {
       }
     };
 
-    const initialDelay = setTimeout(() => checkSession(), 30000);
-    const interval = setInterval(checkSession, 60000);
+    const initialDelay = setTimeout(() => checkSession(), 60000);
+    const interval = setInterval(checkSession, 120000);
 
     return () => {
       clearTimeout(initialDelay);

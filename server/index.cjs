@@ -517,6 +517,36 @@ async function migrateGoalColumns() {
 }
 migrateGoalColumns();
 
+async function ensureUserSessionsTable() {
+  if (!pgPool) return;
+  const client = await pgPool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_sessions (
+        id         BIGSERIAL PRIMARY KEY,
+        user_id    UUID NOT NULL,
+        session_token TEXT NOT NULL,
+        user_agent TEXT DEFAULT '',
+        browser    TEXT DEFAULT '',
+        os         TEXT DEFAULT '',
+        device_type TEXT DEFAULT 'desktop',
+        ip_address TEXT DEFAULT '',
+        is_current BOOLEAN DEFAULT false,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        last_active_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token)`);
+    console.log('[sessions] user_sessions table ready');
+  } catch (e) {
+    console.error('[sessions] Failed to create user_sessions table:', e.message);
+  } finally {
+    client.release();
+  }
+}
+ensureUserSessionsTable();
+
 function generateMintNumber(firstName, idNumber, createdAt) {
   const normalized = (firstName || 'MNT').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X').substring(0, 3);
