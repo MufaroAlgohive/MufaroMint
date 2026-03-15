@@ -1036,15 +1036,17 @@ const HomePage = ({
                     <p className="text-xs text-slate-500 line-clamp-1">{asset.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">
-                      R{typeof asset.value === 'number' ? asset.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (asset.value || 0)}
-                    </p>
                     {asset.pnlRands != null ? (
-                      <p className={`text-xs font-semibold ${asset.pnlRands >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {asset.pnlRands >= 0 ? '+' : ''}R{Math.abs(asset.pnlRands).toFixed(2)} ({asset.pnlPct >= 0 ? '+' : ''}{asset.pnlPct.toFixed(2)}%)
-                      </p>
+                      <>
+                        <p className={`text-sm font-semibold ${asset.pnlRands >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {asset.pnlRands >= 0 ? '+' : ''}R{Math.abs(asset.pnlRands).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className={`text-xs font-semibold ${asset.pnlPct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          ({asset.pnlPct >= 0 ? '+' : ''}{asset.pnlPct.toFixed(2)}%)
+                        </p>
+                      </>
                     ) : (
-                      <p className={`text-xs font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      <p className={`text-sm font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {asset.change >= 0 ? '+' : ''}{typeof asset.change === 'number' ? asset.change.toFixed(2) : (asset.change || '0.00')}%
                       </p>
                     )}
