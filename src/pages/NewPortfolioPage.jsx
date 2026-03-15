@@ -1064,7 +1064,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   return pts;
                 })()
               : liveStockChartData)
-          : [];
+          : (showStockPnl
+              ? [{ day: null, value: 0 }, { day: "Today", value: 0 }]
+              : []);
         const stockAxisConfig = computePnlAxisConfig(stockChartData);
         if (!selectedStock) {
           if (quotesLoading || holdingsLoading) {
