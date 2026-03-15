@@ -297,7 +297,15 @@ const SwipeableBalanceCard = ({
         const purchaseDateStr = selectedAsset.firstInvestedDate ? selectedAsset.firstInvestedDate.slice(0, 10) : null;
         if (purchaseDateStr && priceHistory && priceHistory.length > 0) {
           const afterPurchase = priceHistory.filter(p => p.ts.split("T")[0] >= purchaseDateStr);
-          priceHistory = afterPurchase.length >= 1 ? afterPurchase : [];
+          if (afterPurchase.length >= 1) {
+            priceHistory = afterPurchase;
+          } else {
+            const beforePurchase = priceHistory.filter(p => p.ts.split("T")[0] < purchaseDateStr);
+            if (beforePurchase.length > 0) {
+              const lastKnown = beforePurchase[beforePurchase.length - 1];
+              priceHistory = [lastKnown, { ...lastKnown, ts: purchaseDateStr + "T00:00:00Z" }];
+            }
+          }
         }
         if (priceHistory && priceHistory.length > 0) {
           const latestNav = priceHistory[priceHistory.length - 1].nav;
@@ -344,7 +352,15 @@ const SwipeableBalanceCard = ({
           const pDateStr = sh.firstInvestedDate ? sh.firstInvestedDate.slice(0, 10) : null;
           if (pDateStr && priceHistory && priceHistory.length > 0) {
             const afterP = priceHistory.filter(p => p.ts.split("T")[0] >= pDateStr);
-            priceHistory = afterP.length >= 1 ? afterP : [];
+            if (afterP.length >= 1) {
+              priceHistory = afterP;
+            } else {
+              const beforeP = priceHistory.filter(p => p.ts.split("T")[0] < pDateStr);
+              if (beforeP.length > 0) {
+                const lastKnown = beforeP[beforeP.length - 1];
+                priceHistory = [lastKnown, { ...lastKnown, ts: pDateStr + "T00:00:00Z" }];
+              }
+            }
           }
           if (priceHistory && priceHistory.length > 0) {
             const latestNav = priceHistory[priceHistory.length - 1].nav;
