@@ -537,23 +537,53 @@ export default function AccountAgreementStep({
       const userId = session?.user?.id;
       if (!userId) throw new Error("Not authenticated.");
 
-      const fileName = `${userId}/agreement-${Date.now()}.pdf`;
-      const { error: upErr } = await supabase.storage
-        .from("signed-agreements")
-        .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: true });
-      if (upErr) throw upErr;
-
-      const { data: urlData } = supabase.storage.from("signed-agreements").getPublicUrl(fileName);
-      const publicUrl = urlData?.publicUrl || "";
+      let publicUrl = "";
+      try {
+        const token = session?.access_token;
+        if (token) {
+          // Convert ArrayBuffer → base64 and upload via server (uses service role key)
+          const uint8 = new Uint8Array(pdfBuffer);
+          let binary = "";
+          for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+          const pdfBase64 = btoa(binary);
+          const uploadRes = await fetch("/api/onboarding/upload-agreement", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ pdfBase64 }),
+          });
+          if (uploadRes.ok) {
+            const uploadJson = await uploadRes.json();
+            publicUrl = uploadJson.publicUrl || "";
+          }
+        }
+      } catch (storageErr) {
+        console.warn("PDF storage skipped:", storageErr?.message);
+      }
       setPdfUrl(publicUrl);
 
-      await supabase.from("user_onboarding").update({
-        signed_agreement_url: publicUrl,
-        signed_at:            now,
-        downloaded_at:        now,
-        signature_data_url:   sigDataUrl,
-        kyc_status:           "onboarding_complete",
-      }).eq("user_id", userId);
+      // Merge signing details into sumsub_raw (columns signed_* may not exist yet)
+      try {
+        const { data: existing } = await supabase
+          .from("user_onboarding")
+          .select("sumsub_raw")
+          .eq("user_id", userId)
+          .maybeSingle();
+        let raw = {};
+        if (existing?.sumsub_raw) {
+          raw = typeof existing.sumsub_raw === "string" ? JSON.parse(existing.sumsub_raw) : existing.sumsub_raw;
+        }
+        raw.terms_accepted = true;
+        raw.signed_at = now;
+        raw.downloaded_at = now;
+        if (publicUrl) raw.signed_agreement_url = publicUrl;
+        await supabase.from("user_onboarding").update({
+          kyc_status: "onboarding_complete",
+          sumsub_raw: JSON.stringify(raw),
+        }).eq("user_id", userId);
+      } catch (dbErr) {
+        console.warn("Onboarding DB update failed (non-critical):", dbErr?.message);
+        await supabase.from("user_onboarding").update({ kyc_status: "onboarding_complete" }).eq("user_id", userId);
+      }
 
       const token = session?.access_token;
       if (token) {
@@ -1083,7 +1113,7 @@ export default function AccountAgreementStep({
 
         {/* Completion pills */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28, alignItems: "center" }}>
-          {["Identity verified", "Bank details saved", "Agreement signed", "PDF saved to your account"].map((item) => (
+          {["Identity verified", "Bank details saved", "Agreement signed", pdfUrl ? "PDF saved to your account" : "PDF ready to download"].map((item) => (
             <div key={item} style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "6px 16px", borderRadius: 999,

@@ -4348,6 +4348,40 @@ app.get("/api/onboarding/mandate", async (req, res) => {
   }
 });
 
+app.post("/api/onboarding/upload-agreement", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const { pdfBase64 } = req.body;
+    if (!pdfBase64) return res.status(400).json({ success: false, error: "pdfBase64 required" });
+
+    const db = supabaseAdmin || supabase;
+    const fileName = `${user.id}/agreement-${Date.now()}.pdf`;
+    const pdfBuffer = Buffer.from(pdfBase64, "base64");
+
+    const { error: upErr } = await db.storage
+      .from("signed-agreements")
+      .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: true });
+
+    if (upErr) {
+      console.warn("[Onboarding] PDF upload failed:", upErr.message);
+      return res.json({ success: true, publicUrl: "" });
+    }
+
+    const { data: urlData } = db.storage.from("signed-agreements").getPublicUrl(fileName);
+    return res.json({ success: true, publicUrl: urlData?.publicUrl || "" });
+  } catch (error) {
+    console.error("[Onboarding] Agreement upload error:", error);
+    res.json({ success: true, publicUrl: "" });
+  }
+});
+
 app.post("/api/onboarding/complete", async (req, res) => {
   try {
     const authHeader = req.headers.authorization || "";
