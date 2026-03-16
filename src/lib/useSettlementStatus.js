@@ -51,7 +51,6 @@ export function useSettlementConfig() {
 export function getSettlementStatusForHolding(config) {
   if (!config || config.loading) return null;
   if (config.fullyIntegrated) return "confirmed";
-  if (!config.csdpEnabled) return "pending_csdp";
   if (!config.brokerEnabled) return "pending_broker";
   return "confirmed";
 }

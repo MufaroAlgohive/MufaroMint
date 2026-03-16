@@ -14,7 +14,7 @@ const iconSizeMap = {
 };
 
 const statusConfig = {
-  pending_csdp: {
+  pending: {
     label: "Pending",
     icon: Clock,
     colors: "bg-amber-50 text-amber-600 border-amber-200",

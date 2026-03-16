@@ -413,10 +413,10 @@ cleanupInvalidHoldings();
 
 // ============================================================
 // Settlement Status System
-// Tracks investment lifecycle: pending_csdp → pending_broker → confirmed
+// Tracks investment lifecycle: pending (awaiting fill) → pending_broker → confirmed
 // ============================================================
 const SETTLEMENT_STATUSES = {
-  PENDING_CSDP: 'pending_csdp',
+  PENDING: 'pending',
   PENDING_BROKER: 'pending_broker',
   CONFIRMED: 'confirmed',
   FAILED: 'failed',
@@ -701,9 +701,6 @@ function deriveSettlementStatus(record) {
     (record.store_reference && record.direction === 'debit');
 
   if (isInvestment) {
-    if (!settlementConfig.csdpEnabled) {
-      return SETTLEMENT_STATUSES.PENDING_CSDP;
-    }
     if (!settlementConfig.brokerEnabled) {
       return SETTLEMENT_STATUSES.PENDING_BROKER;
     }
@@ -718,13 +715,15 @@ function deriveHoldingSettlementStatus(holding) {
     return holding.settlement_status;
   }
 
+  const avgFill = Number(holding.avg_fill || 0);
+  if (!avgFill || avgFill === 0) {
+    return SETTLEMENT_STATUSES.PENDING;
+  }
+
   if (settlementConfig.isFullyIntegrated) {
     return SETTLEMENT_STATUSES.CONFIRMED;
   }
 
-  if (!settlementConfig.csdpEnabled) {
-    return SETTLEMENT_STATUSES.PENDING_CSDP;
-  }
   if (!settlementConfig.brokerEnabled) {
     return SETTLEMENT_STATUSES.PENDING_BROKER;
   }
@@ -3115,7 +3114,25 @@ app.get("/api/user/holdings", async (req, res) => {
         const dailyChange = livePrice - prevPrice;
         const dailyChangePct = prevPrice > 0 ? ((dailyChange / prevPrice) * 100) : 0;
         const quantity = h.quantity || 0;
-        const avgFill = h.avg_fill || 0;
+        const avgFill = Number(h.avg_fill || 0);
+        const isPending = !avgFill || avgFill === 0;
+        const settlementStatus = deriveHoldingSettlementStatus(h);
+        if (isPending) {
+          return {
+            ...h,
+            market_value: 0,
+            unrealized_pnl: 0,
+            settlement_status: settlementStatus,
+            symbol: sec?.symbol || "N/A",
+            name: sec?.name || "Unknown",
+            asset_class: sec?.sector || "Other",
+            logo_url: sec?.logo_url || null,
+            last_price: 0,
+            change_price: 0,
+            change_percent: 0,
+            exchange: sec?.exchange || null,
+          };
+        }
         const costBasis = avgFill * quantity;
         const liveMarketValue = livePrice * quantity;
         const pnl = liveMarketValue - costBasis;
@@ -3123,7 +3140,7 @@ app.get("/api/user/holdings", async (req, res) => {
           ...h,
           market_value: liveMarketValue,
           unrealized_pnl: pnl,
-          settlement_status: deriveHoldingSettlementStatus(h),
+          settlement_status: settlementStatus,
           symbol: sec?.symbol || "N/A",
           name: sec?.name || "Unknown",
           asset_class: sec?.sector || "Other",

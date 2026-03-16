@@ -95,7 +95,26 @@ export default async function handler(req, res) {
         const dailyChange = livePrice - prevPrice;
         const dailyChangePct = prevPrice > 0 ? (dailyChange / prevPrice) * 100 : 0;
         const quantity = h.quantity || 0;
-        const avgFill = h.avg_fill || 0;
+        const avgFill = Number(h.avg_fill || 0);
+        const isPending = !avgFill || avgFill === 0;
+
+        if (isPending) {
+          return {
+            ...h,
+            market_value: 0,
+            unrealized_pnl: 0,
+            settlement_status: "pending",
+            symbol: sec?.symbol || "N/A",
+            name: sec?.name || "Unknown",
+            asset_class: sec?.sector || "Other",
+            logo_url: sec?.logo_url || null,
+            last_price: 0,
+            change_price: 0,
+            change_percent: 0,
+            exchange: sec?.exchange || null,
+          };
+        }
+
         const costBasis = avgFill * quantity;
         const liveMarketValue = livePrice * quantity;
         const pnl = liveMarketValue - costBasis;
