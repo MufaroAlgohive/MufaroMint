@@ -260,7 +260,15 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     if (!modalHolding) return null;
     return liveQuotes[modalHolding.ticker]?.id || modalHolding.securityId || null;
   }, [modalHolding, liveQuotes]);
-  const { chartData: modalRawChartData, loading: modalChartLoading } = useStockChart(modalSecurityId, modalTimeFilter, null);
+  const modalPurchaseDate = useMemo(() => {
+    if (!modalHolding || !rawHoldings) return null;
+    const h = (rawHoldings || []).find(h =>
+      String(h.security_id) === String(modalSecurityId) ||
+      String(h.security_id) === String(modalHolding.securityId)
+    );
+    return h?.created_at || h?.as_of_date || null;
+  }, [modalHolding, modalSecurityId, rawHoldings]);
+  const { chartData: modalRawChartData, loading: modalChartLoading } = useStockChart(modalSecurityId, modalTimeFilter, modalPurchaseDate);
 
   useEffect(() => {
     if (pricesLastUpdated) {
@@ -2101,13 +2109,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                 <div className="px-6 mb-3">
                   {mShowPnl ? (
                     <>
-                      <p className="text-3xl font-bold text-slate-900">{formatCurrency(mMarketValue)}</p>
+                      <p className={`text-3xl font-bold ${mPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(mMarketValue)}</p>
                       <p className={`text-sm mt-0.5 ${mPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {mPnl >= 0 ? '+' : ''}{formatCurrency(mPnl)} ({mPnlPct >= 0 ? '+' : ''}{mPnlPct.toFixed(2)}%) all-time
-                        {' · '}
-                        <span className={mLiveChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                          {mLiveChange >= 0 ? '+' : ''}{mLiveChange.toFixed(2)}% today
-                        </span>
+                        {mPnl >= 0 ? '+' : ''}{formatCurrency(mPnl)} ({mPnlPct >= 0 ? '+' : ''}{mPnlPct.toFixed(2)}%) since purchase
                       </p>
                     </>
                   ) : (
