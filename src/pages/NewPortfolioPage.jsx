@@ -1837,8 +1837,16 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                             pnlPct = constituentCostBasis > 0 ? (pnlRands / constituentCostBasis) * 100 : 0;
                           }
                           const isGain = pnlRands >= 0;
+                          const onOpenConstituent = () => {
+                            if (!matchedStock) return;
+                            const rawH = (rawHoldings || []).find(h => h.security_id === matchedStock.id);
+                            const livePrice = liveQuotes[matchedStock.ticker]?.price || matchedStock.price || 0;
+                            const qty = rawH ? (rawH.quantity || 0) : 0;
+                            setModalHolding({ ...matchedStock, currentValue: qty * livePrice });
+                            setModalTimeFilter("W");
+                          };
                           return (
-                            <div key={ci} className="rounded-xl bg-white/80 backdrop-blur-sm p-3 border border-slate-100/50 flex items-center gap-3">
+                            <button key={ci} onClick={onOpenConstituent} className="w-full rounded-xl bg-white/80 backdrop-blur-sm p-3 border border-slate-100/50 flex items-center gap-3 text-left transition hover:bg-white/95 active:scale-[0.98]">
                               <div className="h-8 w-8 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
                                 {logo && !failedLogos[c.symbol] ? (
                                   <img
@@ -1867,7 +1875,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                                   {isGain ? '+' : ''}{pnlPct.toFixed(2)}%
                                 </p>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
