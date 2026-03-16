@@ -1917,7 +1917,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       return (
                         <button
                           key={stock.id}
-                          onClick={() => { setActiveTab('stocks'); setSelectedStock(stock); }}
+                          onClick={() => { setModalHolding(stock); setModalTimeFilter("W"); }}
                           className="w-full flex items-center gap-3 rounded-2xl bg-white/70 backdrop-blur-xl p-3 shadow-sm border border-slate-100/50 transition hover:bg-white/90 text-left"
                         >
                           <div className="h-11 w-11 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
