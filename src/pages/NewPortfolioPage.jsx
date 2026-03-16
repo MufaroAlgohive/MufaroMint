@@ -2059,7 +2059,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   }))
                 : mBaseChartData)
             // No closes after purchase yet (e.g. bought on weekend): flat line at current P&L.
-            : (mShowPnl ? [{ day: null, value: 0 }, { day: 'Now', value: Number(mPnl.toFixed(2)) }] : []);
+            : (mShowPnl ? [{ day: 'Purchase', value: 0 }, { day: 'Now', value: Number(mPnl.toFixed(2)) }] : []);
           const mAxisConfig = computePnlAxisConfig(mChartData);
           return (
             <>
