@@ -2177,7 +2177,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height={230}>
-                      <ComposedChart data={mChartData} margin={{ top: 10, right: 15, left: 5, bottom: 30 }}>
+                      <ComposedChart data={mChartData} margin={{ top: 10, right: 55, left: 5, bottom: 30 }}>
                         <defs>
                           <linearGradient id="modalStockGradient" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
