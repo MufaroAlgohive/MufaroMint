@@ -378,6 +378,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           logo: h.logo_url || null,
           securityId: h.security_id || null,
           currentValue,
+          costBasis,
           change: changePct,
           isPending,
           settlement_status: h.settlement_status || null,
@@ -648,38 +649,44 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           {/* Account balance */}
           <section className="relative">
             <div className="absolute -inset-8 bg-gradient-radial from-[#7c3aed]/20 via-transparent to-transparent rounded-full blur-2xl -z-10" />
-            <div className="flex items-center gap-3">
-              <p className="text-4xl font-bold tracking-tight" style={{ minWidth: '180px' }}>
-                R{balanceVisible ? displayAccountValue.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "••••••••"}
-              </p>
-              <button
-                onClick={() => setBalanceVisible(!balanceVisible)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm transition hover:bg-white/25"
-              >
-                {balanceVisible ? (
-                  <Eye className="h-5 w-5 text-white/70" />
-                ) : (
-                  <EyeOff className="h-5 w-5 text-white/70" />
-                )}
-              </button>
-            </div>
             {(() => {
               const totalPnl = displayAccountValue - displayTotalCostBasis;
               const totalPnlPct = displayTotalCostBasis > 0 ? (totalPnl / displayTotalCostBasis) * 100 : 0;
               const isPnlPos = totalPnl >= 0;
-              if (!balanceVisible) return <p className="mt-1 text-sm text-white/60">Account Value</p>;
+              const balanceDisplay = displayTotalCostBasis;
               return (
                 <>
-                  <div className="mt-1 flex items-center gap-2.5">
-                    <span className="text-lg font-bold" style={{ color: isPnlPos ? '#6ee7b7' : '#fca5a5' }}>
-                      {isPnlPos ? '+' : '-'}R{Math.abs(totalPnl).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-bold"
-                      style={{ backdropFilter: 'blur(4px)', background: 'rgba(255,255,255,0.12)', border: `1px solid ${isPnlPos ? 'rgba(52,211,153,0.6)' : 'rgba(251,113,133,0.6)'}`, color: isPnlPos ? '#6ee7b7' : '#fca5a5' }}>
-                      {isPnlPos ? '▲' : '▼'} {isPnlPos ? '+' : ''}{totalPnlPct.toFixed(1)}%
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <p className="text-4xl font-bold tracking-tight" style={{ minWidth: '180px' }}>
+                      R{balanceVisible ? balanceDisplay.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "••••••••"}
+                    </p>
+                    <button
+                      onClick={() => setBalanceVisible(!balanceVisible)}
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 backdrop-blur-sm transition hover:bg-white/25"
+                    >
+                      {balanceVisible ? (
+                        <Eye className="h-5 w-5 text-white/70" />
+                      ) : (
+                        <EyeOff className="h-5 w-5 text-white/70" />
+                      )}
+                    </button>
                   </div>
-                  <p className="mt-0.5 text-xs text-white/50">Account Value</p>
+                  {!balanceVisible ? (
+                    <p className="mt-1 text-sm text-white/60">Account Value</p>
+                  ) : (
+                    <>
+                      <div className="mt-1 flex items-center gap-2.5">
+                        <span className="text-lg font-bold" style={{ color: isPnlPos ? '#6ee7b7' : '#fca5a5' }}>
+                          {isPnlPos ? '+' : '-'}R{Math.abs(totalPnl).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-xs font-bold"
+                          style={{ backdropFilter: 'blur(4px)', background: 'rgba(255,255,255,0.12)', border: `1px solid ${isPnlPos ? 'rgba(52,211,153,0.6)' : 'rgba(251,113,133,0.6)'}`, color: isPnlPos ? '#6ee7b7' : '#fca5a5' }}>
+                          {isPnlPos ? '▲' : '▼'} {isPnlPos ? '+' : ''}{totalPnlPct.toFixed(1)}%
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-white/50">Account Value</p>
+                    </>
+                  )}
                 </>
               );
             })()}
@@ -1611,6 +1618,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         }
 
         const totalValue = holdingsData.reduce((sum, h) => sum + h.currentValue, 0);
+        const totalCostBasisValue = holdingsData.reduce((sum, h) => sum + (h.costBasis || h.currentValue), 0);
         const totalDistinct = flatPieData.length;
 
         const top10 = flatPieData.slice(0, 10).map((h, idx) => ({
@@ -1635,7 +1643,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
               <div className="flex flex-col gap-3">
                 <div>
                   <p className="text-xs text-slate-500 mb-0.5">Total Portfolio Value</p>
-                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalValue)}</p>
+                  <p className="text-2xl font-bold text-slate-900">{formatCurrency(totalCostBasisValue)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <p className="text-3xl font-bold text-slate-900">{totalDistinct}</p>
