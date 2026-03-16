@@ -2043,6 +2043,21 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
             ? new Date(modalPurchaseDate.slice(0, 10) + 'T00:00:00').getTime()
             : null;
 
+          // Format a date string to match each filter's x-axis label style.
+          const mFormatLabel = (isoStr, filter) => {
+            if (!isoStr) return '';
+            const d = new Date(isoStr.slice(0, 10) + 'T00:00:00');
+            const DAY = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+            const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            const dow = d.getDay(), dy = d.getDate(), mo = d.getMonth(), yr = d.getFullYear();
+            if (filter === 'D') return DAY[dow] + ' ' + dy + ' ' + MON[mo];
+            if (filter === 'W') return DAY[dow] + ' ' + dy;
+            if (filter === 'M') return dy + ' ' + MON[mo];
+            return MON[mo] + " '" + String(yr).slice(-2);
+          };
+          const mPurchaseLabel = mFormatLabel(modalPurchaseDate, modalTimeFilter);
+          const mNowLabel = mFormatLabel(new Date().toISOString(), modalTimeFilter);
+
           // Keep only chart points on or after the local purchase date.
           // Falls back to an empty array if bought today and no close price exists yet (e.g. weekend).
           const mBaseChartData = (() => {
@@ -2059,7 +2074,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                   }))
                 : mBaseChartData)
             // No closes after purchase yet (e.g. bought on weekend): flat line at current P&L.
-            : (mShowPnl ? [{ day: 'Purchase', value: 0 }, { day: 'Now', value: Number(mPnl.toFixed(2)) }] : []);
+            : (mShowPnl ? [{ day: mPurchaseLabel, value: 0 }, { day: mNowLabel, value: Number(mPnl.toFixed(2)) }] : []);
           const mAxisConfig = computePnlAxisConfig(mChartData);
           return (
             <>
