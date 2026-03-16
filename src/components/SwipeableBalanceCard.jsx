@@ -385,13 +385,19 @@ const SwipeableBalanceCard = ({
 
         const pDateStr = (h.created_at || h.as_of_date || "").split("T")[0];
         const avgFillPrice = Number(h.avg_fill || 0) / 100;
+        const livePrice = Number(h.last_price || 0) / 100;
         const allMapped = data.map((p) => ({
           ts: p.ts.split("T")[0],
           close: Number(p.close_price) / 100,
         }));
         let filteredPrices = allMapped.filter((p) => p.ts >= pDateStr);
         if (filteredPrices.length === 0) {
-          filteredPrices = [{ ts: pDateStr, close: avgFillPrice }];
+          filteredPrices = allMapped.length > 0 ? allMapped.slice(-5) : [{ ts: pDateStr, close: avgFillPrice }];
+        }
+        const today = new Date().toISOString().split("T")[0];
+        const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
+        if (livePrice > 0 && lastDate && lastDate < today) {
+          filteredPrices.push({ ts: today, close: livePrice });
         }
         return {
           securityId: h.security_id,
@@ -687,9 +693,9 @@ const SwipeableBalanceCard = ({
                 ))}
               </div>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1" style={{ minHeight: 100, height: 100 }}>
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={100}>
                   <ComposedChart
                     data={chartData}
                     margin={{ top: 2, right: 0, left: -12, bottom: 0 }}
