@@ -675,7 +675,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                     <p className="mt-1 text-sm text-white/60">Account Value</p>
                   ) : (
                     <>
-                      <div className="mt-1 flex items-center gap-2.5">
+                      <div className="mt-1 flex items-center gap-2.5 flex-wrap">
+                        <span className="text-sm text-white/60">
+                          R{displayTotalCostBasis.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} invested
+                        </span>
                         <span className="text-lg font-bold" style={{ color: isPnlPos ? '#6ee7b7' : '#fca5a5' }}>
                           {isPnlPos ? '+' : '-'}R{Math.abs(totalPnl).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
