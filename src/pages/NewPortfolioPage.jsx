@@ -67,7 +67,7 @@ const getReturnColor = (value) => {
 
 const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies, onBack, deepLink, onDeepLinkConsumed, onOpenStockDetail }) => {
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [activeTab, setActiveTab] = useState("stocks");
+  const [activeTab, setActiveTab] = useState("holdings");
   const [timeFilter, setTimeFilter] = useState("W");
   const [failedLogos, setFailedLogos] = useState({});
   const [currentView, setCurrentView] = useState("portfolio");
@@ -90,7 +90,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
   const [showYearDropdown, setShowYearDropdown] = useState(false);
   const [calendarFilter, setCalendarFilter] = useState("overall");
   const [showCalendarFilterDropdown, setShowCalendarFilterDropdown] = useState(false);
-  const tabOrder = ["strategy", "stocks", "holdings"];
+  const tabOrder = ["strategy", "holdings"];
 
   useEffect(() => {
     if (currentView === "allocations") {
@@ -681,11 +681,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
             })()}
           </section>
 
-          {/* Tabs: Strategy, Individual Stocks, Goals */}
+          {/* Tabs: Strategy, Holdings */}
           <section className="flex gap-2 mt-1">
             {[
               { id: "strategy", label: "Strategies" },
-              { id: "stocks", label: "Individual Stocks" },
               { id: "holdings", label: "Holdings" },
             ].map((tab) => (
               <button
