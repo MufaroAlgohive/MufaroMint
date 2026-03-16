@@ -256,7 +256,11 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     return holding?.created_at || holding?.as_of_date || null;
   }, [selectedSecurityId, rawHoldings]);
   const { chartData: liveStockChartData, loading: stockChartLoading } = useStockChart(selectedSecurityId, stockTimeFilter, selectedStockPurchaseDate);
-  const { chartData: modalRawChartData, loading: modalChartLoading } = useStockChart(modalHolding?.securityId || null, modalTimeFilter, null);
+  const modalSecurityId = useMemo(() => {
+    if (!modalHolding) return null;
+    return liveQuotes[modalHolding.ticker]?.id || modalHolding.securityId || null;
+  }, [modalHolding, liveQuotes]);
+  const { chartData: modalRawChartData, loading: modalChartLoading } = useStockChart(modalSecurityId, modalTimeFilter, null);
 
   useEffect(() => {
     if (pricesLastUpdated) {
@@ -2013,7 +2017,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
       <AnimatePresence>
         {modalHolding && (() => {
           const mHolding = modalHolding;
-          const mRawHolding = (rawHoldings || []).find(h => String(h.security_id) === String(mHolding.securityId));
+          const mRawHolding = (rawHoldings || []).find(h =>
+            String(h.security_id) === String(modalSecurityId) ||
+            String(h.security_id) === String(mHolding.securityId)
+          );
           const mQty = mRawHolding ? (mRawHolding.quantity || 0) : 0;
           const mAvgFill = mRawHolding ? (mRawHolding.avg_fill || 0) / 100 : 0;
           const mCostBasis = mAvgFill * mQty;
