@@ -405,13 +405,13 @@ const StatementsPage = ({ onOpenNotifications }) => {
   , [activityTransactions]);
 
   const activitySummaryStats = useMemo(() => {
-    const totalIn = activityItems
+    const totalDeposited = activityItems
       .filter((i) => i.direction === "credit")
       .reduce((s, i) => s + Math.abs(i.rawAmount), 0);
-    const totalOut = activityItems
-      .filter((i) => i.direction === "debit")
+    const totalWithdrawn = activityItems
+      .filter((i) => i.filterCategory === "Withdrawals")
       .reduce((s, i) => s + Math.abs(i.rawAmount), 0);
-    return { totalIn, totalOut, count: activityItems.length };
+    return { totalDeposited, totalWithdrawn, count: activityItems.length };
   }, [activityItems]);
 
   const activityVisibleItems = useMemo(() => {
@@ -589,8 +589,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
             <>
               <div className="grid grid-cols-2 gap-3 mt-4">
                 {[
-                  { label: "Money In", val: activitySummaryStats.totalIn, Icon: ArrowDownLeft, bg: "bg-emerald-50", ic: "text-emerald-600" },
-                  { label: "Money Out", val: activitySummaryStats.totalOut, Icon: ArrowUpRight, bg: "bg-red-50", ic: "text-red-500" },
+                  { label: "Deposits", val: activitySummaryStats.totalDeposited, Icon: ArrowDownLeft, bg: "bg-emerald-50", ic: "text-emerald-600" },
+                  { label: "Withdrawn", val: activitySummaryStats.totalWithdrawn, Icon: ArrowUpRight, bg: "bg-red-50", ic: "text-red-500" },
                 ].map(({ label, val, Icon, bg, ic }) => (
                   <div key={label} className="rounded-2xl bg-white p-4 shadow-sm border border-slate-100/80">
                     <div className="flex items-center gap-2 mb-1.5">
