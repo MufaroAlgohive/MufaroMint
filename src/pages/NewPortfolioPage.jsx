@@ -1802,10 +1802,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
-                            {!stock.isStrategy && stock.isPending && <SettlementBadge status="pending" size="xs" />}
-                          </div>
+                          <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
                           <p className="text-xs text-slate-500 font-medium">{stock.isStrategy ? `${(stock.strategyHoldings || []).length} assets` : stock.ticker}</p>
                         </div>
                         
@@ -2141,10 +2138,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       )}
                     </div>
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-base font-semibold text-slate-900 leading-tight">{mHolding.name}</p>
-                        {mIsPending && <SettlementBadge status="pending" size="xs" />}
-                      </div>
+                      <p className="text-base font-semibold text-slate-900 leading-tight">{mHolding.name}</p>
                       <p className="text-xs font-medium text-slate-400">{mHolding.ticker}</p>
                     </div>
                   </div>
