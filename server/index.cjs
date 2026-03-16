@@ -3069,21 +3069,6 @@ app.get("/api/user/holdings", async (req, res) => {
     const securityIds = rawHoldings.map(h => h.security_id).filter(Boolean);
     let securitiesMap = {};
     let latestPricesMap = {};
-    let investedAmountsMap = {};
-
-    const investTxResult = await db
-      .from("transactions")
-      .select("amount, security_id")
-      .eq("user_id", userId)
-      .eq("direction", "debit")
-      .ilike("name", "%Purchased%");
-    if (investTxResult.data) {
-      investTxResult.data.forEach(tx => {
-        if (tx.security_id) {
-          investedAmountsMap[tx.security_id] = (investedAmountsMap[tx.security_id] || 0) + (tx.amount || 0);
-        }
-      });
-    }
 
     if (securityIds.length > 0) {
       const [secResult, pricesResult] = await Promise.all([
