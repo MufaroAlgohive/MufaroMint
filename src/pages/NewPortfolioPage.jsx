@@ -11,6 +11,7 @@ import { useStockQuotes, useStockChart } from "../lib/useStockData";
 import { clearMarketDataCache } from "../lib/marketData";
 import SwipeBackWrapper from "../components/SwipeBackWrapper.jsx";
 import PortfolioSkeleton from "../components/PortfolioSkeleton";
+import SettlementBadge from "../components/PendingBadge";
 
 
 
@@ -369,6 +370,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
         const changePct = costBasis > 0 ? ((currentValue - costBasis) / costBasis) * 100 : 0;
         const weight = totalValue > 0 ? (currentValue / totalValue) * 100 : 0;
+        const isPending = !h.avg_fill || Number(h.avg_fill) === 0;
         holdingsMap.set(sym, {
           symbol: sym,
           name: h.name || "Unknown",
@@ -377,6 +379,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           securityId: h.security_id || null,
           currentValue,
           change: changePct,
+          isPending,
+          settlement_status: h.settlement_status || null,
         });
       });
     }
@@ -1796,18 +1800,25 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         </div>
                         
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-900">{stock.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{stock.name}</p>
+                            {!stock.isStrategy && stock.isPending && <SettlementBadge status="pending" size="xs" />}
+                          </div>
                           <p className="text-xs text-slate-500 font-medium">{stock.isStrategy ? `${(stock.strategyHoldings || []).length} assets` : stock.ticker}</p>
                         </div>
                         
                         <div className="flex items-center gap-2">
                           <div className="text-right flex-shrink-0">
                             <p className="text-sm font-bold text-slate-900">
-                              {formatCurrency(stock.currentValue)}
+                              {stock.isPending ? "—" : formatCurrency(stock.currentValue)}
                             </p>
-                            <p className={`text-xs font-semibold ${changePnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {changePnl >= 0 ? '+' : ''}{changePnl.toFixed(1)}%
-                            </p>
+                            {stock.isPending ? (
+                              <p className="text-xs text-amber-500 font-semibold">Pending</p>
+                            ) : (
+                              <p className={`text-xs font-semibold ${changePnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {changePnl >= 0 ? '+' : ''}{changePnl.toFixed(1)}%
+                              </p>
+                            )}
                             <p className="text-[10px] text-slate-400">{pctValue.toFixed(1)}% of portfolio</p>
                           </div>
                           {stock.isStrategy && (
@@ -2073,15 +2084,18 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
             return modalRawChartData.filter(d => (d.timestamp || 0) >= mPurchaseTs);
           })();
 
-          const mChartData = mBaseChartData.length > 0
-            ? (mShowPnl
-                ? mBaseChartData.map(d => ({
-                    ...d,
-                    value: Number(((d.value * mQty) - mCostBasis).toFixed(2)),
-                  }))
-                : mBaseChartData)
-            // No closes after purchase yet (e.g. bought on weekend): flat line at current P&L.
-            : (mShowPnl ? [{ day: mPurchaseLabel, value: 0 }, { day: mNowLabel, value: Number(mPnl.toFixed(2)) }] : []);
+          const mIsPending = mQty > 0 && mAvgFill === 0;
+          const mChartData = mIsPending
+            ? [{ day: mPurchaseLabel || 'Purchase', value: 0 }, { day: mNowLabel || 'Now', value: 0 }]
+            : mBaseChartData.length > 0
+              ? (mShowPnl
+                  ? mBaseChartData.map(d => ({
+                      ...d,
+                      value: Number(((d.value * mQty) - mCostBasis).toFixed(2)),
+                    }))
+                  : mBaseChartData)
+              // No closes after purchase yet (e.g. bought on weekend): flat line at current P&L.
+              : (mShowPnl ? [{ day: mPurchaseLabel, value: 0 }, { day: mNowLabel, value: Number(mPnl.toFixed(2)) }] : []);
           const mAxisConfig = computePnlAxisConfig(mChartData);
           return (
             <>
@@ -2125,7 +2139,10 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                       )}
                     </div>
                     <div>
-                      <p className="text-base font-semibold text-slate-900 leading-tight">{mHolding.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-base font-semibold text-slate-900 leading-tight">{mHolding.name}</p>
+                        {mIsPending && <SettlementBadge status="pending" size="xs" />}
+                      </div>
                       <p className="text-xs font-medium text-slate-400">{mHolding.ticker}</p>
                     </div>
                   </div>
@@ -2141,7 +2158,12 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
 
                 {/* Value + P&L */}
                 <div className="px-6 mb-3">
-                  {mShowPnl ? (
+                  {mIsPending ? (
+                    <>
+                      <p className="text-3xl font-bold text-amber-500">Pending</p>
+                      <p className="text-sm mt-0.5 text-slate-400">Awaiting broker fill — value not yet settled</p>
+                    </>
+                  ) : mShowPnl ? (
                     <>
                       <p className="text-3xl font-bold text-slate-900">{formatCurrency(mMarketValue)}</p>
                       <p className={`text-sm mt-0.5 ${mPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>

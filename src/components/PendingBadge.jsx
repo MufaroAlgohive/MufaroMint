@@ -1,5 +1,5 @@
 import React from "react";
-import { Clock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 
 const sizeMap = {
   xs: "text-[9px] px-1.5 py-0.5 gap-0.5",
@@ -21,8 +21,8 @@ const statusConfig = {
   },
   pending_broker: {
     label: "Pending",
-    icon: Loader2,
-    colors: "bg-blue-50 text-blue-600 border-blue-200",
+    icon: Clock,
+    colors: "bg-amber-50 text-amber-600 border-amber-200",
   },
   confirmed: {
     label: "Confirmed",

@@ -38,6 +38,7 @@ import Skeleton from "../components/Skeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
+import SettlementBadge from "../components/PendingBadge";
 import NotificationBell from "../components/NotificationBell";
 
 const CARD_VISIBILITY_KEY = "mintBalanceVisible";
@@ -246,6 +247,19 @@ const HomePage = ({
             const sec = securitiesMap[h.security_id];
             const qty = Number(h.quantity || 0);
             const avgFill = Number(h.avg_fill || 0);
+            const isPending = !avgFill || avgFill === 0;
+            if (isPending) {
+              return {
+                symbol: sec.symbol,
+                name: sec.name,
+                logo: sec.logo_url,
+                value: 0,
+                change: 0,
+                pnlRands: 0,
+                pnlPct: 0,
+                isPending: true,
+              };
+            }
             const livePrice = Number(sec.last_price || avgFill);
             const marketVal = (livePrice * qty) / 100;
             const costBasis = (avgFill * qty) / 100;
@@ -262,7 +276,9 @@ const HomePage = ({
             };
           });
 
-        const sorted = formatted.filter(a => a.pnlPct > 0).sort((a, b) => b.pnlPct - a.pnlPct).slice(0, 5);
+        const profitable = formatted.filter(a => !a.isPending && a.pnlPct > 0).sort((a, b) => b.pnlPct - a.pnlPct);
+        const pending = formatted.filter(a => a.isPending);
+        const sorted = [...profitable, ...pending].slice(0, 5);
         setLocalBestAssets(sorted);
         return;
       }
@@ -1017,12 +1033,17 @@ const HomePage = ({
                       />
                     )}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">{asset.symbol}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-slate-900">{asset.symbol}</p>
+                      {asset.isPending && <SettlementBadge status="pending" size="xs" />}
+                    </div>
                     <p className="text-xs text-slate-500 line-clamp-1">{asset.name}</p>
                   </div>
-                  <div className="text-right">
-                    {asset.pnlRands != null ? (
+                  <div className="text-right flex-shrink-0">
+                    {asset.isPending ? (
+                      <p className="text-xs text-slate-400">Awaiting fill</p>
+                    ) : asset.pnlRands != null ? (
                       <>
                         <p className={`text-sm font-semibold ${asset.pnlRands >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                           {asset.pnlRands >= 0 ? '+' : ''}R{Math.abs(asset.pnlRands).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

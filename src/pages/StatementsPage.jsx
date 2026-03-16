@@ -812,12 +812,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
                           <div className="flex-1 min-w-0 space-y-1">
                             <div className="flex items-center gap-1.5">
                               <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
-                              {(() => {
-                                const isSettlementActive = settlementCfg.csdpEnabled || settlementCfg.brokerEnabled || settlementCfg.fullyIntegrated;
-                                if (!isSettlementActive) return null;
-                                const s = row.settlement_status || holdingSettlementStatus;
-                                return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
-                              })()}
+                              {row.settlement_status && row.settlement_status !== "confirmed" && (
+                                <SettlementBadge status={row.settlement_status} size="xs" />
+                              )}
                             </div>
                             <p className="text-xs text-slate-600 line-clamp-1">{row.riskLevel || row.meta} • {row.desc}</p>
                           </div>
@@ -887,12 +884,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-1.5">
                                   <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
-                                  {(() => {
-                                    const isSettlementActive = settlementCfg.csdpEnabled || settlementCfg.brokerEnabled || settlementCfg.fullyIntegrated;
-                                    if (!isSettlementActive) return null;
-                                    const s = row.settlement_status || holdingSettlementStatus;
-                                    return s && s !== "confirmed" ? <SettlementBadge status={s} size="xs" /> : null;
-                                  })()}
+                                  {row.settlement_status && row.settlement_status !== "confirmed" && (
+                                    <SettlementBadge status={row.settlement_status} size="xs" />
+                                  )}
                                 </div>
                                 <p className="text-xs text-slate-500">{row.desc}</p>
                               </div>
