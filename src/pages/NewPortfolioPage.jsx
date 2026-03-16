@@ -682,7 +682,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           </section>
 
           {/* Tabs: Strategy, Holdings */}
-          <section className="flex gap-2 mt-1">
+          <section className="flex gap-2 mt-1 justify-center">
             {[
               { id: "strategy", label: "Strategies" },
               { id: "holdings", label: "Holdings" },
