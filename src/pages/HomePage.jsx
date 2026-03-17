@@ -819,6 +819,7 @@ const HomePage = ({
                   transition: "transform 0.7s ease-out",
                 }}>
                   <div className="relative h-full p-5 flex flex-col">
+                    <img src="/card-texture.png" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover rounded-[24px] pointer-events-none select-none" style={{ opacity: 0.13, mixBlendMode: "multiply" }} />
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col gap-0.5">
                         <MintLogoSlate className="h-6 w-auto opacity-80" />
