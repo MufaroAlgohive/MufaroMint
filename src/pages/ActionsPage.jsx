@@ -49,10 +49,10 @@ const ActionsPage = ({ onBack, onNavigate }) => {
 
   const hasOnboardingRecord = !!onboardingData;
   const employmentDone = hasOnboardingRecord && onboardingData.employment_status && onboardingData.employment_status !== "not_provided";
-  const onboardingMarkedComplete = onboardingData?.kyc_status === "onboarding_complete" || onboardingData?.kyc_status === "verified";
+  const onboardingMarkedComplete = onboardingData?.kyc_status === "onboarding_complete";
   const identityComplete = kycVerified && (employmentDone || onboardingMarkedComplete);
 
-  const { bankDone, mandateAgreed, riskDone, sofDone, termsDone, allComplete: allOnboardingComplete } = parseOnboardingFlags(onboardingData);
+  const { bankDone, mandateAgreed, riskDone, sofDone, termsDone, agreementSigned, allComplete: allOnboardingComplete } = parseOnboardingFlags(onboardingData);
 
   const getOnboardingStatus = () => {
     if (allOnboardingComplete) return { text: "Complete", style: "bg-green-100 text-green-600" };
@@ -89,6 +89,7 @@ const ActionsPage = ({ onBack, onNavigate }) => {
     if (!riskDone) missing.push("risk disclosure");
     if (!sofDone) missing.push("source of funds");
     if (!termsDone) missing.push("contract agreement");
+    if (!agreementSigned) missing.push("signed agreement");
     if (missing.length > 0) return `Still needed: ${missing.join(", ")}`;
     return "Complete your onboarding steps";
   };

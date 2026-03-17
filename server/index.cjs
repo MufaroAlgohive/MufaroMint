@@ -4614,7 +4614,8 @@ app.get("/api/onboarding/status", async (req, res) => {
             }
           } catch {}
         }
-        is_fully_onboarded = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone;
+        const agreementSigned = !!raw?.signed_at;
+        is_fully_onboarded = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone && agreementSigned;
       }
     }
 

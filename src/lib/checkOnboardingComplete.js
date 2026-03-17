@@ -49,10 +49,13 @@ export function parseOnboardingFlags(record) {
     termsDone = !!raw?.terms_accepted;
   }
 
-  // ALL steps must be complete — KYC identity AND all financial onboarding steps including tax
-  const allComplete = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone;
+  // Step 9: Agreement signed
+  const agreementSigned = !!raw?.signed_at;
 
-  return { kycDone, taxDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, allComplete };
+  // ALL steps must be complete — KYC identity AND all financial onboarding steps including tax and final agreement
+  const allComplete = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone && agreementSigned;
+
+  return { kycDone, taxDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, agreementSigned, allComplete };
 }
 
 /**
