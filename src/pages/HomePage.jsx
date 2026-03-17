@@ -775,7 +775,6 @@ const HomePage = ({
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <div className="flex items-center rounded-full bg-white/10 p-1 backdrop-blur-md">
                 {[
-                  { id: "balance", label: "Home", disabled: false, action: () => { setHomeTab("balance"); setCardRotation(0); } },
                   { id: "invest", label: "Wealth", disabled: false, action: () => { setHomeTab("invest"); setCardRotation(-180); } },
                 ].map((tab) => (
                   <button
