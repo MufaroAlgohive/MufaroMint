@@ -45,6 +45,8 @@ import { supabase } from "../lib/supabase";
 const MINT_LOGO_URL =
   "https://mfxnghmuccevsxwcetej.supabase.co/storage/v1/object/public/Mint%20Assets/tMOmeIOo4KE20Yh1bIuk8PFMlFHZ421rVESa2dcn.jpg";
 
+const CEO_SIGNATURE_URL = "/assets/ceo-signature.png";
+
 const MINT_PURPLE   = [83, 47, 126];
 const PAGE_W        = 210;
 const PAGE_H        = 297;
@@ -141,9 +143,10 @@ function drawFooters(doc, signedAt, downloadedAt) {
 
 // ─── PDF builder ──────────────────────────────────────────────────────────────
 
-async function buildPDF({ profile, onboardingData, signatureDataUrl, signedAt, downloadedAt }) {
-  const doc       = new jsPDF({ unit: "mm", format: "a4" });
-  const logoB64   = await fetchImageBase64(MINT_LOGO_URL);
+async function buildPDF({ profile, onboardingData, packDetail, signatureDataUrl, signedAt, downloadedAt }) {
+  const doc         = new jsPDF({ unit: "mm", format: "a4" });
+  const logoB64     = await fetchImageBase64(MINT_LOGO_URL);
+  const ceoSigB64   = await fetchImageBase64(CEO_SIGNATURE_URL);
 
   const {
     bankName = "", bankAccountNumber = "", bankBranchCode = "",
@@ -152,12 +155,29 @@ async function buildPDF({ profile, onboardingData, signatureDataUrl, signedAt, d
     bankAccountType = "",
   } = onboardingData;
 
-  const fullName = [profile?.first_name || profile?.firstName, profile?.last_name || profile?.lastName]
-    .filter(Boolean).join(" ") || profile?.full_name || "—";
-  const address    = profile?.address || profile?.physical_address || "—";
-  const email      = profile?.email || "—";
-  const cell       = profile?.cell_number || profile?.phone || "—";
-  const taxNo      = taxNumber || profile?.tax_number || "—";
+  // ── Extract fields from pack_detail (SumSub KYC data) with profile fallback ──
+  const pd = packDetail?.info || {};
+  const pdFirstName = pd.firstNameEn || pd.firstName || "";
+  const pdLastName  = pd.lastNameEn  || pd.lastName  || "";
+  const pdFullName  = pdFirstName && pdLastName ? `${pdFirstName} ${pdLastName}` : "";
+  const pdIdDoc     = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number) : null;
+  const pdIdNumber  = pdIdDoc?.number || "";
+  const pdAddress   = (() => {
+    if (Array.isArray(pd.addresses) && pd.addresses.length > 0) {
+      const a = pd.addresses[0];
+      return [a.street, a.town, a.state, a.postCode, a.country].filter(Boolean).join(", ");
+    }
+    return "";
+  })();
+  const pdEmail = packDetail?.email || "";
+  const pdPhone = packDetail?.phone || "";
+
+  const fullName    = pdFullName  || [profile?.first_name || profile?.firstName, profile?.last_name || profile?.lastName].filter(Boolean).join(" ") || profile?.full_name || "—";
+  const address     = pdAddress   || profile?.address || profile?.physical_address || "—";
+  const email       = pdEmail     || profile?.email || "—";
+  const cell        = pdPhone     || profile?.cell_number || profile?.phone || "—";
+  const resolvedId  = pdIdNumber  || identityNumber || "—";
+  const taxNo       = taxNumber   || profile?.tax_number || "—";
 
   // ── PAGE 1: Account Details ───────────────────────────────────────────────
   doc.setFillColor(255, 255, 255);
@@ -182,7 +202,7 @@ async function buildPDF({ profile, onboardingData, signatureDataUrl, signedAt, d
     ["Asset / Fund Manager",          "MINT PLATFORMS (PTY) LTD"],
     ["Account Name",                   fullName.toUpperCase()],
     ["Contact Name",                   fullName.toUpperCase()],
-    ["Identity / Registration Number", identityNumber || "—"],
+    ["Identity / Registration Number", resolvedId],
     ["Income Tax Number",              taxNo],
     ["Physical Address",               address],
     ["Postal Address",                 address],
@@ -237,7 +257,7 @@ async function buildPDF({ profile, onboardingData, signatureDataUrl, signedAt, d
     // ← {Name} replaced
     [fullName, true],
     // ← {ID NUMBER} replaced
-    [`ID / Registration Number: ${identityNumber || "—"}`, false],
+    [`ID / Registration Number: ${resolvedId}`, false],
     // ← {CLIENT ADDRESS} replaced
     [address, false],
     ['("Client")', false],
@@ -391,39 +411,43 @@ async function buildPDF({ profile, onboardingData, signatureDataUrl, signedAt, d
   const colW = (PAGE_W - MARGIN * 2 - 10) / 2;
   const cx   = MARGIN + colW + 10;
 
-  // Mint signatory (left)
+  // Mint signatory (left) — with CEO signature image
   bold(8.5); color(40, 40, 40);
   doc.text("For and on behalf of Mint Platforms (Pty) Ltd", MARGIN, y);
   norm(8.5);
-  doc.text("Name: Lonwabo Damane",         MARGIN, y + 5);
+  doc.text("Name: Lonwabo Damane",          MARGIN, y + 5);
   doc.text("Title: Chief Executive Officer", MARGIN, y + 10);
+  // CEO signature image — sized to fill column width at a natural height
+  if (ceoSigB64) {
+    doc.addImage(ceoSigB64, "PNG", MARGIN, y + 12, colW, 18, undefined, "FAST");
+  }
   doc.setDrawColor(100, 100, 100); doc.setLineWidth(0.3);
-  doc.line(MARGIN, y + 22, MARGIN + colW, y + 22);
+  doc.line(MARGIN, y + 32, MARGIN + colW, y + 32);
   doc.setFontSize(7.5); color(120, 120, 120);
-  doc.text("Authorised Signatory", MARGIN, y + 26);
+  doc.text("Authorised Signatory", MARGIN, y + 36);
 
   // Client signatory (right) — Name auto-filled from real data
   bold(8.5); color(40, 40, 40);
   doc.text("For and on behalf of the Client", cx, y);
   norm(8.5);
-  doc.text(`Name: ${fullName}`,              cx, y + 5);
-  doc.text(`ID: ${identityNumber || "—"}`,   cx, y + 10);
+  doc.text(`Name: ${fullName}`,    cx, y + 5);
+  doc.text(`ID: ${resolvedId}`,    cx, y + 10);
 
   // Drawn signature image
   if (signatureDataUrl) {
-    doc.addImage(signatureDataUrl, "PNG", cx, y + 12, colW, 14, undefined, "FAST");
+    doc.addImage(signatureDataUrl, "PNG", cx, y + 12, colW, 18, undefined, "FAST");
   }
 
   doc.setDrawColor(100, 100, 100); doc.setLineWidth(0.3);
-  doc.line(cx, y + 28, cx + colW, y + 28);
+  doc.line(cx, y + 32, cx + colW, y + 32);
 
   // Date Signed + Date Downloaded under signature line
   bold(7.5); color(60, 60, 60);
-  doc.text(`Date Signed: ${formatDateLong(signedAt)}`, cx, y + 33);
+  doc.text(`Date Signed: ${formatDateLong(signedAt)}`, cx, y + 37);
   norm(7.5); color(100, 100, 100);
-  doc.text(`Date Downloaded: ${formatDateLong(downloadedAt)}`, cx, y + 38);
+  doc.text(`Date Downloaded: ${formatDateLong(downloadedAt)}`, cx, y + 42);
 
-  y += 48;
+  y += 54;
 
   // Audit trail box
   y = needsNewPage(doc, y, 30);
@@ -434,7 +458,7 @@ async function buildPDF({ profile, onboardingData, signatureDataUrl, signedAt, d
   bold(7.5); color(...MINT_PURPLE);
   doc.text("ELECTRONIC SIGNATURE AUDIT TRAIL", MARGIN + 4, y + 5);
   norm(7); color(80, 80, 80);
-  doc.text(`Signed by:         ${fullName} (ID: ${identityNumber || "—"})`, MARGIN + 4, y + 10);
+  doc.text(`Signed by:         ${fullName} (ID: ${resolvedId})`,             MARGIN + 4, y + 10);
   doc.text(`Signed at (UTC):   ${new Date(signedAt).toISOString()}`,         MARGIN + 4, y + 15);
   doc.text(`Downloaded (UTC):  ${new Date(downloadedAt).toISOString()}`,     MARGIN + 4, y + 20);
 
@@ -457,32 +481,99 @@ export default function AccountAgreementStep({
   const [pdfUrl, setPdfUrl]           = useState("");
   const [signedAt, setSignedAt]       = useState(null);
   const [downloadedAt, setDownloadedAt] = useState(null);
+  const [packDetail, setPackDetail]   = useState(null);
+  const [fetchedOnboarding, setFetchedOnboarding] = useState({});
 
   const canvasRef             = useRef(null);
   const sigPadRef             = useRef(null);
   const signatureDataUrlRef   = useRef(null);
   const [sigEmpty, setSigEmpty] = useState(true);
 
-  // ── derive client info ────────────────────────────────────────────────────
-  const fullName = [profile?.first_name || profile?.firstName, profile?.last_name || profile?.lastName]
+  // ── fetch latest onboarding & pack details (SumSub data) ─────────────────────
+  useEffect(() => {
+    async function getAllData() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) return;
+        const uid = session.user.id;
+
+        // Fetch pack details
+        const { data: pdData } = await supabase
+          .from("user_onboarding_pack_details")
+          .select("pack_details")
+          .eq("user_id", uid)
+          .maybeSingle();
+        if (pdData?.pack_details) setPackDetail(pdData.pack_details);
+
+        // Fetch onboarding record for bank/tax details
+        const { data: obData } = await supabase
+          .from("user_onboarding")
+          .select("bank_name, bank_account_number, bank_branch_code, sumsub_raw")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        
+        if (obData) {
+          let raw = {};
+          try { raw = typeof obData.sumsub_raw === "string" ? JSON.parse(obData.sumsub_raw) : (obData.sumsub_raw || {}); } catch {}
+          setFetchedOnboarding({
+            bankName: obData.bank_name,
+            bankAccountNumber: obData.bank_account_number,
+            bankBranchCode: obData.bank_branch_code,
+            bankAccountName: raw.bank_details?.bank_account_name,
+            bankAccountType: raw.bank_details?.bank_account_type,
+            taxNumber: raw.tax_details?.tax_number,
+            identityNumber: raw.identity_details?.identity_number,
+            ...raw.source_of_funds_details,
+          });
+        }
+      } catch (e) { console.warn("Failed to fetch onboarding data:", e); }
+    }
+    getAllData();
+  }, []);
+
+  // ── derive client info (with SumSub overrides) ────────────────────────────
+  const pd = packDetail?.info || {};
+  const pdFullName = (pd.firstNameEn && pd.lastNameEn) ? `${pd.firstNameEn} ${pd.lastNameEn}` : (pd.firstName && pd.lastName ? `${pd.firstName} ${pd.lastName}` : "");
+  
+  // Find ID or Tax number in pack_details
+  const pdIdDoc  = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number && (d.idDocType === "ID_CARD" || d.idDocType === "PASSPORT" || d.idDocType === "DRIVERS")) : null;
+  const pdTaxDoc = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number && (d.idDocType === "TIN" || d.idDocType === "TAX_ID" || d.idDocType.includes("TAX"))) : null;
+  
+  const pdIdNumber  = pdIdDoc?.number || "";
+  const pdTaxNumber = pdTaxDoc?.number || "";
+
+  const pdAddress  = (() => {
+    if (Array.isArray(pd.addresses) && pd.addresses.length > 0) {
+      const a = pd.addresses[0];
+      return [a.street, a.town, a.state, a.postCode, a.country].filter(Boolean).join(", ");
+    }
+    return "";
+  })();
+
+  const fullName = pdFullName || [profile?.first_name || profile?.firstName, profile?.last_name || profile?.lastName]
     .filter(Boolean).join(" ") || profile?.full_name || "—";
-  const address  = profile?.address || profile?.physical_address || "—";
-  const email    = profile?.email || "—";
-  const cell     = profile?.cell_number || profile?.phone || "—";
+  const address  = pdAddress  || profile?.address || profile?.physical_address || "—";
+  const email    = packDetail?.email || profile?.email || "—";
+  const cell     = packDetail?.phone || profile?.cell_number || profile?.phone || "—";
+  
+  const resolvedId = pdIdNumber || fetchedOnboarding.identityNumber || onboardingData?.identityNumber || "—";
+  
+  // Bank details merged from props and fetched record
+  const effectiveBankName = bankName || fetchedOnboarding.bankName || "";
+  const effectiveBankAcc  = bankAccountNumber || fetchedOnboarding.bankAccountNumber || "";
+  const effectiveBankBranch = bankBranchCode || fetchedOnboarding.bankBranchCode || "";
+  const effectiveBankType = bankAccountType || fetchedOnboarding.bankAccountType || "SAVINGS";
 
-  const {
-    bankName = "", bankAccountNumber = "", bankBranchCode = "",
-    taxNumber = "", identityNumber = "",
-    sourceOfFunds = "", sourceOfFundsOther = "",
-    expectedMonthlyInvestment = "",
-    bankAccountType = "",
-  } = onboardingData;
+  const taxNo = pdTaxNumber || taxNumber || fetchedOnboarding.taxNumber || profile?.tax_number || "—";
 
-  const taxNo = taxNumber || profile?.tax_number || "—";
+  const sourceLabel = (sourceOfFunds || fetchedOnboarding.source_of_funds) === "other"
+    ? `Other: ${sourceOfFundsOther || fetchedOnboarding.source_of_funds_other || "—"}`
+    : (sourceOfFunds || fetchedOnboarding.source_of_funds || "—").replace(/_/g, " ");
 
-  const sourceLabel = sourceOfFunds === "other"
-    ? `Other: ${sourceOfFundsOther || "—"}`
-    : (sourceOfFunds || "—").replace(/_/g, " ");
+  const resolvedMonthly = expectedMonthlyInvestment || fetchedOnboarding.expected_monthly_investment || "";
+
 
   // ── signature pad ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -530,7 +621,17 @@ export default function AccountAgreementStep({
       setDownloadedAt(now);
 
       const pdfBuffer = await buildPDF({
-        profile, onboardingData,
+        profile, 
+        onboardingData: {
+          ...onboardingData,
+          bankName: effectiveBankName,
+          bankAccountNumber: effectiveBankAcc,
+          bankBranchCode: effectiveBankBranch,
+          bankAccountType: effectiveBankType,
+          taxNumber: taxNo,
+          identityNumber: resolvedId,
+        }, 
+        packDetail,
         signatureDataUrl: sigDataUrl,
         signedAt: now, downloadedAt: now,
       });
@@ -624,7 +725,17 @@ export default function AccountAgreementStep({
     setDownloadedAt(dlNow);
 
     const pdfBuffer = await buildPDF({
-      profile, onboardingData,
+      profile, 
+      onboardingData: {
+        ...onboardingData,
+        bankName: effectiveBankName,
+        bankAccountNumber: effectiveBankAcc,
+        bankBranchCode: effectiveBankBranch,
+        bankAccountType: effectiveBankType,
+        taxNumber: taxNo,
+        identityNumber: resolvedId,
+      }, 
+      packDetail,
       signatureDataUrl: signatureDataUrlRef.current,
       signedAt, downloadedAt: dlNow,
     });
@@ -660,17 +771,17 @@ export default function AccountAgreementStep({
     const capitalize = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : "—");
     const reviewRows = [
       { label: "Full Name",          value: fullName },
-      { label: "ID / Reg Number",    value: identityNumber || "—" },
+      { label: "ID / Reg Number",    value: resolvedId },
       { label: "Income Tax Number",  value: taxNo },
       { label: "Email Address",      value: email },
       { label: "Cell Number",        value: cell },
       { label: "Physical Address",   value: address },
-      { label: "Bank Name",          value: (bankName || "—").replace(/_/g, " ").toUpperCase() },
-      { label: "Account Number",     value: bankAccountNumber || "—" },
-      { label: "Branch Code",        value: bankBranchCode || "—" },
-      { label: "Account Type",       value: capitalize(bankAccountType) },
+      { label: "Bank Name",          value: (effectiveBankName || "—").replace(/_/g, " ").toUpperCase() },
+      { label: "Account Number",     value: effectiveBankAcc || "—" },
+      { label: "Branch Code",        value: effectiveBankBranch || "—" },
+      { label: "Account Type",       value: capitalize(effectiveBankType) },
       { label: "Source of Funds",    value: sourceLabel },
-      { label: "Monthly Investment", value: (expectedMonthlyInvestment || "—").replace(/_/g, " ") },
+      { label: "Monthly Investment", value: (resolvedMonthly || "—").replace(/_/g, " ") },
     ];
 
     return (
