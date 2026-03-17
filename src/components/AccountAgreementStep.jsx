@@ -537,9 +537,9 @@ export default function AccountAgreementStep({
   const pd = packDetail?.info || {};
   const pdFullName = (pd.firstNameEn && pd.lastNameEn) ? `${pd.firstNameEn} ${pd.lastNameEn}` : (pd.firstName && pd.lastName ? `${pd.firstName} ${pd.lastName}` : "");
   
-  // Find ID or Tax number in pack_details
+  // Find ID or Tax number in pack_details with defensive checks for idDocType
   const pdIdDoc  = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number && (d.idDocType === "ID_CARD" || d.idDocType === "PASSPORT" || d.idDocType === "DRIVERS")) : null;
-  const pdTaxDoc = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number && (d.idDocType === "TIN" || d.idDocType === "TAX_ID" || d.idDocType.includes("TAX"))) : null;
+  const pdTaxDoc = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number && (d.idDocType === "TIN" || d.idDocType === "TAX_ID" || d.idDocType?.includes?.("TAX"))) : null;
   
   const pdIdNumber  = pdIdDoc?.number || "";
   const pdTaxNumber = pdTaxDoc?.number || "";

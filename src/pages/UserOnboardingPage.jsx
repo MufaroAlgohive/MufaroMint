@@ -681,34 +681,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
         }
 
         if (!completionSuccess) {
-          try {
-            const { data: userData } = await supabase.auth.getUser();
-            const userId = userData?.user?.id;
-            if (userId) {
-              const { data: existing } = await supabase
-                .from("user_onboarding")
-                .select("id")
-                .eq("user_id", userId)
-                .order("created_at", { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-              if (existing?.id) {
-                await supabase
-                  .from("user_onboarding")
-                  .update({ kyc_status: "onboarding_complete" })
-                  .eq("id", existing.id)
-                  .eq("user_id", userId);
-              } else {
-                await supabase
-                  .from("user_onboarding")
-                  .insert({ user_id: userId, kyc_status: "onboarding_complete", employment_status: "not_provided" });
-              }
-              completionSuccess = true;
-            }
-          } catch (directErr) {
-            console.error("Direct Supabase fallback also failed:", directErr);
-          }
+          console.warn("[Onboarding] Completion API failed. Skipping risky Supabase fallback.");
         }
       }
     } catch (err) {

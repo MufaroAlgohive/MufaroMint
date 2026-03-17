@@ -4598,9 +4598,10 @@ app.get("/api/onboarding/status", async (req, res) => {
       } else {
         const kycDone = data.kyc_status === "approved" || data.kyc_status === "verified";
         let taxDone = false, bankDone = false, mandateAgreed = false, riskDone = false, sofDone = false, termsDone = false;
+        let raw = {};
         if (data.sumsub_raw) {
           try {
-            const raw = typeof data.sumsub_raw === "string" ? JSON.parse(data.sumsub_raw) : data.sumsub_raw;
+            raw = typeof data.sumsub_raw === "string" ? JSON.parse(data.sumsub_raw) : data.sumsub_raw;
             if (kycDone && raw?.signed_at) {
               taxDone = true; bankDone = true; mandateAgreed = true;
               riskDone = true; sofDone = true; termsDone = true;
