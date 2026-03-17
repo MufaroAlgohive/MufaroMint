@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 
 const NavigationPill = ({ activeTab = "credit", onTabChange, className = "" }) => {
   const tabs = [
+    //{ id: "home", label: "Home" },
     { id: "home", label: "Wealth" },
     { id: "credit", label: "Credit" },
     { id: "transact", label: "Transact", disabled: true },
