@@ -476,6 +476,14 @@ export default function AccountAgreementStep({
   existingOnboardingId,
   onComplete,
 }) {
+  const {
+    bankName = "", bankAccountNumber = "", bankBranchCode = "",
+    taxNumber = "", identityNumber = "",
+    sourceOfFunds = "", sourceOfFundsOther = "",
+    expectedMonthlyInvestment = "",
+    bankAccountType = "SAVINGS",
+  } = onboardingData;
+
   const [phase, setPhase]             = useState("review");   // review | sign | processing | success
   const [error, setError]             = useState("");
   const [pdfUrl, setPdfUrl]           = useState("");
@@ -539,7 +547,11 @@ export default function AccountAgreementStep({
   
   // Find ID or Tax number in pack_details with defensive checks for idDocType
   const pdIdDoc  = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number && (d.idDocType === "ID_CARD" || d.idDocType === "PASSPORT" || d.idDocType === "DRIVERS")) : null;
-  const pdTaxDoc = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => d.number && (d.idDocType === "TIN" || d.idDocType === "TAX_ID" || d.idDocType?.includes?.("TAX"))) : null;
+  const pdTaxDoc = Array.isArray(pd.idDocs) ? pd.idDocs.find(d => {
+    if (!d.number) return false;
+    const type = d.idDocType || "";
+    return type === "TIN" || type === "TAX_ID" || (typeof type === "string" && type.includes("TAX"));
+  }) : null;
   
   const pdIdNumber  = pdIdDoc?.number || "";
   const pdTaxNumber = pdTaxDoc?.number || "";
