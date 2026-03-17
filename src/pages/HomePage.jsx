@@ -818,25 +818,32 @@ const HomePage = ({
                   transform: `rotateY(${cardRotation}deg)`,
                   transition: "transform 0.7s ease-out",
                 }}>
-                  <div className="relative h-full p-6 flex flex-col">
+                  <div className="relative h-full p-5 flex flex-col">
                     <div className="flex items-start justify-between">
-                      <MintLogoSlate className="h-7 w-auto opacity-80" />
+                      <div className="flex flex-col gap-0.5">
+                        <MintLogoSlate className="h-6 w-auto opacity-80" />
+                        {profile.mintNumber && (
+                          <p className="text-[8px] tracking-[0.22em] text-slate-400 font-medium uppercase" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                            {profile.mintNumber}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500 font-medium" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Available Balance</p>
-                      <p className="text-[28px] md:text-[34px] font-extralight text-slate-700 tracking-wide" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", letterSpacing: "0.04em" }}>
+                    <div className="flex-1 flex flex-col items-center justify-center gap-0.5">
+                      <p className="text-[9px] uppercase tracking-[0.25em] text-slate-500 font-medium" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Available Balance</p>
+                      <p className="text-[26px] md:text-[32px] font-extralight text-slate-700 tracking-wide" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", letterSpacing: "0.04em" }}>
                         {isCardVisible ? formatZar(balance) : "••••••••"}
                       </p>
                     </div>
                     <div className="flex items-end justify-between">
                       <div>
-                        <p className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-normal mb-1" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Card Holder</p>
-                        <p className="text-[13px] uppercase tracking-[0.18em] text-slate-700 font-light" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", letterSpacing: "0.18em" }}>
+                        <p className="text-[8px] uppercase tracking-[0.2em] text-slate-500 font-normal mb-0.5" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Card Holder</p>
+                        <p className="text-[12px] uppercase tracking-[0.18em] text-slate-700 font-light" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", letterSpacing: "0.18em" }}>
                           {displayName || "MINT MEMBER"}
                         </p>
                       </div>
                       <div className="text-right flex items-end">
-                        <p className="text-[22px] md:text-[26px] font-light text-slate-700 tracking-wider mb-[-2px]" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", fontStyle: "italic", letterSpacing: "0.08em" }}>MINT</p>
+                        <p className="text-[20px] md:text-[24px] font-light text-slate-700 tracking-wider mb-[-2px]" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", fontStyle: "italic", letterSpacing: "0.08em" }}>MINT</p>
                       </div>
                     </div>
                   </div>
