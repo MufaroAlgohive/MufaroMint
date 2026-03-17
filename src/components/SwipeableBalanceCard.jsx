@@ -548,7 +548,7 @@ const SwipeableBalanceCard = ({
 
   if (loading && userId)
     return (
-      <div className="w-full h-full rounded-[28px] bg-slate-50 p-4 flex flex-col">
+      <div className="w-full h-full rounded-[28px] p-4 flex flex-col" style={{ background: "linear-gradient(145deg, #cdd0d5 0%, #e4e6ea 28%, #b8bcc2 52%, #dde0e4 76%, #c4c7cc 100%)" }}>
         <div className="flex flex-1">
           <div className="w-[50%] flex flex-col justify-between border-r border-slate-200 pr-4">
             <div className="space-y-3">
@@ -604,7 +604,7 @@ const SwipeableBalanceCard = ({
 
   return (
     <div className="relative w-full h-full z-[100]">
-      <img src="/card-texture.png" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover rounded-[28px] pointer-events-none select-none z-0" style={{ opacity: 0.32, mixBlendMode: "multiply" }} />
+      <img src="/card-texture.png" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover rounded-[28px] pointer-events-none select-none z-0" style={{ opacity: 0.45, mixBlendMode: "overlay" }} />
       {isConnected && (
         <div className="absolute top-2 right-3 z-20 flex items-center gap-1.5">
           {showUpdatedText && (

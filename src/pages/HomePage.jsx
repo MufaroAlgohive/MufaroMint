@@ -71,15 +71,15 @@ const MintLogoSilver = ({ className = "" }) => (
 );
 
 const CardContent = ({ children, style, variant = "default" }) => {
-  const bg = "#ffffff";
+  const bg = "linear-gradient(145deg, #cdd0d5 0%, #e4e6ea 28%, #b8bcc2 52%, #dde0e4 76%, #c4c7cc 100%)";
 
   return (
     <div
       className="absolute inset-0 rounded-[24px] overflow-hidden"
       style={{
         background: bg,
-        boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.2)",
-        border: "1px solid rgba(148,163,184,0.35)",
+        boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.35)",
+        border: "1px solid rgba(200,205,210,0.6)",
         backfaceVisibility: "hidden",
         ...style,
       }}
@@ -819,7 +819,7 @@ const HomePage = ({
                   transition: "transform 0.7s ease-out",
                 }}>
                   <div className="relative h-full p-5 flex flex-col">
-                    <img src="/card-texture.png" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover rounded-[24px] pointer-events-none select-none" style={{ opacity: 0.32, mixBlendMode: "multiply", maskImage: "radial-gradient(ellipse 22% 32% at 50% 50%, transparent 0%, transparent 55%, black 80%)", WebkitMaskImage: "radial-gradient(ellipse 22% 32% at 50% 50%, transparent 0%, transparent 55%, black 80%)" }} />
+                    <img src="/card-texture.png" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover rounded-[24px] pointer-events-none select-none" style={{ opacity: 0.45, mixBlendMode: "overlay", maskImage: "radial-gradient(ellipse 22% 32% at 50% 50%, transparent 0%, transparent 55%, black 80%)", WebkitMaskImage: "radial-gradient(ellipse 22% 32% at 50% 50%, transparent 0%, transparent 55%, black 80%)" }} />
                     <div className="flex items-start justify-between">
                       <div className="flex flex-col gap-0.5">
                         <MintLogoSlate className="h-6 w-auto opacity-80" />
