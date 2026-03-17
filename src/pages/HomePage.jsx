@@ -119,6 +119,7 @@ const HomePage = ({
   onOpenStrategies,
   onOpenStrategyInPortfolio,
   onOpenMarkets,
+  onOpenDeposit,
   onOpenNews,
   onOpenNewsArticle,
 }) => {
@@ -886,7 +887,7 @@ const HomePage = ({
         <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
           {[
             { label: "Invest", icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
-            { label: "Markets", icon: TrendingUp, onClick: onOpenMarkets || onOpenInvest },
+            { label: "Deposit", icon: ArrowDownToLine, onClick: onOpenDeposit },
             { label: "News", icon: Newspaper, onClick: () => (onOpenNews ? onOpenNews("news") : (onOpenInvest && onOpenInvest("news"))) },
             { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
           ].map((item, index) => {

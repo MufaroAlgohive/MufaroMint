@@ -967,6 +967,7 @@ const App = () => {
           onOpenSettings={() => navigateTo("settings")}
           onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
           onOpenMarkets={() => { setMarketsInitialView("invest"); navigateTo("markets"); }}
+          onOpenDeposit={() => handleTabChange("deposit")}
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
           onOpenStrategyInPortfolio={(strategyId) => { setPortfolioDeepLink({ tab: "holdings", strategyId }); setCurrentPage("investments"); }}
