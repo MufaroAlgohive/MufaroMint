@@ -5,8 +5,8 @@ import PdfViewer from "../components/PdfViewer";
 import { supabase } from "../lib/supabase";
 
 const BROKER_FEE_RATE = 0.0025;
-const ISIN_FEE_PER_ASSET = 62;
-const PAYSTACK_FEE_RATE = 0.029;
+const ISIN_FEE_PER_ASSET = 69;
+const PAYSTACK_FEE_RATE = 0.035;
 
 const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
   const currentStrategy = strategy || {

@@ -3,8 +3,8 @@ import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { formatCurrency } from "../lib/formatCurrency";
 
 const BROKER_FEE_RATE = 0.0025;
-const ISIN_FEE_PER_ASSET = 62;
-const PAYSTACK_FEE_RATE = 0.029;
+const ISIN_FEE_PER_ASSET = 69;
+const PAYSTACK_FEE_RATE = 0.035;
 const MIN_INVESTMENT = 1000;
 
 const StockBuyPage = ({ security, onBack, onContinue }) => {
