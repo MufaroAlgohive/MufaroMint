@@ -604,7 +604,7 @@ const SwipeableBalanceCard = ({
 
   return (
     <div className="relative w-full h-full z-[100]">
-      <img src="/card-texture.png" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover rounded-[28px] pointer-events-none select-none z-0" style={{ opacity: 0.13, mixBlendMode: "multiply" }} />
+      <img src="/card-texture.png" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover rounded-[28px] pointer-events-none select-none z-0" style={{ opacity: 0.32, mixBlendMode: "multiply" }} />
       {isConnected && (
         <div className="absolute top-2 right-3 z-20 flex items-center gap-1.5">
           {showUpdatedText && (
