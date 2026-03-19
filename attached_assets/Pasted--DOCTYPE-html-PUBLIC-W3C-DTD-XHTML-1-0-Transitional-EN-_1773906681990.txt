@@ -1,0 +1,354 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html dir="ltr" lang="en">
+  <head>
+    <meta content="width=device-width" name="viewport" />
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta content="IE=edge" http-equiv="X-UA-Compatible" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta content="telephone=no,address=no,email=no,date=no,url=no" name="format-detection" />
+  </head>
+  <body>
+    <!--$--><!--html--><!--head-->
+    <div
+      style="display:none;overflow:hidden;line-height:1px;opacity:0;max-height:0;max-width:0"
+      data-skip-in-text="true"
+    >
+      We have put together a concise summary of the key measures announced in the Budget Speech
+      <div>
+         ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿ ‌​‍‎‏﻿
+      </div>
+    </div>
+    <!--body-->
+    <table border="0" width="100%" cellpadding="0" cellspacing="0" role="presentation" align="center">
+      <tbody>
+        <tr>
+          <td>
+            <table
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              style="font-family:-apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Roboto&#x27;, &#x27;Oxygen&#x27;, &#x27;Ubuntu&#x27;, &#x27;Cantarell&#x27;, &#x27;Fira Sans&#x27;, &#x27;Droid Sans&#x27;, &#x27;Helvetica Neue&#x27;, sans-serif;font-size:1.0769230769230769em;min-height:100%;line-height:155%"
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <table
+                      align="center"
+                      width="100%"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="align:center;padding-left:0px;padding-right:0px;line-height:155%;width:100%;font-family:-apple-system, BlinkMacSystemFont, &#x27;Segoe UI&#x27;, &#x27;Roboto&#x27;, &#x27;Oxygen&#x27;, &#x27;Ubuntu&#x27;, &#x27;Cantarell&#x27;, &#x27;Fira Sans&#x27;, &#x27;Droid Sans&#x27;, &#x27;Helvetica Neue&#x27;, sans-serif"
+                    >
+                      <tbody>
+                        <tr>
+                          <td>
+                            <div>
+                              <div
+                                style="width: 100%; background: #f4f7f8; padding: 24px 12px; box-sizing: border-box;"
+                              >
+                                <table
+                                  role="presentation"
+                                  width="100%"
+                                  bgcolor="#f4f7f8"
+                                  style="border-collapse: collapse; background: #f4f7f8;"
+                                >
+                                  <tbody>
+                                    <tr>
+                                      <td align="center">
+                                        <table
+                                          role="presentation"
+                                          width="100%"
+                                          bgcolor="#ffffff"
+                                          style="border-collapse: collapse; width: 100%; max-width: 680px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e2e8f0;"
+                                        >
+                                          <tbody>
+                                            <tr>
+                                              <td
+                                                bgcolor="#2a0f5e"
+                                                style="background: linear-gradient(135deg, #140a2e 0%, #2a0f5e 55%, #4a1d96 100%); padding: 32px 28px; color: #ffffff;"
+                                              >
+                                                <div
+                                                  style="display: inline-block; font-size: 12px; letter-spacing: 0.14em; font-weight: 700; text-transform: uppercase; color: #e9d5ff; margin-bottom: 10px;"
+                                                >
+                                                  Mint Circle Update
+                                                </div>
+                                                <h1
+                                                  style="font-size: 30px; line-height: 1.2; margin: 0 0 8px; font-weight: 700; color: #ffffff;"
+                                                >
+                                                  2026 Budget Speech: What Matters Most
+                                                </h1>
+                                                <p
+                                                  style="margin: 0; font-size: 15px; line-height: 1.5; color: #f3e8ff;"
+                                                >
+                                                  Delivered 25 February 2026 · A concise update for investors and
+                                                  operators on the move.
+                                                </p>
+                                              </td>
+                                            </tr>
+
+                                            <tr>
+                                              <td bgcolor="#ffffff" style="padding: 28px; background: #ffffff;">
+                                                <p
+                                                  style="margin: 0 0 20px; font-size: 15px; line-height: 1.7; color: #1e293b;"
+                                                >
+                                                  Dear Mint Circle,
+                                                </p>
+
+                                                <p
+                                                  style="margin: 0 0 20px; font-size: 15px; line-height: 1.7; color: #1e293b;"
+                                                >
+                                                  We know many of you are constantly on the move. To keep you informed
+                                                  without adding noise, we have put together a concise summary of the
+                                                  key measures announced in the 2026 Budget Speech on 25 February 2026.
+                                                </p>
+
+                                                <div
+                                                  style="margin: 0 0 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;"
+                                                >
+                                                  <div
+                                                    style="padding: 14px 16px 10px; font-size: 16px; line-height: 1.35; font-weight: 700; color: #0f172a;"
+                                                  >
+                                                    1) VAT Registration Threshold
+                                                  </div>
+                                                  <div
+                                                    style="padding: 0 16px 14px; font-size: 14px; line-height: 1.7; color: #334155;"
+                                                  >
+                                                    The compulsory VAT registration threshold increases from
+                                                    <strong>R1,000,000</strong>
+                                                    to
+                                                    <strong>R2,300,000</strong>
+                                                    in annual turnover.
+                                                  </div>
+                                                </div>
+
+                                                <div
+                                                  style="margin: 0 0 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;"
+                                                >
+                                                  <div
+                                                    style="padding: 14px 16px 10px; font-size: 16px; line-height: 1.35; font-weight: 700; color: #0f172a;"
+                                                  >
+                                                    2) Fuel Levy Adjustment
+                                                  </div>
+                                                  <div
+                                                    style="padding: 0 16px 14px; font-size: 14px; line-height: 1.7; color: #334155;"
+                                                  >
+                                                    <ul style="margin: 8px 0 0; padding-left: 18px;">
+                                                      <li style="margin: 0 0 6px;">
+                                                        Total fuel levy increases by
+                                                        <strong>21 cents per litre</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        General fuel levy rises by
+                                                        <strong>9c for petrol</strong>
+                                                        and
+                                                        <strong>8c for diesel</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        RAF levy increases by
+                                                        <strong>7c</strong>.
+                                                      </li>
+                                                    </ul>
+                                                  </div>
+                                                </div>
+
+                                                <div
+                                                  style="margin: 0 0 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;"
+                                                >
+                                                  <div
+                                                    style="padding: 14px 16px 10px; font-size: 16px; line-height: 1.35; font-weight: 700; color: #0f172a;"
+                                                  >
+                                                    3) Alcohol and Tobacco Excise
+                                                  </div>
+                                                  <div
+                                                    style="padding: 0 16px 14px; font-size: 14px; line-height: 1.7; color: #334155;"
+                                                  >
+                                                    <ul style="margin: 8px 0 0; padding-left: 18px;">
+                                                      <li style="margin: 0 0 6px;">
+                                                        Cigarettes (20 pack):
+                                                        <strong>R22.81</strong>
+                                                        to
+                                                        <strong>R23.58</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Beer or cider (340ml):
+                                                        <strong>+8c</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Wine (750ml):
+                                                        <strong>+15c</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Spirits (750ml):
+                                                        <strong>+R3.20</strong>.
+                                                      </li>
+                                                    </ul>
+                                                  </div>
+                                                </div>
+
+                                                <div
+                                                  style="margin: 0 0 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;"
+                                                >
+                                                  <div
+                                                    style="padding: 14px 16px 10px; font-size: 16px; line-height: 1.35; font-weight: 700; color: #0f172a;"
+                                                  >
+                                                    4) Tax-Free Savings and Retirement Incentives
+                                                  </div>
+                                                  <div
+                                                    style="padding: 0 16px 14px; font-size: 14px; line-height: 1.7; color: #334155;"
+                                                  >
+                                                    <ul style="margin: 8px 0 0; padding-left: 18px;">
+                                                      <li style="margin: 0 0 6px;">
+                                                        Annual TFSA contribution limit increases from
+                                                        <strong>R36,000</strong>
+                                                        to
+                                                        <strong>R46,000</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Retirement fund deduction limit increases from
+                                                        <strong>R350,000</strong>
+                                                        to
+                                                        <strong>R430,000</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Primary residence CGT exclusion increases from
+                                                        <strong>R2,000,000</strong>
+                                                        to
+                                                        <strong>R3,000,000</strong>.
+                                                      </li>
+                                                    </ul>
+                                                  </div>
+                                                </div>
+
+                                                <div
+                                                  style="margin: 0 0 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;"
+                                                >
+                                                  <div
+                                                    style="padding: 14px 16px 10px; font-size: 16px; line-height: 1.35; font-weight: 700; color: #0f172a;"
+                                                  >
+                                                    5) Social Grants and Consumer Spend
+                                                  </div>
+                                                  <div
+                                                    style="padding: 0 16px 14px; font-size: 14px; line-height: 1.7; color: #334155;"
+                                                  >
+                                                    <ul style="margin: 8px 0 0; padding-left: 18px;">
+                                                      <li style="margin: 0 0 6px;">
+                                                        Old age grant increases from
+                                                        <strong>R2,315</strong>
+                                                        to
+                                                        <strong>R2,400</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Child support grant increases from
+                                                        <strong>R560</strong> to <strong>R580</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Foster care grant increases from
+                                                        <strong>R1,250</strong>
+                                                        to
+                                                        <strong>R1,295</strong>.
+                                                      </li>
+                                                    </ul>
+                                                  </div>
+                                                </div>
+
+                                                <div
+                                                  style="margin: 0 0 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc;"
+                                                >
+                                                  <div
+                                                    style="padding: 14px 16px 10px; font-size: 16px; line-height: 1.35; font-weight: 700; color: #0f172a;"
+                                                  >
+                                                    6) Personal Income Tax Adjustments
+                                                  </div>
+                                                  <div
+                                                    style="padding: 0 16px 14px; font-size: 14px; line-height: 1.7; color: #334155;"
+                                                  >
+                                                    Tax brackets are adjusted for inflation:
+                                                    <ul style="margin: 8px 0 0; padding-left: 18px;">
+                                                      <li style="margin: 0 0 6px;">
+                                                        First bracket moves from
+                                                        <strong>R237,100</strong>
+                                                        to
+                                                        <strong>R245,100</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Top bracket now starts at
+                                                        <strong>R1,878,600</strong>
+                                                        (previously
+                                                        <strong>R1,817,000</strong>).
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Primary rebate increases from
+                                                        <strong>R17,235</strong>
+                                                        to
+                                                        <strong>R17,820</strong>.
+                                                      </li>
+                                                      <li style="margin: 0 0 6px;">
+                                                        Tax-free threshold (under 65) rises from
+                                                        <strong>R95,750</strong>
+                                                        to
+                                                        <strong>R99,000</strong>.
+                                                      </li>
+                                                    </ul>
+                                                  </div>
+                                                </div>
+
+                                                <p
+                                                  style="margin: 0 0 20px; font-size: 15px; line-height: 1.7; color: #1e293b;"
+                                                >
+                                                  As always, we remain focused on translating policy developments into
+                                                  practical financial implications for our managed portfolios.
+                                                  Accordingly, our platform strategies continue to be actively managed
+                                                  within their stated mandates to reflect prevailing economic, fiscal
+                                                  and market conditions.
+                                                </p>
+
+                                                <p
+                                                  style="margin: 14px 0 0; font-size: 13px; color: #0f172a; font-weight: 600;"
+                                                >
+                                                  Warm regards,<br />The Mint Team
+                                                </p>
+                                              </td>
+                                            </tr>
+
+                                            <tr>
+                                              <td
+                                                bgcolor="#ffffff"
+                                                style="border-top: 1px solid #e2e8f0; padding: 20px 28px 26px; font-size: 12px; line-height: 1.6; color: #64748b; background: #ffffff;"
+                                              >
+                                                This communication is for informational purposes and does not constitute
+                                                personal financial advice. For strategy-specific guidance, please
+                                                consult your Mint advisor.
+                                              </td>
+                                            </tr>
+                                          </tbody>
+                                        </table>
+                                      </td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                            <p style="margin:0;padding:0;font-size:1em;padding-top:0.5em;padding-bottom:0.5em">
+                              <br />
+                            </p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <!--/$-->
+  </body>
+</html>
