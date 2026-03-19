@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="x-apple-disable-message-reformatting" />
+<title>Mint News</title>
+<style>
+@media (max-width: 620px) {
+.container { width: 100% !important; }
+.px { padding-left: 16px !important; padding-right: 16px !important; }
+.card { border-radius: 20px !important; }
+.h1 { font-size: 22px !important; line-height: 28px !important; }
+.h2 { font-size: 16px !important; line-height: 22px !important; }
+.muted { font-size: 13px !important; }
+.btn { display: block !important; width: 100% !important; }
+}
+</style>
+</head>
+
+<body style="margin:0;padding:0;background:#F6F7FB;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+Johannesburg market preview, SA news, global headlines.
+</div>
+
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F6F7FB;">
+<tr>
+<td align="center" style="padding:24px 12px;">
+<table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="width:600px;max-width:600px;">
+
+<tr>
+<td class="px" style="padding:6px 24px 14px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td align="left" style="padding:0;">
+<img
+src="https://www.mymint.co.za/assets/mint-logo.svg"
+width="110"
+alt="Mint"
+style="display:block;border:0;outline:none;text-decoration:none;height:auto;"
+/>
+</td>
+<td align="right" style="padding:0;">
+<span style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;">
+Market Brief
+</span>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+<tr>
+<td class="px" style="padding:0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.10);overflow:hidden;">
+<tr>
+<td style="padding:20px 20px 14px 20px;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;color:#7B8194;">
+Alliance News, formatted for Mint
+</div>
+
+<div class="h1" style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:26px;line-height:32px;color:#121526;font-weight:800;">
+SA BRIEFING: Top 40 futures weaker after US interest rate decision
+</div>
+
+<div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+(Alliance News) - Stocks are likely to open lower as US President Donald Trump on Wednesday threatened to destroy Iran's key South Pars gas field if there were further attacks against Qatar's main gas plant.<br/><br/>Here is what you need to know before the Johannesburg market open on Thursday:
+</div>
+
+<div style="margin-top:14px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;color:#7B8194;">
+By Artwell Dlamini, Alliance News senior reporter South Africa
+</div>
+</td>
+</tr>
+
+
+</table>
+</td>
+</tr>
+
+
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+Before the market open
+</div>
+<div class="muted" style="margin-top:6px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;line-height:18px;color:#7B8194;">
+Key levels and overnight moves
+</div>
+<div style="margin-top:12px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+FTSE JSE Top 40: called down 716.18 points, 0.8%, at 105,171.00<br/>FTSE 100: called down 99.09 points, 0.9%, at 10,206.20<br/>Hang Seng: down 1.7% at 25,592.99<br/><br/>Tencent Holdings: down 5.9%<br/>S&P/ASX 200: down 1.7%<br/><br/>BHP Group: down 3.5%<br/>DJIA: closed down 768.11 points, 1.6% at 46,225.15<br/><br/>S&P 500: closed down 91.39 points, 1.4%, at 6,624.70<br/><br/>Nasdaq Composite closed down 327.11 points, 1.5%, at 22,152.42<br/>US 10-year Treasury yield: 4.27% (4.18%)<br/><br/>US 30-year Treasury yield: 4.89% (4.83%)<br/>USD: ZAR16.96 (ZAR16.83)<br/><br/>bond R2035: 8.94% (8.94%)<br/><br/>gold: USD4,848.54 (USD4,864.35)<br/><br/>oil (Brent): USD112.30 a barrel (USD109.78)<br/><br/>(changes since previous Johannesburg equities close)
+</div>
+
+<div style="margin-top:14px;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;color:#121526;">Company calendar</div>
+<div style="margin-top:4px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;line-height:19px;color:#7B8194;">Exxaro Resources Ltd - half year results<br/><br/>Momentum Group Ltd - half year results<br/><br/>South Ocean Holdings Ltd - full year results</div>
+</div>
+<div style="margin-top:14px;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;color:#121526;">Economic calendar</div>
+<div style="margin-top:4px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:13px;line-height:19px;color:#7B8194;">09:00 SAST UK unemployment<br/><br/>12:00 SAST eurozone	aggregate demand<br/><br/>13:00 SAST South Africa building permits<br/><br/>14:00 SAST UK interest rate decision<br/><br/>14:00 SAST UK MPC meeting minutes<br/><br/>14:00 SAST US building permits<br/><br/>14:30 SAST US initial jobless claims<br/><br/>14:30 SAST US Philadelphia Fed manufacturing index<br/><br/>15:15 SAST eurozone	interest rate decision<br/><br/>15:45 SAST eurozone	ECB press conference<br/><br/>16:00 SAST US new home sales<br/><br/>16:00 SAST US wholesale inventories<br/><br/>16:30 SAST US EIA natural gas stocks</div>
+</div>
+<div style="margin-top:16px;">
+<a href="https://www.mymint.co.za" class="btn"
+style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+Sa news
+</div>
+<div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+Sabvest Capital reported a 41% rise in annual pretax profit to ZAR1.26 billion in 2025, driven by strong performances across most of its investee companies and higher fair value gains. Gross income from operations and investments increased 28% to ZAR1.41 billion, while gains on fair value adjustments rose 30% to ZAR1.08 billion. Earnings per share and headline earnings per share both rose 28% to 2,967.3 cents, while net asset value per share climbed 22% year-on-year to 16,105 cents at December 31. Sabvest increased its annual dividend by 24% to 130 rand cents and repurchased ZAR73.1 million worth of shares in the first half.<br/>Putprop said interim pretax profit more than doubled to ZAR8.5 million in the six months to December 31, from ZAR4.2 million a year earlier, helped by sharply lower finance costs and a smaller fair value loss. Finance costs fell 25% to ZAR18.6 million, while the loss on fair value adjustments narrowed 30% to ZAR8.9 million. However, property rental revenue and recoveries slipped 3.4% to ZAR72.3 million, and property operating costs rose 8.5% to ZAR27.0 million due to inflationary pressure on municipal rates, utilities and related charges. Earnings per share jumped 61% to 13.40 cents, though headline EPS declined 15% to 24.19 cents. Net asset value per share edged up to 1,728 cents at December 31, slightly higher than six months earlier and up 3.7% year-on-year. Putprop increased its interim dividend by 21% to 8.50 rand cents and said it expects a steady performance in the second half, underpinned by lease renewals and tenant retention.<br/>Master Drilling Group said it expects non-cash adjustments to lift full-year earnings in 2025, forecasting earnings per share of between 343.90 rand cents and 364.70 cents, up from 210.80 cents in 2024. However, headline earnings per share, which exclude non-cash items, are expected to range between 302.00 cents and 334.10 cents, compared with 324.50 cents a year earlier. The uplift reflects a likely reversal of a prior impairment on its Mobile Tunnel Boring Machine. The impairment was recorded in 2024 due to the absence of a formal agreement to support projected cash flows amid commodity price uncertainty. In the first half of 2025, the group secured a contract to operate the machine, prompting a reassessment of its value.
+</div>
+<div style="margin-top:14px;">
+<a href="https://www.mymint.co.za" class="btn"
+style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td class="px" style="padding:16px 24px 0 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"
+class="card" style="background:#FFFFFF;border-radius:26px;box-shadow:0 14px 38px rgba(28,22,58,0.08);overflow:hidden;">
+<tr>
+<td style="padding:18px 20px;">
+<div class="h2" style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:18px;line-height:24px;color:#121526;font-weight:800;">
+Global news
+</div>
+<div style="margin-top:10px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#4B5166;">
+The US Federal Reserve left interest rates unchanged amid uncertainty caused by the events in the Middle East. The Federal Open Market Committee voted 11-1 to leave the federal rates funds rate target range at 3.50-3.75%, as widely expected by market consensus. Governor Stephen Miran dissented, and put the case for a further quarter point reduction. In a statement, the Fed said economic activity has been expanding at a solid pace, but implications of developments in the Middle East for the US economy are uncertain. "Uncertainty about the economic outlook remains elevated," the statement added. Despite the uncertain outlook, Fed officials still anticipate making one rate cut in 2026 plus one more in 2027, unchanged from December. Of the 19 FOMC participants, seven signalled they expected rates to stay unchanged this year, one more than the last update in December. The other 12 expect at least one rate reduction.<br/>Federal Reserve Chair Jerome Powell said he has no intention of leaving his post while the Department of Justice criminal investigation into the US central bank is ongoing. Powell told reports: "I have no intention of leaving the board until the investigation is well and truly over with transparency and finality." In January, Powell announced that the Fed had been served subpoenas related to the renovation of buildings in Washington and the chair's testimony about those renovations. In addition, the Fed chair said he has not decided whether he will serve out his term as a Fed board member until January 2028. His term as Fed chair is due to end in May. Powell said he will serve as chair pro-tem until his successor is named. US President Donald Trump has nominated Kevin Warsh as Powell's successor, but the appointment is yet to be approved.<br/>US President Donald Trump threatened to destroy Iran's key South Pars gas field if there were further attacks against Qatar's main gas plant. Trump confirmed on his Truth Social platform that Israel had struck the South Pars field but said the US "knew nothing" of the attack, which spurred Iran to launch an attack on Qatar's Ras Laffan facility.<br/>The US is fostering alliances in Brazil to establish new rare earth supply chains, an embassy official said, amid new diplomatic tensions between Washington and Brasilia. US officials signed a memorandum of understanding with the centre-west state of Goias, a region rich in rare earth minerals – a group of 17 heavy metals considered critical for the production of high-tech goods.<br/>The US is easing its sanctions against the Venezuelan oil sector and authorising extensive transactions with the state-owned oil company Petroleos de Venezuela SA. All transactions are permitted under certain conditions, the US Department of the Treasury said in a statement. The move comes at a time when oil prices have risen sharply as a result of the war in Iran, started by the US and Israel on February 28.<br/>The US said it is expanding its visa bond programme to 12 additional countries. From April 2, travellers from a total of 50 countries will be required to pay a deposit of USD15,000 upon entry to the US, which the government says is intended to prevent visitors from overstaying their visas. Tunisia, a participant in this year's World Cup, has been added to the list, as have Cambodia, Ethiopia, Georgia, Grenada, Lesotho, Mauritius, Mongolia, Mozambique, Nicaragua, Papua New Guinea and the Seychelles. The pilot scheme was launched last August and applies to tourists and business travellers.<br/>The Bank of Japan decided to leave its policy rate unchanged as expected. At the monetary policy meeting, the policy board voted 8-1 in favour of maintaining the uncollateralized overnight call rate at around 0.75%, matching the consensus forecast cited by FXStreet. The March decision was the same as January's meeting, with Takata Hajime again the sole dissenter on the board, calling for a 25 basis point hike to 1.0%.<br/>The UK will buy further missiles for British forces in the Middle East as part of efforts to support Gulf states under attack from Iran, the government has said. The Ministry of Defence confirmed plans to stock up on more of the laser-guided Martlet weapons, which have been used to down drones in recent weeks. It did not say how many would be purchased for security reasons. The lightweight multi-role missiles manufactured by Thales UK in Belfast have already proven "highly capable" for air defence in the region, the ministry said. It comes as ministers and officials met with defence industry leaders, including Thales, BAE Systems and Leonardo UK, on Wednesday to discuss the strategic situation in the Middle East, the government's response to the conflict and new support for partners coming under attack.<br/>UK Chancellor Rachel Reeves has announced up to GBP1.7 billion in new investment for city regions across northern England, aimed at boosting their growth-driving industries. The funding forms part of a wider GBP2.3 billion "city investment funds" package unveiled in the Chancellor's Mais Lecture, in which she said "huge gains" could be made by reversing the underperformance of major cities outside of London. The cash will be handed directly to mayors through grant, loan and long-term capital to help densify city centres and increase housebuilding. Greater Manchester, West Yorkshire, the North East, Liverpool City Region and South Yorkshire are set to benefit in the north, with the West Midlands receiving funds elsewhere.<br/>Australia's unemployment rate edged higher on a seasonally adjusted basis in February, official data showed. According to the Australian Bureau of Statistics, the seasonally adjusted unemployment rate increased to 4.3% in February from 4.1% in January, surpassing the 4.1% consensus cited by FXStreet. The number of people employed rose 0.3% to 14.75 million from 14.70 million, while the number of unemployed people increased 5.6% to 659,100 from 624,100. However, trend unemployment rate declined to 4.2% in February from 4.3% in January.<br/>AIA Group said it will increase shareholder returns through an enlarged dividend and new share buyback programme, despite reporting a smaller profit in full-year 2025 as the company's net investment result weakened. The Hong Kong-based insurance company said net profit attributable to company shareholders declined 8.8% to USD6.23 billion in full-year 2025 from USD6.84 billion a year earlier, with diluted earnings per share 4.8% lower at USD0.59 from USD0.62. AIA lifted its final dividend by 10% to 144.08 Hong Kong cents per share, approximately USD0.18, from 130.98 cents previously. The total dividend for the year was also 10% higher at 193.08 cents from 175.48 cents. In addition to this, AIA announced a new USD1.7 billion share buyback programme, which the company said "is targeted to commence as soon as practicable" with completion expected in 2026.<br/>By Artwell Dlamini, Alliance News senior reporter South Africa<br/><br/>Comments and questions to newsroom@alliancenews.com<br/><br/>Copyright 2026 Alliance News Ltd. All Rights Reserved.
+</div>
+<div style="margin-top:14px;">
+<a href="https://www.mymint.co.za" class="btn"
+style="background:#6D28FF;border-radius:14px;color:#FFFFFF;display:inline-block;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:14px;font-weight:700;line-height:16px;padding:12px 16px;text-decoration:none;">
+Read more on Mint
+</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+
+
+<tr>
+<td class="px" style="padding:18px 24px 28px 24px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr>
+<td style="padding:16px 18px;background:#FFFFFF;border:1px solid #F0F1F6;border-radius:22px;">
+<div style="font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;line-height:17px;color:#7B8194;">
+Alliance News South Africa covers every actively traded company listed on the Johannesburg Stock Exchange, large and small, and the global influences upon South African markets and the local economy.
+<br/><br/>
+Copyright &copy; 2026 Alliance News Ltd. All rights reserved.
+</div>
+<div style="margin-top:12px;font-family:Inter,Segoe UI,Arial,sans-serif;font-size:12px;color:#7B8194;">
+You're receiving this on Mint. <a href="https://www.mymint.co.za" style="color:#6D28FF;text-decoration:none;font-weight:700;">Open Mint</a>
+</div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>
