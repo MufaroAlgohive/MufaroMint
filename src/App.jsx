@@ -1280,9 +1280,8 @@ const App = () => {
             setShowGoalModal(false);
             setPendingGoalFlow(null);
             
-            // ── ONBOARDING GUARD (PROMPT 4) ────────────────────────────────
-            const { is_fully_onboarded } = await checkOnboardingComplete();
-            if (!is_fully_onboarded) {
+            // Use ref for latest status to avoid race conditions and destructuring bugs
+            if (!onboardingRef.current.complete) {
               navigateTo("identityCheck");
               return;
             }
@@ -1512,9 +1511,8 @@ const App = () => {
             setShowGoalModal(false);
             setPendingGoalFlow(null);
             
-            // ── ONBOARDING GUARD (PROMPT 4) ────────────────────────────────
-            const { is_fully_onboarded } = await checkOnboardingComplete();
-            if (!is_fully_onboarded) {
+            // Use ref for latest status to avoid race conditions and destructuring bugs
+            if (!onboardingRef.current.complete) {
               navigateTo("identityCheck");
               return;
             }
