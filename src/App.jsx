@@ -15,6 +15,7 @@ import InvestPage from "./pages/InvestPage.jsx";
 import InvestAmountPage from "./pages/InvestAmountPage.jsx";
 import PaymentPage from "./pages/PaymentPage.jsx";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage.jsx";
+import PaymentPendingPage from "./pages/PaymentPendingPage.jsx";
 import PaymentMethodModal from "./components/PaymentMethodModal.jsx";
 import FactsheetPage from "./pages/FactsheetPage.jsx";
 import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
@@ -97,6 +98,8 @@ const App = () => {
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0, baseAmount: 0 });
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
+  const [pendingPaymentInfo, setPendingPaymentInfo] = useState(null);
   const [pendingGoalFlow, setPendingGoalFlow] = useState(null);
   const [selectedGoalId, setSelectedGoalId] = useState(null);
   const selectedGoalIdRef = useRef(null);
@@ -1259,7 +1262,7 @@ const App = () => {
           onClose={() => setShowPaymentMethodModal(false)}
           amount={stockCheckout.amount}
           strategyName={stockCheckout.security?.name || stockCheckout.security?.symbol || "Stock"}
-          onSelectPaystack={() => { setShowPaymentMethodModal(false); navigateTo("stockPayment"); }}
+          onSelectPaystack={() => { setShowPaymentMethodModal(false); setPendingPaymentMethod("paystack"); navigateTo("stockPayment"); }}
           onSelectOzow={async () => {
             try {
               const { data: { user } } = await supabase.auth.getUser();
@@ -1308,11 +1311,33 @@ const App = () => {
               alert("Could not connect to Ozow. Please try another payment method.");
             }
           }}
-          onEFTConfirm={() => {
+          onEFTConfirm={async () => {
             setShowPaymentMethodModal(false);
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token;
+              const eftRef = `EFT-${Date.now()}`;
+              await fetch("/api/record-investment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({
+                  securityId: stockCheckout.security?.id,
+                  symbol: stockCheckout.security?.symbol || "",
+                  name: stockCheckout.security?.name || "",
+                  amount: stockCheckout.amount,
+                  baseAmount: stockCheckout.baseAmount || stockCheckout.amount,
+                  paymentReference: eftRef,
+                  paymentMethod: "direct_eft",
+                  ...(stockCheckout.shareCount ? { shareCount: Number(stockCheckout.shareCount) } : {}),
+                }),
+              });
+            } catch (e) {
+              console.error("EFT record error:", e);
+            }
+            setPendingPaymentInfo({ strategy: stockCheckout.security?.name || stockCheckout.security?.symbol, amount: stockCheckout.amount });
             navigationHistory.current = [];
             setPreviousPageName(null);
-            setCurrentPage("paymentSuccess");
+            setCurrentPage("paymentPending");
           }}
         />
       </SwipeBackWrapper>
@@ -1333,6 +1358,7 @@ const App = () => {
           amount={stockCheckout.amount}
           baseAmount={stockCheckout.baseAmount}
           shareCount={stockCheckout.shareCount}
+          initialMethod={pendingPaymentMethod}
           onOpenDeposit={() => navigateTo("deposit")}
           onSuccess={async (response) => {
             console.log("Payment successful:", response);
@@ -1460,7 +1486,7 @@ const App = () => {
           onClose={() => setShowPaymentMethodModal(false)}
           amount={investmentAmount}
           strategyName={selectedStrategy?.name || "Investment"}
-          onSelectPaystack={() => { setShowPaymentMethodModal(false); navigateTo("payment"); }}
+          onSelectPaystack={() => { setShowPaymentMethodModal(false); setPendingPaymentMethod("paystack"); navigateTo("payment"); }}
           onSelectOzow={async () => {
             try {
               const { data: { user } } = await supabase.auth.getUser();
@@ -1509,11 +1535,34 @@ const App = () => {
               alert("Could not connect to Ozow. Please try another payment method.");
             }
           }}
-          onEFTConfirm={() => {
+          onEFTConfirm={async () => {
             setShowPaymentMethodModal(false);
+            try {
+              const { data: { session } } = await supabase.auth.getSession();
+              const token = session?.access_token;
+              const eftRef = `EFT-${Date.now()}`;
+              const stratId = selectedStrategy?.strategyId || selectedStrategy?.id || null;
+              await fetch("/api/record-investment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                body: JSON.stringify({
+                  securityId: selectedStrategy?.id,
+                  symbol: selectedStrategy?.symbol || selectedStrategy?.short_name || "",
+                  name: selectedStrategy?.name || "",
+                  amount: investmentAmount,
+                  baseAmount: baseInvestmentAmount || investmentAmount,
+                  strategyId: stratId,
+                  paymentReference: eftRef,
+                  paymentMethod: "direct_eft",
+                }),
+              });
+            } catch (e) {
+              console.error("EFT record error:", e);
+            }
+            setPendingPaymentInfo({ strategy: selectedStrategy?.name, amount: investmentAmount });
             navigationHistory.current = [];
             setPreviousPageName(null);
-            setCurrentPage("paymentSuccess");
+            setCurrentPage("paymentPending");
           }}
         />
       </SwipeBackWrapper>
@@ -1528,6 +1577,7 @@ const App = () => {
           strategy={selectedStrategy}
           amount={investmentAmount}
           baseAmount={baseInvestmentAmount}
+          initialMethod={pendingPaymentMethod}
           onOpenDeposit={() => navigateTo("deposit")}
           onSuccess={async (response) => {
             console.log("Payment successful:", response);
@@ -1577,6 +1627,16 @@ const App = () => {
 
   if (currentPage === "paymentSuccess") {
     return <PaymentSuccessPage onDone={() => setCurrentPage("home")} />;
+  }
+
+  if (currentPage === "paymentPending") {
+    return (
+      <PaymentPendingPage
+        strategy={pendingPaymentInfo?.strategy}
+        amount={pendingPaymentInfo?.amount}
+        onDone={() => { setPendingPaymentInfo(null); setCurrentPage("home"); }}
+      />
+    );
   }
 
   if (currentPage === "more") {
