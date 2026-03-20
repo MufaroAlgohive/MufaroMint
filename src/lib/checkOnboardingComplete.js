@@ -55,7 +55,7 @@ export function parseOnboardingFlags(record) {
 
   // ALL steps must be complete — KYC identity AND all financial onboarding steps including tax and final agreement
   const allComplete = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone && agreementSigned;
-
+  console.log("[parseOnboardingFlags] values:", { kycDone, taxDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, agreementSigned, allComplete });
   return { kycDone, taxDone, bankDone, mandateAgreed, riskDone, sofDone, termsDone, agreementSigned, allComplete };
 }
 

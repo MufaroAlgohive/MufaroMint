@@ -28,6 +28,7 @@ export const useOnboardingStatus = () => {
         });
         if (res.ok) {
           const json = await res.json();
+          console.log("[useOnboardingStatus] API response:", json);
           setOnboardingComplete(json.is_fully_onboarded === true);
           setLoading(false);
           return;
