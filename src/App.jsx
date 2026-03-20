@@ -111,6 +111,11 @@ const App = () => {
   const { refetch: refetchNotifications } = useNotificationsContext();
   const [showPinLock, setShowPinLock] = useState(false);
   const { onboardingComplete, loading: onboardingLoading } = useOnboardingStatus();
+  const onboardingRef = useRef({ complete: false, loading: true });
+
+  useEffect(() => {
+    onboardingRef.current = { complete: onboardingComplete, loading: onboardingLoading };
+  }, [onboardingComplete, onboardingLoading]);
 
   const currentPageRef = useRef(currentPage);
   currentPageRef.current = currentPage;
@@ -232,9 +237,9 @@ const App = () => {
       "stockPayment",
       "factsheet" // Optional: can they see a factsheet without onboarding? Usually yes, but maybe blocked for investment.
     ];
-    console.log(`[Guard Check] Page: ${page}, Loading: ${onboardingLoading}, Complete: ${onboardingComplete}`);
+    console.log(`[Guard Check] Page: ${page}, Loading: ${onboardingRef.current.loading}, Complete: ${onboardingRef.current.complete}`);
 
-    if (protectedPages.includes(page) && !onboardingLoading && !onboardingComplete) {
+    if (protectedPages.includes(page) && !onboardingRef.current.loading && !onboardingRef.current.complete) {
       console.log(`[App] Onboarding required for page: ${page}. Redirecting.`);
       setCurrentPage("userOnboarding"); // Redirect to the actual onboarding flow
       return;
