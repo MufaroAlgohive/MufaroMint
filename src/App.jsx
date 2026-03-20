@@ -1233,14 +1233,29 @@ const App = () => {
                   strategyName: stockCheckout.security?.name || stockCheckout.security?.symbol || "Stock",
                   strategyId: stockCheckout.security?.id || null,
                   userId: user?.id || null,
+                  userEmail: user?.email || null,
                   successUrl: `${baseUrl}/?ozow=success`,
                   cancelUrl: `${baseUrl}/?ozow=cancel`,
                   errorUrl: `${baseUrl}/?ozow=error`,
                 }),
               });
               const data = await resp.json();
-              if (data.success && data.paymentUrl) {
-                window.location.href = data.paymentUrl;
+              if (data.success && data.action_url) {
+                const form = document.createElement("form");
+                form.method = "POST";
+                form.action = data.action_url;
+                const skipFields = ["success", "action_url"];
+                Object.entries(data).forEach(([key, value]) => {
+                  if (skipFields.includes(key)) return;
+                  const input = document.createElement("input");
+                  input.type = "hidden";
+                  input.name = key;
+                  input.value = value;
+                  form.appendChild(input);
+                });
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
               } else {
                 alert(data.error || "Failed to initiate Ozow payment. Please try again.");
               }
@@ -1414,14 +1429,29 @@ const App = () => {
                   strategyName: selectedStrategy?.name || "Investment",
                   strategyId: selectedStrategy?.id || null,
                   userId: user?.id || null,
+                  userEmail: user?.email || null,
                   successUrl: `${baseUrl}/?ozow=success`,
                   cancelUrl: `${baseUrl}/?ozow=cancel`,
                   errorUrl: `${baseUrl}/?ozow=error`,
                 }),
               });
               const data = await resp.json();
-              if (data.success && data.paymentUrl) {
-                window.location.href = data.paymentUrl;
+              if (data.success && data.action_url) {
+                const form = document.createElement("form");
+                form.method = "POST";
+                form.action = data.action_url;
+                const skipFields = ["success", "action_url"];
+                Object.entries(data).forEach(([key, value]) => {
+                  if (skipFields.includes(key)) return;
+                  const input = document.createElement("input");
+                  input.type = "hidden";
+                  input.name = key;
+                  input.value = value;
+                  form.appendChild(input);
+                });
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
               } else {
                 alert(data.error || "Failed to initiate Ozow payment. Please try again.");
               }

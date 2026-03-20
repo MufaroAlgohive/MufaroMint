@@ -5019,7 +5019,7 @@ app.get('/api/diagnose/news-articles', async (req, res) => {
 
 app.post("/api/ozow/initiate", async (req, res) => {
   try {
-    const { amount, strategyName, strategyId, userId, successUrl, cancelUrl, errorUrl, notifyUrl } = req.body;
+    const { amount, strategyName, strategyId, userId, userEmail, successUrl, cancelUrl, errorUrl, notifyUrl } = req.body;
 
     const siteCode = process.env.OZOW_SITE_CODE;
     const privateKey = process.env.OZOW_PRIVATE_KEY;
@@ -5036,60 +5036,66 @@ app.post("/api/ozow/initiate", async (req, res) => {
     const countryCode = "ZA";
     const currencyCode = "ZAR";
     const amountStr = Number(amount).toFixed(2);
-    const transactionRef = `MINT-${Date.now()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
-    const bankRef = `MINT-${userId ? userId.substr(0, 8) : "USER"}`;
+    const transactionRef = `MINT-${userId ? userId.substr(0, 8) : "USER"}-${Date.now()}`;
+    const bankReference = "Mint Payment";
+    const customer = userEmail || "";
     const optional1 = strategyId || "";
-    const optional2 = "";
-    const optional3 = "";
+    const optional2 = userEmail || "";
     const isTest = process.env.OZOW_IS_TEST === "true" ? "true" : "false";
 
-    const resolvedSuccessUrl = successUrl || `${process.env.APP_URL || "https://mymint.co.za"}/ozow-success`;
-    const resolvedCancelUrl = cancelUrl || `${process.env.APP_URL || "https://mymint.co.za"}/ozow-cancel`;
-    const resolvedErrorUrl = errorUrl || `${process.env.APP_URL || "https://mymint.co.za"}/ozow-error`;
-    const resolvedNotifyUrl = notifyUrl || `${process.env.APP_URL || "https://mymint.co.za"}/api/ozow/notify`;
+    const baseUrl = process.env.APP_URL || "https://mymint.co.za";
+    const resolvedSuccessUrl = successUrl || `${baseUrl}/?ozow=success`;
+    const resolvedCancelUrl = cancelUrl || `${baseUrl}/?ozow=cancel`;
+    const resolvedErrorUrl = errorUrl || `${baseUrl}/?ozow=error`;
+    const resolvedNotifyUrl = notifyUrl || `${baseUrl}/api/ozow/notify`;
 
-    const hashInput = [
+    // Hash order per Ozow spec:
+    // SiteCode, CountryCode, CurrencyCode, Amount, TransactionReference, BankReference,
+    // [Optional1-5 only if non-empty], Customer, CancelUrl, ErrorUrl, SuccessUrl, NotifyUrl, IsTest, PrivateKey
+    const hashParts = [
       siteCode,
       countryCode,
       currencyCode,
       amountStr,
       transactionRef,
-      bankRef,
+      bankReference,
+    ];
+    if (optional1) hashParts.push(optional1);
+    if (optional2) hashParts.push(optional2);
+    hashParts.push(
+      customer,
       resolvedCancelUrl,
       resolvedErrorUrl,
       resolvedSuccessUrl,
-      optional1,
-      optional2,
-      optional3,
       resolvedNotifyUrl,
       isTest,
       privateKey,
-    ].join("").toLowerCase();
+    );
 
-    const hashCheck = crypto.createHash("sha512").update(hashInput).digest("hex");
+    const hashCheck = crypto.createHash("sha512").update(hashParts.join("").toLowerCase(), "utf8").digest("hex");
 
-    const params = new URLSearchParams({
+    console.log(`[ozow] Initiated payment: ref=${transactionRef} amount=${amountStr} strategy=${strategyName}`);
+
+    // Return form params — frontend must POST these as a hidden form to https://pay.ozow.com
+    return res.json({
+      success: true,
+      action_url: "https://pay.ozow.com",
       SiteCode: siteCode,
       CountryCode: countryCode,
       CurrencyCode: currencyCode,
       Amount: amountStr,
       TransactionReference: transactionRef,
-      BankRef: bankRef,
+      BankReference: bankReference,
+      Optional1: optional1,
+      Optional2: optional2,
+      Customer: customer,
       CancelUrl: resolvedCancelUrl,
       ErrorUrl: resolvedErrorUrl,
       SuccessUrl: resolvedSuccessUrl,
-      Optional1: optional1,
-      Optional2: optional2,
-      Optional3: optional3,
       NotifyUrl: resolvedNotifyUrl,
       IsTest: isTest,
       HashCheck: hashCheck,
     });
-
-    const paymentUrl = `https://pay.ozow.com/?${params.toString()}`;
-
-    console.log(`[ozow] Initiated payment: ref=${transactionRef} amount=${amountStr} strategy=${strategyName}`);
-    return res.json({ success: true, paymentUrl, transactionRef });
   } catch (err) {
     console.error("[ozow] initiate error:", err);
     return res.status(500).json({ success: false, error: "Failed to initiate Ozow payment." });
@@ -5102,29 +5108,43 @@ app.post("/api/ozow/notify", async (req, res) => {
     const privateKey = process.env.OZOW_PRIVATE_KEY;
     const {
       SiteCode, TransactionId, TransactionReference, Amount, Status,
-      Optional1, Optional2, Optional3, Hash,
+      Optional1, Optional2, Optional3, Optional4, Optional5,
+      CurrencyCode, IsTest, StatusMessage, HashCheck,
     } = req.body;
 
-    if (privateKey) {
-      const hashInput = [SiteCode, TransactionId, TransactionReference, Amount, Status, Optional1, Optional2, Optional3, privateKey]
-        .join("").toLowerCase();
-      const computed = crypto.createHash("sha512").update(hashInput).digest("hex");
-      if (computed !== (Hash || "").toLowerCase()) {
-        console.warn("[ozow/notify] Hash mismatch — ignoring notification");
-        return res.status(200).send("ok");
+    console.log("[ozow/notify] received:", req.body);
+
+    if (privateKey && HashCheck) {
+      // Notify hash order: SiteCode, TransactionId, TransactionReference, Amount, Status,
+      // Optional1-5 (always include even if empty), CurrencyCode, IsTest, PrivateKey
+      const hashParts = [
+        SiteCode, TransactionId, TransactionReference, Amount, Status,
+        Optional1 || "", Optional2 || "", Optional3 || "", Optional4 || "", Optional5 || "",
+        CurrencyCode, IsTest, privateKey,
+      ];
+      const computed = crypto.createHash("sha512").update(hashParts.join("").toLowerCase(), "utf8").digest("hex");
+      if (computed.toLowerCase() !== HashCheck.toLowerCase()) {
+        console.warn("[ozow/notify] Hash mismatch — possible spoofed request");
+        return res.status(200).send("OK");
       }
+      console.log("[ozow/notify] Hash verified ✅");
     }
 
     console.log(`[ozow/notify] ref=${TransactionReference} status=${Status} amount=${Amount}`);
 
-    if ((Status || "").toLowerCase() === "complete") {
-      console.log(`[ozow/notify] Payment complete for ref=${TransactionReference}`);
+    if (Status === "Complete" || Status === "CompleteExternal") {
+      console.log(`[ozow/notify] Payment complete ✅ ref=${TransactionReference}`);
+      // TODO: credit user wallet here
+    } else if (Status === "Cancelled") {
+      console.log(`[ozow/notify] Payment cancelled ref=${TransactionReference}`);
+    } else if (Status === "Error") {
+      console.log(`[ozow/notify] Payment error ref=${TransactionReference} msg=${StatusMessage}`);
     }
 
-    return res.status(200).send("ok");
+    return res.status(200).send("OK");
   } catch (err) {
     console.error("[ozow/notify] error:", err);
-    return res.status(200).send("ok");
+    return res.status(200).send("OK");
   }
 });
 
