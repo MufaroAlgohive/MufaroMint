@@ -785,7 +785,7 @@ const HomePage = ({
             <div className="relative select-none">
               <div
                 className="relative w-full touch-pan-y"
-                style={{ aspectRatio: "1.7 / 1", perspective: "1000px", transformStyle: "preserve-3d" }}
+                style={{ aspectRatio: "1.55 / 1", perspective: "1000px", transformStyle: "preserve-3d" }}
                 onTouchStart={handleCardDragStart}
                 onTouchEnd={handleCardDragEnd}
                 onMouseDown={handleCardDragStart}
@@ -829,7 +829,7 @@ const HomePage = ({
                          {/* Visual Physical Card Back: Removed Strip */}
                     
                     {/* Main content */}
-                    <div className="relative h-full flex flex-col pt-6">
+                    <div className="relative h-full flex flex-col">
                       <SwipeableBalanceCard 
                         userId={userId} 
                         isBackFacing={cardNormalizedIndex === 1} 
