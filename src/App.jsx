@@ -1338,31 +1338,19 @@ const App = () => {
               const token = session?.access_token;
               const eftRef = `EFT-${Date.now()}`;
               const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-              await Promise.all([
-                fetch("/api/record-investment", {
-                  method: "POST",
-                  headers,
-                  body: JSON.stringify({
-                    securityId: stockCheckout.security?.id,
-                    symbol: stockCheckout.security?.symbol || "",
-                    name: stockCheckout.security?.name || "",
-                    amount: stockCheckout.amount,
-                    baseAmount: stockCheckout.baseAmount || stockCheckout.amount,
-                    paymentReference: eftRef,
-                    paymentMethod: "direct_eft",
-                    ...(stockCheckout.shareCount ? { shareCount: Number(stockCheckout.shareCount) } : {}),
-                  }),
+              await fetch("/api/eft-deposit", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                  amount: stockCheckout.amount,
+                  baseAmount: stockCheckout.baseAmount || stockCheckout.amount,
+                  reference: eftRef,
+                  securityId: stockCheckout.security?.id,
+                  symbol: stockCheckout.security?.symbol || "",
+                  name: stockCheckout.security?.name || "",
+                  ...(stockCheckout.shareCount ? { shareCount: Number(stockCheckout.shareCount) } : {}),
                 }),
-                fetch("/api/eft-deposit", {
-                  method: "POST",
-                  headers,
-                  body: JSON.stringify({
-                    amount: stockCheckout.amount,
-                    reference: eftRef,
-                    description: `EFT payment for ${stockCheckout.security?.name || stockCheckout.security?.symbol || "investment"}`,
-                  }),
-                }),
-              ]);
+              });
             } catch (e) {
               console.error("EFT record error:", e);
             }
@@ -1575,31 +1563,19 @@ const App = () => {
               const eftRef = `EFT-${Date.now()}`;
               const stratId = selectedStrategy?.strategyId || selectedStrategy?.id || null;
               const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-              await Promise.all([
-                fetch("/api/record-investment", {
-                  method: "POST",
-                  headers,
-                  body: JSON.stringify({
-                    securityId: selectedStrategy?.id,
-                    symbol: selectedStrategy?.symbol || selectedStrategy?.short_name || "",
-                    name: selectedStrategy?.name || "",
-                    amount: investmentAmount,
-                    baseAmount: baseInvestmentAmount || investmentAmount,
-                    strategyId: stratId,
-                    paymentReference: eftRef,
-                    paymentMethod: "direct_eft",
-                  }),
+              await fetch("/api/eft-deposit", {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                  amount: investmentAmount,
+                  baseAmount: baseInvestmentAmount || investmentAmount,
+                  reference: eftRef,
+                  securityId: selectedStrategy?.id,
+                  symbol: selectedStrategy?.symbol || selectedStrategy?.short_name || "",
+                  name: selectedStrategy?.name || "",
+                  strategyId: stratId,
                 }),
-                fetch("/api/eft-deposit", {
-                  method: "POST",
-                  headers,
-                  body: JSON.stringify({
-                    amount: investmentAmount,
-                    reference: eftRef,
-                    description: `EFT payment for ${selectedStrategy?.name || "strategy investment"}`,
-                  }),
-                }),
-              ]);
+              });
             } catch (e) {
               console.error("EFT record error:", e);
             }

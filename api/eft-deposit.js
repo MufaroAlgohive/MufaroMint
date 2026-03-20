@@ -1,4 +1,11 @@
 import { supabase, supabaseAdmin, authenticateUser } from "./_lib/supabase.js";
+import { buildEFTPendingHtml, formatZar } from "./_lib/order-email-templates.js";
+import { Resend } from "resend";
+
+function getResend() {
+  if (!process.env.RESEND_API_KEY) return null;
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -16,7 +23,17 @@ export default async function handler(req, res) {
 
     const db = supabaseAdmin || supabase;
     const userId = user.id;
-    const { amount, reference, description } = req.body;
+
+    const {
+      amount,
+      reference,
+      securityId,
+      symbol,
+      name,
+      strategyId,
+      baseAmount,
+      shareCount,
+    } = req.body;
 
     if (!amount || Number(amount) <= 0) {
       return res.status(400).json({ success: false, error: "Invalid amount" });
@@ -25,13 +42,23 @@ export default async function handler(req, res) {
     const amountCents = Math.round(Number(amount) * 100);
     const eftRef = reference || `EFT-${Date.now()}`;
     const now = new Date().toISOString();
+    const assetName = name || symbol || "Investment";
 
-    // 1. Insert a pending credit transaction so it appears in transaction history
+    const purchaseIntent = {
+      securityId: securityId || null,
+      symbol: symbol || null,
+      name: name || null,
+      strategyId: strategyId || null,
+      amount: Number(amount),
+      baseAmount: baseAmount ? Number(baseAmount) : Number(amount),
+      shareCount: shareCount ? Number(shareCount) : null,
+    };
+
     const { error: txError } = await db.from("transactions").insert({
       user_id: userId,
       direction: "credit",
-      name: "EFT Deposit",
-      description: description || "Manual EFT bank transfer — pending bank verification",
+      name: `EFT Deposit — ${assetName}`,
+      description: JSON.stringify({ type: "eft_intent", ...purchaseIntent }),
       amount: amountCents,
       store_reference: eftRef,
       currency: "ZAR",
@@ -45,7 +72,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: "Failed to record pending deposit" });
     }
 
-    // 2. Update pending_balance on the wallets table (best-effort — column added via server migration)
     try {
       const { data: wallet } = await db
         .from("wallets")
@@ -64,7 +90,34 @@ export default async function handler(req, res) {
       console.warn("[eft-deposit] Could not update pending_balance:", walletErr?.message);
     }
 
-    console.log(`[eft-deposit] Recorded pending EFT deposit of R${amount} for user ${userId}, ref: ${eftRef}`);
+    try {
+      const resend = getResend();
+      if (resend && user.email) {
+        const html = buildEFTPendingHtml({
+          assetName,
+          amountCents,
+          reference: eftRef,
+          dateStr: now,
+        });
+        const isStrategy = !!strategyId;
+        const subject = `EFT Payment Noted — ${assetName}`;
+        const resp = await resend.emails.send({
+          from: "Mint <orders@mymint.co.za>",
+          to: [user.email],
+          subject,
+          html,
+        });
+        if (resp.error) {
+          console.error("[eft-deposit] Email send error:", resp.error.message);
+        } else {
+          console.log(`[eft-deposit] EFT pending email sent to ${user.email} for ${assetName}`);
+        }
+      }
+    } catch (emailErr) {
+      console.warn("[eft-deposit] Could not send pending email:", emailErr?.message);
+    }
+
+    console.log(`[eft-deposit] Recorded pending EFT deposit of R${amount} for user ${userId}, ref: ${eftRef}, asset: ${assetName}`);
     return res.status(200).json({ success: true, reference: eftRef });
   } catch (err) {
     console.error("[eft-deposit] Error:", err);

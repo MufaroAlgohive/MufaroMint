@@ -2962,6 +2962,247 @@ app.post("/api/record-investment", async (req, res) => {
   }
 });
 
+app.post("/api/eft-deposit", async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  try {
+    if (!supabase) return res.status(500).json({ success: false, error: "Database not connected" });
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) return res.status(401).json({ success: false, error: "Unauthorized" });
+
+    const db = supabaseAdmin || supabase;
+    const userId = user.id;
+    const { amount, reference, securityId, symbol, name, strategyId, baseAmount, shareCount } = req.body;
+
+    if (!amount || Number(amount) <= 0) return res.status(400).json({ success: false, error: "Invalid amount" });
+
+    const amountCents = Math.round(Number(amount) * 100);
+    const eftRef = reference || `EFT-${Date.now()}`;
+    const now = new Date().toISOString();
+    const assetName = name || symbol || "Investment";
+
+    const purchaseIntent = {
+      type: "eft_intent",
+      securityId: securityId || null,
+      symbol: symbol || null,
+      name: name || null,
+      strategyId: strategyId || null,
+      amount: Number(amount),
+      baseAmount: baseAmount ? Number(baseAmount) : Number(amount),
+      shareCount: shareCount ? Number(shareCount) : null,
+    };
+
+    const { error: txError } = await db.from("transactions").insert({
+      user_id: userId,
+      direction: "credit",
+      name: `EFT Deposit — ${assetName}`,
+      description: JSON.stringify(purchaseIntent),
+      amount: amountCents,
+      store_reference: eftRef,
+      currency: "ZAR",
+      status: "pending",
+      transaction_date: now,
+      created_at: now,
+    });
+
+    if (txError) {
+      console.error("[eft-deposit] Transaction insert error:", txError.message);
+      return res.status(500).json({ success: false, error: "Failed to record pending deposit" });
+    }
+
+    try {
+      const { data: wallet } = await db.from("wallets").select("pending_balance").eq("user_id", userId).maybeSingle();
+      if (wallet !== null) {
+        const currentPending = Number(wallet?.pending_balance || 0);
+        await db.from("wallets").update({ pending_balance: currentPending + Number(amount) }).eq("user_id", userId);
+      }
+    } catch (walletErr) {
+      console.warn("[eft-deposit] Could not update pending_balance:", walletErr?.message);
+    }
+
+    try {
+      if (process.env.RESEND_API_KEY && user.email) {
+        const { buildEFTPendingHtml } = await import('../api/_lib/order-email-templates.js');
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const html = buildEFTPendingHtml({ assetName, amountCents, reference: eftRef, dateStr: now });
+        const resp = await resend.emails.send({
+          from: "Mint <orders@mymint.co.za>",
+          to: [user.email],
+          subject: `EFT Payment Noted — ${assetName}`,
+          html,
+        });
+        if (resp.error) {
+          console.error("[eft-deposit] Email error:", resp.error.message);
+        } else {
+          console.log(`[eft-deposit] Pending email sent to ${user.email} for ${assetName}`);
+        }
+      }
+    } catch (emailErr) {
+      console.warn("[eft-deposit] Could not send pending email:", emailErr?.message);
+    }
+
+    console.log(`[eft-deposit] Pending EFT of R${amount} recorded for user ${userId}, ref: ${eftRef}, asset: ${assetName}`);
+    return res.status(200).json({ success: true, reference: eftRef });
+  } catch (err) {
+    console.error("[eft-deposit] Error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to record EFT deposit" });
+  }
+});
+
+app.post("/api/confirm-eft-deposit", async (req, res) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  try {
+    const adminSecret = process.env.ADMIN_SECRET || process.env.CONFIRM_EFT_SECRET;
+    const { reference, adminSecret: providedSecret } = req.body;
+
+    if (!adminSecret || providedSecret !== adminSecret) {
+      return res.status(403).json({ success: false, error: "Forbidden" });
+    }
+    if (!reference) return res.status(400).json({ success: false, error: "Missing reference" });
+
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.status(500).json({ success: false, error: "Database not connected" });
+
+    const { data: tx, error: txLookupErr } = await db
+      .from("transactions")
+      .select("*")
+      .eq("store_reference", reference)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    if (txLookupErr || !tx) {
+      return res.status(404).json({ success: false, error: "Pending EFT transaction not found for reference: " + reference });
+    }
+
+    let intent = {};
+    try {
+      const parsed = JSON.parse(tx.description || "{}");
+      if (parsed.type === "eft_intent") intent = parsed;
+    } catch (_) {}
+
+    const { securityId, symbol, name, strategyId, amount, baseAmount } = intent;
+    const userId = tx.user_id;
+    const amountCents = tx.amount;
+    const investAmount = baseAmount && baseAmount > 0 ? baseAmount : (amount || amountCents / 100);
+    const isStrategyInvestment = !!strategyId;
+    const now = new Date().toISOString();
+    const today = now.split("T")[0];
+    let quantity = null;
+    let currentPriceCents = null;
+
+    let userEmail = null;
+    try {
+      const { data: authUser } = await (supabaseAdmin || supabase).auth.admin.getUserById(userId);
+      userEmail = authUser?.user?.email || null;
+    } catch (_) {}
+
+    if (isStrategyInvestment && securityId) {
+      const { data: strategyData } = await db.from("strategies").select("holdings").eq("id", strategyId).maybeSingle();
+      if (strategyData?.holdings?.length) {
+        const symbols = strategyData.holdings.map(h => h.symbol).filter(Boolean);
+        const { data: securitiesData } = await db.from("securities").select("id, symbol, last_price").in("symbol", symbols);
+        const secBySymbol = {};
+        (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
+        let totalBasketCostRands = 0;
+        for (const h of strategyData.holdings) {
+          const sec = secBySymbol[h.symbol];
+          if (!sec) continue;
+          const qty = Number(h.quantity || h.shares || 0);
+          const pc = Number(sec.last_price || 0);
+          if (qty > 0 && pc > 0) totalBasketCostRands += (qty * pc) / 100;
+        }
+        const scalingRatio = totalBasketCostRands > 0 ? investAmount / totalBasketCostRands : 1;
+        for (const h of strategyData.holdings) {
+          const sec = secBySymbol[h.symbol];
+          if (!sec) continue;
+          const rawQty = Number(h.quantity || h.shares || 0);
+          if (rawQty <= 0) continue;
+          const holdingQty = rawQty * scalingRatio;
+          const pc = Number(sec.last_price || 0);
+          if (pc <= 0) continue;
+          const { data: existing } = await db.from("stock_holdings").select("id, quantity, avg_fill").eq("user_id", userId).eq("security_id", sec.id).eq("strategy_id", strategyId).maybeSingle();
+          if (existing) {
+            const oldQty = Number(existing.quantity || 0);
+            const newQty = oldQty + holdingQty;
+            const newAvg = newQty > 0 ? ((Number(existing.avg_fill || 0) * oldQty) + (pc * holdingQty)) / newQty : pc;
+            await db.from("stock_holdings").update({ quantity: newQty, avg_fill: Math.round(newAvg), market_value: Math.round(newQty * pc), as_of_date: today, updated_at: now }).eq("id", existing.id);
+          } else {
+            await db.from("stock_holdings").insert({ user_id: userId, security_id: sec.id, strategy_id: strategyId, quantity: holdingQty, avg_fill: pc, market_value: Math.round(holdingQty * pc), unrealized_pnl: 0, as_of_date: today, Status: "active" });
+          }
+        }
+      }
+    } else if (securityId && !isStrategyInvestment) {
+      const { data: secData } = await db.from("securities").select("last_price").eq("id", securityId).maybeSingle();
+      currentPriceCents = secData?.last_price ? Number(secData.last_price) : null;
+      if (!currentPriceCents) {
+        const { data: priceData } = await db.from("security_prices").select("close_price").eq("security_id", securityId).order("price_date", { ascending: false }).limit(1).maybeSingle();
+        if (priceData?.close_price) currentPriceCents = Number(priceData.close_price);
+      }
+      const priceRands = currentPriceCents ? currentPriceCents / 100 : investAmount;
+      quantity = priceRands > 0 ? investAmount / priceRands : 1;
+      const avgFill = currentPriceCents || Math.round(investAmount * 100);
+      const { data: existing } = await db.from("stock_holdings").select("id, quantity, avg_fill").eq("user_id", userId).eq("security_id", securityId).maybeSingle();
+      if (existing) {
+        const oldQty = Number(existing.quantity || 0);
+        const newQty = oldQty + quantity;
+        const newAvg = newQty > 0 ? ((Number(existing.avg_fill || 0) * oldQty) + (avgFill * quantity)) / newQty : avgFill;
+        await db.from("stock_holdings").update({ quantity: newQty, avg_fill: Math.round(newAvg), market_value: Math.round(newQty * (currentPriceCents || Math.round(newAvg))), as_of_date: today, updated_at: now }).eq("id", existing.id);
+      } else {
+        await db.from("stock_holdings").insert({ user_id: userId, security_id: securityId, quantity, avg_fill: avgFill, market_value: Math.round(quantity * (currentPriceCents || avgFill)), unrealized_pnl: 0, as_of_date: today, Status: "active", strategy_id: strategyId || null });
+      }
+    }
+
+    await db.from("transactions").insert({
+      user_id: userId,
+      direction: "debit",
+      name: isStrategyInvestment ? `Strategy Investment: ${name || symbol || "Strategy"}` : `Purchased ${name || symbol || "Stock"}`,
+      description: isStrategyInvestment ? `Invested in strategy ${name || "Strategy"}` : `Purchased shares of ${name || symbol || "Unknown"}`,
+      amount: amountCents,
+      store_reference: `${reference}-INVEST`,
+      currency: "ZAR",
+      status: "posted",
+      transaction_date: now,
+      created_at: now,
+    }).then(() => {}).catch(() => {});
+
+    await db.from("transactions").update({ status: "posted" }).eq("store_reference", reference);
+
+    try {
+      const { data: wallet } = await db.from("wallets").select("balance, pending_balance").eq("user_id", userId).maybeSingle();
+      if (wallet !== null) {
+        const newBalance = Number(wallet.balance || 0) + (amount || amountCents / 100);
+        const newPending = Math.max(0, Number(wallet.pending_balance || 0) - (amount || amountCents / 100));
+        await db.from("wallets").update({ balance: newBalance, pending_balance: newPending }).eq("user_id", userId);
+      }
+    } catch (walletErr) {
+      console.warn("[confirm-eft] Wallet update failed:", walletErr?.message);
+    }
+
+    if (userEmail) {
+      try {
+        sendOrderConfirmationEmail(db, {
+          userId,
+          userEmail,
+          assetName: name || null,
+          assetSymbol: symbol || null,
+          strategyName: isStrategyInvestment ? (name || symbol || "Strategy") : null,
+          amountCents,
+          quantity,
+          priceCents: currentPriceCents,
+          reference,
+          orderDate: now,
+        }).catch(() => {});
+      } catch (_) {}
+    }
+
+    console.log(`[confirm-eft] Confirmed EFT for user ${userId}, ref: ${reference}, asset: ${name || symbol}`);
+    return res.status(200).json({ success: true, reference });
+  } catch (err) {
+    console.error("[confirm-eft] Error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to confirm EFT deposit" });
+  }
+});
+
 app.post("/api/user/ensure-mint-number", async (req, res) => {
   try {
     if (!supabase) {

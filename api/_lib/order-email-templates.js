@@ -201,6 +201,50 @@ export function buildOrderConfirmationHtml({
 }
 
 /**
+ * EFT Payment Pending Email (sent immediately when user submits EFT intent)
+ *
+ * @param {object} params
+ * @param {string} params.assetName    - name of asset / strategy being purchased
+ * @param {number} params.amountCents  - amount in cents
+ * @param {string} params.reference    - EFT reference
+ * @param {string} [params.dateStr]    - ISO date string
+ */
+export function buildEFTPendingHtml({ assetName, amountCents, reference, dateStr }) {
+  const displayName = assetName || "your selected investment";
+
+  const body = `
+    <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 32px;">
+      Hello Investor, we have received your EFT payment instruction for
+      <strong>${displayName}</strong>. Once your funds reflect in our bank account
+      (typically 1–3 business days), your purchase will be processed automatically
+      and you will receive an order confirmation.
+    </p>
+
+    ${detailRow("Purchase Intent", `<strong>${displayName}</strong>`)}
+    ${detailRow("Expected Amount", `<span style="color:${MINT_PURPLE}; font-size:16px;">${formatZar(amountCents)}</span>`)}
+    ${detailRow("Your EFT Reference", `<span style="font-family:monospace; color:#64748b;">${reference || "—"}</span>`)}
+    ${dateStr ? detailRow("Submitted", formatDate(dateStr)) : ""}
+    ${detailRow("Status", `<span style="color:#d97706; font-weight:700;">Awaiting EFT Funds</span>`)}
+
+    <p style="font-size:14px; color:#64748b; line-height:1.6; margin:32px 0;">
+      Please use the reference <strong style="font-family:monospace;">${reference || ""}</strong>
+      as your payment reference when making the EFT so we can match your payment quickly.
+    </p>
+
+    <div style="margin-top:40px; text-align:center;">
+      <a href="https://www.mymint.co.za" style="${S.button}">View Dashboard &rarr;</a>
+    </div>`;
+
+  return buildShell({
+    heroLabel: "EFT Payment Noted",
+    heroTitle: "Payment instruction<br>received.",
+    body,
+    footerNote:
+      "Your investment purchase will be executed once your EFT payment is confirmed in our account. If you have any questions, contact us at info@mymint.co.za.",
+  });
+}
+
+/**
  * Deposit Received Email
  *
  * @param {object} params
