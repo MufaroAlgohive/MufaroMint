@@ -124,7 +124,7 @@ export function useCreditCheck() {
     employerName: ""
   });
 
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "/api";
+
 
   const setField = useCallback((key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -276,14 +276,14 @@ export function useCreditCheck() {
 
   const fetchMockMode = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBase}/mock-mode`);
+      const response = await fetch("/api/mock-mode");
       const payload = await response.json();
       const value = payload?.mockMode ?? payload?.mock ?? null;
       setMockMode(value === null ? null : Boolean(value));
     } catch {
       setMockMode(null);
     }
-  }, [apiBase]);
+  }, []);
 
   useEffect(() => {
     fetchMockMode();
@@ -341,7 +341,7 @@ export function useCreditCheck() {
     };
 
     try {
-      const response = await fetch(`${apiBase}/credit-check`, {
+      const response = await fetch("/api/credit-check", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -358,7 +358,7 @@ export function useCreditCheck() {
       setEngineResult({ success: false, error: err.message || "Network error" });
       setEngineStatus("Failed");
     }
-  }, [apiBase, form, normalizedContractType, loanRecord]);
+  }, [form, normalizedContractType, loanRecord]);
 
   const proceedToStep3 = useCallback(async () => {
     if (!loanRecord?.id) return;

@@ -146,7 +146,7 @@ const LOCAL_STORAGE_KEYS = {
   consumerUrl: "truid_consumer_url",
 };
 
-export function TruidConnector({ apiBase = "", onStart, onVerified, userProfile }) {
+export function TruidConnector({ onStart, onVerified, userProfile }) {
   const [state, setState] = useState("idle");
   const [statusMap, setStatusMap] = useState(() =>
     steps.reduce((acc, step) => ({ ...acc, [step.id]: "pending" }), {})
@@ -217,7 +217,7 @@ export function TruidConnector({ apiBase = "", onStart, onVerified, userProfile 
       setStatus("status-1", "success");
       setStatus("status-2", "loading");
 
-      const initEndpoint = `${apiBase}/api/truid/initiate`;
+      const initEndpoint = "/api/truid/initiate";
       const resp = await fetch(initEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,7 +258,7 @@ export function TruidConnector({ apiBase = "", onStart, onVerified, userProfile 
       setState("idle");
       resetStatuses();
     }
-  }, [apiBase, fullName, idNumber, onStart, resetStatuses, setStatus, state]);
+  }, [fullName, idNumber, onStart, resetStatuses, setStatus, state]);
 
   const checkStatus = useCallback(async () => {
     if (!collectionId || verificationStatus === "checking") return;
@@ -266,7 +266,7 @@ export function TruidConnector({ apiBase = "", onStart, onVerified, userProfile 
     setVerificationMessage("");
 
     try {
-      const statusEndpoint = `${apiBase}/api/truid/status?collectionId=${encodeURIComponent(collectionId)}`;
+      const statusEndpoint = `/api/truid/status?collectionId=${encodeURIComponent(collectionId)}`;
       const resp = await fetch(statusEndpoint);
       const payload = await resp.json();
       
@@ -310,7 +310,7 @@ export function TruidConnector({ apiBase = "", onStart, onVerified, userProfile 
       setVerificationStatus("failed");
       setVerificationMessage(err?.message || "Unable to fetch status");
     }
-  }, [apiBase, collectionId, onVerified, verificationStatus]);
+  }, [collectionId, onVerified, verificationStatus]);
 
   const openInNewWindow = useCallback(() => {
     if (consumerUrl) {
