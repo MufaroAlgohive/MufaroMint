@@ -64,7 +64,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
   }, []);
 
   const holdingsData = currentStrategy.holdingsWithLogos || currentStrategy.holdings || [];
-  const numAssets = holdingsData.length || 1;
+  const numAssets = holdingsData.length || 0;
   const extraHoldings = holdingsData.length > 3 ? holdingsData.length - 3 : 0;
 
   const fees = useMemo(() => {
