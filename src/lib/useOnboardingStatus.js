@@ -81,5 +81,11 @@ export const useOnboardingStatus = () => {
     };
   }, [checkStatus]);
 
+  useEffect(() => {
+    if (!loading) {
+      console.log(`[useOnboardingStatus] Loading finished. onboardingComplete: ${onboardingComplete}`);
+    }
+  }, [loading, onboardingComplete]);
+
   return { onboardingComplete, loading, error, refetch: checkStatus };
 };
