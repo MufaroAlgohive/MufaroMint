@@ -714,6 +714,18 @@ export default function AccountAgreementStep({
       }
 
       setPhase("success");
+
+      if (onComplete) {
+        try {
+          await onComplete({
+            signed_agreement_url: publicUrl,
+            signed_at: now,
+            downloaded_at: now,
+          });
+        } catch (completeErr) {
+          console.error("onComplete error:", completeErr);
+        }
+      }
     } catch (err) {
       console.error("Sign error:", err);
       setError(err?.message || "Something went wrong. Please try again.");
@@ -1196,17 +1208,16 @@ export default function AccountAgreementStep({
           className="continue-button agreement-continue enabled"
           onClick={async (e) => {
             e.preventDefault();
-            try {
-              if (onComplete) {
+            if (onComplete) {
+              try {
                 await onComplete({
                   signed_agreement_url: pdfUrl,
                   signed_at: signedAt,
                   downloaded_at: downloadedAt,
                 });
+              } catch (err) {
+                console.error("Completion error:", err);
               }
-            } catch (err) {
-              console.error("Completion error:", err);
-              setError(err.message || "Failed to complete onboarding. Please try again.");
             }
           }}
         >
