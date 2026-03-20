@@ -137,14 +137,14 @@ const HomePage = ({
   const [news, setNews] = useState([]);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loadingNews, setLoadingNews] = useState(false);
-  const [homeTab, setHomeTab] = useState("invest");
+  const [homeTab, setHomeTab] = useState("balance");
   const [userId, setUserId] = useState(null);
   const [localBestAssets, setLocalBestAssets] = useState([]);
   const [hasAnyHoldings, setHasAnyHoldings] = useState(false);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
 
-  const [cardRotation, setCardRotation] = useState(-180);
+  const [cardRotation, setCardRotation] = useState(0);
   const [isCardAnimating, setIsCardAnimating] = useState(false);
   const dragStartXRef = useRef(0);
   const [isCardVisible, setIsCardVisible] = useState(() => {
