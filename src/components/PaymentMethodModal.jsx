@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, CreditCard, Zap, Building2, Copy, Check, ChevronDown, ChevronUp, Loader2, Wallet } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import { useProfile } from "../lib/useProfile";
 
 const STANDARD_BANK_LOGO = "/standard-bank-logo.png";
 
@@ -10,48 +11,8 @@ const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPay
   const [mintNumber, setMintNumber] = useState(null);
   const [copied, setCopied] = useState(null);
   const [ozowLoading, setOzowLoading] = useState(false);
-  const [walletBalance, setWalletBalance] = useState(null); // ADDED walletBalance state
-
-  useEffect(() => {
-    if (isOpen) {
-      setEftExpanded(false);
-      setCopied(null);
-      setOzowLoading(false);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen || mintNumber) return;
-    const fetchMintNumber = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data } = await supabase
-          .from("profiles")
-          .select("mint_number")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (data?.mint_number) setMintNumber(data.mint_number);
-      } catch (_) {}
-    };
-    fetchMintNumber();
-  }, [isOpen]);
-
-  // ADDED: Fetch wallet balance
-  useEffect(() => {
-    if (!isOpen) return;
-    const fetchBalance = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const { data } = await supabase.from("profiles").select("wallet_balance").eq("id", user.id).maybeSingle();
-        setWalletBalance(data?.wallet_balance ?? 0);
-      } catch (err) {
-        console.error("Error fetching wallet balance:", err);
-      }
-    };
-    fetchBalance();
-  }, [isOpen]);
+  const { profile, loading: profileLoading } = useProfile();
+  const walletBalance = profile?.wallet_balance ?? 0;
 
   const handleCopy = (value, label) => {
     navigator.clipboard.writeText(value).then(() => {
@@ -123,32 +84,44 @@ const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPay
               </div>
 
               <div className="px-5 pb-5 space-y-2.5 pt-3">
-                {/* Pay with Wallet - ADDED */}
+                {/* Pay with Wallet */}
                 <button
                   type="button"
-                  onClick={() => onSelectWallet?.()}
-                  disabled={!walletBalance || walletBalance <= 0}
+                  onClick={() => {
+                    if (walletBalance > 0) {
+                      onSelectWallet?.();
+                    } else {
+                      // Optionally show a tooltip or toast: "Please top up your wallet"
+                      console.log("Wallet balance is zero - top up required");
+                    }
+                  }}
                   className={`w-full flex items-center gap-4 rounded-2xl border-2 px-4 py-3.5 text-left transition active:scale-[0.98] ${
-                    !walletBalance || walletBalance <= 0
-                      ? "border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed"
+                    walletBalance <= 0
+                      ? "border-slate-100 bg-slate-50 opacity-60"
                       : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/40"
                   }`}
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 flex-shrink-0">
-                    <Wallet className="h-5 w-5 text-violet-600" />
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl flex-shrink-0 ${
+                    walletBalance <= 0 ? "bg-slate-200" : "bg-violet-100"
+                  }`}>
+                    {profileLoading ? <Loader2 className="h-5 w-5 text-slate-400 animate-spin" /> : <Wallet className={`h-5 w-5 ${walletBalance <= 0 ? "text-slate-400" : "text-violet-600"}`} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">Pay with Wallet</p>
+                    <p className={`text-sm font-semibold ${walletBalance <= 0 ? "text-slate-500" : "text-slate-900"}`}>Pay with Wallet</p>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Available: <span className="font-semibold">{formatAmount(walletBalance)}</span>
+                      {profileLoading ? "Checking balance..." : (
+                        walletBalance <= 0 
+                          ? "Insufficient balance - Please top up" 
+                          : `Available: ${formatAmount(walletBalance)}`
+                      )}
                     </p>
                   </div>
                   <span className={`text-[11px] font-semibold rounded-full px-2 py-0.5 flex-shrink-0 ${
-                    !walletBalance || walletBalance <= 0
+                    walletBalance <= 0
                       ? "text-slate-400 bg-slate-200"
                       : "text-violet-600 bg-violet-100"
                   }`}>
-                    Wallet
+                    {walletBalance <= 0 ? "Top Up Required" : "Wallet"}
                   </span>
                 </button>
 
