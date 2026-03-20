@@ -845,7 +845,7 @@ const HomePage = ({
                       
                       {/* Repositioned Mint ID to Bottom Left */}
                       <div className="absolute bottom-8 left-8 z-50 pointer-events-none flex flex-col items-start translate-z-10">
-                        <p className="text-[7px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-0.5">Mint ID</p>
+                        <p className="text-[7px] uppercase tracking-[0.2em] text-slate-400 font-bold mb-0.5">MINT NUMBER</p>
                         <p className="text-[12px] tracking-[0.25em] text-slate-800 font-mono font-bold">
                           {profile.mintNumber || ""}
                         </p>
