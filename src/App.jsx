@@ -14,8 +14,8 @@ import NewPortfolioPage from "./pages/NewPortfolioPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
 import InvestAmountPage from "./pages/InvestAmountPage.jsx";
 import PaymentPage from "./pages/PaymentPage.jsx";
-import PaymentMethodPage from "./pages/PaymentMethodPage.jsx";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage.jsx";
+import PaymentMethodModal from "./components/PaymentMethodModal.jsx";
 import FactsheetPage from "./pages/FactsheetPage.jsx";
 import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
@@ -96,6 +96,7 @@ const App = () => {
   const [baseInvestmentAmount, setBaseInvestmentAmount] = useState(0);
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0, baseAmount: 0 });
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [pendingGoalFlow, setPendingGoalFlow] = useState(null);
   const [selectedGoalId, setSelectedGoalId] = useState(null);
   const selectedGoalIdRef = useRef(null);
@@ -1209,10 +1210,51 @@ const App = () => {
             pendingPaymentTypeRef.current = "stock";
             setShowGoalModal(false);
             setPendingGoalFlow(null);
-            navigateTo("paymentMethod");
+            setShowPaymentMethodModal(true);
           }}
           investmentAmount={pendingGoalFlow?.baseAmount || pendingGoalFlow?.amount || stockCheckout.amount}
           assetName={pendingGoalFlow?.assetName || selectedSecurity?.name || "Stock"}
+        />
+        <PaymentMethodModal
+          isOpen={showPaymentMethodModal}
+          onClose={() => setShowPaymentMethodModal(false)}
+          amount={stockCheckout.amount}
+          strategyName={stockCheckout.security?.name || stockCheckout.security?.symbol || "Stock"}
+          onSelectPaystack={() => { setShowPaymentMethodModal(false); navigateTo("stockPayment"); }}
+          onSelectOzow={async () => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              const baseUrl = window.location.origin;
+              const resp = await fetch("/api/ozow/initiate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  amount: stockCheckout.amount,
+                  strategyName: stockCheckout.security?.name || stockCheckout.security?.symbol || "Stock",
+                  strategyId: stockCheckout.security?.id || null,
+                  userId: user?.id || null,
+                  successUrl: `${baseUrl}/?ozow=success`,
+                  cancelUrl: `${baseUrl}/?ozow=cancel`,
+                  errorUrl: `${baseUrl}/?ozow=error`,
+                }),
+              });
+              const data = await resp.json();
+              if (data.success && data.paymentUrl) {
+                window.location.href = data.paymentUrl;
+              } else {
+                alert(data.error || "Failed to initiate Ozow payment. Please try again.");
+              }
+            } catch (err) {
+              console.error("Ozow error:", err);
+              alert("Could not connect to Ozow. Please try another payment method.");
+            }
+          }}
+          onEFTConfirm={() => {
+            setShowPaymentMethodModal(false);
+            navigationHistory.current = [];
+            setPreviousPageName(null);
+            setCurrentPage("paymentSuccess");
+          }}
         />
       </SwipeBackWrapper>
     );
@@ -1349,71 +1391,51 @@ const App = () => {
             pendingPaymentTypeRef.current = "strategy";
             setShowGoalModal(false);
             setPendingGoalFlow(null);
-            navigateTo("paymentMethod");
+            setShowPaymentMethodModal(true);
           }}
           investmentAmount={pendingGoalFlow?.baseAmount || pendingGoalFlow?.amount || investmentAmount}
           assetName={pendingGoalFlow?.assetName || selectedStrategy?.name || "Strategy"}
         />
-      </SwipeBackWrapper>
-    );
-  }
-
-  if (currentPage === "paymentMethod") {
-    const isStock = pendingPaymentTypeRef.current === "stock";
-    const pmAmount = isStock ? stockCheckout.amount : investmentAmount;
-    const pmName = isStock
-      ? (stockCheckout.security?.name || stockCheckout.security?.symbol || "Stock")
-      : (selectedStrategy?.name || "Investment");
-    const pmStrategyId = isStock ? (stockCheckout.security?.id || null) : (selectedStrategy?.id || null);
-
-    const handleSelectOzow = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const baseUrl = window.location.origin;
-        const successUrl = `${baseUrl}/?ozow=success`;
-        const cancelUrl = `${baseUrl}/?ozow=cancel`;
-        const errorUrl = `${baseUrl}/?ozow=error`;
-
-        const resp = await fetch("/api/ozow/initiate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            amount: pmAmount,
-            strategyName: pmName,
-            strategyId: pmStrategyId,
-            userId: user?.id || null,
-            successUrl,
-            cancelUrl,
-            errorUrl,
-          }),
-        });
-        const data = await resp.json();
-        if (data.success && data.paymentUrl) {
-          window.location.href = data.paymentUrl;
-        } else {
-          alert(data.error || "Failed to initiate Ozow payment. Please try again.");
-        }
-      } catch (err) {
-        console.error("Ozow initiation failed:", err);
-        alert("Could not connect to Ozow. Please try another payment method.");
-      }
-    };
-
-    const handleEFTConfirm = () => {
-      navigationHistory.current = [];
-      setPreviousPageName(null);
-      setCurrentPage("paymentSuccess");
-    };
-
-    return (
-      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <PaymentMethodPage
-          onBack={goBack}
-          amount={pmAmount}
-          strategyName={pmName}
-          onSelectPaystack={() => navigateTo(isStock ? "stockPayment" : "payment")}
-          onSelectOzow={handleSelectOzow}
-          onEFTConfirm={handleEFTConfirm}
+        <PaymentMethodModal
+          isOpen={showPaymentMethodModal}
+          onClose={() => setShowPaymentMethodModal(false)}
+          amount={investmentAmount}
+          strategyName={selectedStrategy?.name || "Investment"}
+          onSelectPaystack={() => { setShowPaymentMethodModal(false); navigateTo("payment"); }}
+          onSelectOzow={async () => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              const baseUrl = window.location.origin;
+              const resp = await fetch("/api/ozow/initiate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  amount: investmentAmount,
+                  strategyName: selectedStrategy?.name || "Investment",
+                  strategyId: selectedStrategy?.id || null,
+                  userId: user?.id || null,
+                  successUrl: `${baseUrl}/?ozow=success`,
+                  cancelUrl: `${baseUrl}/?ozow=cancel`,
+                  errorUrl: `${baseUrl}/?ozow=error`,
+                }),
+              });
+              const data = await resp.json();
+              if (data.success && data.paymentUrl) {
+                window.location.href = data.paymentUrl;
+              } else {
+                alert(data.error || "Failed to initiate Ozow payment. Please try again.");
+              }
+            } catch (err) {
+              console.error("Ozow error:", err);
+              alert("Could not connect to Ozow. Please try another payment method.");
+            }
+          }}
+          onEFTConfirm={() => {
+            setShowPaymentMethodModal(false);
+            navigationHistory.current = [];
+            setPreviousPageName(null);
+            setCurrentPage("paymentSuccess");
+          }}
         />
       </SwipeBackWrapper>
     );
