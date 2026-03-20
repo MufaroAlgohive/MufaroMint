@@ -5041,6 +5041,7 @@ app.post("/api/ozow/initiate", async (req, res) => {
     const customer = userEmail || "";
     const optional1 = strategyId || "";
     const optional2 = userEmail || "";
+    const optional3 = userId || "";
     const isTest = process.env.OZOW_IS_TEST === "true" ? "true" : "false";
 
     const baseUrl = process.env.APP_URL || "https://mymint.co.za";
@@ -5062,6 +5063,7 @@ app.post("/api/ozow/initiate", async (req, res) => {
     ];
     if (optional1) hashParts.push(optional1);
     if (optional2) hashParts.push(optional2);
+    if (optional3) hashParts.push(optional3);
     hashParts.push(
       customer,
       resolvedCancelUrl,
@@ -5074,7 +5076,7 @@ app.post("/api/ozow/initiate", async (req, res) => {
 
     const hashCheck = crypto.createHash("sha512").update(hashParts.join("").toLowerCase(), "utf8").digest("hex");
 
-    console.log(`[ozow] Initiated payment: ref=${transactionRef} amount=${amountStr} strategy=${strategyName}`);
+    console.log(`[ozow] Initiated payment: ref=${transactionRef} amount=${amountStr} strategy=${strategyName} userId=${userId}`);
 
     // Return form params — frontend must POST these as a hidden form to https://pay.ozow.com
     return res.json({
@@ -5088,6 +5090,7 @@ app.post("/api/ozow/initiate", async (req, res) => {
       BankReference: bankReference,
       Optional1: optional1,
       Optional2: optional2,
+      Optional3: optional3,
       Customer: customer,
       CancelUrl: resolvedCancelUrl,
       ErrorUrl: resolvedErrorUrl,
@@ -5099,6 +5102,172 @@ app.post("/api/ozow/initiate", async (req, res) => {
   } catch (err) {
     console.error("[ozow] initiate error:", err);
     return res.status(500).json({ success: false, error: "Failed to initiate Ozow payment." });
+  }
+});
+
+// Called from the success page to record the investment when the notify webhook hasn't fired yet
+app.post("/api/ozow/record-success", async (req, res) => {
+  try {
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const { transactionRef, strategyId, amount } = req.body;
+    const userId = user.id;
+
+    if (!transactionRef || !strategyId || !amount || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, error: "Missing required fields" });
+    }
+
+    // Only accept refs we generated
+    if (!transactionRef.startsWith("MINT-")) {
+      return res.status(400).json({ success: false, error: "Invalid transaction reference" });
+    }
+
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.status(500).json({ success: false, error: "DB unavailable" });
+
+    // Deduplication
+    const { data: existingTx } = await db
+      .from("transactions")
+      .select("id")
+      .eq("store_reference", transactionRef)
+      .maybeSingle();
+
+    if (existingTx) {
+      console.log(`[ozow/record-success] Already recorded ref=${transactionRef}`);
+      return res.json({ success: true, alreadyRecorded: true });
+    }
+
+    const amountZAR = Number(amount);
+
+    // Load strategy
+    const { data: strategyData, error: stratError } = await db
+      .from("strategies")
+      .select("name, holdings")
+      .eq("id", strategyId)
+      .maybeSingle();
+
+    if (stratError || !strategyData) {
+      return res.status(404).json({ success: false, error: "Strategy not found" });
+    }
+
+    const strategyName = strategyData.name || "Strategy";
+    const strategyHoldings = strategyData.holdings || [];
+
+    if (strategyHoldings.length > 0) {
+      const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
+      const { data: securitiesData } = await db
+        .from("securities")
+        .select("id, symbol, last_price")
+        .in("symbol", symbols);
+
+      const secBySymbol = {};
+      (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
+
+      let totalBasketCostRands = 0;
+      for (const holding of strategyHoldings) {
+        const sec = secBySymbol[holding.symbol];
+        if (!sec) continue;
+        const qty = Number(holding.quantity || holding.shares || 0);
+        const priceCents = Number(sec.last_price || 0);
+        if (qty > 0 && priceCents > 0) totalBasketCostRands += (qty * priceCents) / 100;
+      }
+
+      const scalingRatio = totalBasketCostRands > 0 ? amountZAR / totalBasketCostRands : 1;
+      const now = new Date().toISOString();
+      const today = now.split("T")[0];
+
+      for (const holding of strategyHoldings) {
+        const sec = secBySymbol[holding.symbol];
+        if (!sec) continue;
+        const rawQty = Number(holding.quantity || holding.shares || 0);
+        if (rawQty <= 0) continue;
+        const priceCents = Number(sec.last_price || 0);
+        if (priceCents <= 0) continue;
+
+        const holdingQty = rawQty * scalingRatio;
+
+        const { data: existing } = await db
+          .from("stock_holdings")
+          .select("id, quantity, avg_fill")
+          .eq("user_id", userId)
+          .eq("security_id", sec.id)
+          .eq("strategy_id", strategyId)
+          .maybeSingle();
+
+        if (existing) {
+          const oldQty = Number(existing.quantity || 0);
+          const oldAvgFill = Number(existing.avg_fill || 0);
+          const newQty = oldQty + holdingQty;
+          const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty : priceCents;
+          await db.from("stock_holdings").update({
+            quantity: newQty,
+            avg_fill: Math.round(newAvgFill),
+            market_value: Math.round(newQty * priceCents),
+            as_of_date: today,
+            updated_at: now,
+          }).eq("id", existing.id);
+        } else {
+          await db.from("stock_holdings").insert({
+            user_id: userId,
+            security_id: sec.id,
+            strategy_id: strategyId,
+            quantity: holdingQty,
+            avg_fill: priceCents,
+            market_value: Math.round(holdingQty * priceCents),
+            unrealized_pnl: 0,
+            as_of_date: today,
+            Status: "active",
+          });
+        }
+      }
+    }
+
+    // Transaction record
+    await db.from("transactions").insert({
+      user_id: userId,
+      direction: "debit",
+      name: `Strategy Investment: ${strategyName}`,
+      description: `Invested in strategy ${strategyName}`,
+      amount: Math.round(amountZAR * 100),
+      store_reference: transactionRef,
+      currency: "ZAR",
+      status: "posted",
+      transaction_date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    });
+
+    // Upsert user_strategies
+    const { data: existingUS } = await db
+      .from("user_strategies")
+      .select("id, invested_amount")
+      .eq("user_id", userId)
+      .eq("strategy_id", strategyId)
+      .maybeSingle();
+
+    if (existingUS) {
+      await db.from("user_strategies").update({
+        invested_amount: (existingUS.invested_amount || 0) + Math.round(amountZAR * 100),
+        updated_at: new Date().toISOString(),
+      }).eq("id", existingUS.id);
+    } else {
+      await db.from("user_strategies").insert({
+        user_id: userId,
+        strategy_id: strategyId,
+        invested_amount: Math.round(amountZAR * 100),
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    console.log(`[ozow/record-success] Investment recorded for user=${userId} strategy=${strategyId} amount=${amountZAR} ref=${transactionRef}`);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[ozow/record-success] error:", err);
+    return res.status(500).json({ success: false, error: "Failed to record investment" });
   }
 });
 
@@ -5134,7 +5303,164 @@ app.post("/api/ozow/notify", async (req, res) => {
 
     if (Status === "Complete" || Status === "CompleteExternal") {
       console.log(`[ozow/notify] Payment complete ✅ ref=${TransactionReference}`);
-      // TODO: credit user wallet here
+
+      const strategyId = Optional1 || null;
+      const userEmail = Optional2 || null;
+      const userId = Optional3 || null;
+      const amountZAR = Number(Amount) || 0;
+
+      if (!userId || !strategyId || amountZAR <= 0) {
+        console.warn(`[ozow/notify] Missing userId/strategyId/amount — cannot record investment. userId=${userId} strategyId=${strategyId} amount=${amountZAR}`);
+        return res.status(200).send("OK");
+      }
+
+      const db = supabaseAdmin || supabase;
+      if (!db) {
+        console.error("[ozow/notify] No DB client available");
+        return res.status(200).send("OK");
+      }
+
+      // Deduplication — skip if already processed
+      const { data: existingTx } = await db
+        .from("transactions")
+        .select("id")
+        .eq("store_reference", TransactionReference)
+        .maybeSingle();
+
+      if (existingTx) {
+        console.log(`[ozow/notify] Duplicate — already recorded ref=${TransactionReference}`);
+        return res.status(200).send("OK");
+      }
+
+      // Load strategy holdings
+      const { data: strategyData, error: stratError } = await db
+        .from("strategies")
+        .select("name, holdings")
+        .eq("id", strategyId)
+        .maybeSingle();
+
+      if (stratError || !strategyData) {
+        console.error("[ozow/notify] Could not load strategy:", stratError?.message);
+        return res.status(200).send("OK");
+      }
+
+      const strategyName = strategyData.name || "Strategy";
+      const strategyHoldings = strategyData.holdings || [];
+
+      if (strategyHoldings.length > 0) {
+        const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
+        const { data: securitiesData } = await db
+          .from("securities")
+          .select("id, symbol, last_price")
+          .in("symbol", symbols);
+
+        const secBySymbol = {};
+        (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
+
+        // Compute total basket cost to derive scaling ratio
+        let totalBasketCostRands = 0;
+        for (const holding of strategyHoldings) {
+          const sec = secBySymbol[holding.symbol];
+          if (!sec) continue;
+          const qty = Number(holding.quantity || holding.shares || 0);
+          const priceCents = Number(sec.last_price || 0);
+          if (qty > 0 && priceCents > 0) totalBasketCostRands += (qty * priceCents) / 100;
+        }
+
+        const scalingRatio = totalBasketCostRands > 0 ? amountZAR / totalBasketCostRands : 1;
+        const now = new Date().toISOString();
+        const today = now.split("T")[0];
+
+        for (const holding of strategyHoldings) {
+          const sec = secBySymbol[holding.symbol];
+          if (!sec) continue;
+          const rawQty = Number(holding.quantity || holding.shares || 0);
+          if (rawQty <= 0) continue;
+          const priceCents = Number(sec.last_price || 0);
+          if (priceCents <= 0) continue;
+
+          const holdingQty = rawQty * scalingRatio;
+
+          const { data: existing } = await db
+            .from("stock_holdings")
+            .select("id, quantity, avg_fill")
+            .eq("user_id", userId)
+            .eq("security_id", sec.id)
+            .eq("strategy_id", strategyId)
+            .maybeSingle();
+
+          if (existing) {
+            const oldQty = Number(existing.quantity || 0);
+            const oldAvgFill = Number(existing.avg_fill || 0);
+            const newQty = oldQty + holdingQty;
+            const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty : priceCents;
+            await db.from("stock_holdings").update({
+              quantity: newQty,
+              avg_fill: Math.round(newAvgFill),
+              market_value: Math.round(newQty * priceCents),
+              as_of_date: today,
+              updated_at: now,
+            }).eq("id", existing.id);
+            console.log(`[ozow/notify] Updated holding ${holding.symbol} qty=${newQty}`);
+          } else {
+            await db.from("stock_holdings").insert({
+              user_id: userId,
+              security_id: sec.id,
+              strategy_id: strategyId,
+              quantity: holdingQty,
+              avg_fill: priceCents,
+              market_value: Math.round(holdingQty * priceCents),
+              unrealized_pnl: 0,
+              as_of_date: today,
+              Status: "active",
+            });
+            console.log(`[ozow/notify] Inserted holding ${holding.symbol} qty=${holdingQty}`);
+          }
+        }
+      }
+
+      // Record transaction
+      await db.from("transactions").insert({
+        user_id: userId,
+        direction: "debit",
+        name: `Strategy Investment: ${strategyName}`,
+        description: `Invested in strategy ${strategyName}`,
+        amount: Math.round(amountZAR * 100),
+        store_reference: TransactionReference,
+        currency: "ZAR",
+        status: "posted",
+        transaction_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      });
+      console.log(`[ozow/notify] Transaction recorded for ref=${TransactionReference}`);
+
+      // Upsert user_strategies
+      const { data: existingUS } = await db
+        .from("user_strategies")
+        .select("id, invested_amount")
+        .eq("user_id", userId)
+        .eq("strategy_id", strategyId)
+        .maybeSingle();
+
+      if (existingUS) {
+        const newInvested = (existingUS.invested_amount || 0) + Math.round(amountZAR * 100);
+        await db.from("user_strategies").update({
+          invested_amount: newInvested,
+          updated_at: new Date().toISOString(),
+        }).eq("id", existingUS.id);
+        console.log(`[ozow/notify] user_strategies updated invested_amount=${newInvested}`);
+      } else {
+        await db.from("user_strategies").insert({
+          user_id: userId,
+          strategy_id: strategyId,
+          invested_amount: Math.round(amountZAR * 100),
+          status: "active",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        console.log(`[ozow/notify] user_strategies created for strategy=${strategyId}`);
+      }
+
     } else if (Status === "Cancelled") {
       console.log(`[ozow/notify] Payment cancelled ref=${TransactionReference}`);
     } else if (Status === "Error") {

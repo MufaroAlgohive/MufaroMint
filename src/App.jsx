@@ -122,12 +122,50 @@ const App = () => {
   const justLoggedInRef = useRef(false);
   // Read ozow param synchronously at init — before any effect can clear the URL
   const ozowReturnParam = useRef(new URLSearchParams(window.location.search).get("ozow"));
+  const ozowRecordedRef = useRef(false);
 
   useEffect(() => {
     if (ozowReturnParam.current) {
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, []);
+
+  useEffect(() => {
+    if (currentPage !== "paymentSuccess" || ozowRecordedRef.current) return;
+    const pending = sessionStorage.getItem("ozow_pending");
+    if (!pending) return;
+    let parsed;
+    try { parsed = JSON.parse(pending); } catch { return; }
+    if (!parsed?.transactionRef || !parsed?.strategyId || !parsed?.amount) return;
+    ozowRecordedRef.current = true;
+    sessionStorage.removeItem("ozow_pending");
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const resp = await fetch("/api/ozow/record-success", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            transactionRef: parsed.transactionRef,
+            strategyId: parsed.strategyId,
+            amount: parsed.amount,
+          }),
+        });
+        const result = await resp.json();
+        if (result.success) {
+          console.log("[ozow] Investment recorded from success page", result.alreadyRecorded ? "(already done)" : "");
+        } else {
+          console.error("[ozow] record-success failed:", result.error);
+        }
+      } catch (err) {
+        console.error("[ozow] record-success error:", err);
+      }
+    })();
+  }, [currentPage]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -1242,6 +1280,11 @@ const App = () => {
               });
               const data = await resp.json();
               if (data.success && data.action_url) {
+                sessionStorage.setItem("ozow_pending", JSON.stringify({
+                  transactionRef: data.TransactionReference,
+                  strategyId: data.Optional1,
+                  amount: data.Amount,
+                }));
                 const form = document.createElement("form");
                 form.method = "POST";
                 form.action = data.action_url;
@@ -1438,6 +1481,11 @@ const App = () => {
               });
               const data = await resp.json();
               if (data.success && data.action_url) {
+                sessionStorage.setItem("ozow_pending", JSON.stringify({
+                  transactionRef: data.TransactionReference,
+                  strategyId: data.Optional1,
+                  amount: data.Amount,
+                }));
                 const form = document.createElement("form");
                 form.method = "POST";
                 form.action = data.action_url;
