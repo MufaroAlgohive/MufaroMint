@@ -2673,8 +2673,8 @@ app.post("/api/record-investment", async (req, res) => {
           continue;
         }
 
-        // Scale shares proportionally to what the user actually invested
-        const holdingQty = rawHoldingQty * scalingRatio;
+        // Scale shares proportionally to what the user actually invested — always whole shares
+        const holdingQty = Math.max(1, Math.round(rawHoldingQty * scalingRatio));
 
         const priceCents = Number(sec.last_price || 0);
         if (priceCents <= 0) {
@@ -2698,16 +2698,10 @@ app.post("/api/record-investment", async (req, res) => {
 
         if (existing) {
           const oldQty = Number(existing.quantity || 0);
-          const oldAvgFill = Number(existing.avg_fill || 0);
-          const newQty = oldQty + holdingQty;
-          const newAvgFill = newQty > 0
-            ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty
-            : priceCents;
+          const newQty = Math.round(oldQty + holdingQty);
 
           const { error: updateErr } = await db.from("stock_holdings").update({
             quantity: newQty,
-            avg_fill: Math.round(newAvgFill),
-            market_value: Math.round(newQty * priceCents),
             as_of_date: today,
             updated_at: now,
           }).eq("id", existing.id);
@@ -2723,9 +2717,6 @@ app.post("/api/record-investment", async (req, res) => {
             security_id: sec.id,
             strategy_id: strategyId,
             quantity: holdingQty,
-            avg_fill: priceCents,
-            market_value: Math.round(holdingQty * priceCents),
-            unrealized_pnl: 0,
             as_of_date: today,
             Status: "active",
           });
@@ -2788,11 +2779,10 @@ app.post("/api/record-investment", async (req, res) => {
       }
 
       const currentPriceRands = currentPriceCents ? currentPriceCents / 100 : amount;
-      const quantity = shareCount && Number(shareCount) > 0 ? Number(shareCount) : (currentPriceRands > 0 ? amount / currentPriceRands : 1);
+      const rawQuantity = shareCount && Number(shareCount) > 0 ? Number(shareCount) : (currentPriceRands > 0 ? amount / currentPriceRands : 1);
+      const quantity = Math.max(1, Math.round(rawQuantity));
       calcQuantity = quantity;
-      const avgFillCents = currentPriceCents || Math.round(amount * 100);
-      const marketValueCents = Math.round(quantity * (currentPriceCents || amount * 100));
-      console.log("[record-investment] Calculated - currentPriceRands:", currentPriceRands, "quantity:", quantity, "avgFillCents:", avgFillCents, "marketValueCents:", marketValueCents);
+      console.log("[record-investment] Calculated - currentPriceRands:", currentPriceRands, "rawQuantity:", rawQuantity, "quantity:", quantity);
 
       const { data: existing, error: fetchError } = await db
         .from("stock_holdings")
@@ -2807,19 +2797,14 @@ app.post("/api/record-investment", async (req, res) => {
       }
 
       if (existing) {
-        console.log("[record-investment] Existing holding found, updating. Old qty:", existing.quantity, "avg_fill:", existing.avg_fill);
+        console.log("[record-investment] Existing holding found, updating. Old qty:", existing.quantity);
         const oldQty = Number(existing.quantity || 0);
-        const oldAvgFill = Number(existing.avg_fill || 0);
-        const newQty = oldQty + quantity;
-        const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (avgFillCents * quantity)) / newQty : avgFillCents;
-        const newMarketValue = Math.round(newQty * (currentPriceCents || newAvgFill));
-        console.log("[record-investment] New values - qty:", newQty, "avgFill:", Math.round(newAvgFill), "marketValue:", newMarketValue);
+        const newQty = Math.round(oldQty + quantity);
+        console.log("[record-investment] New qty:", newQty);
         const { data, error } = await db
           .from("stock_holdings")
           .update({
             quantity: newQty,
-            avg_fill: Math.round(newAvgFill),
-            market_value: newMarketValue,
             as_of_date: new Date().toISOString().split("T")[0],
             updated_at: new Date().toISOString(),
           })
@@ -2833,9 +2818,6 @@ app.post("/api/record-investment", async (req, res) => {
           user_id: userId,
           security_id: securityId,
           quantity: quantity,
-          avg_fill: avgFillCents,
-          market_value: marketValueCents,
-          unrealized_pnl: 0,
           as_of_date: new Date().toISOString().split("T")[0],
           Status: "active",
           strategy_id: strategyId || null,
@@ -2852,76 +2834,6 @@ app.post("/api/record-investment", async (req, res) => {
       if (holdingResult.error) {
         console.error("[record-investment] HOLDING UPSERT FAILED:", JSON.stringify(holdingResult.error));
         return res.status(500).json({ success: false, error: holdingResult.error.message });
-      }
-    } else if (isStrategyInvestment) {
-      console.log("[record-investment] Strategy selected. Breaking down and allocating constituent holdings.");
-
-      const { data: stratData, error: stratError } = await db
-        .from("strategies")
-        .select("holdings")
-        .eq("id", strategyId)
-        .maybeSingle();
-
-      if (!stratError && stratData?.holdings && Array.isArray(stratData.holdings) && stratData.holdings.length > 0) {
-        const holdingsArr = stratData.holdings;
-        const holdingSymbols = holdingsArr.map(h => h.symbol).filter(Boolean);
-
-        if (holdingSymbols.length > 0) {
-          const { data: secs } = await db
-            .from("securities")
-            .select("id, symbol, last_price")
-            .in("symbol", holdingSymbols);
-
-          if (secs && secs.length > 0) {
-            const amountPerSecurityCents = Math.round((amount * 100) / secs.length);
-            const amountPerSecurityRands = amount / secs.length;
-
-            for (const sec of secs) {
-              const secId = sec.id;
-              const secCurrentPriceCents = sec.last_price ? Number(sec.last_price) : null;
-              const secCurrentPriceRands = secCurrentPriceCents ? secCurrentPriceCents / 100 : amountPerSecurityRands;
-
-              const secQty = secCurrentPriceRands > 0 ? amountPerSecurityRands / secCurrentPriceRands : 1;
-              const secAvgFillCents = secCurrentPriceCents || amountPerSecurityCents;
-              const secMarketValueCents = Math.round(secQty * secAvgFillCents);
-
-              const { data: existingSecHolding } = await db
-                .from("stock_holdings")
-                .select("id, quantity, avg_fill")
-                .eq("user_id", userId)
-                .eq("security_id", secId)
-                .maybeSingle();
-
-              if (existingSecHolding) {
-                const oldQty = Number(existingSecHolding.quantity || 0);
-                const oldAvgFill = Number(existingSecHolding.avg_fill || 0);
-                const newQty = oldQty + secQty;
-                const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (secAvgFillCents * secQty)) / newQty : secAvgFillCents;
-                const newMarketValue = Math.round(newQty * (secCurrentPriceCents || newAvgFill));
-
-                await db.from("stock_holdings").update({
-                  quantity: newQty,
-                  avg_fill: Math.round(newAvgFill),
-                  market_value: newMarketValue,
-                  as_of_date: new Date().toISOString().split("T")[0],
-                  updated_at: new Date().toISOString(),
-                }).eq("id", existingSecHolding.id);
-              } else {
-                await db.from("stock_holdings").insert({
-                  user_id: userId,
-                  security_id: secId,
-                  quantity: secQty,
-                  avg_fill: secAvgFillCents,
-                  market_value: secMarketValueCents,
-                  unrealized_pnl: 0,
-                  as_of_date: new Date().toISOString().split("T")[0],
-                  Status: "active",
-                  strategy_id: strategyId,
-                });
-              }
-            }
-          }
-        }
       }
     }
 
@@ -3297,12 +3209,13 @@ app.get("/api/user/strategies", async (req, res) => {
         .in("id", stratSecIds);
       (stratSecs || []).forEach(s => { stratLivePriceMap[s.id] = s.last_price || 0; });
 
-      // Build per-symbol P&L from actual user holdings
+      // Build per-symbol P&L from actual user holdings (skip pending - no avg_fill)
       for (const h of (userStratHoldings || [])) {
         const sec = (stratSecs || []).find(s => s.id === h.security_id);
         if (!sec) continue;
         const qty = Number(h.quantity || 0);
         const avgFill = Number(h.avg_fill || 0);
+        if (!avgFill) continue;
         const livePrice = sec.last_price || avgFill;
         symbolPnlMap[sec.symbol] = {
           pnlRands: ((livePrice - avgFill) * qty) / 100,
@@ -3374,12 +3287,16 @@ app.get("/api/user/strategies", async (req, res) => {
         const stratHoldings = stratHoldingsByStratId[strategy.id] || [];
         let investedAmount = 0;
         let currentMarketValue = 0;
-        for (const h of stratHoldings) {
-          const qty = Number(h.quantity || 0);
-          const avgFill = Number(h.avg_fill || 0);
-          const livePrice = stratLivePriceMap[h.security_id] || avgFill;
-          investedAmount += (avgFill * qty) / 100;
-          currentMarketValue += (livePrice * qty) / 100;
+        const allPending = stratHoldings.length > 0 && stratHoldings.every(h => !h.avg_fill);
+        if (!allPending) {
+          for (const h of stratHoldings) {
+            const qty = Number(h.quantity || 0);
+            const avgFill = Number(h.avg_fill || 0);
+            if (!avgFill) continue;
+            const livePrice = stratLivePriceMap[h.security_id] || avgFill;
+            investedAmount += (avgFill * qty) / 100;
+            currentMarketValue += (livePrice * qty) / 100;
+          }
         }
 
         matchedStrategies.push({
@@ -5039,7 +4956,7 @@ app.get('/api/diagnose/news-articles', async (req, res) => {
 
 app.post("/api/ozow/initiate", async (req, res) => {
   try {
-    const { amount, strategyName, strategyId, userId, successUrl, cancelUrl, errorUrl, notifyUrl } = req.body;
+    const { amount, strategyName, strategyId, userId, userEmail, successUrl, cancelUrl, errorUrl, notifyUrl } = req.body;
 
     const siteCode = process.env.OZOW_SITE_CODE;
     const privateKey = process.env.OZOW_PRIVATE_KEY;
@@ -5056,63 +4973,238 @@ app.post("/api/ozow/initiate", async (req, res) => {
     const countryCode = "ZA";
     const currencyCode = "ZAR";
     const amountStr = Number(amount).toFixed(2);
-    const transactionRef = `MINT-${Date.now()}-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
-    const bankRef = `MINT-${userId ? userId.substr(0, 8) : "USER"}`;
+    const transactionRef = `MINT-${userId ? userId.substr(0, 8) : "USER"}-${Date.now()}`;
+    const bankReference = "Mint Payment";
+    const customer = userEmail || "";
     const optional1 = strategyId || "";
-    const optional2 = "";
-    const optional3 = "";
+    const optional2 = userEmail || "";
+    const optional3 = userId || "";
     const isTest = process.env.OZOW_IS_TEST === "true" ? "true" : "false";
 
-    const resolvedSuccessUrl = successUrl || `${process.env.APP_URL || "https://mymint.co.za"}/ozow-success`;
-    const resolvedCancelUrl = cancelUrl || `${process.env.APP_URL || "https://mymint.co.za"}/ozow-cancel`;
-    const resolvedErrorUrl = errorUrl || `${process.env.APP_URL || "https://mymint.co.za"}/ozow-error`;
-    const resolvedNotifyUrl = notifyUrl || `${process.env.APP_URL || "https://mymint.co.za"}/api/ozow/notify`;
+    const baseUrl = process.env.APP_URL || "https://mymint.co.za";
+    const resolvedSuccessUrl = successUrl || `${baseUrl}/?ozow=success`;
+    const resolvedCancelUrl = cancelUrl || `${baseUrl}/?ozow=cancel`;
+    const resolvedErrorUrl = errorUrl || `${baseUrl}/?ozow=error`;
+    const resolvedNotifyUrl = notifyUrl || `${baseUrl}/api/ozow/notify`;
 
-    const hashInput = [
+    // Hash order per Ozow spec:
+    // SiteCode, CountryCode, CurrencyCode, Amount, TransactionReference, BankReference,
+    // [Optional1-5 only if non-empty], Customer, CancelUrl, ErrorUrl, SuccessUrl, NotifyUrl, IsTest, PrivateKey
+    const hashParts = [
       siteCode,
       countryCode,
       currencyCode,
       amountStr,
       transactionRef,
-      bankRef,
+      bankReference,
+    ];
+    if (optional1) hashParts.push(optional1);
+    if (optional2) hashParts.push(optional2);
+    if (optional3) hashParts.push(optional3);
+    hashParts.push(
+      customer,
       resolvedCancelUrl,
       resolvedErrorUrl,
       resolvedSuccessUrl,
-      optional1,
-      optional2,
-      optional3,
       resolvedNotifyUrl,
       isTest,
       privateKey,
-    ].join("").toLowerCase();
+    );
 
-    const hashCheck = crypto.createHash("sha512").update(hashInput).digest("hex");
+    const hashCheck = crypto.createHash("sha512").update(hashParts.join("").toLowerCase(), "utf8").digest("hex");
 
-    const params = new URLSearchParams({
+    console.log(`[ozow] Initiated payment: ref=${transactionRef} amount=${amountStr} strategy=${strategyName} userId=${userId}`);
+
+    // Return form params — frontend must POST these as a hidden form to https://pay.ozow.com
+    return res.json({
+      success: true,
+      action_url: "https://pay.ozow.com",
       SiteCode: siteCode,
       CountryCode: countryCode,
       CurrencyCode: currencyCode,
       Amount: amountStr,
       TransactionReference: transactionRef,
-      BankRef: bankRef,
-      CancelUrl: resolvedCancelUrl,
-      ErrorUrl: resolvedErrorUrl,
-      SuccessUrl: resolvedSuccessUrl,
+      BankReference: bankReference,
       Optional1: optional1,
       Optional2: optional2,
       Optional3: optional3,
+      Customer: customer,
+      CancelUrl: resolvedCancelUrl,
+      ErrorUrl: resolvedErrorUrl,
+      SuccessUrl: resolvedSuccessUrl,
       NotifyUrl: resolvedNotifyUrl,
       IsTest: isTest,
       HashCheck: hashCheck,
     });
-
-    const paymentUrl = `https://pay.ozow.com/?${params.toString()}`;
-
-    console.log(`[ozow] Initiated payment: ref=${transactionRef} amount=${amountStr} strategy=${strategyName}`);
-    return res.json({ success: true, paymentUrl, transactionRef });
   } catch (err) {
     console.error("[ozow] initiate error:", err);
     return res.status(500).json({ success: false, error: "Failed to initiate Ozow payment." });
+  }
+});
+
+// Called from the success page to record the investment when the notify webhook hasn't fired yet
+app.post("/api/ozow/record-success", async (req, res) => {
+  try {
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    const { transactionRef, strategyId, amount } = req.body;
+    const userId = user.id;
+
+    if (!transactionRef || !strategyId || !amount || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, error: "Missing required fields" });
+    }
+
+    // Only accept refs we generated
+    if (!transactionRef.startsWith("MINT-")) {
+      return res.status(400).json({ success: false, error: "Invalid transaction reference" });
+    }
+
+    const db = supabaseAdmin || supabase;
+    if (!db) return res.status(500).json({ success: false, error: "DB unavailable" });
+
+    // Deduplication
+    const { data: existingTx } = await db
+      .from("transactions")
+      .select("id")
+      .eq("store_reference", transactionRef)
+      .maybeSingle();
+
+    if (existingTx) {
+      console.log(`[ozow/record-success] Already recorded ref=${transactionRef}`);
+      return res.json({ success: true, alreadyRecorded: true });
+    }
+
+    const amountZAR = Number(amount);
+
+    // Load strategy
+    const { data: strategyData, error: stratError } = await db
+      .from("strategies")
+      .select("name, holdings")
+      .eq("id", strategyId)
+      .maybeSingle();
+
+    if (stratError || !strategyData) {
+      return res.status(404).json({ success: false, error: "Strategy not found" });
+    }
+
+    const strategyName = strategyData.name || "Strategy";
+    const strategyHoldings = strategyData.holdings || [];
+
+    if (strategyHoldings.length > 0) {
+      const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
+      const { data: securitiesData } = await db
+        .from("securities")
+        .select("id, symbol, last_price")
+        .in("symbol", symbols);
+
+      const secBySymbol = {};
+      (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
+
+      let totalBasketCostRands = 0;
+      for (const holding of strategyHoldings) {
+        const sec = secBySymbol[holding.symbol];
+        if (!sec) continue;
+        const qty = Number(holding.quantity || holding.shares || 0);
+        const priceCents = Number(sec.last_price || 0);
+        if (qty > 0 && priceCents > 0) totalBasketCostRands += (qty * priceCents) / 100;
+      }
+
+      const scalingRatio = totalBasketCostRands > 0 ? amountZAR / totalBasketCostRands : 1;
+      const now = new Date().toISOString();
+      const today = now.split("T")[0];
+
+      for (const holding of strategyHoldings) {
+        const sec = secBySymbol[holding.symbol];
+        if (!sec) continue;
+        const rawQty = Number(holding.quantity || holding.shares || 0);
+        if (rawQty <= 0) continue;
+        const priceCents = Number(sec.last_price || 0);
+        if (priceCents <= 0) continue;
+
+        const holdingQty = rawQty * scalingRatio;
+
+        const { data: existing } = await db
+          .from("stock_holdings")
+          .select("id, quantity, avg_fill")
+          .eq("user_id", userId)
+          .eq("security_id", sec.id)
+          .eq("strategy_id", strategyId)
+          .maybeSingle();
+
+        if (existing) {
+          const oldQty = Number(existing.quantity || 0);
+          const oldAvgFill = Number(existing.avg_fill || 0);
+          const newQty = oldQty + holdingQty;
+          const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty : priceCents;
+          await db.from("stock_holdings").update({
+            quantity: newQty,
+            avg_fill: Math.round(newAvgFill),
+            market_value: Math.round(newQty * priceCents),
+            as_of_date: today,
+            updated_at: now,
+          }).eq("id", existing.id);
+        } else {
+          await db.from("stock_holdings").insert({
+            user_id: userId,
+            security_id: sec.id,
+            strategy_id: strategyId,
+            quantity: holdingQty,
+            avg_fill: priceCents,
+            market_value: Math.round(holdingQty * priceCents),
+            unrealized_pnl: 0,
+            as_of_date: today,
+            Status: "active",
+          });
+        }
+      }
+    }
+
+    // Transaction record
+    await db.from("transactions").insert({
+      user_id: userId,
+      direction: "debit",
+      name: `Strategy Investment: ${strategyName}`,
+      description: `Invested in strategy ${strategyName}`,
+      amount: Math.round(amountZAR * 100),
+      store_reference: transactionRef,
+      currency: "ZAR",
+      status: "posted",
+      transaction_date: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+    });
+
+    // Upsert user_strategies
+    const { data: existingUS } = await db
+      .from("user_strategies")
+      .select("id, invested_amount")
+      .eq("user_id", userId)
+      .eq("strategy_id", strategyId)
+      .maybeSingle();
+
+    if (existingUS) {
+      await db.from("user_strategies").update({
+        invested_amount: (existingUS.invested_amount || 0) + Math.round(amountZAR * 100),
+        updated_at: new Date().toISOString(),
+      }).eq("id", existingUS.id);
+    } else {
+      await db.from("user_strategies").insert({
+        user_id: userId,
+        strategy_id: strategyId,
+        invested_amount: Math.round(amountZAR * 100),
+        status: "active",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    console.log(`[ozow/record-success] Investment recorded for user=${userId} strategy=${strategyId} amount=${amountZAR} ref=${transactionRef}`);
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[ozow/record-success] error:", err);
+    return res.status(500).json({ success: false, error: "Failed to record investment" });
   }
 });
 
@@ -5122,29 +5214,200 @@ app.post("/api/ozow/notify", async (req, res) => {
     const privateKey = process.env.OZOW_PRIVATE_KEY;
     const {
       SiteCode, TransactionId, TransactionReference, Amount, Status,
-      Optional1, Optional2, Optional3, Hash,
+      Optional1, Optional2, Optional3, Optional4, Optional5,
+      CurrencyCode, IsTest, StatusMessage, HashCheck,
     } = req.body;
 
-    if (privateKey) {
-      const hashInput = [SiteCode, TransactionId, TransactionReference, Amount, Status, Optional1, Optional2, Optional3, privateKey]
-        .join("").toLowerCase();
-      const computed = crypto.createHash("sha512").update(hashInput).digest("hex");
-      if (computed !== (Hash || "").toLowerCase()) {
-        console.warn("[ozow/notify] Hash mismatch — ignoring notification");
-        return res.status(200).send("ok");
+    console.log("[ozow/notify] received:", req.body);
+
+    if (privateKey && HashCheck) {
+      // Notify hash order: SiteCode, TransactionId, TransactionReference, Amount, Status,
+      // Optional1-5 (always include even if empty), CurrencyCode, IsTest, PrivateKey
+      const hashParts = [
+        SiteCode, TransactionId, TransactionReference, Amount, Status,
+        Optional1 || "", Optional2 || "", Optional3 || "", Optional4 || "", Optional5 || "",
+        CurrencyCode, IsTest, privateKey,
+      ];
+      const computed = crypto.createHash("sha512").update(hashParts.join("").toLowerCase(), "utf8").digest("hex");
+      if (computed.toLowerCase() !== HashCheck.toLowerCase()) {
+        console.warn("[ozow/notify] Hash mismatch — possible spoofed request");
+        return res.status(200).send("OK");
       }
+      console.log("[ozow/notify] Hash verified ✅");
     }
 
     console.log(`[ozow/notify] ref=${TransactionReference} status=${Status} amount=${Amount}`);
 
-    if ((Status || "").toLowerCase() === "complete") {
-      console.log(`[ozow/notify] Payment complete for ref=${TransactionReference}`);
+    if (Status === "Complete" || Status === "CompleteExternal") {
+      console.log(`[ozow/notify] Payment complete ✅ ref=${TransactionReference}`);
+
+      const strategyId = Optional1 || null;
+      const userEmail = Optional2 || null;
+      const userId = Optional3 || null;
+      const amountZAR = Number(Amount) || 0;
+
+      if (!userId || !strategyId || amountZAR <= 0) {
+        console.warn(`[ozow/notify] Missing userId/strategyId/amount — cannot record investment. userId=${userId} strategyId=${strategyId} amount=${amountZAR}`);
+        return res.status(200).send("OK");
+      }
+
+      const db = supabaseAdmin || supabase;
+      if (!db) {
+        console.error("[ozow/notify] No DB client available");
+        return res.status(200).send("OK");
+      }
+
+      // Deduplication — skip if already processed
+      const { data: existingTx } = await db
+        .from("transactions")
+        .select("id")
+        .eq("store_reference", TransactionReference)
+        .maybeSingle();
+
+      if (existingTx) {
+        console.log(`[ozow/notify] Duplicate — already recorded ref=${TransactionReference}`);
+        return res.status(200).send("OK");
+      }
+
+      // Load strategy holdings
+      const { data: strategyData, error: stratError } = await db
+        .from("strategies")
+        .select("name, holdings")
+        .eq("id", strategyId)
+        .maybeSingle();
+
+      if (stratError || !strategyData) {
+        console.error("[ozow/notify] Could not load strategy:", stratError?.message);
+        return res.status(200).send("OK");
+      }
+
+      const strategyName = strategyData.name || "Strategy";
+      const strategyHoldings = strategyData.holdings || [];
+
+      if (strategyHoldings.length > 0) {
+        const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
+        const { data: securitiesData } = await db
+          .from("securities")
+          .select("id, symbol, last_price")
+          .in("symbol", symbols);
+
+        const secBySymbol = {};
+        (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
+
+        // Compute total basket cost to derive scaling ratio
+        let totalBasketCostRands = 0;
+        for (const holding of strategyHoldings) {
+          const sec = secBySymbol[holding.symbol];
+          if (!sec) continue;
+          const qty = Number(holding.quantity || holding.shares || 0);
+          const priceCents = Number(sec.last_price || 0);
+          if (qty > 0 && priceCents > 0) totalBasketCostRands += (qty * priceCents) / 100;
+        }
+
+        const scalingRatio = totalBasketCostRands > 0 ? amountZAR / totalBasketCostRands : 1;
+        const now = new Date().toISOString();
+        const today = now.split("T")[0];
+
+        for (const holding of strategyHoldings) {
+          const sec = secBySymbol[holding.symbol];
+          if (!sec) continue;
+          const rawQty = Number(holding.quantity || holding.shares || 0);
+          if (rawQty <= 0) continue;
+          const priceCents = Number(sec.last_price || 0);
+          if (priceCents <= 0) continue;
+
+          const holdingQty = rawQty * scalingRatio;
+
+          const { data: existing } = await db
+            .from("stock_holdings")
+            .select("id, quantity, avg_fill")
+            .eq("user_id", userId)
+            .eq("security_id", sec.id)
+            .eq("strategy_id", strategyId)
+            .maybeSingle();
+
+          if (existing) {
+            const oldQty = Number(existing.quantity || 0);
+            const oldAvgFill = Number(existing.avg_fill || 0);
+            const newQty = oldQty + holdingQty;
+            const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty : priceCents;
+            await db.from("stock_holdings").update({
+              quantity: newQty,
+              avg_fill: Math.round(newAvgFill),
+              market_value: Math.round(newQty * priceCents),
+              as_of_date: today,
+              updated_at: now,
+            }).eq("id", existing.id);
+            console.log(`[ozow/notify] Updated holding ${holding.symbol} qty=${newQty}`);
+          } else {
+            await db.from("stock_holdings").insert({
+              user_id: userId,
+              security_id: sec.id,
+              strategy_id: strategyId,
+              quantity: holdingQty,
+              avg_fill: priceCents,
+              market_value: Math.round(holdingQty * priceCents),
+              unrealized_pnl: 0,
+              as_of_date: today,
+              Status: "active",
+            });
+            console.log(`[ozow/notify] Inserted holding ${holding.symbol} qty=${holdingQty}`);
+          }
+        }
+      }
+
+      // Record transaction
+      await db.from("transactions").insert({
+        user_id: userId,
+        direction: "debit",
+        name: `Strategy Investment: ${strategyName}`,
+        description: `Invested in strategy ${strategyName}`,
+        amount: Math.round(amountZAR * 100),
+        store_reference: TransactionReference,
+        currency: "ZAR",
+        status: "posted",
+        transaction_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+      });
+      console.log(`[ozow/notify] Transaction recorded for ref=${TransactionReference}`);
+
+      // Upsert user_strategies
+      const { data: existingUS } = await db
+        .from("user_strategies")
+        .select("id, invested_amount")
+        .eq("user_id", userId)
+        .eq("strategy_id", strategyId)
+        .maybeSingle();
+
+      if (existingUS) {
+        const newInvested = (existingUS.invested_amount || 0) + Math.round(amountZAR * 100);
+        await db.from("user_strategies").update({
+          invested_amount: newInvested,
+          updated_at: new Date().toISOString(),
+        }).eq("id", existingUS.id);
+        console.log(`[ozow/notify] user_strategies updated invested_amount=${newInvested}`);
+      } else {
+        await db.from("user_strategies").insert({
+          user_id: userId,
+          strategy_id: strategyId,
+          invested_amount: Math.round(amountZAR * 100),
+          status: "active",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        console.log(`[ozow/notify] user_strategies created for strategy=${strategyId}`);
+      }
+
+    } else if (Status === "Cancelled") {
+      console.log(`[ozow/notify] Payment cancelled ref=${TransactionReference}`);
+    } else if (Status === "Error") {
+      console.log(`[ozow/notify] Payment error ref=${TransactionReference} msg=${StatusMessage}`);
     }
 
-    return res.status(200).send("ok");
+    return res.status(200).send("OK");
   } catch (err) {
     console.error("[ozow/notify] error:", err);
-    return res.status(200).send("ok");
+    return res.status(200).send("OK");
   }
 });
 

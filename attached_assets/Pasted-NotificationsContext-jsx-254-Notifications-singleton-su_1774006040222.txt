@@ -1,0 +1,500 @@
+NotificationsContext.jsx:254 Notifications singleton subscription already exists or setting up
+useRealtimePrices.js:43 [realtime-prices] Setting up singleton subscription
+useRealtimePrices.js:107 [realtime-prices] Tearing down subscription
+useRealtimePrices.js:95 [realtime-prices] Subscription status: CLOSED
+useRealtimePrices.js:43 [realtime-prices] Setting up singleton subscription
+NotificationsContext.jsx:268 Setting up SINGLETON notifications subscription
+useRealtimePrices.js:95 [realtime-prices] Subscription status: SUBSCRIBED
+NotificationsContext.jsx:303 Notifications singleton status: SUBSCRIBED
+useSumsubStatus.js:156 KYC status check: stored="verified" current="verified"
+useRequiredActions.js:145 Setting up SINGLETON real-time subscription: required-actions-singleton
+useSumsubStatus.js:156 KYC status check: stored="verified" current="verified"
+useRequiredActions.js:195 Singleton subscription status: SUBSCRIBED
+useRequiredActions.js:140 Subscription already exists, skipping
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14290
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14290
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+HomePage.jsx:487 [HomePage] No user strategies found
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `APN.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384
+chunk-RPCDYKBN.js?v=44445fa4:521 Warning: Encountered two children with the same key, `AFE.JO`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version.
+    at div
+    at section
+    at div
+    at div
+    at HomePage (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/pages/HomePage.jsx:180:3)
+    at main
+    at div
+    at AppLayout (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/layouts/AppLayout.jsx:20:22)
+    at App (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/App.jsx?t=1774005861396:93:41)
+    at NotificationsProvider (https://2f1afaa7-955d-43e7-9cd4-8bc27e5ea2c8-00-1h545r1xfjbok.worf.replit.dev/src/lib/NotificationsContext.jsx:35:41)
+printWarning @ chunk-RPCDYKBN.js?v=44445fa4:521
+error @ chunk-RPCDYKBN.js?v=44445fa4:505
+warnOnInvalidKey @ chunk-RPCDYKBN.js?v=44445fa4:10219
+reconcileChildrenArray @ chunk-RPCDYKBN.js?v=44445fa4:10235
+reconcileChildFibers2 @ chunk-RPCDYKBN.js?v=44445fa4:10559
+reconcileChildren @ chunk-RPCDYKBN.js?v=44445fa4:14292
+updateHostComponent @ chunk-RPCDYKBN.js?v=44445fa4:14807
+beginWork @ chunk-RPCDYKBN.js?v=44445fa4:15935
+beginWork$1 @ chunk-RPCDYKBN.js?v=44445fa4:19753
+performUnitOfWork @ chunk-RPCDYKBN.js?v=44445fa4:19198
+workLoopSync @ chunk-RPCDYKBN.js?v=44445fa4:19137
+renderRootSync @ chunk-RPCDYKBN.js?v=44445fa4:19116
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=44445fa4:18678
+workLoop @ chunk-RPCDYKBN.js?v=44445fa4:197
+flushWork @ chunk-RPCDYKBN.js?v=44445fa4:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=44445fa4:384

@@ -16,7 +16,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
     description: "",
   };
 
-  const minimumInvestment = currentStrategy.calculatedMinInvestment || null;
+  const minimumInvestment = currentStrategy.calculatedMinInvestment || currentStrategy.min_investment || null;
   const currency = currentStrategy.currency || 'R';
   
   const [amount, setAmount] = useState(minimumInvestment || 0);
@@ -33,7 +33,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
   const { onboardingComplete: isFullyOnboarded, loading: isLoadingStatus } = useOnboardingStatus();
 
   const holdingsData = currentStrategy.holdingsWithLogos || currentStrategy.holdings || [];
-  const numAssets = holdingsData.length || 1;
+  const numAssets = holdingsData.length || 0;
   const extraHoldings = holdingsData.length > 3 ? holdingsData.length - 3 : 0;
 
   const fees = useMemo(() => {

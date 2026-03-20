@@ -404,6 +404,8 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
         const sCv = s.currentValue || s.investedAmount || 0;
         const sIa = s.investedAmount || 0;
         const sPnlPct = sIa > 0 ? ((sCv - sIa) / sIa) * 100 : 0;
+        const stratRawHoldings = (rawHoldings || []).filter(h => h.strategy_id === (s.strategyId || s.id));
+        const isStrategyPending = stratRawHoldings.length > 0 && stratRawHoldings.every(h => !h.avg_fill);
         holdingsMap.set(sym, {
           symbol: sym,
           name: s.name || "Strategy",
@@ -411,6 +413,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           weight: 0,
           logo: null,
           isStrategy: true,
+          isPending: isStrategyPending,
           topLogos,
           strategyHoldings: holdingsArr,
           currentValue: sCv,
@@ -837,9 +840,21 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                         {(() => {
                           const cv = currentStrategy.currentValue || 0;
                           const ia = currentStrategy.investedAmount || 0;
+                          const isStratPending = cv === 0 && ia === 0;
                           const pnl = cv - ia;
                           const pnlPct = ia > 0 ? (pnl / ia) * 100 : 0;
                           const isPos = pnl >= 0;
+                          if (isStratPending) {
+                            return (
+                              <>
+                                <p className="text-3xl font-bold text-slate-900">R0,00</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <SettlementBadge status="pending" size="md" />
+                                  <span className="text-xs text-slate-400">Awaiting trade execution</span>
+                                </div>
+                              </>
+                            );
+                          }
                           return (
                             <>
                               <p className="text-3xl font-bold text-slate-900">R{cv.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
@@ -1886,12 +1901,18 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                                               <p className="text-[10px] text-slate-500">{c.symbol}</p>
                                             </div>
                                             <div className="text-right flex-shrink-0">
-                                              <p className={`text-xs font-bold ${isGain ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                                {isGain ? '+' : ''}{formatCurrency(pnlRands)}
-                                              </p>
-                                              <p className={`text-[10px] font-semibold ${isGain ? 'text-emerald-500' : 'text-rose-400'}`}>
-                                                {isGain ? '+' : ''}{pnlPct.toFixed(2)}%
-                                              </p>
+                                              {stock.isPending ? (
+                                                <SettlementBadge status="pending" size="xs" />
+                                              ) : (
+                                                <>
+                                                  <p className={`text-xs font-bold ${isGain ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                                    {isGain ? '+' : ''}{formatCurrency(pnlRands)}
+                                                  </p>
+                                                  <p className={`text-[10px] font-semibold ${isGain ? 'text-emerald-500' : 'text-rose-400'}`}>
+                                                    {isGain ? '+' : ''}{pnlPct.toFixed(2)}%
+                                                  </p>
+                                                </>
+                                              )}
                                             </div>
                                           </button>
                                         );

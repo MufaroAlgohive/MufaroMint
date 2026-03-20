@@ -2,16 +2,17 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { ArrowLeft, CheckCircle2, XCircle, Loader2, Landmark, CreditCard } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
-import PaymentMethodModal from "../components/PaymentMethodModal"; // ADDED import
+import PaymentMethodModal from "../components/PaymentMethodModal";
+import PaymentPendingPage from "./PaymentPendingPage.jsx";
 
-const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSuccess, onCancel, onOpenDeposit }) => {
+const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSuccess, onCancel, onOpenDeposit, initialMethod }) => {
   const { profile } = useProfile();
-  const [paymentStatus, setPaymentStatus] = useState("method-selection");
-  const [selectedMethod, setSelectedMethod] = useState(null);
+  const [paymentStatus, setPaymentStatus] = useState(initialMethod ? (initialMethod === "paystack" ? "initializing" : "eft-instructions") : "method-selection");
+  const [selectedMethod, setSelectedMethod] = useState(initialMethod || null);
   const [errorMessage, setErrorMessage] = useState("");
   const hasInitialized = useRef(false);
   const isMounted = useRef(true);
-  const [isMethodModalOpen, setIsMethodModalOpen] = useState(true);
+  const [isMethodModalOpen, setIsMethodModalOpen] = useState(!initialMethod);
 
   const isStrategyPurchase = !!(strategy?.holdings || strategy?.risk_level || strategy?.slug);
   const assetTypeLabel = isStrategyPurchase ? "Strategy" : "Individual Stock";
@@ -148,6 +149,8 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
     onOpenDeposit?.();
   };
 
+  const [eftRef, setEftRef] = useState("");
+
   const handleEftConfirm = async () => {
     setPaymentStatus("processing");
     const eftReference = `EFT-${Date.now()}`;
@@ -159,8 +162,8 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
       return;
     }
 
-    setPaymentStatus("success");
-    setTimeout(() => onSuccess?.({ reference: eftReference, method: "direct_eft" }), 1500);
+    setEftRef(eftReference);
+    setPaymentStatus("eft-pending");
   };
 
   useEffect(() => {
@@ -198,6 +201,16 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
 
     setTimeout(tryInit, 300);
   }, [profile, launchPaystack, selectedMethod]);
+
+  if (paymentStatus === "eft-pending") {
+    return (
+      <PaymentPendingPage
+        strategy={strategy?.name}
+        amount={amount}
+        onDone={() => onCancel?.()}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
