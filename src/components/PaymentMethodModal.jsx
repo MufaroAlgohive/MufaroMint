@@ -18,6 +18,7 @@ const PaymentMethodModal = ({
 }) => {
   const [eftExpanded, setEftExpanded] = useState(false);
   const [copied, setCopied] = useState(null);
+  const [showThankYou, setShowThankYou] = useState(false);
   const { profile, loading: profileLoading } = useProfile();
 
   // ── FIX 1: Mint number pulled directly from profile ──────────────────────
@@ -364,7 +365,7 @@ const PaymentMethodModal = ({
 
                             <button
                               type="button"
-                              onClick={() => onEFTConfirm?.()}
+                              onClick={() => setShowThankYou(true)}
                               className="w-full py-3 rounded-xl bg-slate-900 text-white text-sm font-semibold transition active:scale-95"
                             >
                               I've sent the payment
@@ -381,6 +382,83 @@ const PaymentMethodModal = ({
           </motion.div>
         </motion.div>
       )}
+
+      {/* ── Thank-you confirmation popup ── */}
+      <AnimatePresence>
+        {showThankYou && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center px-6"
+            style={{ background: "rgba(0,0,0,0.55)" }}
+          >
+            <motion.div
+              initial={{ scale: 0.88, opacity: 0, y: 24 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.92, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 340, damping: 28 }}
+              className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl"
+            >
+              {/* Green header */}
+              <div className="flex flex-col items-center pt-8 pb-6 px-6"
+                style={{ background: "linear-gradient(160deg, #f0fdf4 0%, #dcfce7 100%)" }}>
+                <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                  style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", boxShadow: "0 8px 24px rgba(34,197,94,0.35)" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" width={32} height={32}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-1 text-center">Thank You!</h3>
+                <p className="text-sm font-semibold text-emerald-600 text-center">Payment Received</p>
+              </div>
+
+              {/* Body */}
+              <div className="px-6 pt-5 pb-2">
+                <p className="text-sm text-slate-600 text-center leading-relaxed mb-5">
+                  We've noted your EFT payment. Your deposit will reflect within{" "}
+                  <span className="font-semibold text-slate-800">1–3 business days</span>{" "}
+                  once it clears with the bank.
+                </p>
+
+                {/* Pending badge info */}
+                <div className="flex items-start gap-3 rounded-2xl p-4 mb-5"
+                  style={{ background: "#fffbeb", border: "1px solid #fde68a" }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: "#fef3c7" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" width={14} height={14}>
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        d="M12 6v6l4 2m6-2a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-0.5">
+                      Balance Pending
+                    </p>
+                    <p className="text-xs text-amber-600 leading-relaxed">
+                      Your balance will show as <span className="font-semibold">Pending</span> until the payment is verified and confirmed by our team.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA */}
+              <div className="px-6 pb-7">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setShowThankYou(false);
+                    if (onEFTConfirm) await onEFTConfirm();
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-slate-900 text-white text-sm font-bold tracking-wide transition active:scale-95"
+                >
+                  Got it — Go to Dashboard
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AnimatePresence>
   );
 };
