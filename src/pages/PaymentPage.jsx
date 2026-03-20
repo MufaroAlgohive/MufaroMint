@@ -280,21 +280,32 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
               <div className="rounded-2xl border border-slate-200 p-4 space-y-2">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Account Name</span>
-                  <span className="font-semibold text-slate-900">Mint Investments</span>
+                  <span className="font-semibold text-slate-900">MINT PLATFORMS (PTY) LTD</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Bank</span>
-                  <span className="font-semibold text-slate-900">Investec</span>
+                  <span className="font-semibold text-slate-900">Standard Bank</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Account Number</span>
-                  <span className="font-semibold text-slate-900">6213456789</span>
+                  <span className="font-semibold text-slate-900">02 154 470 0</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">Branch Code</span>
+                  <span className="font-semibold text-slate-900">002064</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">SWIFT Code</span>
+                  <span className="font-semibold text-slate-900">SBZAZAJJ</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Reference</span>
-                  <span className="font-semibold text-slate-900">MINT-{profile?.id?.slice(0, 8) || "USER"}</span>
+                  <span className="font-semibold text-slate-900">{profile?.mintNumber || "Loading..."}</span>
                 </div>
               </div>
+              <p className="mt-3 text-[11px] text-slate-500 text-center">
+                Always use your Mint number as the payment reference so we can allocate your investment correctly.
+              </p>
               <button
                 type="button"
                 onClick={handleEftConfirm}
