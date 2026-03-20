@@ -123,32 +123,18 @@ const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPay
                   </span>
                 </button>
 
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setOzowLoading(true);
-                    try {
-                      await onSelectOzow?.();
-                    } finally {
-                      setOzowLoading(false);
-                    }
-                  }}
-                  disabled={ozowLoading}
-                  className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3.5 text-left transition active:scale-[0.98] hover:border-blue-300 hover:bg-blue-50/40 disabled:opacity-60"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 flex-shrink-0">
-                    {ozowLoading
-                      ? <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                      : <Zap className="h-5 w-5 text-blue-600" />}
+                <div className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-100 bg-slate-50 px-4 py-3.5 opacity-50 cursor-not-allowed">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-200 flex-shrink-0">
+                    <Zap className="h-5 w-5 text-slate-400" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">Ozow</p>
+                    <p className="text-sm font-semibold text-slate-400">Ozow</p>
                     <p className="text-xs text-slate-400 mt-0.5">Instant bank-to-bank payment</p>
                   </div>
-                  <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 rounded-full px-2 py-0.5 flex-shrink-0">
-                    Instant
+                  <span className="text-[11px] font-semibold text-slate-500 bg-slate-200 rounded-full px-2 py-0.5 flex-shrink-0">
+                    Coming Soon
                   </span>
-                </button>
+                </div>
 
                 <div className="rounded-2xl border-2 border-slate-200 bg-white overflow-hidden">
                   <button
