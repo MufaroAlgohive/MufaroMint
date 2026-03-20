@@ -110,7 +110,7 @@ const App = () => {
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications } = useNotificationsContext();
   const [showPinLock, setShowPinLock] = useState(false);
-  const { onboardingComplete } = useOnboardingStatus();
+  const { onboardingComplete, loading: onboardingLoading } = useOnboardingStatus();
 
   const currentPageRef = useRef(currentPage);
   currentPageRef.current = currentPage;
@@ -233,7 +233,7 @@ const App = () => {
       "factsheet" // Optional: can they see a factsheet without onboarding? Usually yes, but maybe blocked for investment.
     ];
 
-    if (protectedPages.includes(page) && !onboardingComplete) {
+    if (protectedPages.includes(page) && !onboardingLoading && !onboardingComplete) {
       console.log(`[App] Onboarding required for page: ${page}. Redirecting.`);
       setCurrentPage("userOnboarding"); // Redirect to the actual onboarding flow
       return;
