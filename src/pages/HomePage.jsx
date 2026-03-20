@@ -492,6 +492,7 @@ const HomePage = ({
         const formatted = serverStrategies.map((s) => {
           const invested = s.investedAmount || 0;
           const currentValue = s.currentMarketValue != null ? Number(s.currentMarketValue.toFixed(2)) : invested;
+          const isPending = invested === 0 && currentValue === 0;
           const stratPnlRands = currentValue - invested;
           const changePctVal = invested > 0 ? (stratPnlRands / invested) * 100 : 0;
           const stratPnlPct = changePctVal;
@@ -507,6 +508,7 @@ const HomePage = ({
             holdings: s.holdings || [],
             investedAmount: invested,
             currentValue,
+            isPending,
             change_pct: changePctVal,
             pnlRands: stratPnlRands,
             pnlPct: stratPnlPct,
@@ -1120,17 +1122,23 @@ const HomePage = ({
                           </p>
                         </div>
                         <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-semibold text-slate-900">
-                            {strategy.currentValue ? `R${strategy.currentValue.toFixed(2)}` : strategy.investedAmount ? `R${strategy.investedAmount.toFixed(2)}` : '—'}
-                          </p>
-                          {strategy.pnlRands != null && strategy.investedAmount > 0 ? (
-                            <p className={`text-xs font-semibold ${strategy.pnlRands >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                              {strategy.pnlRands >= 0 ? '+' : ''}R{Math.abs(strategy.pnlRands).toFixed(2)} ({strategy.pnlPct >= 0 ? '+' : ''}{strategy.pnlPct.toFixed(2)}%)
-                            </p>
+                          {strategy.isPending ? (
+                            <SettlementBadge status="pending" size="sm" />
                           ) : (
-                            <p className={`text-xs font-semibold ${pct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                              {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
-                            </p>
+                            <>
+                              <p className="text-sm font-semibold text-slate-900">
+                                {strategy.currentValue ? `R${strategy.currentValue.toFixed(2)}` : strategy.investedAmount ? `R${strategy.investedAmount.toFixed(2)}` : '—'}
+                              </p>
+                              {strategy.pnlRands != null && strategy.investedAmount > 0 ? (
+                                <p className={`text-xs font-semibold ${strategy.pnlRands >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {strategy.pnlRands >= 0 ? '+' : ''}R{Math.abs(strategy.pnlRands).toFixed(2)} ({strategy.pnlPct >= 0 ? '+' : ''}{strategy.pnlPct.toFixed(2)}%)
+                                </p>
+                              ) : (
+                                <p className={`text-xs font-semibold ${pct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

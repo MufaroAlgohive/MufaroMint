@@ -3201,12 +3201,13 @@ app.get("/api/user/strategies", async (req, res) => {
         .in("id", stratSecIds);
       (stratSecs || []).forEach(s => { stratLivePriceMap[s.id] = s.last_price || 0; });
 
-      // Build per-symbol P&L from actual user holdings
+      // Build per-symbol P&L from actual user holdings (skip pending - no avg_fill)
       for (const h of (userStratHoldings || [])) {
         const sec = (stratSecs || []).find(s => s.id === h.security_id);
         if (!sec) continue;
         const qty = Number(h.quantity || 0);
         const avgFill = Number(h.avg_fill || 0);
+        if (!avgFill) continue;
         const livePrice = sec.last_price || avgFill;
         symbolPnlMap[sec.symbol] = {
           pnlRands: ((livePrice - avgFill) * qty) / 100,

@@ -76,7 +76,7 @@ export const useFinancialData = () => {
       const allTransactions = allServerTransactions;
       const creditInfo = creditResult.data;
 
-      const sortedHoldings = [...holdings].sort((a, b) => {
+      const sortedHoldings = [...holdings].filter(h => !h.strategy_id).sort((a, b) => {
         const aGain = (a.unrealized_pnl || 0) / 100;
         const bGain = (b.unrealized_pnl || 0) / 100;
         return bGain - aGain;

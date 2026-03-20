@@ -838,6 +838,9 @@ const SwipeableBalanceCard = ({
                           {item.symbol}
                         </span>
                         {(() => {
+                          if (item.isStrategy && Number(item.avg_fill || 0) === 0) {
+                            return <SettlementBadge status="pending" size="xs" />;
+                          }
                           if (item.settlement_status && item.settlement_status !== "confirmed") {
                             return <SettlementBadge status={item.settlement_status} size="xs" />;
                           }
