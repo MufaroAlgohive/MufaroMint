@@ -638,7 +638,7 @@ const SwipeableBalanceCard = ({
             <div className="flex flex-col flex-1 min-h-0 gap-2">
               <div className="shrink-0">
                 <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5">
-                  {selectedAsset ? selectedAsset.symbol : "account balance"}
+                  {selectedAsset ? selectedAsset.symbol : "portfolio value"}
                 </p>
                 <p className="text-base font-bold text-slate-900 mb-2">
                   {isVisible ? formatKMB(displayBalance) : masked}
