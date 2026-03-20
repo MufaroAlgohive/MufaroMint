@@ -3,7 +3,7 @@ import { ArrowLeft, CheckCircle2, XCircle, Loader2, Landmark, CreditCard } from 
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 
-const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSuccess, onCancel }) => {
+const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSuccess, onCancel, onOpenDeposit }) => {
   const { profile } = useProfile();
   const [paymentStatus, setPaymentStatus] = useState("method-selection");
   const [selectedMethod, setSelectedMethod] = useState(null);
@@ -139,6 +139,7 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
       return;
     }
     setPaymentStatus("eft-instructions");
+    onOpenDeposit?.();
   };
 
   const handleEftConfirm = async () => {
@@ -306,6 +307,13 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
               <p className="mt-3 text-[11px] text-slate-500 text-center">
                 Always use your Mint number as the payment reference so we can allocate your investment correctly.
               </p>
+              <button
+                type="button"
+                onClick={() => onOpenDeposit?.()}
+                className="mt-3 w-full rounded-2xl border border-violet-200 bg-violet-50 py-3 text-xs font-semibold text-violet-700"
+              >
+                View Deposit Page Details
+              </button>
               <button
                 type="button"
                 onClick={handleEftConfirm}

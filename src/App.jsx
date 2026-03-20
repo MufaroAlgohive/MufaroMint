@@ -828,6 +828,7 @@ const App = () => {
             amount={previewStockCheckout.amount}
             onSuccess={noOp}
             onCancel={noOp}
+            onOpenDeposit={noOp}
           />
         );
       }
@@ -840,6 +841,7 @@ const App = () => {
             amount={previewAmount}
             onSuccess={noOp}
             onCancel={noOp}
+            onOpenDeposit={noOp}
           />
         );
       }
@@ -1148,7 +1150,7 @@ const App = () => {
         modal={null}
         onCloseModal={() => {}}
       >
-        <DepositPage onBack={() => handleTabChange("home")} />
+        <DepositPage onBack={canSwipeBack ? goBack : () => handleTabChange("home")} />
       </AppLayout>
     );
   }
@@ -1216,6 +1218,7 @@ const App = () => {
           amount={stockCheckout.amount}
           baseAmount={stockCheckout.baseAmount}
           shareCount={stockCheckout.shareCount}
+          onOpenDeposit={() => navigateTo("deposit")}
           onSuccess={async (response) => {
             console.log("Payment successful:", response);
             const goalId = selectedGoalIdRef.current;
@@ -1348,6 +1351,7 @@ const App = () => {
           strategy={selectedStrategy}
           amount={investmentAmount}
           baseAmount={baseInvestmentAmount}
+          onOpenDeposit={() => navigateTo("deposit")}
           onSuccess={async (response) => {
             console.log("Payment successful:", response);
             const goalId = selectedGoalIdRef.current;
