@@ -608,7 +608,7 @@ const SwipeableBalanceCard = ({
   };
 
   return (
-    <div className="relative w-full h-full z-[100]">
+    <div className="relative w-full h-full z-10">
       {isConnected && (
         <div className="absolute top-2 right-3 z-20 flex items-center gap-1.5">
           {showUpdatedText && (

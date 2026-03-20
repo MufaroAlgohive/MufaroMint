@@ -79,15 +79,14 @@ export const useProfile = () => {
           .eq("user_id", user.id)
           .maybeSingle();
 
+        const rowToBuild = d1 || { id: user.id, email: user.email };
         if (wData) {
-          if (d1) {
-            d1.wallets_balance = wData.balance;
-            d1.wallet_mint_number = wData.mint_number;
-          }
+          rowToBuild.wallets_balance = wData.balance;
+          rowToBuild.wallet_mint_number = wData.mint_number;
         }
 
         if (!e1) {
-          rowData = d1;
+          rowData = rowToBuild;
         } else if (e1.message?.includes('mint_number')) {
           const { data: d2, error: e2 } = await supabase
             .from("profiles")
