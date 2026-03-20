@@ -829,7 +829,7 @@ const HomePage = ({
                          {/* Visual Physical Card Back: Removed Strip */}
                     
                     {/* Main content */}
-                    <div className="relative h-full flex flex-col pt-6">
+                    <div className="relative h-full flex flex-col pt-2">
                       <SwipeableBalanceCard 
                         userId={userId} 
                         isBackFacing={cardNormalizedIndex === 1} 
