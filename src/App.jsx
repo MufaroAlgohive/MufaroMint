@@ -1337,20 +1337,32 @@ const App = () => {
               const { data: { session } } = await supabase.auth.getSession();
               const token = session?.access_token;
               const eftRef = `EFT-${Date.now()}`;
-              await fetch("/api/record-investment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-                body: JSON.stringify({
-                  securityId: stockCheckout.security?.id,
-                  symbol: stockCheckout.security?.symbol || "",
-                  name: stockCheckout.security?.name || "",
-                  amount: stockCheckout.amount,
-                  baseAmount: stockCheckout.baseAmount || stockCheckout.amount,
-                  paymentReference: eftRef,
-                  paymentMethod: "direct_eft",
-                  ...(stockCheckout.shareCount ? { shareCount: Number(stockCheckout.shareCount) } : {}),
+              const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+              await Promise.all([
+                fetch("/api/record-investment", {
+                  method: "POST",
+                  headers,
+                  body: JSON.stringify({
+                    securityId: stockCheckout.security?.id,
+                    symbol: stockCheckout.security?.symbol || "",
+                    name: stockCheckout.security?.name || "",
+                    amount: stockCheckout.amount,
+                    baseAmount: stockCheckout.baseAmount || stockCheckout.amount,
+                    paymentReference: eftRef,
+                    paymentMethod: "direct_eft",
+                    ...(stockCheckout.shareCount ? { shareCount: Number(stockCheckout.shareCount) } : {}),
+                  }),
                 }),
-              });
+                fetch("/api/eft-deposit", {
+                  method: "POST",
+                  headers,
+                  body: JSON.stringify({
+                    amount: stockCheckout.amount,
+                    reference: eftRef,
+                    description: `EFT payment for ${stockCheckout.security?.name || stockCheckout.security?.symbol || "investment"}`,
+                  }),
+                }),
+              ]);
             } catch (e) {
               console.error("EFT record error:", e);
             }
@@ -1562,20 +1574,32 @@ const App = () => {
               const token = session?.access_token;
               const eftRef = `EFT-${Date.now()}`;
               const stratId = selectedStrategy?.strategyId || selectedStrategy?.id || null;
-              await fetch("/api/record-investment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-                body: JSON.stringify({
-                  securityId: selectedStrategy?.id,
-                  symbol: selectedStrategy?.symbol || selectedStrategy?.short_name || "",
-                  name: selectedStrategy?.name || "",
-                  amount: investmentAmount,
-                  baseAmount: baseInvestmentAmount || investmentAmount,
-                  strategyId: stratId,
-                  paymentReference: eftRef,
-                  paymentMethod: "direct_eft",
+              const headers = { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+              await Promise.all([
+                fetch("/api/record-investment", {
+                  method: "POST",
+                  headers,
+                  body: JSON.stringify({
+                    securityId: selectedStrategy?.id,
+                    symbol: selectedStrategy?.symbol || selectedStrategy?.short_name || "",
+                    name: selectedStrategy?.name || "",
+                    amount: investmentAmount,
+                    baseAmount: baseInvestmentAmount || investmentAmount,
+                    strategyId: stratId,
+                    paymentReference: eftRef,
+                    paymentMethod: "direct_eft",
+                  }),
                 }),
-              });
+                fetch("/api/eft-deposit", {
+                  method: "POST",
+                  headers,
+                  body: JSON.stringify({
+                    amount: investmentAmount,
+                    reference: eftRef,
+                    description: `EFT payment for ${selectedStrategy?.name || "strategy investment"}`,
+                  }),
+                }),
+              ]);
             } catch (e) {
               console.error("EFT record error:", e);
             }

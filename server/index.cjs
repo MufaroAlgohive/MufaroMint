@@ -546,6 +546,27 @@ async function migrateGoalColumns() {
 }
 migrateGoalColumns();
 
+async function migrateWalletColumns() {
+  const db = supabaseAdmin || supabase;
+  if (!db) return;
+  try {
+    const cols = [
+      "ALTER TABLE wallets ADD COLUMN IF NOT EXISTS pending_balance numeric DEFAULT 0",
+    ];
+    for (const sql of cols) {
+      try {
+        await db.rpc('exec_sql', { query: sql });
+      } catch (e) {
+        console.log('[wallets] RPC failed for column, may need manual addition:', e.message);
+      }
+    }
+    console.log('[wallets] pending_balance column ensured');
+  } catch (e) {
+    console.log('[wallets] Migration check error:', e.message);
+  }
+}
+migrateWalletColumns();
+
 async function ensureUserSessionsTable() {
   if (!pgPool) return;
   const client = await pgPool.connect();
