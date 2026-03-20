@@ -364,7 +364,16 @@ const App = () => {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            setCurrentPage("home");
+            const ozowParam = new URLSearchParams(window.location.search).get("ozow");
+            if (ozowParam === "success") {
+              window.history.replaceState({}, "", window.location.pathname);
+              setCurrentPage("paymentSuccess");
+            } else if (ozowParam === "cancel" || ozowParam === "error") {
+              window.history.replaceState({}, "", window.location.pathname);
+              setCurrentPage("home");
+            } else {
+              setCurrentPage("home");
+            }
             const alreadyUnlocked = sessionStorage.getItem('mint_pin_unlocked') === 'true';
             if (isPinEnabled() && !alreadyUnlocked) {
               setShowPinLock(true);
