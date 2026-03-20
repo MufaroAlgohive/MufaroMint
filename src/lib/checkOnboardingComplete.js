@@ -31,15 +31,19 @@ export function parseOnboardingFlags(record) {
   taxDone = !!raw?.tax_details_saved;
 
   // If user has a legacy 'onboarding_complete' status, or has a signature
-  // timestamp, we can grandfather them in for all the *old* steps.
-  const hasCompletedOldFlow = record?.kyc_status === "onboarding_complete" || (kycDone && raw?.signed_at);
+  // timestamp, we can grandfather them in for all the steps.
+  const hasCompletedOldFlow = record?.kyc_status === "onboarding_complete" || (kycDone && !!raw?.signed_at);
+
+  let agreementSigned = !!raw?.signed_at;
 
   if (hasCompletedOldFlow) {
+    taxDone = true;
     bankDone = true;
     mandateAgreed = true;
     riskDone = true;
     sofDone = true;
     termsDone = true;
+    agreementSigned = true;
   } else {
     // For new users or users still in-progress, check each flag individually.
     bankDone = !!raw?.bank_details_saved;
@@ -48,9 +52,6 @@ export function parseOnboardingFlags(record) {
     sofDone = !!raw?.source_of_funds_accepted;
     termsDone = !!raw?.terms_accepted;
   }
-
-  // Step 9: Agreement signed
-  const agreementSigned = !!raw?.signed_at;
 
   // ALL steps must be complete — KYC identity AND all financial onboarding steps including tax and final agreement
   const allComplete = kycDone && taxDone && bankDone && mandateAgreed && riskDone && sofDone && termsDone && agreementSigned;

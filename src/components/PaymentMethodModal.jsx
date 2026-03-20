@@ -5,11 +5,12 @@ import { supabase } from "../lib/supabase";
 
 const STANDARD_BANK_LOGO = "/standard-bank-logo.png";
 
-const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPaystack, onSelectOzow, onEFTConfirm }) => {
+const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPaystack, onSelectOzow, onEFTConfirm, onSelectWallet }) => { // ADDED onSelectWallet prop
   const [eftExpanded, setEftExpanded] = useState(false);
   const [mintNumber, setMintNumber] = useState(null);
   const [copied, setCopied] = useState(null);
   const [ozowLoading, setOzowLoading] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(null); // ADDED walletBalance state
 
   useEffect(() => {
     if (isOpen) {
@@ -34,6 +35,22 @@ const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPay
       } catch (_) {}
     };
     fetchMintNumber();
+  }, [isOpen]);
+
+  // ADDED: Fetch wallet balance
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchBalance = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase.from("profiles").select("wallet_balance").eq("id", user.id).maybeSingle();
+        setWalletBalance(data?.wallet_balance ?? 0);
+      } catch (err) {
+        console.error("Error fetching wallet balance:", err);
+      }
+    };
+    fetchBalance();
   }, [isOpen]);
 
   const handleCopy = (value, label) => {
@@ -106,27 +123,56 @@ const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPay
               </div>
 
               <div className="px-5 pb-5 space-y-2.5 pt-3">
+                {/* Pay with Wallet - ADDED */}
+                <button
+                  type="button"
+                  onClick={() => onSelectWallet?.()}
+                  disabled={!walletBalance || walletBalance <= 0}
+                  className={`w-full flex items-center gap-4 rounded-2xl border-2 px-4 py-3.5 text-left transition active:scale-[0.98] ${
+                    !walletBalance || walletBalance <= 0
+                      ? "border-slate-100 bg-slate-50 opacity-50 cursor-not-allowed"
+                      : "border-slate-200 bg-white hover:border-violet-300 hover:bg-violet-50/40"
+                  }`}
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 flex-shrink-0">
+                    <Wallet className="h-5 w-5 text-violet-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">Pay with Wallet</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Available: <span className="font-semibold">{formatAmount(walletBalance)}</span>
+                    </p>
+                  </div>
+                  <span className={`text-[11px] font-semibold rounded-full px-2 py-0.5 flex-shrink-0 ${
+                    !walletBalance || walletBalance <= 0
+                      ? "text-slate-400 bg-slate-200"
+                      : "text-violet-600 bg-violet-100"
+                  }`}>
+                    Wallet
+                  </span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => onSelectPaystack?.()}
-                  className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3.5 text-left transition active:scale-[0.98] hover:border-emerald-300 hover:bg-emerald-50/40"
+                  className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-200 bg-white px-4 py-3.5 text-left transition active:scale-[0.98] hover:border-[#00bbff]/30 hover:bg-[#00bbff]/5"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 flex-shrink-0">
-                    <CreditCard className="h-5 w-5 text-emerald-600" />
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00bbff]/10 flex-shrink-0 p-1">
+                    <img src="/paystack-logo.svg" alt="Paystack" className="w-8 h-8 object-contain" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900">Paystack</p>
                     <p className="text-xs text-slate-400 mt-0.5">Card, instant EFT, bank transfer & more</p>
                   </div>
-                  <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5 flex-shrink-0">
+                  <span className="text-[11px] font-semibold text-[#3bb3e8] bg-[#dcf2ff] rounded-full px-2 py-0.5 flex-shrink-0">
                     Instant
                   </span>
                 </button>
 
                 <div className="relative w-full">
-                  <div className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-100 bg-slate-50/60 px-4 py-3.5 opacity-50 select-none cursor-not-allowed">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 flex-shrink-0">
-                      <Zap className="h-5 w-5 text-slate-400" />
+                  <div className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-100 bg-slate-50/60 px-4 py-3.5 opacity-60 select-none cursor-not-allowed">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-100 shadow-sm flex-shrink-0 p-1.5">
+                      <img src="/ozow-logo.png" alt="Ozow" className="w-full h-full object-contain" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-500">Ozow</p>
@@ -148,25 +194,23 @@ const PaymentMethodModal = ({ isOpen, onClose, amount, strategyName, onSelectPay
                 </div>
 
                 <div className="rounded-2xl border-2 border-slate-200 bg-white overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setEftExpanded(!eftExpanded)}
-                    className="w-full flex items-center gap-4 px-4 py-3.5 text-left transition hover:bg-slate-50"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 flex-shrink-0">
-                      <Building2 className="h-5 w-5 text-slate-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">Direct EFT</p>
-                      <p className="text-xs text-slate-400 mt-0.5">Manual bank transfer · 1–2 business days</p>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-[11px] text-slate-400 font-medium">Manual</span>
-                      {eftExpanded
-                        ? <ChevronUp className="h-4 w-4 text-slate-400" />
-                        : <ChevronDown className="h-4 w-4 text-slate-400" />}
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setEftExpanded(!eftExpanded)}
+                      className="w-full flex items-center gap-4 px-4 py-3.5 text-left transition hover:bg-slate-50"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0033a1]/5 border border-[#0033a1]/10 flex-shrink-0 p-1">
+                        <img src="/standard-bank-logo.png" alt="Standard Bank" className="w-8 h-8 object-contain" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900">Direct EFT</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Manual bank transfer - 1-2 business days</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-[11px] text-slate-400 font-medium">Manual</span>
+                        {eftExpanded ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                      </div>
+                    </button>
 
                   <AnimatePresence>
                     {eftExpanded && (

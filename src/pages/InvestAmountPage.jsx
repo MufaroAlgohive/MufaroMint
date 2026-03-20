@@ -3,6 +3,7 @@ import { ArrowLeft, Info, Plus, Minus, ChevronDown, ChevronUp, X } from "lucide-
 import { formatCurrency } from "../lib/formatCurrency";
 import PdfViewer from "../components/PdfViewer";
 import { supabase } from "../lib/supabase";
+import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 
 const BROKER_FEE_RATE = 0.0025;
 const ISIN_FEE_PER_ASSET = 69;
@@ -29,39 +30,7 @@ const InvestAmountPage = ({ onBack, strategy, onContinue }) => {
     }
   }, [minimumInvestment]);
   
-  const [isFullyOnboarded, setIsFullyOnboarded] = useState(false);
-  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    const checkStatus = async () => {
-      try {
-        if (!supabase) return;
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
-
-        const res = await fetch("/api/onboarding/status", {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (isMounted) {
-            setIsFullyOnboarded(json.is_fully_onboarded === true);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch onboarding status:", err);
-      } finally {
-        if (isMounted) {
-          setIsLoadingStatus(false);
-        }
-      }
-    };
-    
-    checkStatus();
-    return () => { isMounted = false; };
-  }, []);
+  const { onboardingComplete: isFullyOnboarded, loading: isLoadingStatus } = useOnboardingStatus();
 
   const holdingsData = currentStrategy.holdingsWithLogos || currentStrategy.holdings || [];
   const numAssets = holdingsData.length || 1;

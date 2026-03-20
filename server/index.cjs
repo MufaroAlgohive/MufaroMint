@@ -2568,23 +2568,31 @@ app.post("/api/record-investment", async (req, res) => {
     const db = supabaseAdmin || supabase;
     console.log("[record-investment] Using DB client:", supabaseAdmin ? "admin (service role)" : "anon");
 
-    const { securityId, symbol, name, amount, baseAmount, strategyId, paymentReference, shareCount } = req.body;
+    const { securityId, symbol, name, amount, baseAmount, strategyId, paymentReference, shareCount, paymentMethod } = req.body;
     // baseAmount = investment amount excluding fees; amount = total charged including fees
     const investAmount = (baseAmount && baseAmount > 0) ? baseAmount : amount;
-    console.log("[record-investment] Parsed fields - securityId:", securityId, "symbol:", symbol, "name:", name, "amount:", amount, "baseAmount:", baseAmount, "strategyId:", strategyId, "paymentReference:", paymentReference, "shareCount:", shareCount);
+    console.log("[record-investment] Parsed fields - securityId:", securityId, "symbol:", symbol, "name:", name, "amount:", amount, "baseAmount:", baseAmount, "strategyId:", strategyId, "paymentReference:", paymentReference, "shareCount:", shareCount, "paymentMethod:", paymentMethod);
 
     if (!securityId || !amount || !paymentReference) {
       console.log("[record-investment] MISSING FIELDS - securityId:", !!securityId, "amount:", !!amount, "paymentReference:", !!paymentReference);
       return res.status(400).json({ success: false, error: "Missing required fields: securityId, amount, paymentReference" });
     }
 
-    console.log("[record-investment] Verifying Paystack payment:", paymentReference);
-    const { verified, error: payError, data: payData } = await verifyPaystackPayment(paymentReference);
-    if (!verified) {
-      console.log("[record-investment] PAYSTACK VERIFICATION FAILED:", payError);
-      return res.status(400).json({ success: false, error: payError || "Payment verification failed" });
+    let payData = { amount: Math.round(amount * 100) };
+    const skipVerification = paymentMethod === "wallet" || paymentMethod === "direct_eft" || paymentMethod === "ozow";
+
+    if (!skipVerification) {
+      console.log("[record-investment] Verifying Paystack payment:", paymentReference);
+      const { verified, error: payError, data: vPayData } = await verifyPaystackPayment(paymentReference);
+      if (!verified) {
+        console.log("[record-investment] PAYSTACK VERIFICATION FAILED:", payError);
+        return res.status(400).json({ success: false, error: payError || "Payment verification failed" });
+      }
+      payData = vPayData;
+      console.log("[record-investment] Paystack verified OK. Paid amount (kobo):", payData.amount, "= R", payData.amount / 100);
+    } else {
+      console.log(`[record-investment] Skipping Paystack verification for ${paymentMethod} payment using reference: ${paymentReference}`);
     }
-    console.log("[record-investment] Paystack verified OK. Paid amount (kobo):", payData.amount, "= R", payData.amount / 100);
 
     const { data: existingTx } = await db
       .from("transactions")
@@ -2597,7 +2605,7 @@ app.post("/api/record-investment", async (req, res) => {
     }
 
     const paidAmount = payData.amount / 100;
-    if (Math.abs(paidAmount - amount) > 1) {
+    if (!skipVerification && Math.abs(paidAmount - amount) > 1) {
       console.log("[record-investment] AMOUNT MISMATCH: paid", paidAmount, "expected", amount);
       return res.status(400).json({ success: false, error: `Amount mismatch: paid ${paidAmount}, expected ${amount}` });
     }
@@ -4237,23 +4245,31 @@ app.post("/api/onboarding/save-employment", async (req, res) => {
     if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
 
     const {
-      employment_status, employer_name, employer_industry, employment_type,
-      institution_name, course_name, graduation_date,
-      annual_income_amount, annual_income_currency, existing_onboarding_id
-    } = req.body;
+      existing_onboarding_id,
+      employment_status,
+      employer_name,
+      employer_industry,
+      employment_type,
+      institution_name,
+      course_name,
+      graduation_date,
+      annual_income_amount,
+      annual_income_currency,
+    } = req.body || {};
 
     const payload = {
       user_id: user.id,
-      employment_status: employment_status || null,
-      employer_name: employer_name || null,
-      employer_industry: employer_industry || null,
-      employment_type: employment_type || null,
-      institution_name: institution_name || null,
-      course_name: course_name || null,
-      graduation_date: graduation_date || null,
-      annual_income_amount: annual_income_amount || null,
-      annual_income_currency: annual_income_currency || "USD",
+      employment_status: employment_status || "not_provided",
     };
+
+    if (employer_name !== undefined) payload.employer_name = employer_name || null;
+    if (employer_industry !== undefined) payload.employer_industry = employer_industry || null;
+    if (employment_type !== undefined) payload.employment_type = employment_type || null;
+    if (institution_name !== undefined) payload.institution_name = institution_name || null;
+    if (course_name !== undefined) payload.course_name = course_name || null;
+    if (graduation_date !== undefined) payload.graduation_date = graduation_date || null;
+    if (annual_income_amount !== undefined) payload.annual_income_amount = annual_income_amount || null;
+    if (annual_income_currency !== undefined) payload.annual_income_currency = annual_income_currency || "ZAR";
 
     let savedId = existing_onboarding_id;
 
@@ -4271,6 +4287,7 @@ app.post("/api/onboarding/save-employment", async (req, res) => {
       if (!updated || updated.length === 0) {
         return res.status(404).json({ success: false, error: "Onboarding record not found" });
       }
+      savedId = updated[0].id;
     } else {
       const { data: existingRecord } = await db
         .from("user_onboarding")
@@ -4296,7 +4313,7 @@ app.post("/api/onboarding/save-employment", async (req, res) => {
           .from("user_onboarding")
           .insert(payload)
           .select("id")
-          .single();
+          .maybeSingle();
         if (error) {
           console.error("[Onboarding] Insert employment error:", error.message);
           return res.status(500).json({ success: false, error: error.message });
@@ -4709,13 +4726,16 @@ app.get("/api/onboarding/status", async (req, res) => {
       if (data.kyc_status === "onboarding_complete") {
         is_fully_onboarded = true;
       } else {
-        const kycDone = data.kyc_status === "approved" || data.kyc_status === "verified";
+        const kycDone = data.kyc_status === "approved" || data.kyc_status === "verified" || data.kyc_status === "onboarding_complete";
         let taxDone = false, bankDone = false, mandateAgreed = false, riskDone = false, sofDone = false, termsDone = false;
         let raw = {};
         if (data.sumsub_raw) {
           try {
             raw = typeof data.sumsub_raw === "string" ? JSON.parse(data.sumsub_raw) : data.sumsub_raw;
-            if (kycDone && raw?.signed_at) {
+            // Robust grandfathering: if they have a signed_at date, they've passed the essential hurdles
+            const isGrandfathered = (kycDone && !!raw?.signed_at) || (data.kyc_status === "onboarding_complete");
+            
+            if (isGrandfathered) {
               taxDone = true; bankDone = true; mandateAgreed = true;
               riskDone = true; sofDone = true; termsDone = true;
             } else {

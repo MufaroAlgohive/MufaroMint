@@ -29,6 +29,7 @@ import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { parseOnboardingFlags } from "../lib/checkOnboardingComplete";
+import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import { useRealtimePrices } from "../lib/useRealtimePrices";
 import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
@@ -141,8 +142,8 @@ const HomePage = ({
   const [userId, setUserId] = useState(null);
   const [localBestAssets, setLocalBestAssets] = useState([]);
   const [hasAnyHoldings, setHasAnyHoldings] = useState(false);
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const { onboardingComplete, loading: onboardingLoading, refetch: fetchOnboardingStatus } = useOnboardingStatus();
+  const onboardingChecked = !onboardingLoading;
 
   const [cardRotation, setCardRotation] = useState(0);
   const [isCardAnimating, setIsCardAnimating] = useState(false);
@@ -358,46 +359,34 @@ const HomePage = ({
     getUser();
   }, []);
 
-  const fetchOnboardingStatus = React.useCallback(async () => {
-    if (!supabase || !profile?.id) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      if (token) {
-        try {
-          const res = await fetch("/api/onboarding/status", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const json = await res.json();
-            setOnboardingComplete(json.is_fully_onboarded === true);
-            setOnboardingChecked(true);
-            return;
-          }
-          console.warn("[Onboarding Check] API returned status", res.status);
-        } catch (apiErr) {
-          console.warn("[Onboarding Check] API unreachable, using fallback:", apiErr?.message);
-        }
-      }
-      const { data } = await supabase
-        .from("user_onboarding")
-        .select("kyc_status, sumsub_raw")
-        .eq("user_id", profile.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      const record = data?.[0];
-      const { allComplete } = parseOnboardingFlags(record);
-      setOnboardingComplete(allComplete);
-      setOnboardingChecked(true);
-    } catch (err) {
-      console.error("[Onboarding Check] Error:", err);
-      setOnboardingChecked(true);
-    }
-  }, [profile?.id]);
-
+  // onboardingComplete is now managed by useOnboardingStatus hook
+  
+  // Ensure Mint Number generation
   useEffect(() => {
-    fetchOnboardingStatus();
-  }, [fetchOnboardingStatus]);
+    if (!profile?.id || profile?.mintNumber) return;
+    
+    const ensureMintNumber = async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token;
+        if (!token) return;
+        
+        const resp = await fetch('/api/user/ensure-mint-number', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resp.ok) {
+          const result = await resp.json();
+          if (result.mint_number) {
+            // Update profile via hook context if possible, 
+            // but we can also just rely on the next refresh or set locally if we had a setter.
+            // Since useProfile returns a profile object, we might need to refresh it.
+          }
+        }
+      } catch (err) {}
+    };
+    ensureMintNumber();
+  }, [profile?.id, profile?.mintNumber]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -688,7 +677,7 @@ const HomePage = ({
     }
   };
 
-  const identityFullyComplete = kycVerified && onboardingComplete;
+  const identityFullyComplete = onboardingComplete || (kycVerified && onboardingComplete);
 
   const getIdentityStatusForHome = () => {
     if (identityFullyComplete) return { text: "Verified", style: "bg-green-100 text-green-600" };
@@ -825,6 +814,13 @@ const HomePage = ({
                         <p className="text-[22px] md:text-[26px] font-light text-slate-700 tracking-wider mb-[-2px]" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", fontStyle: "italic", letterSpacing: "0.08em" }}>MINT</p>
                       </div>
                     </div>
+                    {/* Mint Number on Front */}
+                    <div className="absolute top-4 right-4 z-20 text-right opacity-60">
+                      <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">Mint ID</p>
+                      <p className="text-[10px] tracking-[0.1em] text-slate-700 font-mono font-bold">
+                        {profile.mintNumber || "GENERATING..."}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
 
@@ -832,8 +828,27 @@ const HomePage = ({
                   transform: `rotateY(${cardRotation + 180}deg)`,
                   transition: "transform 0.7s ease-out",
                 }}>
-                  <div className="relative h-full overflow-hidden">
-                    <SwipeableBalanceCard userId={userId} isBackFacing={cardNormalizedIndex === 1} forceVisible={isCardVisible} mintNumber={profile.mintNumber} />
+                  <div className="relative h-full overflow-hidden bg-white/95 backdrop-blur-sm rounded-[28px] border border-white/20">
+                    {/* Visual Physical Card Back: Magnetic Strip */}
+                    <div className="w-full h-8 bg-[#1a1a1a] absolute top-6 left-0 opacity-90 shadow-sm z-30" />
+                    
+                    {/* Main content */}
+                    <div className="relative h-full flex flex-col pt-10">
+                      <SwipeableBalanceCard 
+                        userId={userId} 
+                        isBackFacing={cardNormalizedIndex === 1} 
+                        forceVisible={isCardVisible} 
+                        mintNumber={profile.mintNumber} 
+                      />
+                      
+                      {/* Styled Mint Number Overlay - ON the magnetic strip */}
+                      <div className="absolute -top-3 right-6 z-50 pointer-events-none flex flex-col items-end">
+                        <p className="text-[6px] uppercase tracking-[0.2em] text-white/40 font-medium mb-0.5">Member ID</p>
+                        <p className="text-[14px] tracking-[0.2em] text-white font-mono font-bold" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+                          {profile.mintNumber || "PENDING"}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
 

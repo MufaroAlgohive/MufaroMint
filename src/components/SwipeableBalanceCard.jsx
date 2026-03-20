@@ -657,30 +657,7 @@ const SwipeableBalanceCard = ({
                   </span>
                 </div>
               </div>
-              {mintNumber && mintNumber.length > 0 && (
-                <div className="mt-2 flex flex-col justify-end flex-1 pb-1">
-                  <p
-                    className="text-[9px] uppercase tracking-[0.1em] text-slate-400 font-medium mb-0.5"
-                    style={{
-                      fontFamily:
-                        "-apple-system, 'Inter', 'Helvetica Neue', sans-serif",
-                    }}
-                  >
-                    Mint Number
-                  </p>
-                  <p
-                    className="whitespace-nowrap text-[13px] tracking-[0.1em] text-slate-700 font-semibold overflow-hidden text-ellipsis leading-tight"
-                    style={{
-                      fontFamily:
-                        "'SF Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
-                    }}
-                  >
-                    {mintNumber.length >= 13
-                      ? `${mintNumber.substring(0, 3)} ${mintNumber.substring(3, 7)} ${mintNumber.substring(7, 13)}`
-                      : mintNumber}
-                  </p>
-                </div>
-              )}
+              {/* Mint Number display moved to parent HomePage card layout */}
             </div>
           </div>
 

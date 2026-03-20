@@ -18,6 +18,7 @@ import {
   storeCredentials,
   getStoredCredentials
 } from '../lib/biometrics.js';
+import AddressAutocomplete from './AddressAutocomplete.jsx';
 
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_TIME = 180;
@@ -34,6 +35,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -553,6 +555,10 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
       showToast('Add your last name to continue.');
       return;
     }
+    if (!address.trim()) {
+      showToast('Search and select your address to continue.');
+      return;
+    }
     showStep('password');
   };
 
@@ -755,6 +761,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
           data: {
             first_name: firstName,
             last_name: lastName,
+            address: address,
           },
         },
       });
@@ -876,6 +883,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                   autoComplete="family-name"
                   value={lastName}
                   onChange={(event) => setLastName(event.target.value.replace(/[^a-zA-ZÀ-ÖØ-öø-ÿ\s'-]/g, ''))}
+                />
+              </div>
+              <div className={`glass glass-input shadow-xl animate-on-load delay-6 ${address ? 'has-value' : ''}`}>
+                <AddressAutocomplete
+                  value={address}
+                  onChange={setAddress}
+                  placeholder="Street address"
+                  containerClassName="flex-1"
+                  inputClassName="w-full bg-transparent outline-none py-3 pl-10 pr-10 text-base font-medium text-slate-900 placeholder:text-slate-400"
                 />
                 <PrimaryButton ariaLabel="Continue" onClick={handleNameContinue}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

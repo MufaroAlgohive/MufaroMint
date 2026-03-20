@@ -51,6 +51,7 @@ import { useInactivityTimeout } from "./lib/useInactivityTimeout.jsx";
 import PinLockScreen from "./components/PinLockScreen.jsx";
 import { isPinEnabled } from "./lib/usePin.js";
 import GoalLinkModal from "./components/GoalLinkModal.jsx";
+import { useOnboardingStatus } from "./lib/useOnboardingStatus.js";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -105,6 +106,7 @@ const App = () => {
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications } = useNotificationsContext();
   const [showPinLock, setShowPinLock] = useState(false);
+  const { onboardingComplete } = useOnboardingStatus();
 
   const currentPageRef = useRef(currentPage);
   currentPageRef.current = currentPage;
@@ -180,6 +182,24 @@ const App = () => {
   const navigateTo = useCallback((page) => {
     if (page === currentPage) return;
     
+    // Protected routes that REQUIRE onboarding
+    const protectedPages = [
+      "deposit", 
+      "stockBuy", 
+      "investAmount", 
+      "creditApply", 
+      "creditRepay", 
+      "payment", 
+      "stockPayment",
+      "factsheet" // Optional: can they see a factsheet without onboarding? Usually yes, but maybe blocked for investment.
+    ];
+
+    if (protectedPages.includes(page) && !onboardingComplete) {
+      console.log(`[App] Onboarding required for page: ${page}. Redirecting.`);
+      setCurrentPage("userOnboarding"); // Redirect to the actual onboarding flow
+      return;
+    }
+
     if (!mainTabs.includes(page)) {
       cacheCurrentPageState();
       navigationHistory.current.push(currentPage);
@@ -197,7 +217,7 @@ const App = () => {
     }
     
     setCurrentPage(page);
-  }, [currentPage, cacheCurrentPageState]);
+  }, [currentPage, cacheCurrentPageState, onboardingComplete]);
 
   const handleTabChange = useCallback((tab) => {
     navigationHistory.current = [];

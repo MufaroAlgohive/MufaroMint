@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { ArrowLeft, CheckCircle2, XCircle, Loader2, Landmark, CreditCard } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
+import PaymentMethodModal from "../components/PaymentMethodModal"; // ADDED import
 
 const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSuccess, onCancel, onOpenDeposit }) => {
   const { profile } = useProfile();
@@ -15,8 +16,9 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
   const isStrategyPurchase = !!(strategy?.holdings || strategy?.risk_level || strategy?.slug);
   const assetTypeLabel = isStrategyPurchase ? "Strategy" : "Individual Stock";
 
-  const recordInvestment = useCallback(async (paymentReference = "") => {
+  const recordInvestment = useCallback(async (paymentReference = "", method = null) => {
     const maxRetries = 5;
+    const finalMethod = method || selectedMethod;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -30,7 +32,7 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
           baseAmount: baseAmount || amount,
           strategyId: stratId,
           paymentReference,
-          paymentMethod: selectedMethod,
+          paymentMethod: finalMethod,
           ...(shareCount ? { shareCount: Number(shareCount) } : {}),
         };
         const headers = { "Content-Type": "application/json" };
@@ -138,6 +140,10 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
       setPaymentStatus("initializing");
       return;
     }
+    if (method === "wallet") {
+      setPaymentStatus("wallet-payment");
+      return;
+    }
     setPaymentStatus("eft-instructions");
     onOpenDeposit?.();
   };
@@ -208,46 +214,16 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
           <h1 className="text-lg font-semibold">Payment</h1>
         </header>
 
-        {isMethodModalOpen && (
-          <div className="fixed inset-0 z-20 flex items-end justify-center bg-slate-950/50 px-4 pb-8 pt-20">
-            <div className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl">
-              <h2 className="text-base font-semibold text-slate-900">Choose funding method</h2>
-              <p className="mt-1 text-xs text-slate-600">
-                Select how you want to fund this {assetTypeLabel.toLowerCase()} investment.
-              </p>
-
-              <div className="mt-4 space-y-3">
-                <button
-                  type="button"
-                  onClick={() => handleMethodSelection("direct_eft")}
-                  className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50"
-                >
-                  <div className="flex items-start gap-3">
-                    <Landmark className="h-5 w-5 text-violet-700 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">Direct EFT</p>
-                      <p className="text-xs text-slate-600">Manual bank transfer for strategies and individual stocks.</p>
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleMethodSelection("paystack")}
-                  className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:border-violet-300 hover:bg-violet-50"
-                >
-                  <div className="flex items-start gap-3">
-                    <CreditCard className="h-5 w-5 text-violet-700 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">Paystack</p>
-                      <p className="text-xs text-slate-600">Instant checkout using card, bank, or transfer.</p>
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Replaced inline modal with PaymentMethodModal component - ADDED */}
+        <PaymentMethodModal
+          isOpen={isMethodModalOpen}
+          onClose={() => onBack?.()}
+          amount={amount}
+          strategyName={strategy?.name}
+          onSelectPaystack={() => handleMethodSelection("paystack")}
+          onSelectWallet={() => handleMethodSelection("wallet")}
+          onEFTConfirm={() => handleMethodSelection("direct_eft")}
+        />
 
         <section className="mt-20 rounded-3xl border border-slate-100 bg-white p-8 shadow-sm text-center">
           {paymentStatus === "method-selection" && (
@@ -264,6 +240,44 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
               <h2 className="text-lg font-semibold text-slate-900 mb-2">Initializing Payment</h2>
               <p className="text-sm text-slate-600">Please wait...</p>
             </>
+          )}
+
+          {/* Wallet Payment UI - ADDED */}
+          {paymentStatus === "wallet-payment" && (
+            <WalletPaymentFlow
+              amount={amount}
+              profile={profile}
+              onConfirm={async (totalToDeduct) => {
+                try {
+                  setPaymentStatus("processing");
+                  const newBalance = (profile?.wallet_balance || 0) - totalToDeduct;
+                  
+                  // Update balance in Supabase
+                  const { error: updateError } = await supabase
+                    .from("profiles")
+                    .update({ wallet_balance: newBalance })
+                    .eq("id", profile.id);
+
+                  if (updateError) throw updateError;
+
+                  // Record investment
+                  const walletRef = `WALLET-${Date.now()}`;
+                  const recorded = await recordInvestment(walletRef);
+                  
+                  if (!recorded) {
+                    throw new Error("Failed to record investment");
+                  }
+
+                  setPaymentStatus("success");
+                  setTimeout(() => onSuccess?.({ reference: walletRef, method: "wallet" }), 2000);
+                } catch (err) {
+                  console.error("Wallet payment error:", err);
+                  setPaymentStatus("failed");
+                  setErrorMessage(err.message || "Wallet payment failed");
+                }
+              }}
+              onCancel={() => setPaymentStatus("method-selection")}
+            />
           )}
 
           {paymentStatus === "processing" && (
@@ -363,10 +377,97 @@ const PaymentPage = ({ onBack, strategy, amount, baseAmount, shareCount, onSucce
             <div className="flex justify-between pt-2 border-t border-slate-100">
               <span className="text-xs text-slate-600">Payment Method</span>
               <span className="text-xs font-semibold text-slate-900">
-                {selectedMethod === "direct_eft" ? "Direct EFT" : selectedMethod === "paystack" ? "Paystack" : "Not selected"}
+                {selectedMethod === "direct_eft" ? "Direct EFT" : 
+                 selectedMethod === "paystack" ? "Paystack" : 
+                 selectedMethod === "ozow" ? "Ozow" : 
+                 selectedMethod === "wallet" ? "Wallet" : 
+                 "Not selected"}
               </span>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ADDED: WalletPaymentFlow helper component
+const WalletPaymentFlow = ({ amount, profile, onConfirm, onCancel }) => {
+  const [inputAmount, setInputAmount] = useState(amount || 0);
+  const serviceFeeRate = 0.08;
+  const serviceFee = inputAmount * serviceFeeRate;
+  const totalToDeduct = inputAmount + serviceFee;
+  const walletBalance = profile?.wallet_balance || 0;
+  const remainingBalance = walletBalance - totalToDeduct;
+  const isInsufficient = totalToDeduct > walletBalance;
+
+  const formatCurrency = (val) => {
+    return val.toLocaleString("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
+      minimumFractionDigits: 2,
+    });
+  };
+
+  return (
+    <div className="text-left">
+      <h2 className="text-lg font-semibold text-slate-900 mb-2 text-center">Wallet Payment</h2>
+      <p className="text-xs text-slate-600 mb-4 text-center">Fund your investment directly from your Mint wallet.</p>
+      
+      <div className="space-y-4">
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Amount to invest</label>
+          <input
+            type="number"
+            value={inputAmount}
+            onChange={(e) => setInputAmount(Number(e.target.value))}
+            className="mt-1 w-full rounded-xl border border-slate-200 p-3 text-sm font-semibold outline-none focus:border-violet-500"
+          />
+          <p className="mt-1 text-[10px] text-slate-500">Service Fee (8%): {formatCurrency(serviceFee)}</p>
+        </div>
+
+        <div className="rounded-2xl bg-slate-50 p-4 space-y-2">
+          <div className="flex justify-between text-xs">
+            <span className="text-slate-500">Investment Amount</span>
+            <span className="font-semibold text-slate-900">{formatCurrency(inputAmount)}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-slate-500">Service Fee (8%)</span>
+            <span className="font-semibold text-slate-900">{formatCurrency(serviceFee)}</span>
+          </div>
+          <div className="flex justify-between border-t border-slate-200 pt-2 text-sm">
+            <span className="font-bold text-slate-900">Total to deduct</span>
+            <span className="font-bold text-violet-700">{formatCurrency(totalToDeduct)}</span>
+          </div>
+        </div>
+
+        <div className="flex justify-between px-1 text-[11px]">
+          <span className="text-slate-500">Wallet Balance: {formatCurrency(walletBalance)}</span>
+          <span className={`font-semibold ${isInsufficient ? "text-rose-600" : "text-emerald-600"}`}>
+            Remaining: {formatCurrency(remainingBalance)}
+          </span>
+        </div>
+
+        {isInsufficient && (
+          <p className="text-center text-xs font-semibold text-rose-600">Insufficient wallet balance</p>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(totalToDeduct)}
+            disabled={isInsufficient || inputAmount <= 0}
+            className="flex-1 rounded-2xl bg-gradient-to-r from-[#5b21b6] to-[#7c3aed] py-3 text-sm font-semibold text-white shadow-lg disabled:opacity-50"
+          >
+            Confirm Payment
+          </button>
         </div>
       </div>
     </div>

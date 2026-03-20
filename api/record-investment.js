@@ -115,7 +115,7 @@ export default async function handler(req, res) {
 
     const db = supabaseAdmin || supabase;
     const userId = user.id;
-    const { securityId, symbol, name, amount, baseAmount, strategyId, paymentReference } = req.body;
+    const { securityId, symbol, name, amount, baseAmount, strategyId, paymentReference, paymentMethod } = req.body;
     // baseAmount = investment amount excluding fees (used for holdings/quantity calculations)
     // amount = total charged including fees (used for transaction records)
     const investAmount = (baseAmount && baseAmount > 0) ? baseAmount : amount;
@@ -124,9 +124,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, error: "Missing required fields: securityId, amount, paymentReference" });
     }
 
-    const { verified, error: payError, data: payData } = await verifyPaystackPayment(paymentReference);
-    if (!verified) {
-      return res.status(400).json({ success: false, error: payError || "Payment verification failed" });
+    let payData = { amount: Math.round(amount * 100) };
+    const skipVerification = paymentMethod === "wallet" || paymentMethod === "direct_eft" || paymentMethod === "ozow";
+
+    if (!skipVerification) {
+      const { verified, error: payError, data: vPayData } = await verifyPaystackPayment(paymentReference);
+      if (!verified) {
+        return res.status(400).json({ success: false, error: payError || "Payment verification failed" });
+      }
+      payData = vPayData;
     }
 
     const { data: existingTx } = await db
@@ -139,7 +145,7 @@ export default async function handler(req, res) {
     }
 
     const paidAmount = payData.amount / 100;
-    if (Math.abs(paidAmount - amount) > 1) {
+    if (!skipVerification && Math.abs(paidAmount - amount) > 1) {
       return res.status(400).json({ success: false, error: `Amount mismatch: paid ${paidAmount}, expected ${amount}` });
     }
 

@@ -3,7 +3,7 @@ import { MapPin, X, Loader2 } from "lucide-react";
 
 const GOOGLE_PLACES_API_KEY = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
 
-const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }) => {
+const AddressAutocomplete = ({ value, onChange, placeholder = "Search address", inputClassName = "", containerClassName = "" }) => {
   const [query, setQuery] = useState(value || "");
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -118,8 +118,10 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
     setShowSuggestions(false);
   };
 
+  const defaultInputClass = "w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-0";
+
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className={`relative ${containerClassName}`}>
       <div className="relative">
         <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
@@ -130,7 +132,7 @@ const AddressAutocomplete = ({ value, onChange, placeholder = "Search address" }
             if (suggestions.length > 0) setShowSuggestions(true);
           }}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-base font-medium text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-0"
+          className={inputClassName || defaultInputClass}
         />
         {isLoading ? (
           <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
