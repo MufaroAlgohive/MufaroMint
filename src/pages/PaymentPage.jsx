@@ -33,9 +33,14 @@ const PaymentPage = ({
   const isMounted = useRef(true);
   const [isMethodModalOpen, setIsMethodModalOpen] = useState(!initialMethod);
 
-  // Wallet balance from the wallets table
-  const [walletBalance, setWalletBalance] = useState(0);
+  // Wallet state
+  const walletBalance = profile?.wallet_balance || 0;
   const [walletLoading, setWalletLoading] = useState(true);
+
+  // Sync loading state with profile loading
+  useEffect(() => {
+    if (profile?.id) setWalletLoading(false);
+  }, [profile]);
 
   // Wallet modal state
   const [walletConfirmOpen, setWalletConfirmOpen] = useState(initialMethod === "wallet");
@@ -96,22 +101,9 @@ const PaymentPage = ({
   }, [initialMethod, handleMethodSelection]);
 
   useEffect(() => {
-    if (!profile?.id) return;
-
-    const fetchWallet = async () => {
-      setWalletLoading(true);
-      const { data, error } = await supabase
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", profile.id)
-        .single();
-      if (!error && data?.balance !== undefined) {
-        setWalletBalance(Number(data.balance));
-      }
-      setWalletLoading(false);
-    };
-    fetchWallet();
+    // Other initial profile-based effects can go here
   }, [profile?.id]);
+
 
   const isStrategyPurchase = !!(
     strategy?.holdings ||
@@ -255,39 +247,17 @@ const PaymentPage = ({
    * adding the 8% in the previous pages, or you will double-charge the user.
    */
   const handleWalletConfirm = async () => {
-    console.log('Confirm clicked');
     const serviceFeeRate = 0.08;
     const totalToDeduct = amount * (1 + serviceFeeRate);
 
-    console.log('walletBalance:', walletBalance, 'totalToDeduct:', totalToDeduct);
+    if (paymentStatus === "processing") return;
 
-    if (paymentStatus === "processing") {
-      console.log('Already processing, skipping click');
-      return;
-    }
-
-    // ── ONBOARDING GUARD (PROMPT 4) ────────────────────────────────────────
-    console.log('Checking onboarding status...');
-    const { is_fully_onboarded } = await checkOnboardingComplete();
-    console.log('Onboarding status result:', is_fully_onboarded);
-
-    if (!is_fully_onboarded) {
-      console.log('User not fully onboarded, redirecting...');
-      setErrorMessage("Please complete your onboarding before making an investment");
-      setIsMethodModalOpen(false);
-      window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: "identityCheck" }));
-      return;
-    }
-
-    console.log('Onboarding check passed, proceeding with deduction...');
     setWalletConfirmOpen(false);
     setPaymentStatus("processing");
 
     try {
       const walletRef = `WALLET-${Date.now()}`;
-      console.log('Calling recordInvestment API with ref:', walletRef);
       const recorded = await recordInvestment(walletRef, "wallet", totalToDeduct);
-      console.log('API response:', recorded);
 
       if (!recorded.success) {
         if (recorded.error === "Insufficient funds") {
@@ -296,7 +266,6 @@ const PaymentPage = ({
         throw new Error(recorded.error || "Failed to record investment");
       }
 
-      console.log('Payment complete, updating state for success modal');
       const finalNewBalance = recorded.newWalletBalance ?? (walletBalance - totalToDeduct);
       setWalletNewBalance(finalNewBalance);
       setWalletAmountDeducted(totalToDeduct);
