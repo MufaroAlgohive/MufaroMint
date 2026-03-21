@@ -800,9 +800,8 @@ const HomePage = ({
                       <MintLogoSlate className="h-7 w-auto opacity-80" />
                     </div>
                     <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500 font-medium" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Account Balance</p>
-                      <p className="text-[28px] md:text-[34px] font-extralight text-slate-700 tracking-wide" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", letterSpacing: "0.04em" }}>
-                        {isCardVisible ? formatZar(balance) : "••••••••"}
+                      <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500 font-medium" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                        Mint Card
                       </p>
                     </div>
                     <div className="flex items-end justify-between">

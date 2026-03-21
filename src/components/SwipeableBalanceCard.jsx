@@ -698,6 +698,16 @@ const SwipeableBalanceCard = ({
                 <p className="text-base font-bold text-slate-900 mb-2 truncate">
                   {isVisible ? (selectedAsset ? formatKMB(displayBalance) : formatFull(displayBalance)) : masked}
                 </p>
+                <div className="mb-2">
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5 truncate">
+                    Account Balance
+                  </p>
+                  <p className="text-[11px] font-semibold text-slate-700 truncate">
+                    {isVisible
+                      ? (walletLoading ? "Loading..." : formatFull(walletBalance))
+                      : masked}
+                  </p>
+                </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`text-sm font-semibold shrink-0 ${isLoss ? "text-rose-400" : "text-emerald-400"}`}>
                     {isLoss ? "▼" : "▲"} {isVisible ? formatKMB(Math.abs(displayReturn)) : masked}
