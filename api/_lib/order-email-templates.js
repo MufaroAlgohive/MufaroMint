@@ -167,11 +167,13 @@ function buildShell({ heroLabel, heroTitle, body, footerNote }) {
 export function buildOrderConfirmationHtml({
   assetName,
   assetSymbol,
+  amountCents,
   quantity,
   reference,
   strategyName,
   paymentMethod,
 }) {
+
   const displayName = strategyName || assetName || assetSymbol || "Investment";
   const isStrategy = !!strategyName;
 
@@ -254,18 +256,20 @@ export function buildEFTPendingHtml({ assetName, amountCents, reference, dateStr
  * @param {string} params.reference   - transaction reference
  * @param {string} [params.dateStr]   - ISO date string
  */
-export function buildDepositConfirmationHtml({ amountCents, reference, dateStr }) {
+export function buildDepositConfirmationHtml({ amountCents, newBalanceCents, reference, dateStr }) {
   const body = `
     <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 32px;">
       Hello Investor, we've received your deposit and your funds are now
       available in your Mint wallet.
     </p>
-
-    ${detailRow("Transaction Type", "Deposit")}
-    ${detailRow("Amount Received", `<span style="color:${MINT_PURPLE}; font-size:16px;">${formatZar(amountCents)}</span>`)}
+    
+    ${detailRow("Transaction Type", "Wallet Top-up")}
+    ${detailRow("Top-up Amount", `<span style="color:${MINT_PURPLE}; font-size:16px;">${formatZar(amountCents)}</span>`)}
+    ${newBalanceCents ? detailRow("New Balance", `<span style="font-weight:700;">${formatZar(newBalanceCents)}</span>`) : ""}
     ${detailRow("Reference", `<span style="font-family:monospace; color:#64748b;">${reference || "—"}</span>`)}
     ${dateStr ? detailRow("Date", formatDate(dateStr)) : ""}
     ${detailRow("Status", `<span style="color:#16a34a; font-weight:700;">Settled</span>`)}
+
 
     <div style="margin-top:40px; text-align:center;">
       <a href="https://www.mymint.co.za" style="${S.button}">Go to Dashboard &rarr;</a>

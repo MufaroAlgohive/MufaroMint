@@ -3306,17 +3306,46 @@ app.post("/api/confirm-deposit", async (req, res) => {
       updated_at: new Date().toISOString() 
     }).eq("id", tx.id);
 
-    // 2. Update wallet balance
+    let newBalance = 0;
     const { data: wallet } = await db.from("wallets").select("id, balance").eq("user_id", userId).maybeSingle();
     if (wallet) {
-      const newBalance = (wallet.balance || 0) + depositAmount;
+      newBalance = (wallet.balance || 0) + depositAmount;
       await db.from("wallets").update({ balance: newBalance, updated_at: new Date().toISOString() }).eq("id", wallet.id);
     } else {
+      newBalance = depositAmount;
       await db.from("wallets").insert({ user_id: userId, balance: depositAmount });
+    }
+
+    // 3. Send confirmation email
+    try {
+      const { data: authUser } = await (supabaseAdmin || supabase).auth.admin.getUserById(userId);
+      const userEmail = authUser?.user?.email;
+
+      if (userEmail && process.env.RESEND_API_KEY) {
+        const { buildDepositConfirmationHtml } = await import("../api/_lib/order-email-templates.js");
+        const { Resend } = await import("resend");
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const html = buildDepositConfirmationHtml({ 
+          amountCents: depositAmount, 
+          newBalanceCents: newBalance,
+          reference, 
+          dateStr: new Date().toISOString() 
+        });
+
+        await resend.emails.send({
+          from: "Mint <orders@mymint.co.za>",
+          to: [userEmail],
+          subject: "Wallet Top-up Confirmed",
+          html,
+        });
+      }
+    } catch (emailErr) {
+      console.warn("[confirm-deposit] Email skip:", emailErr?.message);
     }
 
     console.log(`[confirm-deposit] User ${userId} wallet topped up by R${depositAmount/100}`);
     return res.status(200).json({ success: true });
+
   } catch (err) {
     console.error("[confirm-deposit] Error:", err);
     return res.status(500).json({ success: false, error: err.message });
