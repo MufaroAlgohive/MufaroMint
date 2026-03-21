@@ -259,25 +259,35 @@ const PaymentPage = ({
     const serviceFeeRate = 0.08;
     const totalToDeduct = amount * (1 + serviceFeeRate);
 
-    if (paymentStatus === "processing") return;
+    console.log('walletBalance:', walletBalance, 'totalToDeduct:', totalToDeduct);
 
-    
+    if (paymentStatus === "processing") {
+      console.log('Already processing, skipping click');
+      return;
+    }
+
     // ── ONBOARDING GUARD (PROMPT 4) ────────────────────────────────────────
+    console.log('Checking onboarding status...');
     const { is_fully_onboarded } = await checkOnboardingComplete();
+    console.log('Onboarding status result:', is_fully_onboarded);
+
     if (!is_fully_onboarded) {
+      console.log('User not fully onboarded, redirecting...');
       setErrorMessage("Please complete your onboarding before making an investment");
       setIsMethodModalOpen(false);
-      // Dispatch a navigate event to identityCheck (pattern used elsewhere)
       window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: "identityCheck" }));
       return;
     }
 
+    console.log('Onboarding check passed, proceeding with deduction...');
     setWalletConfirmOpen(false);
     setPaymentStatus("processing");
 
     try {
       const walletRef = `WALLET-${Date.now()}`;
+      console.log('Calling recordInvestment API with ref:', walletRef);
       const recorded = await recordInvestment(walletRef, "wallet", totalToDeduct);
+      console.log('API response:', recorded);
 
       if (!recorded.success) {
         if (recorded.error === "Insufficient funds") {
@@ -286,6 +296,7 @@ const PaymentPage = ({
         throw new Error(recorded.error || "Failed to record investment");
       }
 
+      console.log('Payment complete, updating state for success modal');
       const finalNewBalance = recorded.newWalletBalance ?? (walletBalance - totalToDeduct);
       setWalletNewBalance(finalNewBalance);
       setWalletAmountDeducted(totalToDeduct);
@@ -297,6 +308,7 @@ const PaymentPage = ({
       setErrorMessage(err.message || "Wallet payment failed");
     }
   };
+
 
   const [eftRef, setEftRef] = useState("");
 
