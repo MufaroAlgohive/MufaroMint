@@ -61,9 +61,13 @@ const SumsubVerification = ({ onVerified }) => {
         setError(null);
 
         let currentUserId = null;
+        let authToken = null;
         if (supabase) {
-          const { data: userData } = await supabase.auth.getUser();
-          currentUserId = userData?.user?.id;
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            currentUserId = session.user?.id;
+            authToken = session.access_token;
+          }
         }
         
         if (!currentUserId) {

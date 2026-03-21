@@ -4,7 +4,8 @@ import { formatCurrency } from "../lib/formatCurrency";
 
 const BROKER_FEE_RATE = 0.0025;
 const ISIN_FEE_PER_ASSET = 69;
-const PAYSTACK_FEE_RATE = 0.035;
+const TRANSACTION_FEE_RATE = 0.038;
+const CASH_BUFFER_RATE = 0.08;
 const MIN_INVESTMENT = 1000;
 
 const StockBuyPage = ({ security, onBack, onContinue, paymentMethod }) => {
@@ -41,17 +42,14 @@ const StockBuyPage = ({ security, onBack, onContinue, paymentMethod }) => {
   const numAssets = validShares > 0 ? 1 : 0;
 
   const fees = useMemo(() => {
-    const brokerAmount = totalAmount * BROKER_FEE_RATE;
-    const afterBroker = totalAmount + brokerAmount;
+    const bufferedBase = totalAmount * (1 + CASH_BUFFER_RATE);
+    const brokerAmount = bufferedBase * BROKER_FEE_RATE;
     const isinTotal = ISIN_FEE_PER_ASSET * numAssets;
-    const afterIsin = afterBroker + isinTotal;
+    const transactionAmount = bufferedBase * TRANSACTION_FEE_RATE;
+    const totalCost = bufferedBase + brokerAmount + isinTotal + transactionAmount;
 
-    const isWallet = paymentMethod === "wallet";
-    const paystackAmount = isWallet ? 0 : afterIsin * PAYSTACK_FEE_RATE;
-    const totalCost = afterIsin + paystackAmount;
-
-    return { brokerAmount, isinTotal, paystackAmount, totalCost };
-  }, [totalAmount, numAssets, paymentMethod]);
+    return { brokerAmount, isinTotal, transactionAmount, totalCost };
+  }, [totalAmount, numAssets]);
 
   const isInvalid = !Number.isFinite(shares) || shares <= 0 || shares < minShares;
 
@@ -133,16 +131,11 @@ const StockBuyPage = ({ security, onBack, onContinue, paymentMethod }) => {
                   <p className="text-xs font-semibold text-slate-900">{formatCurrency(fees.isinTotal, displayCurrency)}</p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-slate-600">Processing Fee</p>
+                  <p className="text-xs text-slate-600">Transaction Fee (3.8%)</p>
                   <div className="text-right">
                     <p className="text-xs font-semibold text-slate-900">
-                      {formatCurrency(fees.paystackAmount, displayCurrency)}
+                      {formatCurrency(fees.transactionAmount, displayCurrency)}
                     </p>
-                    {paymentMethod === "wallet" && (
-                      <p className="text-[9px] text-violet-500 font-medium">
-                        (8% fee applied at checkout)
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>

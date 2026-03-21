@@ -69,7 +69,7 @@ const DepositPage = ({ onBack }) => {
       const { error } = await supabase.from("transactions").insert([
         {
           user_id: profile.id,
-          type: "deposit",
+          name: "Manual Bank Deposit",
           status: "pending",
           direction: "credit",
           amount: Math.round(parseFloat(amount) * 100), // Cents
@@ -89,10 +89,10 @@ const DepositPage = ({ onBack }) => {
   };
 
   const bankDetails = [
-    { label: "Account Name", value: "Mint Wealth (Pty) Ltd" },
+    { label: "Account Name", value: "MINT PLATFORMS (PTY) LTD" },
     { label: "Bank", value: "Standard Bank" },
-    { label: "Account Number", value: "10192837465" },
-    { label: "Branch Code", value: "051001" },
+    { label: "Account Number", value: "02 154 470 0" },
+    { label: "Branch Code", value: "002064" },
     { label: "Account Type", value: "Business Current" },
     { label: "SWIFT Code", value: "SBZA ZAJJ" },
   ];
@@ -217,7 +217,7 @@ const DepositPage = ({ onBack }) => {
         </div>
 
         {/* Sticky Action Button */}
-        <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white/80 to-transparent z-20">
+        <div className="fixed bottom-0 left-0 right-0 px-6 pt-6 pb-[100px] bg-gradient-to-t from-white via-white/80 to-transparent z-20">
           <div className="max-w-xl mx-auto">
             <button
                 onClick={handleConfirmDeposit}

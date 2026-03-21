@@ -7,7 +7,8 @@ import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 
 const BROKER_FEE_RATE = 0.0025;
 const ISIN_FEE_PER_ASSET = 69;
-const PAYSTACK_FEE_RATE = 0.035;
+const TRANSACTION_FEE_RATE = 0.038;
+const CASH_BUFFER_RATE = 0.08;
 
 const InvestAmountPage = ({ onBack, strategy, onContinue, paymentMethod }) => {
   const currentStrategy = strategy || {
@@ -43,18 +44,14 @@ const InvestAmountPage = ({ onBack, strategy, onContinue, paymentMethod }) => {
   const extraHoldings = holdingsData.length > 3 ? holdingsData.length - 3 : 0;
 
   const fees = useMemo(() => {
-    const brokerAmount = amount * BROKER_FEE_RATE;
-    const afterBroker = amount + brokerAmount;
+    const bufferedBase = amount * (1 + CASH_BUFFER_RATE);
+    const brokerAmount = bufferedBase * BROKER_FEE_RATE;
     const isinTotal = ISIN_FEE_PER_ASSET * numAssets;
-    const afterIsin = afterBroker + isinTotal;
+    const transactionAmount = bufferedBase * TRANSACTION_FEE_RATE;
+    const totalCost = bufferedBase + brokerAmount + isinTotal + transactionAmount;
     
-    // ── FIXED PROCESSING FEE (PROMPT 1) ───────────────────────────────────
-    const isWallet = paymentMethod === "wallet";
-    const paystackAmount = isWallet ? 0 : afterIsin * PAYSTACK_FEE_RATE;
-    const totalCost = afterIsin + paystackAmount;
-    
-    return { brokerAmount, isinTotal, paystackAmount, totalCost };
-  }, [amount, numAssets, paymentMethod]);
+    return { brokerAmount, isinTotal, transactionAmount, totalCost, bufferedBase };
+  }, [amount, numAssets]);
 
   const step = minimumInvestment || 0;
 
@@ -263,23 +260,14 @@ const InvestAmountPage = ({ onBack, strategy, onContinue, paymentMethod }) => {
                   {formatCurrency(fees.isinTotal, currency)}
                 </p>
               </div>
-              {/* ── FIX 1: Neutral label — fee rate varies by payment method ── */}
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-600">
-                  Processing Fee
-                  <span className="ml-1 text-slate-400 text-[10px]">
-                    (varies by payment method)
-                  </span>
+                  Transaction Fee (3.8%)
                 </p>
                 <div className="text-right">
                   <p className="text-xs font-semibold text-slate-900">
-                    {formatCurrency(fees.paystackAmount, currency)}
+                    {formatCurrency(fees.transactionAmount, currency)}
                   </p>
-                  {paymentMethod === "wallet" && (
-                    <p className="text-[9px] text-violet-500 font-medium">
-                      (8% fee applied at checkout)
-                    </p>
-                  )}
                 </div>
               </div>
             </div>

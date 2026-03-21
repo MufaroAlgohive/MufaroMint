@@ -708,17 +708,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           <ArrowLeftIcon width={20} height={20} />
         </button>
         <div className="w-full max-w-2xl onboarding-process-stage">
-          <div className="mb-4 text-center text-xs uppercase tracking-[0.2em] text-slate-500">
-            {authStatus.isChecked ? (
-              authStatus.isAuthenticated ? (
-                <>Signed in as {authStatus.displayName}</>
-              ) : (
-                <>Not signed in</>
-              )
-            ) : (
-              <>Checking session…</>
-            )}
-          </div>
           {step === 0 ? (
             <div>
               <div className="text-center animate-fade-in delay-1">
@@ -912,15 +901,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
               ) : (
                 <>
-                  <div className="text-center mb-4 animate-fade-in delay-2">
-                    <button
-                      type="button"
-                      className="continue-button proceed-button"
-                      onClick={() => goToStep(getNextIncompleteStep(2, 2))}
-                    >
-                      Skip for now
-                    </button>
-                  </div>
                   <SumsubVerification onVerified={() => setShowProceed(true)} />
                 </>
               )}

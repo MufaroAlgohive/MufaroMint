@@ -63,6 +63,77 @@ async function getSumsubRequiredDocsStatus(applicantId) {
   return response.json();
 }
 
+function extractImageIds(obj) {
+  let ids = new Set();
+  if (Array.isArray(obj)) {
+    obj.forEach(v => extractImageIds(v).forEach(id => ids.add(id)));
+  } else if (typeof obj === "object" && obj !== null) {
+    for (const key of Object.keys(obj)) {
+      if (key === "imageId" && obj[key]) {
+        ids.add(obj[key]);
+      } else if (key === "imageIds" && Array.isArray(obj[key])) {
+        obj[key].forEach(id => ids.add(id));
+      } else {
+        extractImageIds(obj[key]).forEach(id => ids.add(id));
+      }
+    }
+  }
+  return ids;
+}
+
+async function downloadSumsubImage(applicantId, imageId) {
+  const ts = Math.floor(Date.now() / 1000).toString();
+  const path = `/resources/applicants/${applicantId}/image/${imageId}`;
+  const signature = createSignature(ts, "GET", path);
+
+  const response = await fetch(`${SUMSUB_BASE_URL}${path}`, {
+    method: "GET",
+    headers: {
+      "X-App-Token": SUMSUB_APP_TOKEN,
+      "X-App-Access-Ts": ts,
+      "X-App-Access-Sig": signature,
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Failed to download image ${imageId}:`, errorText);
+    return null;
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+async function archiveDocuments(db, userId, applicant) {
+  try {
+    const imageIds = extractImageIds(applicant);
+    if (imageIds.size === 0) return;
+    console.log(`[Archive] Found ${imageIds.size} images for user ${userId}. Archiving...`);
+
+    for (const imageId of imageIds) {
+      const buffer = await downloadSumsubImage(applicant.id, imageId);
+      if (buffer) {
+        const filePath = `${userId}/${imageId}.jpg`;
+        const { error } = await db.storage
+          .from("sumsub-archive")
+          .upload(filePath, buffer, {
+            contentType: "image/jpeg",
+            upsert: true
+          });
+        
+        if (error) {
+          console.error(`[Archive] Failed to upload ${imageId} to Supabase:`, error.message);
+        } else {
+          console.log(`[Archive] Successfully archived ${imageId} to sumsub-archive`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error(`[Archive] Global archiving error for ${userId}:`, err.message);
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -184,6 +255,9 @@ export default async function handler(req, res) {
               .from("user_onboarding_pack_details")
               .insert({ user_id: userId, pack_details: applicant, updated_at: new Date().toISOString() });
             console.log(`[Status] Created user_onboarding_pack_details for user ${userId}`);
+            
+            // Trigger background archive of identity documents
+            await archiveDocuments(db, userId, applicant);
           }
 
           const onboardingUpdate = {
