@@ -708,17 +708,6 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           <ArrowLeftIcon width={20} height={20} />
         </button>
         <div className="w-full max-w-2xl onboarding-process-stage">
-          <div className="mb-4 text-center text-xs uppercase tracking-[0.2em] text-slate-500">
-            {authStatus.isChecked ? (
-              authStatus.isAuthenticated ? (
-                <>Signed in as {authStatus.displayName}</>
-              ) : (
-                <>Not signed in</>
-              )
-            ) : (
-              <>Checking session…</>
-            )}
-          </div>
           {step === 0 ? (
             <div>
               <div className="text-center animate-fade-in delay-1">
