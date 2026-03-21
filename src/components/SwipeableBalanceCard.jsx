@@ -605,7 +605,7 @@ const SwipeableBalanceCard = ({
   };
 
   return (
-    <div className="relative w-full z-10 rounded-[26px] overflow-hidden">
+    <div className="relative w-full h-full z-10">
       {isConnected && (
         <div className="absolute top-2 right-3 z-20 flex items-center gap-1.5">
           {showUpdatedText && (
@@ -635,7 +635,7 @@ const SwipeableBalanceCard = ({
         </div>
       )}
       <div className="absolute inset-0 rounded-[26px] bg-[radial-gradient(circle_at_78%_18%,rgba(88,62,186,0.45),rgba(8,8,48,0.95)_46%,rgba(5,5,33,0.98)_100%)]" />
-      <div className="relative z-10 flex flex-col p-4 text-slate-100">
+      <div className="relative z-10 flex h-full flex-col p-4 text-slate-100">
         <div className="mb-2 flex items-start justify-between gap-3">
           <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium">
             {selectedAsset ? selectedAsset.symbol : "portfolio value"}
@@ -755,9 +755,9 @@ const SwipeableBalanceCard = ({
           )}
         </div>
 
-        <div className="mb-3 w-full overflow-hidden" style={{ minHeight: 100, height: 100 }}>
+        <div className="mb-3 w-full" style={{ minHeight: 80, height: 80 }}>
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={100}>
+                <ResponsiveContainer width="100%" height={80}>
                   <ComposedChart
                     data={chartData}
                     margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
@@ -817,7 +817,7 @@ const SwipeableBalanceCard = ({
                 </div>
               )}
             </div>
-        <div className="mt-auto pt-3 pb-5 border-t border-white/10 flex items-start">
+        <div className="mt-auto pt-3 pb-4 border-t border-white/10 flex items-start">
           <div className="flex-1 min-w-0 pr-3">
             <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">
               ACCOUNT BALANCE
