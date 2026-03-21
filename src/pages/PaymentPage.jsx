@@ -381,6 +381,7 @@ const PaymentPage = ({
       <WalletConfirmModal
         isOpen={walletConfirmOpen}
         amount={amount}
+        baseAmount={baseAmount}
         strategyName={strategy?.name}
         walletBalance={walletBalance}
         walletLoading={walletLoading}
@@ -613,6 +614,7 @@ const PaymentPage = ({
 const WalletConfirmModal = ({
   isOpen,
   amount,
+  baseAmount,
   strategyName,
   walletBalance,
   walletLoading,

@@ -900,6 +900,8 @@ const App = () => {
             onBack={noOp}
             strategy={paymentItem}
             amount={previewStockCheckout.amount}
+            baseAmount={previewStockCheckout.baseAmount}
+            shareCount={previewStockCheckout.shareCount}
             onSuccess={noOp}
             onCancel={noOp}
             onOpenDeposit={noOp}
@@ -913,7 +915,7 @@ const App = () => {
             onBack={noOp}
             strategy={previewStrategy}
             amount={previewAmount}
-            baseAmount={cachedState.baseInvestmentAmount}
+            baseAmount={isPreview ? cachedState.baseInvestmentAmount : baseInvestmentAmount}
             onSuccess={noOp}
             onCancel={noOp}
             onOpenDeposit={() => navigateTo("deposit")}
