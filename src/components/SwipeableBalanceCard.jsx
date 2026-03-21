@@ -686,42 +686,43 @@ const SwipeableBalanceCard = ({
           `}</style>
         </div>
       )}
-      <div className="relative z-10 flex flex-col h-full text-slate-700">
+      <div className="absolute inset-0 rounded-[26px] bg-[radial-gradient(circle_at_78%_18%,rgba(88,62,186,0.45),rgba(8,8,48,0.95)_46%,rgba(5,5,33,0.98)_100%)]" />
+      <div className="relative z-10 flex flex-col h-full text-slate-100">
         <div className="flex flex-1 min-h-0">
-          <div className="w-[50%] p-4 pb-3 flex flex-col border-r border-slate-200 overflow-hidden">
+          <div className="w-[58%] p-4 pb-3 flex flex-col overflow-hidden">
             <div className="flex flex-col flex-1 min-h-0 gap-3">
               <div className="shrink-0">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5 truncate">
+                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium mb-1.5 truncate">
                   {selectedAsset ? selectedAsset.symbol : "portfolio value"}
                 </p>
-                <p className="text-base font-bold text-slate-900 mb-2 truncate">
+                <p className="text-[46px] leading-none font-bold text-white mb-3 truncate">
                   {isVisible ? (selectedAsset ? formatKMB(displayBalance) : formatFull(displayBalance)) : masked}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`text-sm font-semibold shrink-0 ${isLoss ? "text-rose-400" : "text-emerald-400"}`}>
+                  <span className={`px-2 py-0.5 rounded-xl border text-sm font-semibold shrink-0 ${isLoss ? "border-rose-700/70 bg-rose-600/15 text-rose-300" : "border-emerald-700/70 bg-emerald-600/15 text-emerald-300"}`}>
                     {isLoss ? "▼" : "▲"} {isVisible ? formatKMB(Math.abs(displayReturn)) : masked}
                   </span>
-                  <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-medium shrink-0 ${isLoss ? "bg-rose-500/20 text-rose-400" : "bg-emerald-500/20 text-emerald-400"}`}>
+                  <span className={`text-[8px] font-medium shrink-0 ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>
                     {isVisible ? `${isLoss ? "-" : "+"}${returnPct}% all time` : masked}
                   </span>
                 </div>
               </div>
-              <div className="mt-auto pt-3 border-t border-slate-200/70 grid grid-cols-2 gap-3">
+              <div className="mt-auto pt-3 border-t border-white/10 grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5 truncate">
                     Account Balance
                   </p>
-                  <p className="text-[11px] font-semibold text-slate-700 truncate">
+                  <p className="text-[11px] font-semibold text-slate-100 truncate">
                     {isVisible
                       ? (walletLoading ? "Loading..." : formatFull(walletBalance))
                       : masked}
                   </p>
                 </div>
-                <div>
+                <div className="border-l border-white/10 pl-3">
                   <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5 truncate" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>
                     MINT NUMBER
                   </p>
-                  <p className="text-[11px] tracking-[0.1em] text-slate-700 font-mono font-bold truncate">
+                  <p className="text-[11px] tracking-[0.1em] text-slate-300 font-mono font-bold truncate">
                     {mintNumber ?? "GENERATING..."}
                   </p>
                 </div>
@@ -729,14 +730,14 @@ const SwipeableBalanceCard = ({
             </div>
           </div>
 
-          <div className="w-[50%] p-4 pb-4 flex flex-col">
+          <div className="w-[42%] p-4 pb-4 flex flex-col">
             <div className="flex justify-end mb-2">
-              <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/15">
                 {["d", "w", "m"].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className={`px-3 py-1 text-[10px] font-semibold rounded-md ${activeTab === tab ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+                    className={`px-3 py-1 text-[10px] font-semibold rounded-md ${activeTab === tab ? "bg-white/10 text-white shadow-sm" : "text-slate-300"}`}
                   >
                     {tab.toUpperCase()}
                   </button>
@@ -774,7 +775,7 @@ const SwipeableBalanceCard = ({
                     />
                     <ReferenceLine
                       y={0}
-                      stroke="#cbd5e1"
+                      stroke="rgba(148,163,184,0.5)"
                       strokeDasharray="3 3"
                       strokeWidth={1}
                     />
@@ -818,18 +819,18 @@ const SwipeableBalanceCard = ({
             <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="mt-2 mb-1 flex items-center justify-between p-2 rounded-xl bg-slate-100 border border-slate-200 w-full"
+                className="mt-2 mb-1 flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/15 w-full"
               >
                 <div className="flex items-center gap-2">
                   <LayoutGrid size={12} className="text-violet-400" />
-                  <span className="text-[10px] font-medium text-slate-700">
+                  <span className="text-[10px] font-medium text-slate-200">
                     {selectedAsset ? selectedAsset.symbol : "All Investments"}
                   </span>
                 </div>
                 {isOpen ? (
-                  <ChevronUp size={14} className="text-slate-500" />
+                  <ChevronUp size={14} className="text-slate-300" />
                 ) : (
-                  <ChevronDown size={14} className="text-slate-500" />
+                  <ChevronDown size={14} className="text-slate-300" />
                 )}
               </button>
               {isOpen && (

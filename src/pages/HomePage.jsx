@@ -60,7 +60,7 @@ const MintLogoSilver = ({ className = "" }) => (
 );
 
 const CardContent = ({ children, style, variant = "default" }) => {
-  const bg = "#ffffff";
+  const bg = variant === "invest" ? "transparent" : "#ffffff";
 
   return (
     <div
@@ -68,7 +68,7 @@ const CardContent = ({ children, style, variant = "default" }) => {
       style={{
         background: bg,
         boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.2)",
-        border: "1px solid rgba(148,163,184,0.35)",
+        border: variant === "invest" ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(148,163,184,0.35)",
         backfaceVisibility: "hidden",
         ...style,
       }}
@@ -727,7 +727,7 @@ const HomePage = ({
             <div className="relative select-none">
               <div className="relative w-full touch-pan-y" style={{ aspectRatio: "1.55 / 1" }}>
                 <CardContent variant="invest">
-                  <div className="relative h-full overflow-hidden bg-white/95 backdrop-blur-sm rounded-[28px] border border-white/20">
+                  <div className="relative h-full overflow-hidden rounded-[28px] border border-white/10">
                     <div className="relative h-full flex flex-col">
                       <SwipeableBalanceCard
                         userId={userId}
