@@ -246,16 +246,10 @@ const PaymentPage = ({
    * IMPORTANT: Fee Architecture Note
    * 
    * The 'amount' prop comes from InvestAmountPage (or StockBuyPage). 
-   * - For Paystack: amount already includes a 3.5% processing fee.
-   * - For Wallet: InvestAmountPage detects 'pendingPaymentMethod === wallet' 
-   *   and passes a total that includes Broker/Custody fees but 0.0% processing fee.
-   * 
-   * Therefore, we MUST add the 8% service fee here. Do not 'fix' this by 
-   * adding the 8% in the previous pages, or you will double-charge the user.
+   * It already includes all fees: 8% silent buffer, brokerage, custody, and transaction fees.
    */
   const handleWalletConfirm = async () => {
-    const serviceFeeRate = 0.08;
-    const totalToDeduct = amount * (1 + serviceFeeRate);
+    const totalToDeduct = amount;
 
     if (paymentStatus === "processing") return;
 
@@ -627,9 +621,20 @@ const WalletConfirmModal = ({
   onConfirm,
   onNavigateToDeposit,
 }) => {
-  const serviceFeeRate = 0.08;
-  const serviceFee = (amount || 0) * serviceFeeRate;
-  const totalToDeduct = (amount || 0) + serviceFee;
+  const CASH_BUFFER_RATE = 0.08;
+  const BROKER_FEE_RATE = 0.0025;
+  const ISIN_FEE_PER_ASSET = 69;
+  const TRANSACTION_FEE_RATE = 0.038;
+
+  const bufferedBase = (baseAmount || 0) * (1 + CASH_BUFFER_RATE);
+  const brokerFee = bufferedBase * BROKER_FEE_RATE;
+  const numAssets = strategyName ? 1 : 0; // Fallback logic, should be consistent with strategy holdings if possible
+  // Note: For simplicity and to match InvestAmountPage, we use baseAmount passed from parent
+  // If we want exact match, we should use the same numAssets logic or pass values.
+  const isinTotal = ISIN_FEE_PER_ASSET * (strategyName ? 1 : 0); 
+  const transactionFee = bufferedBase * TRANSACTION_FEE_RATE;
+
+  const totalToDeduct = amount;
   const hasEnoughFunds = walletBalance >= totalToDeduct;
 
   const fmt = (v) =>
@@ -658,12 +663,12 @@ const WalletConfirmModal = ({
 
         <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4 mb-5 space-y-2">
           <div className="flex justify-between text-xs">
-            <span className="text-slate-500">Base Investment</span>
-            <span className="font-semibold text-slate-900">{fmt(amount)}</span>
+            <span className="text-slate-500">Investment Amount</span>
+            <span className="font-semibold text-slate-900">{fmt(baseAmount)}</span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-slate-500">Service Fee (8%)</span>
-            <span className="font-semibold text-slate-900">{fmt(serviceFee)}</span>
+            <span className="text-slate-500">Fees (incl. Transaction & Brokerage)</span>
+            <span className="font-semibold text-slate-900">{fmt(amount - baseAmount)}</span>
           </div>
           <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between text-sm">
             <span className="font-bold text-slate-700">Total to Deduct</span>
