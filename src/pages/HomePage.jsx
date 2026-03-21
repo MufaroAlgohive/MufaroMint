@@ -41,58 +41,6 @@ import NotificationBell from "../components/NotificationBell";
 
 const CARD_VISIBILITY_KEY = "mintBalanceVisible";
 
-const MintLogoWhite = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g>
-      <path fill="#FFFFFF" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#FFFFFF" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const MintLogoSilver = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g opacity="0.12">
-      <path fill="#C0C0C0" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#C0C0C0" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const CardContent = ({ children, style, variant = "default" }) => {
-  const bg = variant === "invest" ? "transparent" : "#ffffff";
-
-  return (
-    <div
-      className={`absolute inset-0 rounded-[24px] ${variant === "invest" ? "overflow-visible" : "overflow-hidden"}`}
-      style={{
-        background: bg,
-        boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.2)",
-        border: variant === "invest" ? "1px solid rgba(148,163,184,0.18)" : "1px solid rgba(148,163,184,0.35)",
-        backfaceVisibility: "hidden",
-        ...style,
-      }}
-    >
-      {variant !== "invest" && (
-        <>
-          <div className="absolute inset-0" style={{
-            backgroundImage: `
-              repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px),
-              repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px),
-              repeating-linear-gradient(60deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px),
-              repeating-linear-gradient(-60deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px)
-            `,
-          }} />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <MintLogoSilver className="w-52 h-auto" />
-          </div>
-        </>
-      )}
-      {children}
-    </div>
-  );
-};
-
 const HomePage = ({
   onOpenNotifications,
   onOpenMintBalance,
@@ -725,19 +673,15 @@ const HomePage = ({
 
           {homeTab === "balance" || homeTab === "invest" ? (
             <div className="relative select-none">
-              <div className="relative w-full touch-pan-y" style={{ aspectRatio: "1.55 / 1" }}>
-                <CardContent variant="invest">
-                  <div className="relative h-full overflow-visible rounded-[28px] border border-white/10">
-                    <div className="relative h-full flex flex-col">
-                      <SwipeableBalanceCard
-                        userId={userId}
-                        isBackFacing
-                        forceVisible={isCardVisible}
-                        mintNumber={profile.mintNumber}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
+              <div className="relative w-full touch-pan-y h-auto">
+                <div className="relative h-auto rounded-[28px] border border-white/10">
+                  <SwipeableBalanceCard
+                    userId={userId}
+                    isBackFacing
+                    forceVisible={isCardVisible}
+                    mintNumber={profile.mintNumber}
+                  />
+                </div>
               </div>
             </div>
           ) : (
