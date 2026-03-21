@@ -103,7 +103,7 @@ const DepositPage = ({ onBack }) => {
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-violet-100/30 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 -z-10" />
       <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-purple-100/20 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 -z-10" />
 
-      <div className="max-w-xl mx-auto px-6 pt-12 pb-32">
+      <div className="max-w-xl mx-auto px-6 pt-12 pb-40">
         {/* MINT Brand Header */}
         <div className="mb-8 text-center">
             <h1 className="text-sm font-bold tracking-[0.3em] uppercase opacity-40 mb-8" style={{ fontFamily: "'Future Earth Medium', sans-serif" }}>
@@ -216,18 +216,19 @@ const DepositPage = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Sticky Action Button */}
-        <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white via-white/80 to-transparent z-20">
-          <div className="max-w-xl mx-auto">
-            <button
-                onClick={handleConfirmDeposit}
-                disabled={!amount || isNaN(amount) || parseFloat(amount) <= 0 || profileLoading}
-                className="w-full bg-gradient-to-r from-black to-[#5b21b6] text-white font-bold py-5 rounded-[24px] shadow-xl hover:shadow-[#5b21b6]/30 transition-all active:scale-[0.98] disabled:opacity-30 disabled:grayscale flex items-center justify-center gap-2 group overflow-hidden relative"
-            >
-                <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none" />
-                I have made my deposit
-            </button>
-          </div>
+      </div>
+
+      {/* Sticky Action Button */}
+      <div className="fixed bottom-20 left-0 right-0 p-6 bg-gradient-to-t from-white via-white/80 to-transparent z-20">
+        <div className="max-w-xl mx-auto">
+          <button
+              onClick={handleConfirmDeposit}
+              disabled={!amount || isNaN(amount) || parseFloat(amount) <= 0 || profileLoading}
+              className="w-full bg-gradient-to-r from-black to-[#5b21b6] text-white font-bold py-5 rounded-[24px] shadow-xl hover:shadow-[#5b21b6]/30 transition-all active:scale-[0.98] disabled:opacity-30 disabled:grayscale flex items-center justify-center gap-2 group overflow-hidden relative"
+          >
+              <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none" />
+              I have made my deposit
+          </button>
         </div>
       </div>
 
@@ -253,4 +254,3 @@ const DepositPage = ({ onBack }) => {
 };
 
 export default DepositPage;
-
