@@ -64,10 +64,7 @@ export default async function handler(req, res) {
     // ── Build update payload ──────────────────────────────────────────────
     const updatePayload = { kyc_status: "onboarding_complete" };
 
-    // Always write signed_agreement_url if provided — this is the key fix
-    if (signed_agreement_url) updatePayload.signed_agreement_url = signed_agreement_url;
-    if (signed_at) updatePayload.signed_at = signed_at;
-    if (downloaded_at) updatePayload.downloaded_at = downloaded_at;
+    // The URLs are correctly written to sumsub_raw JSON blob further down.
 
     // Legacy bank fields
     if (bank_name) updatePayload.bank_name = bank_name;
@@ -78,9 +75,6 @@ export default async function handler(req, res) {
       user_id: userId,
       kyc_status: "onboarding_complete",
       employment_status: "not_provided",
-      ...( signed_agreement_url ? { signed_agreement_url } : {} ),
-      ...( signed_at ? { signed_at } : {} ),
-      ...( downloaded_at ? { downloaded_at } : {} ),
       ...( bank_name ? { bank_name } : {} ),
       ...( bank_account_number ? { bank_account_number } : {} ),
       ...( bank_branch_code ? { bank_branch_code } : {} ),

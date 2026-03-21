@@ -682,9 +682,6 @@ export default function AccountAgreementStep({
         const updatePayload = {
           kyc_status: "onboarding_complete",
           sumsub_raw: JSON.stringify(raw),
-          // ── FIX: always write URL to the dedicated column ───────────────
-          signed_agreement_url: publicUrl,
-          signed_at: now,
         };
 
         const { error: updateError } = await supabase
@@ -697,8 +694,6 @@ export default function AccountAgreementStep({
           // Fallback — try minimal update but ensure signed_at is included
           await supabase.from("user_onboarding").update({
             kyc_status: "onboarding_complete",
-            signed_agreement_url: publicUrl,
-            signed_at: now,
           }).eq("user_id", userId);
         }
       } catch (dbErr) {
@@ -707,8 +702,6 @@ export default function AccountAgreementStep({
         try {
           await supabase.from("user_onboarding").update({
             kyc_status: "onboarding_complete",
-            signed_agreement_url: publicUrl,
-            signed_at: now,
           }).eq("user_id", userId);
         } catch (e) {
           console.error("[AccountAgreementStep] Fallback DB update also failed:", e?.message);
