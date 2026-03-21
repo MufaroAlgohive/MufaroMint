@@ -92,19 +92,31 @@ const DepositPage = ({ onBack }) => {
   };
 
   const bankDetails = [
-    { label: "Account Name", value: "Mint Wealth (Pty) Ltd" },
-    { label: "Bank", value: "Standard Bank" },
-    { label: "Account Number", value: "10192837465" },
-    { label: "Branch Code", value: "051001" },
-    { label: "Account Type", value: "Business Current" },
-    { label: "SWIFT Code", value: "SBZA ZAJJ" },
+    { label: "Account Holder", value: "MINT PLATFORMS (PTY) LTD" },
+    { label: "Bank", value: "STANDARD BANK" },
+    { label: "Account Type", value: "BUSINESS CURRENT ACCOUNT" },
+    { label: "Account Number", value: "02 154 470 0" },
+    { label: "Branch", value: "SANDTON CITY" },
+    { label: "Branch Code", value: "002064" },
+    { label: "SWIFT Code", value: "SBZAZAJJ" },
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 pb-24">
-      <div className="max-w-2xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden font-sans">
+      {/* Background Decor */}
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-violet-100/30 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2 -z-10" />
+      <div className="fixed bottom-0 left-0 w-[400px] h-[400px] bg-purple-100/20 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2 -z-10" />
+
+      <div className="max-w-xl mx-auto px-6 pt-12 pb-40">
+        {/* MINT Brand Header */}
+        <div className="mb-8 text-center">
+            <h1 className="text-sm font-bold tracking-[0.3em] uppercase opacity-40 mb-8" style={{ fontFamily: "'Future Earth Medium', sans-serif" }}>
+                MINT
+            </h1>
+        </div>
+
+        {/* Header with Back Button */}
+        <div className="flex items-center gap-6 mb-10">
           <button
             onClick={onBack}
             className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center hover:bg-zinc-800 transition-colors"
@@ -196,14 +208,18 @@ const DepositPage = ({ onBack }) => {
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/90 to-transparent">
+      </div>
+
+      {/* Sticky Action Button */}
+      <div className="fixed bottom-20 left-0 right-0 p-6 bg-gradient-to-t from-white via-white/80 to-transparent z-20">
+        <div className="max-w-xl mx-auto">
           <button
-            onClick={handleConfirmDeposit}
-            disabled={!amount || isNaN(amount) || parseFloat(amount) <= 0}
-            className="w-full bg-white text-black font-bold py-5 rounded-2xl hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:hover:bg-white flex items-center justify-center gap-2"
+              onClick={handleConfirmDeposit}
+              disabled={!amount || isNaN(amount) || parseFloat(amount) <= 0 || profileLoading}
+              className="w-full bg-gradient-to-r from-black to-[#5b21b6] text-white font-bold py-5 rounded-[24px] shadow-xl hover:shadow-[#5b21b6]/30 transition-all active:scale-[0.98] disabled:opacity-30 disabled:grayscale flex items-center justify-center gap-2 group overflow-hidden relative"
           >
-            I have made my deposit
+              <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none" />
+              I have made my deposit
           </button>
         </div>
       </div>

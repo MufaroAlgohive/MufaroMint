@@ -22,8 +22,6 @@ import {
   Plus,
   Calendar,
   ChevronRight,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
@@ -33,7 +31,6 @@ import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import { useRealtimePrices } from "../lib/useRealtimePrices";
 import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
-import { formatZar } from "../lib/formatCurrency";
 import HomeSkeleton from "../components/HomeSkeleton";
 import Skeleton from "../components/Skeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
@@ -43,67 +40,6 @@ import SettlementBadge from "../components/PendingBadge";
 import NotificationBell from "../components/NotificationBell";
 
 const CARD_VISIBILITY_KEY = "mintBalanceVisible";
-
-const MintLogoWhite = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g>
-      <path fill="#FFFFFF" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#FFFFFF" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const MintLogoSlate = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g>
-      <path fill="#334155" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#334155" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const MintLogoSilver = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g opacity="0.12">
-      <path fill="#C0C0C0" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#C0C0C0" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const CardContent = ({ children, style, variant = "default" }) => {
-  const bg = "#ffffff";
-
-  return (
-    <div
-      className="absolute inset-0 rounded-[24px] overflow-hidden"
-      style={{
-        background: bg,
-        boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.2)",
-        border: "1px solid rgba(148,163,184,0.35)",
-        backfaceVisibility: "hidden",
-        ...style,
-      }}
-    >
-      {variant !== "invest" && (
-        <>
-          <div className="absolute inset-0" style={{
-            backgroundImage: `
-              repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px),
-              repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px),
-              repeating-linear-gradient(60deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px),
-              repeating-linear-gradient(-60deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px)
-            `,
-          }} />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <MintLogoSilver className="w-52 h-auto" />
-          </div>
-        </>
-      )}
-      {children}
-    </div>
-  );
-};
 
 const HomePage = ({
   onOpenNotifications,
@@ -145,58 +81,12 @@ const HomePage = ({
   const { onboardingComplete, loading: onboardingLoading, refetch: fetchOnboardingStatus } = useOnboardingStatus();
   const onboardingChecked = !onboardingLoading;
 
-  const [cardRotation, setCardRotation] = useState(0);
-  const [isCardAnimating, setIsCardAnimating] = useState(false);
-  const dragStartXRef = useRef(0);
-  const [isCardVisible, setIsCardVisible] = useState(() => {
+  const [isCardVisible] = useState(() => {
     if (typeof window !== "undefined") {
       return window.localStorage.getItem(CARD_VISIBILITY_KEY) !== "false";
     }
     return true;
   });
-
-  const cardNormalizedIndex = Math.abs(Math.round(cardRotation / 180) % 2);
-  const isBalanceEnabled = true;
-
-  const toggleCardVisibility = () => {
-    setIsCardVisible((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(CARD_VISIBILITY_KEY, String(next));
-      return next;
-    });
-  };
-
-  const handleCardDragStart = (e) => {
-    if (isCardAnimating || !isBalanceEnabled) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    dragStartXRef.current = clientX;
-  };
-
-  const handleCardDragEnd = (e) => {
-    if (isCardAnimating || !isBalanceEnabled) return;
-    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-    const diff = dragStartXRef.current - clientX;
-    if (Math.abs(diff) > 50) {
-      setIsCardAnimating(true);
-      const currentIndex = cardNormalizedIndex;
-      const newIndex = diff > 0 ? 1 : 0;
-      if (newIndex !== currentIndex) {
-        setCardRotation(newIndex === 1 ? -180 : 0);
-        setHomeTab(newIndex === 1 ? "invest" : "balance");
-      }
-      setTimeout(() => setIsCardAnimating(false), 700);
-    }
-  };
-
-  const handleDotClick = (idx) => {
-    if (isCardAnimating || !isBalanceEnabled) return;
-    if (idx !== cardNormalizedIndex) {
-      setIsCardAnimating(true);
-      setCardRotation(idx === 1 ? -180 : 0);
-      setHomeTab(idx === 1 ? "invest" : "balance");
-      setTimeout(() => setIsCardAnimating(false), 700);
-    }
-  };
 
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [goals, setGoals] = useState([]);
@@ -768,7 +658,7 @@ const HomePage = ({
               <div className="flex items-center gap-1 rounded-full bg-white/10 p-1 backdrop-blur-md">
                 <button
                   type="button"
-                  onClick={() => { setHomeTab("invest"); setCardRotation(-180); }}
+                  onClick={() => { setHomeTab("invest"); }}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${homeTab === "invest" || homeTab === "balance" ? "bg-white text-slate-900 shadow-sm" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
                 >
                   Wealth
@@ -783,91 +673,16 @@ const HomePage = ({
 
           {homeTab === "balance" || homeTab === "invest" ? (
             <div className="relative select-none">
-              <div
-                className="relative w-full touch-pan-y"
-                style={{ aspectRatio: "1.55 / 1", perspective: "1000px", transformStyle: "preserve-3d" }}
-                onTouchStart={handleCardDragStart}
-                onTouchEnd={handleCardDragEnd}
-                onMouseDown={handleCardDragStart}
-                onMouseUp={handleCardDragEnd}
-              >
-                <CardContent style={{
-                  transform: `rotateY(${cardRotation}deg)`,
-                  transition: "transform 0.7s ease-out",
-                }}>
-                  <div className="relative h-full p-6 flex flex-col">
-                    <div className="flex items-start justify-between">
-                      <MintLogoSlate className="h-7 w-auto opacity-80" />
-                    </div>
-                    <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500 font-medium" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Account Balance</p>
-                      <p className="text-[28px] md:text-[34px] font-extralight text-slate-700 tracking-wide" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", letterSpacing: "0.04em" }}>
-                        {isCardVisible ? formatZar(balance) : "••••••••"}
-                      </p>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-normal mb-1" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Card Holder</p>
-                        <p className="text-[13px] uppercase tracking-[0.18em] text-slate-700 font-light" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", letterSpacing: "0.18em" }}>
-                          {displayName || "MINT MEMBER"}
-                        </p>
-                      </div>
-                      <div className="text-right flex items-end">
-                        <p className="text-[22px] md:text-[26px] font-light text-slate-700 tracking-wider mb-[-2px]" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", fontStyle: "italic", letterSpacing: "0.08em" }}>MINT</p>
-                      </div>
-                    </div>
-
-                  </div>
-                </CardContent>
-
-                <CardContent variant="invest" style={{
-                  transform: `rotateY(${cardRotation + 180}deg)`,
-                  transition: "transform 0.7s ease-out",
-                }}>
-                  <div className="relative h-full overflow-hidden bg-white/95 backdrop-blur-sm rounded-[28px] border border-white/20">
-                    {/* Visual Physical Card Back: Magnetic Strip */}
-                         {/* Visual Physical Card Back: Removed Strip */}
-                    
-                    {/* Main content */}
-                    <div className="relative h-full flex flex-col">
-                      <SwipeableBalanceCard 
-                        userId={userId} 
-                        isBackFacing={cardNormalizedIndex === 1} 
-                        forceVisible={isCardVisible} 
-                        mintNumber={profile.mintNumber} 
-                        onBuyPress={onOpenStrategies || onOpenInvest}
-                      />
-                      
-
-                    </div>
-                  </div>
-                </CardContent>
-
-                {cardNormalizedIndex === 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); toggleCardVisibility(); }}
-                    className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
-                  >
-                    {isCardVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  </button>
-                )}
-              </div>
-
-              {isBalanceEnabled && (
-                <div className="flex justify-center gap-2 mt-3">
-                  {[0, 1].map((idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleDotClick(idx)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        cardNormalizedIndex === idx ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
-                      }`}
-                    />
-                  ))}
+              <div className="relative w-full touch-pan-y h-auto">
+                <div className="relative h-auto rounded-[28px] border border-white/10">
+                  <SwipeableBalanceCard
+                    userId={userId}
+                    isBackFacing
+                    forceVisible={isCardVisible}
+                    mintNumber={profile.mintNumber}
+                  />
                 </div>
-              )}
+              </div>
             </div>
           ) : (
             <SwipeableBalanceCard userId={userId} mintNumber={profile.mintNumber} />
