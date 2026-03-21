@@ -69,7 +69,7 @@ const DepositPage = ({ onBack }) => {
       const { error } = await supabase.from("transactions").insert([
         {
           user_id: profile.id,
-          type: "deposit",
+          name: "Manual Bank Deposit",
           status: "pending",
           direction: "credit",
           amount: Math.round(parseFloat(amount) * 100), // Cents
