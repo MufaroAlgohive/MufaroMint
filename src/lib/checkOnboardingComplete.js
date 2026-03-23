@@ -34,7 +34,7 @@ export function parseOnboardingFlags(record) {
   // timestamp, we can grandfather them in for all the steps.
   const hasCompletedOldFlow = record?.kyc_status === "onboarding_complete" || (kycDone && (!!raw?.signed_at || !!raw?.account_agreement_signed));
 
-  const agreementSigned = !!raw?.signed_at || !!raw?.account_agreement_signed;
+  let agreementSigned = !!raw?.signed_at || !!raw?.account_agreement_signed;
 
   if (hasCompletedOldFlow) {
     taxDone = true;
