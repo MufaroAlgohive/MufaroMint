@@ -42,6 +42,17 @@ function textToHtml(text) {
   return text.replace(/\n/g, '<br/>');
 }
 
+function truncateNewsContent(text, maxCharsPerPara = 280, maxParas = 3) {
+  if (!text) return '';
+  const paras = text.split(/\n+/).map(p => p.trim()).filter(Boolean);
+  const limited = paras.slice(0, maxParas).map(p => {
+    if (p.length <= maxCharsPerPara) return p;
+    const cut = p.lastIndexOf(' ', maxCharsPerPara);
+    return (cut > 0 ? p.slice(0, cut) : p.slice(0, maxCharsPerPara)) + '\u2026';
+  });
+  return limited.join('\n');
+}
+
 function buildMintMorningsHtml(articles) {
   const F = `-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif`;
   const LOGO = `https://mfxnghmuccevsxwcetej.supabase.co/storage/v1/object/public/Mint%20Assets/mint-logo.svg`;
@@ -108,7 +119,7 @@ function buildMintMorningsHtml(articles) {
 
     artNewsSections.forEach(s => {
       bodyHtml += sectionHeading(sectionTitle(s.name));
-      bodyHtml += `<p style="margin:0 0 10px;font-family:${F};font-size:14px;line-height:1.6;color:#334155;">${textToHtml(s.content)}</p>`;
+      bodyHtml += `<p style="margin:0 0 10px;font-family:${F};font-size:14px;line-height:1.6;color:#334155;">${textToHtml(truncateNewsContent(s.content))}</p>`;
     });
 
     const authorHtml = author
