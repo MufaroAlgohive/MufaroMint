@@ -452,7 +452,7 @@ function startMintMorningsListener(supabaseAdmin) {
   return pollingInterval;
 }
 
-async function sendTestEmail(supabaseAdmin, testEmail) {
+async function sendTestEmail(supabaseAdmin, testEmail, titleSearch) {
   if (!supabaseAdmin) {
     console.error('[MINT MORNINGS TEST] No Supabase admin client available');
     return { success: false, error: 'No database connection' };
@@ -462,14 +462,20 @@ async function sendTestEmail(supabaseAdmin, testEmail) {
     console.error('[MINT MORNINGS TEST] No RESEND_API_KEY configured');
     return { success: false, error: 'No RESEND_API_KEY' };
   }
-  console.log(`[MINT MORNINGS TEST] Sending test email to ${testEmail}...`);
+  console.log(`[MINT MORNINGS TEST] Sending test email to ${testEmail}${titleSearch ? ` (search: "${titleSearch}")` : ''}...`);
 
-  const { data: articles, error: articlesError } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('News_articles')
     .select('*')
     .filter('content_types', 'cs', '"ALLBRF"')
     .order('published_at', { ascending: false })
-    .limit(1);
+    .limit(titleSearch ? 50 : 1);
+
+  if (titleSearch) {
+    query = query.ilike('title', `%${titleSearch}%`);
+  }
+
+  const { data: articles, error: articlesError } = await query;
 
   if (articlesError) {
     console.error('[MINT MORNINGS TEST] Error fetching articles:', articlesError.message);

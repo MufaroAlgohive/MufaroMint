@@ -5216,11 +5216,11 @@ app.post("/api/webhooks/broker", async (req, res) => {
 
 app.post('/api/test-mint-mornings-single', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, titleSearch } = req.body;
     if (!email) return res.status(400).json({ error: 'Email required' });
     const db = supabaseAdmin || supabase;
     if (!db) return res.status(500).json({ error: 'No database connection' });
-    const result = await sendTestEmail(db, email);
+    const result = await sendTestEmail(db, email, titleSearch);
     res.json(result);
   } catch (error) {
     console.error('[MINT MORNINGS] Test single error:', error);
