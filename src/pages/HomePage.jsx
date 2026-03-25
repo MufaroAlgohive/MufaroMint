@@ -753,7 +753,7 @@ const HomePage = ({
               activeTab="home" 
               onTabChange={(id) => {
                 if (id === "credit") {
-                  onOpenInstantLiquidity();
+                  onOpenCredit();
                 } else if (id === "home") {
                   setHomeTab("invest");    
                 }
