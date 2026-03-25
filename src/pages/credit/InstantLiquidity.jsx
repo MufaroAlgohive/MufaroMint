@@ -80,103 +80,94 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     return { min: min.toISOString().split('T')[0], max: max.toISOString().split('T')[0] };
   }, []);
 
-  // --- DATA FETCHING ---
-  useEffect(() => {
-    async function initData() {
-      if (!profile?.id) return;
-      setLoading(true);
+// --- NEW DATA FETCHING ---
+useEffect(() => {
+  async function initData() {
+    if (!profile?.id) return;
+    setLoading(true);
 
-      const { data: profData } = await supabase.from('profiles').select('pin').eq('id', profile.id).single();
-      setUserPin(profData?.pin);
+    const { data: profData } = await supabase.from('profiles').select('pin').eq('id', profile.id).single();
+    setUserPin(profData?.pin);
 
-      const { data, error } = await supabase
-        .from('stock_holdings')
-        .select(`
-          quantity,
-          securities!inner (
-            id, symbol, name, last_price, market_cap, sector,
-            pbc_screen_results (eligible, score_composite, ltv, margin_call, auto_liquidation)
-          )
-        `).eq('user_id', profile.id);
+    // One simple query to get holdings and all sync script metrics
+    const { data, error } = await supabase
+      .from('stock_holdings')
+      .select(`
+        quantity,
+        securities!inner (
+          id, symbol, name, last_price, market_cap, sector,
+          liquidity_grading, collateral_score, collateral_tier, 
+          ltv_pct, margin_call_pct, auto_liq_pct, 
+          disqualified, disq_reason
+        )
+      `)
+      .eq('user_id', profile.id)
+      .neq('securities.exchange', 'MINT'); // Mandatory filter [cite: 9, 11]
 
-      if (!error) {
-        const formatted = await Promise.all(data.map(async item => {
-          const sec = item.securities;
-          const risk = sec.pbc_screen_results?.[0];
-          const { data: prices } = await supabase.from('security_prices').select('close_price').eq('security_id', sec.id).order('ts', { ascending: false }).limit(7);
-          const spark = (prices?.length > 0) ? prices.map(p => parseFloat(p.close_price)).reverse() : [0,0,0,0,0,0,0];
+    if (!error) {
+      const formatted = await Promise.all(data.map(async item => {
+        const sec = item.securities;
+        
+        // Keep your sparkline logic, it's still great for UI
+        const { data: prices } = await supabase
+          .from('security_prices')
+          .select('close_price')
+          .eq('security_id', sec.id)
+          .order('ts', { ascending: false })
+          .limit(7);
+        const spark = (prices?.length > 0) ? prices.map(p => parseFloat(p.close_price)).reverse() : [0,0,0,0,0,0,0];
 
-          return {
-            id: sec.id,
-            name: sec.name,
-            code: sec.symbol,
-            sector: sec.sector,
-            quantity: item.quantity,
-            balance: item.quantity * (sec.last_price || 0),
-            isEligible: risk?.eligible || false,
-            score: risk?.score_composite || 0,
-            ltv: risk?.ltv || 0,
-            marketCap: sec.market_cap,
-            spark
-          };
-        }));
-        setPortfolioItems(formatted);
-      }
-      setLoading(false);
+        const balance = item.quantity * (sec.last_price || 0);
+
+        return {
+          id: sec.id,
+          name: sec.name,
+          code: sec.symbol,
+          sector: sec.sector,
+          quantity: item.quantity,
+          balance: balance,
+          // Trust the DB columns for eligibility [cite: 18, 30]
+          isEligible: !sec.disqualified, 
+          score: sec.collateral_score || 0,
+          grading: sec.liquidity_grading,
+          tier: sec.collateral_tier,
+          ltv: sec.ltv_pct || 0,
+          marginCall: sec.margin_call_pct,
+          autoLiq: sec.auto_liq_pct,
+          disqReason: sec.disq_reason,
+          available: !sec.disqualified ? (balance * (sec.ltv_pct || 0)) : 0,
+          spark
+        };
+      }));
+      setPortfolioItems(formatted);
     }
-    initData();
-  }, [profile?.id]);
+    setLoading(false);
+  }
+  initData();
+}, [profile?.id]);
 
-// --- LOGIC CALCULATIONS ---
-  const totalPortfolioValue = portfolioItems.reduce((acc, item) => acc + item.balance, 0);
-  const maxPerCounter = totalPortfolioValue * 0.45; 
-  const maxPerSector = totalPortfolioValue * 0.50;  
+// --- NEW LOGIC CALCULATIONS (Simplified) ---
+const totalPortfolioValue = portfolioItems.reduce((acc, item) => acc + item.balance, 0);
+const totalAvailable = portfolioItems.reduce((acc, item) => acc + item.available, 0);
+const qualifyingCount = portfolioItems.filter(i => i.isEligible).length;
 
-  const enrichedItems = useMemo(() => {
-    const sectorTotals = {};
-    portfolioItems.forEach(item => {
-      const sector = item.sector || "Uncategorized";
-      sectorTotals[sector] = (sectorTotals[sector] || 0) + item.balance;
-    });
+const filteredItems = useMemo(() => {
+  let results = portfolioItems.filter(item => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          item.code.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSector = selectedSectors.size === 0 || selectedSectors.has(item.sector);
+    return matchesSearch && matchesSector;
+  });
 
-    return portfolioItems.map(item => {
-      const counterCappedValue = Math.min(item.balance, maxPerCounter);
+  if (selectedSort === "Balance (High)") results.sort((a, b) => b.balance - a.balance);
+  if (selectedSort === "Score (High)") results.sort((a, b) => b.score - a.score);
+  if (selectedSort === "Market Cap") results.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+  
+  return results;
+}, [searchQuery, selectedSort, selectedSectors, portfolioItems]);
 
-      const currentSectorTotal = sectorTotals[item.sector] || 0;
-      const sectorFactor = currentSectorTotal > maxPerSector ? (maxPerSector / currentSectorTotal) : 1;
-
-      const recognizedValue = counterCappedValue * sectorFactor;
-      const available = item.isEligible ? recognizedValue * item.ltv : 0;
-
-      return { 
-        ...item, 
-        recognizedValue, 
-        available, 
-        isCapped: item.balance > maxPerCounter || currentSectorTotal > maxPerSector 
-      };
-    });
-  }, [portfolioItems, maxPerCounter, maxPerSector]);
-
-  const totalAvailable = enrichedItems.reduce((acc, item) => acc + item.available, 0);
-  const qualifyingCount = enrichedItems.filter(i => i.isEligible).length;
-
-  const filteredItems = useMemo(() => {
-    let results = enrichedItems.filter(item => {
-      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            item.code.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesSector = selectedSectors.size === 0 || selectedSectors.has(item.sector);
-      return matchesSearch && matchesSector;
-    });
-
-    if (selectedSort === "Balance (High)") results.sort((a, b) => b.balance - a.balance);
-    if (selectedSort === "Score (High)") results.sort((a, b) => b.score - a.score);
-    if (selectedSort === "Market Cap") results.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
-    
-    return results;
-  }, [searchQuery, selectedSort, selectedSectors, enrichedItems]);
-
-  const totalSelectedAvailable = selectedAssets.reduce((sum, item) => sum + item.available, 0);
-  const totalSelectedBalance = selectedAssets.reduce((sum, item) => sum + item.balance, 0);
+const totalSelectedAvailable = selectedAssets.reduce((sum, item) => sum + item.available, 0);
+const totalSelectedBalance = selectedAssets.reduce((sum, item) => sum + item.balance, 0);
 
 
   // --- EVENT HANDLERS ---
@@ -196,15 +187,15 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
     setIsDetailOpen(true);
   };
 
-  const handlePledgeAll = () => {
-    const eligible = enrichedItems.filter(i => i.isEligible);
-    if (eligible.length > 0) {
-      setSelectedAssets(eligible);
-      setWorkflowStep("idle");
-      setPledgeAmount(eligible.reduce((sum, i) => sum + i.available, 0));
-      setIsDetailOpen(true);
-    }
-  };
+const handlePledgeAll = () => {
+  const eligible = portfolioItems.filter(i => i.isEligible);
+  if (eligible.length > 0) {
+    setSelectedAssets(eligible);
+    setWorkflowStep("idle");
+    setPledgeAmount(eligible.reduce((sum, i) => sum + i.available, 0));
+    setIsDetailOpen(true);
+  }
+};
 
   const closeDetail = () => { 
     setIsDetailOpen(false); 
@@ -425,7 +416,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                 <div className="flex justify-between items-center pt-4 border-t border-slate-50">
                    <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Recognized</p>
-                        <p className={`text-xs font-bold ${item.isCapped ? 'text-amber-600' : 'text-slate-900'}`}>{formatZar(item.recognizedValue)}</p>
+                        <p className="text-xs font-bold text-slate-900">{formatZar(item.available)}</p>
                    </div>
                    <AssetMiniChart data={item.spark} />
                    <div className="flex items-center gap-2">
@@ -545,14 +536,30 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
                 <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100 mb-10 shadow-inner">
                     <div className="flex justify-between items-center mb-4">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Safety Bar</p>
-                        <span className="text-[10px] font-bold text-emerald-600">Secure Range</span>
+                        <span className={`text-[10px] font-bold uppercase ${
+                            (pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) 
+                            ? 'text-emerald-600' : 'text-rose-500'
+                        }`}>
+                            { (pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) ? 'Secure Range' : 'Critical Risk' }
+                        </span>
                     </div>
                     <div className="relative h-4 w-full bg-slate-200 rounded-full overflow-hidden flex">
-                        <div className="h-full bg-emerald-500" style={{ width: '55%' }} />
-                        <div className="h-full bg-amber-400" style={{ width: '10%' }} />
-                        <div className="h-full bg-rose-500" style={{ width: '35%' }} />
-                        {/* Dynamic Slider Needle based on current usage */}
-                        <div className="absolute top-0 bottom-0 w-1 bg-white shadow-xl" style={{ left: `${(pledgeAmount / totalSelectedBalance) * 100}%` }} />
+\                        <div 
+                            className="h-full bg-emerald-500" 
+                            style={{ width: `${(selectedAssets[0]?.marginCall || 0.65) * 100}%` }} 
+                        />
+                        
+                        <div 
+                            className="h-full bg-amber-400" 
+                            style={{ width: `${((selectedAssets[0]?.autoLiq || 0.70) - (selectedAssets[0]?.marginCall || 0.65)) * 100}%` }} 
+                        />
+                        
+                        <div className="h-full bg-rose-500 flex-1" />
+
+                        <div 
+                            className="absolute top-0 bottom-0 w-1 bg-white shadow-xl transition-all duration-300" 
+                            style={{ left: `${(pledgeAmount / totalSelectedBalance) * 100}%` }} 
+                        />
                     </div>
                 </div>
 
