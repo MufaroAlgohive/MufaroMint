@@ -969,7 +969,8 @@ const App = () => {
         <InstantLiquidityPage 
           profile={profile} 
           onBack={goBack} 
-          onTabChange={handleTabChange} // ADD THIS: Missing link back to Wealth
+          onTabChange={handleTabChange}
+          onLinkBank={() => navigateTo("bankLink")}
           onOpenNotifications={() => {
             setNotificationReturnPage("instantLiquidity");
             navigateTo("notifications");

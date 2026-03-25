@@ -34,7 +34,7 @@ const AssetMiniChart = ({ data, color = "#7c3aed" }) => (
   </div>
 );
 
-const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange }) => {
+const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBank }) => {
   // --- CORE UI STATE ---
   const [view, setView] = useState("main");
   const [loading, setLoading] = useState(true);
@@ -277,7 +277,7 @@ const handlePledgeAll = () => {
   // --- SUB-PAGE ROUTING ---
   if (view === "history") return <LiquidityHistory onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
   if (view === "active") return <ActiveLiquidity onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
-  if (view === "repay") return <RepayLiquidity onBack={() => setView("main")} fonts={fonts} totalDebt={256450} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
+  if (view === "repay") return <RepayLiquidity onBack={() => setView("main")} fonts={fonts} totalDebt={256450} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} onLinkBank={onLinkBank} />;
   if (view === "portfolio") return <NewPortfolio onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
 
   return (
