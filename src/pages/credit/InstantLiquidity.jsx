@@ -9,7 +9,7 @@ import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatZar } from "../../lib/formatCurrency";
 import NotificationBell from "../../components/NotificationBell";
-import CreditNavigationPill from "../../components/CreditNavigationPill";
+import NavigationPill from "../../components/NavigationPill";
 import { supabase } from "../../lib/supabase";
 
 // --- SUB-PAGES ---
@@ -293,7 +293,7 @@ const handlePledgeAll = () => {
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold uppercase">
             {profile?.firstName?.[0]}{profile?.lastName?.[0]}
           </div>
-          <CreditNavigationPill activeTab="instantLiquidity" onTabChange={onTabChange} />
+          <NavigationPill activeTab="credit" onTabChange={onTabChange} />
           <NotificationBell onClick={onOpenNotifications} />
         </header>
 

@@ -3,7 +3,7 @@ import {
   Zap, HandCoins, ChevronRight, HelpCircle, PieChart 
 } from "lucide-react";
 import { motion } from 'framer-motion';
-import CreditNavigationPill from "../../components/CreditNavigationPill";
+import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
 
 // Removed PurpleGlobeGraphic as requested
@@ -48,10 +48,10 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   ];
 
   return (
-    <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900 bg-[#0d0d12]">
+    <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900 bg-slate-50">
       {/* Background Gradient Layer */}
       <div className="absolute inset-x-0 top-0 -z-10 h-full">
-        <div className="absolute inset-x-0 top-0" style={{ height: '100vh', background: 'linear-gradient(180deg, #0d0d12 0%, #100b18 10%, #1a102e 25%, #2d1b4d 45%, #0d0d12 100%)' }} />
+        <div className="absolute inset-x-0 top-0" style={{ height: '100vh', background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 15%, #e2e8f0 35%, #cbd5e1 100%)' }} />
       </div>
 
       <div className="px-5 pt-12 pb-8">
@@ -62,28 +62,28 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
               <img
                 src={profile.avatarUrl}
                 alt={displayName || "Profile"}
-                className="h-10 w-10 rounded-full border border-white/40 object-cover"
+                className="h-10 w-10 rounded-full border border-slate-200 object-cover bg-white"
               />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700">
                 {initials}
               </div>
             )}
           </div>
           
-          <CreditNavigationPill activeTab="credit" onTabChange={onTabChange} />
-          <NotificationBell onClick={onOpenNotifications} color="white" />
+          <NavigationPill activeTab="credit" onTabChange={onTabChange} />
+          <NotificationBell onClick={onOpenNotifications} color="black" />
         </header>
 
         {/* Hero Section */}
         <div className="flex flex-col gap-2 mb-16 relative">
             <div className="flex items-center gap-2 mb-4 z-20">
-              <img src="/assets/mint-logo.png" alt="Mint" className="h-4" />
-              <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] opacity-80" style={{ fontFamily: fonts.display }}>credit</span>
+              <img src="/assets/mint-logo.png" alt="Mint" className="h-4 brightness-0" />
+              <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] opacity-80" style={{ fontFamily: fonts.display }}>credit</span>
             </div>
             <div className="z-20">
-                 <h1 className="text-white text-5xl font-light tracking-tight mb-6 leading-[1.1]" style={{ fontFamily: fonts.display }}>
-                    Borrowing has<br /> never been <span className="font-light text-violet-400">easier</span>.
+                 <h1 className="text-slate-900 text-5xl font-light tracking-tight mb-6 leading-[1.1]" style={{ fontFamily: fonts.display }}>
+                    Borrowing has<br /> never been <span className="font-semibold text-violet-600">easier</span>.
                  </h1>
             </div>
         </div>
@@ -91,8 +91,8 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
         {/* Solutions Grid */}
         <div className="space-y-4 relative z-20">
           <div className="px-1 mb-4 flex items-center justify-between">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/30">Credit Solutions Pipeline</p>
-            <HelpCircle className="h-3.5 w-3.5 text-white/20" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Credit Solutions Pipeline</p>
+            <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
           </div>
 
           {ctaCards.map((item, i) => (
@@ -104,27 +104,27 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
                 onClick={() => {
                     if (item.id === "portfolio") onTabChange("instantLiquidity");
                 }}
-                className="w-full group relative overflow-hidden bg-white/[0.03] backdrop-blur-md rounded-[32px] p-6 border border-white/10 text-left transition-all active:scale-[0.98] flex items-center gap-5"
+                className="w-full group relative overflow-hidden bg-white rounded-[32px] p-6 border border-slate-200 text-left transition-all active:scale-[0.98] flex items-center gap-5 shadow-sm shadow-slate-200/50 hover:shadow-md hover:border-violet-200"
             >
                 {/* Visual Accent */}
-                <div className="absolute inset-0 bg-gradient-to-r from-violet-600/0 to-violet-600/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-600/0 to-violet-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                 
                 {/* Icon section */}
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl text-violet-400 bg-white/5 shrink-0 border border-white/5 shadow-inner">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl text-violet-600 bg-violet-50 shrink-0 border border-violet-100 shadow-inner">
                     <item.icon className="h-6 w-6" />
                 </span>
                 
                 {/* Text content */}
-                <div className="flex-1">
+                <div className="flex-1 relative z-10">
                     <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest px-2 py-0.5 bg-violet-400/10 rounded-full">{item.badge}</span>
+                        <span className="text-[8px] font-black text-violet-700 uppercase tracking-widest px-2 py-0.5 bg-violet-100 rounded-full">{item.badge}</span>
                     </div>
-                    <p className="text-lg font-bold text-white mb-0.5" style={{ fontFamily: fonts.display }}>{item.label}</p>
-                    <p className="text-[11px] font-medium text-white/40 leading-snug">{item.description}</p>
+                    <p className="text-lg font-bold text-slate-900 mb-0.5" style={{ fontFamily: fonts.display }}>{item.label}</p>
+                    <p className="text-[11px] font-medium text-slate-500 leading-snug">{item.description}</p>
                 </div>
 
-                <div className="flex flex-col items-center opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
-                    <ChevronRight className="h-5 w-5 text-white" />
+                <div className="flex flex-col items-center opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all z-10">
+                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-violet-600" />
                 </div>
             </motion.button>
           ))}

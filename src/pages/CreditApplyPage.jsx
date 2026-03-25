@@ -7,7 +7,6 @@ import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 import { useCreditCheck } from "../lib/useCreditCheck";
 import CreditApplySkeleton from "../components/CreditApplySkeleton";
-import CreditNavigationPill from "../components/CreditNavigationPill";
 
 // --- Subcomponents for Stages ---
 
@@ -960,7 +959,6 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange }) => {
                            >
                               <ArrowLeft className="h-5 w-5" />
                            </button>
-                           <CreditNavigationPill activeTab="creditApply" onTabChange={onTabChange} />
                         </header>
 
                         <div className="mb-6 relative z-10 mt-4">
