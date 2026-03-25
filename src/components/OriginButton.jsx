@@ -1,7 +1,7 @@
 import { useState, useRef, startTransition } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 
-const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,163,184,0.18)", style, type = "button", "aria-label": ariaLabel }) => {
+const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,163,184,0.18)", style, type = "button", "aria-label": ariaLabel, disableTouch = false }) => {
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef(null);
   const scale = useMotionValue(0);
@@ -24,12 +24,14 @@ const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,16
   };
 
   const handleTouchStart = (e) => {
+    if (disableTouch) return;
     const touch = e.touches[0];
     getPos(touch.clientX, touch.clientY);
     scale.set(1);
   };
 
   const handleTouchEnd = (e) => {
+    if (disableTouch) return;
     e.preventDefault();
     setTimeout(() => {
       scale.set(0);
@@ -38,6 +40,7 @@ const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,16
   };
 
   const handleTouchCancel = () => {
+    if (disableTouch) return;
     scale.set(0);
   };
 
