@@ -11,6 +11,7 @@ import { formatZar } from "../../lib/formatCurrency";
 import NotificationBell from "../../components/NotificationBell";
 import NavigationPill from "../../components/NavigationPill";
 import { supabase } from "../../lib/supabase";
+import { useRequiredActions } from "../../lib/useRequiredActions";
 
 // --- SUB-PAGES ---
 import LiquidityHistory from "./LiquidityHistory";
@@ -38,6 +39,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
   // --- CORE UI STATE ---
   const [view, setView] = useState("main");
   const [loading, setLoading] = useState(true);
+  const { bankLinked } = useRequiredActions();
   const [portalTarget, setPortalTarget] = useState(null);
   const [infoModal, setInfoModal] = useState(null);
 
@@ -215,6 +217,12 @@ const handlePledgeAll = () => {
 
   // --- SUPABASE TRANSACTION ---
   const handleConfirmPledge = async () => {
+    // EFT Payout Requirement: Bank must be verified via TruID first
+    if (!bankLinked) {
+      setWorkflowStep("verify_bank");
+      return;
+    }
+
     if (pinInput !== userPin) {
       alert("Incorrect Security PIN.");
       setPinInput("");
@@ -225,15 +233,20 @@ const handlePledgeAll = () => {
         const principal = parseFloat(pledgeAmount);
         const interestRate = 10.5;
         const annualInterest = principal * (interestRate / 100);
+        const currentLTV = (principal / totalSelectedBalance) * 100;
 
+        // Transition to 'pending_payout' as per EFT Payout Flow blueprint
         const { data: loan, error: loanErr } = await supabase.from('loan_application').insert({
             user_id: profile.id, 
             principal_amount: principal, 
             interest_rate: interestRate,
             amount_repayable: principal + annualInterest, 
-            status: 'approved', 
-            first_repayment_date: repaymentDate
+            status: 'pending_payout', // Trigger status for Admin Dashboard
+            first_repayment_date: repaymentDate,
+            ltv_at_report: currentLTV,
+            payout_method: 'EFT'
         }).select().single();
+        
         if (loanErr) throw loanErr;
 
         // Spread the loan value across selected assets based on their balance weight
@@ -250,7 +263,7 @@ const handlePledgeAll = () => {
 
         await supabase.from('pbc_collateral_pledges').insert(pledges);
         
-        // Update the Credit Account view
+        // Update the Credit Account view (Locked until payout confirms)
         const { data: account } = await supabase.from('credit_accounts').select('loan_balance, available_credit').eq('user_id', profile.id).single();
         await supabase.from('credit_accounts').update({
             loan_balance: (account?.loan_balance || 0) + principal,
@@ -260,6 +273,7 @@ const handlePledgeAll = () => {
 
         setWorkflowStep("success");
     } catch (err) { 
+        console.error("Pledge failed:", err);
         alert("Transaction failed. Contact support."); 
     } finally { 
         setIsProcessing(false); 
@@ -731,6 +745,33 @@ const handlePledgeAll = () => {
                       className="w-full py-2 mt-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]"
                     >
                       Exit & Cancel
+                    </button>
+                </div>
+            )}
+
+            {workflowStep === "verify_bank" && (
+                <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">
+                    <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><HandCoins size={28} /></div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Verify Bank Account</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8">TruID Verification Required for EFT Payouts</p>
+                    <p className="text-sm text-slate-500 mb-8 leading-relaxed">
+                        To receive funds via EFT, Mint requires a secure link to your bank account via **TruID**. This ensures capital is disbursed only to your personal verified account.
+                    </p>
+                    <button 
+                      onClick={() => {
+                        onLinkBank(); 
+                        closeDetail();
+                      }} 
+                      className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2"
+                    >
+                      <Zap size={14} fill="currentColor" />
+                      Verify via TruID Connect
+                    </button>
+                    <button 
+                      onClick={() => setWorkflowStep("auth")} 
+                      className="w-full py-2 mt-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]"
+                    >
+                      Go Back to PIN
                     </button>
                 </div>
             )}
