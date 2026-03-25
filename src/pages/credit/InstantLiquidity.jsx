@@ -89,26 +89,26 @@ useEffect(() => {
     const { data: profData } = await supabase.from('profiles').select('pin').eq('id', profile.id).single();
     setUserPin(profData?.pin);
 
-    // One simple query to get holdings and all sync script metrics
+    
     const { data, error } = await supabase
       .from('stock_holdings')
       .select(`
         quantity,
         securities!inner (
           id, symbol, name, last_price, market_cap, sector,
+          logo_url,
           liquidity_grading, collateral_score, collateral_tier, 
           ltv_pct, margin_call_pct, auto_liq_pct, 
           disqualified, disq_reason
         )
       `)
       .eq('user_id', profile.id)
-      .neq('securities.exchange', 'MINT'); // Mandatory filter [cite: 9, 11]
+      .neq('securities.exchange', 'MINT'); 
 
     if (!error) {
       const formatted = await Promise.all(data.map(async item => {
         const sec = item.securities;
         
-        // Keep your sparkline logic, it's still great for UI
         const { data: prices } = await supabase
           .from('security_prices')
           .select('close_price')
@@ -123,10 +123,10 @@ useEffect(() => {
           id: sec.id,
           name: sec.name,
           code: sec.symbol,
+          logo: sec.logo_url,
           sector: sec.sector,
           quantity: item.quantity,
           balance: balance,
-          // Trust the DB columns for eligibility [cite: 18, 30]
           isEligible: !sec.disqualified, 
           score: sec.collateral_score || 0,
           grading: sec.liquidity_grading,
@@ -293,7 +293,7 @@ const handlePledgeAll = () => {
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold uppercase">
             {profile?.firstName?.[0]}{profile?.lastName?.[0]}
           </div>
-          <NavigationPill activeTab="credit" onTabChange={(tab) => tab === "home" ? onTabChange("home") : null} />
+          <NavigationPill activeTab="credit" onTabChange={onTabChange} />
           <NotificationBell onClick={onOpenNotifications} />
         </header>
 
@@ -402,9 +402,20 @@ const handlePledgeAll = () => {
 
                 <div className="flex justify-between items-start mb-4 pr-8">
                    <div className="flex items-center gap-3">
-                     <div className="h-11 w-11 rounded-2xl bg-slate-50 flex items-center justify-center font-black text-slate-400 text-[10px] uppercase">
-                        {item.code}
-                     </div>
+                     <div className="h-11 w-11 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
+                      {item.logo ? (
+                        <img 
+                          src={item.logo} 
+                          alt={item.code} 
+                          className="h-full w-full object-contain p-1.5"
+                          onError={(e) => { e.target.style.display = 'none'; }} 
+                        />
+                      ) : (
+                        <span className="font-black text-slate-400 text-[10px] uppercase">
+                          {item.code}
+                        </span>
+                      )}
+                    </div>
                      <div>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.name}</p>
                         <p className="text-xl font-bold text-slate-900" style={{ fontFamily: fonts.display }}>R{item.balance.toLocaleString()}</p>
@@ -509,122 +520,145 @@ const handlePledgeAll = () => {
 
       {/* --- PLEDGE MODAL (BATCH CONFIGURATION) --- */}
       {isDetailOpen && portalTarget && createPortal(
-        <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-100 sticky top-0 bg-white z-10">
-                <button onClick={closeDetail} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-95 transition-all">
-                    <ChevronLeft size={20} />
-                </button>
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Pledge Analysis</h3>
-                <div className="w-10" />
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-8 pb-32">
-                <div className="mb-8 flex justify-between items-start">
-                    <div>
-                         <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-1" style={{ fontFamily: fonts.display }}>
-                            {selectedAssets.length === 1 ? selectedAssets[0].name : "Consolidated Pool"}
-                         </h1>
-                         <p className="text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
-                            Pledging {selectedAssets.length} Strategic Assets
-                         </p>
-                    </div>
-                    <div className="h-14 w-14 rounded-full border-4 border-violet-600 flex items-center justify-center font-black text-xs text-violet-600">
-                        {(selectedAssets.reduce((sum, a) => sum + a.score, 0) / selectedAssets.length).toFixed(2)}
-                    </div>
-                </div>
-
-                <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100 mb-10 shadow-inner">
-                    <div className="flex justify-between items-center mb-4">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Safety Bar</p>
-                        <span className={`text-[10px] font-bold uppercase ${
-                            (pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) 
-                            ? 'text-emerald-600' : 'text-rose-500'
-                        }`}>
-                            { (pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) ? 'Secure Range' : 'Critical Risk' }
-                        </span>
-                    </div>
-                    <div className="relative h-4 w-full bg-slate-200 rounded-full overflow-hidden flex">
-\                        <div 
-                            className="h-full bg-emerald-500" 
-                            style={{ width: `${(selectedAssets[0]?.marginCall || 0.65) * 100}%` }} 
-                        />
-                        
-                        <div 
-                            className="h-full bg-amber-400" 
-                            style={{ width: `${((selectedAssets[0]?.autoLiq || 0.70) - (selectedAssets[0]?.marginCall || 0.65)) * 100}%` }} 
-                        />
-                        
-                        <div className="h-full bg-rose-500 flex-1" />
-
-                        <div 
-                            className="absolute top-0 bottom-0 w-1 bg-white shadow-xl transition-all duration-300" 
-                            style={{ left: `${(pledgeAmount / totalSelectedBalance) * 100}%` }} 
-                        />
-                    </div>
-                </div>
-
-                <div className="text-center mb-10">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Max Borrowing Capacity</p>
-                    <p className="text-4xl font-extralight text-slate-900 tracking-tight" style={{ fontFamily: fonts.display }}>
-                        {formatZar(totalSelectedAvailable)}
-                    </p>
-                </div>
-
-                <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-lg mb-8">
-                    <div className="flex justify-between items-center mb-6">
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Requested Capital</span>
-                        <div className="text-right">
-                           <input 
-                                type="number" 
-                                value={pledgeAmount} 
-                                onChange={(e) => setPledgeAmount(e.target.value)} 
-                                placeholder="0.00" 
-                                className="w-32 bg-slate-50 px-4 py-2 rounded-xl text-right font-bold text-slate-900 outline-none mb-1" 
-                           />
-                           <p className="text-[9px] font-bold text-violet-600 uppercase">Usage: {((pledgeAmount / totalSelectedBalance) * 100).toFixed(1)}% of selection</p>
-                        </div>
-                    </div>
-                    <input 
-                        type="range" 
-                        min="1000" 
-                        max={totalSelectedAvailable} 
-                        step="1000" 
-                        value={pledgeAmount} 
-                        onChange={(e) => setPledgeAmount(Number(e.target.value))} 
-                        className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none accent-violet-600 cursor-pointer" 
-                    />
-                </div>
-
-                <div className="bg-slate-50 p-6 rounded-[28px] border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Debt Ratio Per Counter</p>
-                    <div className="space-y-4">
-                        {selectedAssets.map(asset => {
-                            const weight = (asset.balance / totalSelectedBalance);
-                            return (
-                                <div key={asset.id} className="flex justify-between text-sm items-center">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-2 w-2 rounded-full bg-violet-400" />
-                                        <span className="text-slate-600 font-bold">{asset.code}</span>
-                                    </div>
-                                    <span className="font-bold text-slate-900">{formatZar(pledgeAmount * weight)}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-
-            <div className="p-6 bg-white border-t border-slate-100 pb-28">
-                <button 
-                    disabled={!pledgeAmount || pledgeAmount <= 0} 
-                    onClick={() => setWorkflowStep("contract")} 
-                    className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all disabled:opacity-30"
-                >
-                    Review Final Agreement
-                </button>
-            </div>
+      <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-right duration-300">
+        <div className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-100 sticky top-0 bg-white z-10">
+          <button onClick={closeDetail} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center active:scale-95 transition-all">
+            <ChevronLeft size={20} />
+          </button>
+          <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Pledge Analysis</h3>
+          <div className="w-10" />
         </div>
-      , portalTarget)}
+        
+        <div className="flex-1 overflow-y-auto p-8 pb-32">
+          {/* Asset Header with Dynamic Logo */}
+          <div className="mb-8 flex justify-between items-start">
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
+                {selectedAssets.length === 1 && selectedAssets[0].logo ? (
+                  <img src={selectedAssets[0].logo} alt="logo" className="h-full w-full object-contain p-2" />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white">
+                    <Zap size={24} />
+                  </div>
+                )}
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 mb-1" style={{ fontFamily: fonts.display }}>
+                  {selectedAssets.length === 1 ? selectedAssets[0].name : "Consolidated Pool"}
+                </h1>
+                <p className="text-slate-500 text-[11px] font-semibold uppercase tracking-wider">
+                  Pledging {selectedAssets.length} Strategic Assets
+                </p>
+              </div>
+            </div>
+            {/* Quality Score Badge */}
+            <div className="h-14 w-14 rounded-full border-4 border-violet-600 flex flex-col items-center justify-center bg-white shadow-lg">
+              <span className="text-[8px] font-black text-slate-400 uppercase leading-none mb-0.5">Score</span>
+              <span className="font-black text-xs text-violet-600">
+                {(selectedAssets.reduce((sum, a) => sum + a.score, 0) / selectedAssets.length).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {/* Data-Driven Liquidation Safety Bar [cite: 18, 33] */}
+          <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100 mb-10 shadow-inner">
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Safety Bar</p>
+              <span className={`text-[10px] font-bold uppercase ${
+                (pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) 
+                ? 'text-emerald-600' : 'text-rose-500'
+              }`}>
+                {(pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) ? 'Secure Range' : 'Critical Risk'}
+              </span>
+            </div>
+            <div className="relative h-4 w-full bg-slate-200 rounded-full overflow-hidden flex">
+              {/* Emerald Zone: Safe up to Margin Call  */}
+              <div 
+                className="h-full bg-emerald-500" 
+                style={{ width: `${(selectedAssets[0]?.marginCall || 0.65) * 100}%` }} 
+              />
+              {/* Amber Zone: Warning up to Auto-Liquidation  */}
+              <div 
+                className="h-full bg-amber-400" 
+                style={{ width: `${((selectedAssets[0]?.autoLiq || 0.70) - (selectedAssets[0]?.marginCall || 0.65)) * 100}%` }} 
+              />
+              {/* Rose Zone: Liquidation Threshold  */}
+              <div className="h-full bg-rose-500 flex-1" />
+
+              {/* User's Current Needle */}
+              <div 
+                className="absolute top-0 bottom-0 w-1 bg-white shadow-2xl transition-all duration-300 ring-2 ring-black/5" 
+                style={{ left: `${(pledgeAmount / totalSelectedBalance) * 100}%` }} 
+              />
+            </div>
+            <div className="flex justify-between mt-3 px-1">
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Safe Zone</span>
+                <span className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter text-right">Liquidation</span>
+            </div>
+          </div>
+
+          <div className="text-center mb-10">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Max Borrowing Capacity</p>
+            <p className="text-4xl font-extralight text-slate-900 tracking-tight" style={{ fontFamily: fonts.display }}>
+              {formatZar(totalSelectedAvailable)}
+            </p>
+          </div>
+
+          <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-lg mb-8">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Requested Capital</span>
+              <div className="text-right">
+                <input 
+                  type="number" 
+                  value={pledgeAmount} 
+                  onChange={(e) => setPledgeAmount(e.target.value)} 
+                  placeholder="0.00" 
+                  className="w-32 bg-slate-50 px-4 py-2 rounded-xl text-right font-bold text-slate-900 outline-none mb-1" 
+                />
+                <p className="text-[9px] font-bold text-violet-600 uppercase">Usage: {((pledgeAmount / totalSelectedBalance) * 100).toFixed(1)}% of selection</p>
+              </div>
+            </div>
+            <input 
+              type="range" 
+              min="1000" 
+              max={totalSelectedAvailable} 
+              step="1000" 
+              value={pledgeAmount} 
+              onChange={(e) => setPledgeAmount(Number(e.target.value))} 
+              className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none accent-violet-600 cursor-pointer" 
+            />
+          </div>
+
+          <div className="bg-slate-50 p-6 rounded-[28px] border border-slate-100">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Debt Ratio Per Counter</p>
+            <div className="space-y-4">
+              {selectedAssets.map(asset => {
+                const weight = (asset.balance / totalSelectedBalance);
+                return (
+                  <div key={asset.id} className="flex justify-between text-sm items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-violet-400" />
+                      <span className="text-slate-600 font-bold">{asset.code}</span>
+                    </div>
+                    <span className="font-bold text-slate-900">{formatZar(pledgeAmount * weight)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 bg-white border-t border-slate-100 pb-28">
+          <button 
+            disabled={!pledgeAmount || pledgeAmount <= 0} 
+            onClick={() => setWorkflowStep("contract")} 
+            className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all disabled:opacity-30"
+          >
+            Review Final Agreement
+          </button>
+        </div>
+      </div>
+    , portalTarget)}
 
       {/* --- DRAWDOWN FLOW MODALS --- */}
       {workflowStep !== "idle" && portalTarget && createPortal(
