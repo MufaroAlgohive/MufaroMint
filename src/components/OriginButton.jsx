@@ -1,4 +1,4 @@
-import { useState, useRef, startTransition } from "react";
+import { useState, useRef, startTransition, useEffect } from "react";
 import { motion, useMotionValue, useSpring } from "framer-motion";
 
 const TOUCH_ANIM_MS = 380;
@@ -11,6 +11,14 @@ const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,16
   const smoothScale = useSpring(scale, { stiffness: 85, damping: 18, restDelta: 0.001 });
   const touchTimer = useRef(null);
   const fromTouch = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(touchTimer.current);
+      smoothScale.jump(0);
+      scale.set(0);
+    };
+  }, []);
 
   const getPos = (clientX, clientY) => {
     if (!containerRef.current) return;
@@ -42,15 +50,24 @@ const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,16
     }, TOUCH_ANIM_MS);
   };
 
+  const reset = () => {
+    clearTimeout(touchTimer.current);
+    smoothScale.jump(0);
+    scale.set(0);
+    fromTouch.current = false;
+  };
+
   const handleClick = (e) => {
     if (!onClick) return;
     if (fromTouch.current) {
-      const remaining = TOUCH_ANIM_MS;
-      setTimeout(() => onClick(e), remaining);
+      setTimeout(() => {
+        onClick(e);
+        reset();
+      }, TOUCH_ANIM_MS);
     } else {
       setTimeout(() => {
-        scale.set(0);
         onClick(e);
+        reset();
       }, MOUSE_ANIM_MS);
     }
   };
