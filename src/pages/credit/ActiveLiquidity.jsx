@@ -18,8 +18,10 @@ import {
 import { AreaChart, Area, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { formatZar } from "../../lib/formatCurrency";
 import { supabase } from "../../lib/supabase";
+import NavigationPill from "../../components/NavigationPill";
+import NotificationBell from "../../components/NotificationBell";
 
-const ActiveLiquidity = ({ onBack, fonts, profile }) => {
+const ActiveLiquidity = ({ onBack, fonts, profile, onTabChange, onOpenNotifications }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -128,8 +130,15 @@ const ActiveLiquidity = ({ onBack, fonts, profile }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col animate-in slide-in-from-right duration-300">
-      {/* Header */}
-      <div className="px-6 pt-12 pb-6 flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
+      <header className="px-6 pt-12 pb-4 relative flex items-center justify-between bg-white text-slate-900">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700 uppercase">
+          {profile?.firstName?.[0]}{profile?.lastName?.[0]}
+        </div>
+        <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
+        <NotificationBell onClick={onOpenNotifications} color="black" />
+      </header>
+
+      <div className="px-6 pb-6 pt-2 flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
         <button onClick={onBack} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-600 active:scale-95 transition-all">
           <ChevronLeft size={20} />
         </button>

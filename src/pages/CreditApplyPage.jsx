@@ -6,6 +6,8 @@ import { MintRadarChart } from "../components/credit/ui/MintRadarChart";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 import { useCreditCheck } from "../lib/useCreditCheck";
+import NavigationPill from "../components/NavigationPill";
+import NotificationBell from "../components/NotificationBell";
 import CreditApplySkeleton from "../components/CreditApplySkeleton";
 
 // --- Subcomponents for Stages ---
@@ -708,7 +710,8 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
 
 // --- ORCHESTRATOR ---
 
-const CreditApplyWizard = ({ onBack, onComplete, onTabChange }) => {
+const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotifications }) => {
+   const { profile } = useProfile();
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
    const [autoAdvance, setAutoAdvance] = useState(false);
    const [checkedExistingScore, setCheckedExistingScore] = useState(false);
@@ -914,14 +917,27 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange }) => {
      if (step === "bank_success") {
         return (
            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
-              <header className="w-full flex items-center justify-start pt-10 pb-6 relative">
+              <header className="px-6 pt-12 pb-4 w-full relative flex items-center justify-between bg-white text-slate-900">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700 uppercase">
+                  {profile?.firstName?.[0]}{profile?.lastName?.[0]}
+                </div>
+                <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
+                <NotificationBell onClick={onOpenNotifications} color="black" />
+              </header>
+
+              <div className="px-6 pb-6 pt-2 w-full flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
                  <button
                     onClick={() => onBack ? onBack() : window.history.back()}
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95 z-30"
                  >
                     <ArrowLeft className="h-5 w-5" />
                  </button>
-              </header>
+                 <div className="text-center">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Unsecured</h3>
+                    <p className="text-[10px] font-bold text-violet-600">Application</p>
+                 </div>
+                 <div className="w-10" />
+              </div>
 
               <div className="mt-16 flex flex-col items-center justify-center text-center">
                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-50 text-green-600 mb-4">
@@ -970,14 +986,27 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange }) => {
                   }
                   return (
                      <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
-                        <header className="w-full flex items-center justify-start pt-10 pb-6 relative">
+                        <header className="px-6 pt-12 pb-4 w-full relative flex items-center justify-between bg-white text-slate-900">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700 uppercase">
+                            {profile?.firstName?.[0]}{profile?.lastName?.[0]}
+                          </div>
+                          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
+                          <NotificationBell onClick={onOpenNotifications} color="black" />
+                        </header>
+
+                        <div className="px-6 pb-6 pt-2 w-full flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
                            <button
                               onClick={() => onBack ? onBack() : window.history.back()}
                               className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95 z-30"
                            >
                               <ArrowLeft className="h-5 w-5" />
                            </button>
-                        </header>
+                           <div className="text-center">
+                              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Unsecured</h3>
+                              <p className="text-[10px] font-bold text-violet-600">Application</p>
+                           </div>
+                           <div className="w-10" />
+                        </div>
 
                         <div className="mb-6 relative z-10 mt-4">
                            <div style={{ animation: "subtleBounce 3s ease-in-out infinite" }}>

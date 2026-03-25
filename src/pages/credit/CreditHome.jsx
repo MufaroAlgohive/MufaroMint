@@ -37,13 +37,6 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
       description: "Access capital solutions based on your digital profile.", 
       icon: Zap, 
       badge: "Direct Access"
-    },
-    { 
-      id: "more",
-      label: "find out more", 
-      description: "Explore diverse borrowing options and risk profiles.", 
-      icon: BookOpen, 
-      badge: "Knowledge Base"
     }
   ];
 

@@ -1500,7 +1500,23 @@ const App = () => {
   if (currentPage === "creditApply") {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <CreditApplyPage onBack={goBack} onTabChange={setCurrentPage} />
+        <AppLayout
+          activeTab="creditApply"
+          onTabChange={handleTabChange}
+          onWithdraw={handleWithdrawRequest}
+          onShowComingSoon={handleShowComingSoon}
+          modal={modal}
+          onCloseModal={closeModal}
+        >
+          <CreditApplyPage 
+            onBack={goBack} 
+            onTabChange={setCurrentPage} 
+            onOpenNotifications={() => {
+              setNotificationReturnPage("creditApply");
+              navigateTo("notifications");
+            }}
+          />
+        </AppLayout>
       </SwipeBackWrapper>
     );
   }

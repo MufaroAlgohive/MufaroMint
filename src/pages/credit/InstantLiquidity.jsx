@@ -275,10 +275,10 @@ const handlePledgeAll = () => {
   };
 
   // --- SUB-PAGE ROUTING ---
-  if (view === "history") return <LiquidityHistory onBack={() => setView("main")} fonts={fonts} />;
-  if (view === "active") return <ActiveLiquidity onBack={() => setView("main")} fonts={fonts} />;
-  if (view === "repay") return <RepayLiquidity onBack={() => setView("main")} fonts={fonts} totalDebt={256450} />;
-  if (view === "portfolio") return <NewPortfolio onBack={() => setView("main")} fonts={fonts} />;
+  if (view === "history") return <LiquidityHistory onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
+  if (view === "active") return <ActiveLiquidity onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
+  if (view === "repay") return <RepayLiquidity onBack={() => setView("main")} fonts={fonts} totalDebt={256450} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
+  if (view === "portfolio") return <NewPortfolio onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
 
   return (
     <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900">
