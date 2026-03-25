@@ -1,54 +1,86 @@
-import React, { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { ChevronLeft, ShieldCheck, ChevronRight, X, Zap, AlertCircle } from "lucide-react";
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  ChevronLeft,
+  ShieldCheck,
+  Clock,
+  AlertCircle,
+  Lock,
+  ChevronRight,
+  Calendar,
+  ArrowUpRight,
+  TrendingUp,
+  Search
+} from "lucide-react";
+import { AreaChart, Area, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { formatZar } from "../../lib/formatCurrency";
 import { supabase } from "../../lib/supabase";
 import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
 
-const ActiveLiquidity = ({ onBack, profile, onTabChange, onOpenNotifications }) => {
+const ActiveLiquidity = ({ onBack, fonts, profile, onTabChange, onOpenNotifications }) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [activeLoans, setActiveLoans] = useState([]);
-  const [selectedLoan, setSelectedLoan] = useState(null);
-  const [portalTarget, setPortalTarget] = useState(null);
+  const itemsPerPage = 6;
 
-  const fonts = {
-    display: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
-  };
-
-  useEffect(() => { setPortalTarget(document.body); }, []);
-
+  // --- LIVE DATA FETCHING ---
   useEffect(() => {
     async function fetchActiveLoans() {
       if (!profile?.id) return;
       setLoading(true);
-      // Fetches approved loans and joins with security metadata for live risk tracking
       const { data, error } = await supabase
         .from('loan_application')
         .select(`
-          *,
+          id, principal_amount, created_at, status,
           pbc_collateral_pledges (
-            symbol, pledged_value, recognised_value,
-            securities ( logo_url, margin_call_pct, auto_liq_pct )
+            symbol, pledged_value,
+            securities ( name, margin_call_pct )
           )
         `)
         .eq('user_id', profile.id)
         .eq('status', 'approved');
 
-      if (!error) setActiveLoans(data);
+      if (!error && data) {
+        const formatted = data.map(loan => {
+          const pledge = loan.pbc_collateral_pledges[0];
+          const ltvValue = pledge ? (loan.principal_amount / pledge.pledged_value) * 100 : 0;
+          return {
+            id: loan.id.split('-')[0].toUpperCase(),
+            asset: pledge?.securities?.name || "Asset",
+            code: pledge?.symbol || "TICKER",
+            amount: loan.principal_amount,
+            nextPayment: loan.created_at,
+            status: loan.status === 'approved' ? 'active' : loan.status,
+            ltv: ltvValue,
+            interestAccrued: loan.principal_amount * 0.015, // Derived interest
+            marginCall: (pledge?.securities?.margin_call_pct || 0.65) * 100
+          };
+        });
+        setActiveLoans(formatted);
+      }
       setLoading(false);
     }
     fetchActiveLoans();
   }, [profile?.id]);
 
+  const filteredLoans = useMemo(() => {
+    return activeLoans.filter(loan =>
+      loan.asset.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      loan.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      loan.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [activeLoans, searchQuery]);
+
+  const totalPages = Math.ceil(filteredLoans.length / itemsPerPage);
+  const paginatedLoans = filteredLoans.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
-    <div className="min-h-screen pb-32 bg-[#f8f6fa] text-slate-900">
-      {/* Standardized Dark Header */}
+    <div className="min-h-screen pb-32 bg-[#f8f6fa]">
       <header className="px-5 pt-12 pb-8 flex items-center justify-between bg-[#0d0d12] text-white">
         <div className="flex items-center gap-2">
           <img src="/assets/mint-logo.png" alt="Mint" className="h-5" />
-          <span className="text-[10px] font-black uppercase tracking-widest opacity-70" style={{ fontFamily: fonts.display }}>credit</span>
+          <span className="text-[10px] font-black uppercase tracking-widest opacity-70" style={{ fontFamily: fonts?.display }}>credit</span>
         </div>
         <NavigationPill activeTab="credit" onTabChange={onTabChange} />
         <NotificationBell onClick={onOpenNotifications} />
@@ -57,72 +89,85 @@ const ActiveLiquidity = ({ onBack, profile, onTabChange, onOpenNotifications }) 
       <div className="p-6">
         <div className="flex items-center gap-3 mb-8 cursor-pointer" onClick={onBack}>
           <ChevronLeft className="text-slate-400" />
-          <h2 className="text-xl font-bold" style={{ fontFamily: fonts.display }}>Active Pledges</h2>
+          <h2 className="text-xl font-bold" style={{ fontFamily: fonts?.display }}>Active Pledges</h2>
         </div>
 
-        {loading ? (
-          <div className="py-20 text-center text-[10px] font-black uppercase tracking-widest animate-pulse opacity-40">Retrieving Vault Data...</div>
-        ) : activeLoans.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-[32px] border border-slate-100 shadow-sm">
-            <p className="text-slate-400 font-medium">No active credit positions found.</p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {activeLoans.map((loan) => (
-              <button
-                key={loan.id}
-                onClick={() => setSelectedLoan(loan)}
-                className="w-full bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm text-left flex justify-between items-center active:scale-[0.98] transition-all"
-              >
+        <div className="relative mb-8">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder="Search active loans..."
+            className="w-full bg-white border border-slate-100 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium outline-none shadow-sm"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-4">
+          {loading ? (
+            <div className="py-20 text-center text-[10px] font-black uppercase tracking-widest animate-pulse opacity-40">Syncing Vault...</div>
+          ) : paginatedLoans.map((loan) => (
+            <div key={loan.id} className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm overflow-hidden relative">
+              <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-2xl bg-violet-50 flex items-center justify-center text-violet-600">
+                  <div className="h-12 w-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center">
                     <ShieldCheck size={24} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Principal Debt</p>
-                    <p className="text-lg font-bold" style={{ fontFamily: fonts.display }}>{formatZar(loan.principal_amount)}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{loan.id}</p>
+                    <h3 className="font-bold text-slate-900">{loan.asset} ({loan.code})</h3>
                   </div>
                 </div>
-                <ChevronRight className="text-slate-300" />
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* POSITION HEALTH MODAL */}
-      {selectedLoan && portalTarget && createPortal(
-        <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-right duration-300">
-          <div className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-100">
-            <button onClick={() => setSelectedLoan(null)} className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center"><X size={20} /></button>
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Position Health</h3>
-            <div className="w-10" />
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-8">
-            <div className="mb-10 text-center">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Outstanding</p>
-              <p className="text-4xl font-bold tracking-tight" style={{ fontFamily: fonts.display }}>{formatZar(selectedLoan.principal_amount)}</p>
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100 shadow-inner">
-                <div className="flex justify-between mb-4">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Safety Bar</span>
-                  <span className="text-[10px] font-bold text-emerald-600 uppercase">Secure</span>
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Principal</p>
+                  <p className="text-lg font-black" style={{ fontFamily: fonts?.display }}>{formatZar(loan.amount)}</p>
                 </div>
-                <div className="relative h-3 w-full bg-slate-200 rounded-full overflow-hidden flex">
-                  <div className="h-full bg-emerald-500" style={{ width: `${(selectedLoan.pbc_collateral_pledges[0]?.securities?.margin_call_pct || 0.65) * 100}%` }} />
-                  <div className="h-full bg-amber-400" style={{ width: `${((selectedLoan.pbc_collateral_pledges[0]?.securities?.auto_liq_pct || 0.70) - (selectedLoan.pbc_collateral_pledges[0]?.securities?.margin_call_pct || 0.65)) * 100}%` }} />
-                  <div className="h-full bg-rose-500 flex-1" />
-                  {/* Live LTV Needle */}
-                  <div className="absolute top-0 bottom-0 w-1 bg-white shadow-xl ring-2 ring-black/5" style={{ left: `${(selectedLoan.principal_amount / selectedLoan.pbc_collateral_pledges[0]?.pledged_value) * 100}%` }} />
+              </div>
+
+              <div className="h-24 w-full mb-6">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={[{ ltv: 0 }, { ltv: loan.ltv * 0.5 }, { ltv: loan.ltv }]}>
+                    <defs>
+                      <linearGradient id={`grad-${loan.id}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="ltv" stroke="#7c3aed" strokeWidth={2} fill={`url(#grad-${loan.id})`} />
+                    <ReferenceLine y={loan.marginCall} stroke="#f59e0b" strokeDasharray="3 3" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
+                <div className="flex items-center gap-2">
+                  <Clock size={14} className="text-slate-400" />
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">{new Date(loan.nextPayment).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <AlertCircle size={14} className={loan.ltv > loan.marginCall ? "text-rose-500" : "text-emerald-500"} />
+                  <p className={`text-[11px] font-black uppercase ${loan.ltv > loan.marginCall ? "text-rose-600" : "text-emerald-600"}`}>
+                    {loan.ltv.toFixed(1)}% LTV
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
+          ))}
         </div>
-        , portalTarget)}
+
+        {totalPages > 1 && (
+          <div className="px-6 py-8 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-violet-600"></div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Page {currentPage} of {totalPages}</p>
+            </div>
+            <div className="flex gap-3">
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="h-12 w-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 shadow-sm"><ChevronLeft size={20} /></button>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="h-12 w-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg"><ChevronRight size={20} /></button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
