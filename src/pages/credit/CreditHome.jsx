@@ -1,6 +1,6 @@
 import React from "react";
 import { 
-  Zap, HandCoins, ChevronRight, HelpCircle, PieChart 
+  Zap, ChevronRight, HelpCircle, ShieldCheck, BookOpen 
 } from "lucide-react";
 import { motion } from 'framer-motion';
 import NavigationPill from "../../components/NavigationPill";
@@ -28,21 +28,21 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
       id: "portfolio",
       label: "portfolio back credit", 
       description: "Use your investment history for instant liquidity.", 
-      icon: HandCoins, 
+      icon: ShieldCheck, 
       badge: "Asset Backed"
     },
     { 
       id: "unsecured",
       label: "unsecured credit", 
       description: "Access capital solutions based on your digital profile.", 
-      icon: PieChart, 
+      icon: Zap, 
       badge: "Direct Access"
     },
     { 
       id: "more",
       label: "find out more", 
       description: "Explore diverse borrowing options and risk profiles.", 
-      icon: Zap, 
+      icon: BookOpen, 
       badge: "Knowledge Base"
     }
   ];
@@ -71,7 +71,7 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
             )}
           </div>
           
-          <NavigationPill activeTab="credit" onTabChange={onTabChange} />
+          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
           <NotificationBell onClick={onOpenNotifications} color="black" />
         </header>
 
