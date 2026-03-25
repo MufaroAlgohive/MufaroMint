@@ -116,7 +116,7 @@ const DepositPage = ({ onBack }) => {
 
           <div className="mx-5 my-3 border-t border-dashed border-slate-100" />
 
-          {/* Copyable fields */}
+          {/* Copyable fields — grouped */}
           <div className="px-5 pb-4 space-y-2.5">
             <p className="text-[10px] uppercase tracking-widest text-slate-400 font-semibold mb-3">Copy Details</p>
 
