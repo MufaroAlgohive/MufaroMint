@@ -506,15 +506,6 @@ const App = () => {
             onTabChange={setCurrentPage} 
           />
         );
-
-      case "instantLiquidity":
-        return (
-          <InstantLiquidityPage 
-            profile={profile} 
-            onOpenNotifications={() => setShowNotifications(true)} 
-            onTabChange={setCurrentPage} 
-          />
-        );
       case 'statements':
         return (
           <AppLayout
@@ -931,12 +922,13 @@ const App = () => {
         modal={modal}
         onCloseModal={closeModal}
       >
-        <CreditPage
+        <CreditHome
+          profile={profile}
           onOpenNotifications={() => {
             setNotificationReturnPage("credit");
             navigateTo("notifications");
           }}
-          onOpenCreditApply={() => navigateTo("creditApply")}
+          onTabChange={setCurrentPage}
         />
       </AppLayout>
     );
