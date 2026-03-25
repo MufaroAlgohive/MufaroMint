@@ -675,7 +675,7 @@ const App = () => {
       case 'profileDetails':
         return <ProfileDetailsPage onNavigate={noOp} onBack={noOp} />;
       case 'creditApply':
-        return <CreditApplyPage onBack={noOp} />;
+        return <CreditApplyPage onBack={noOp} onTabChange={setCurrentPage} />;
       case 'creditRepay':
         return <CreditRepayPage onBack={noOp} />;
       case 'identityCheck':
@@ -1500,7 +1500,7 @@ const App = () => {
   if (currentPage === "creditApply") {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <CreditApplyPage onBack={goBack} />
+        <CreditApplyPage onBack={goBack} onTabChange={setCurrentPage} />
       </SwipeBackWrapper>
     );
   }

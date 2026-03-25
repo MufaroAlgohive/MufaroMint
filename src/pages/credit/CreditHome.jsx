@@ -3,68 +3,25 @@ import {
   Zap, HandCoins, ChevronRight, HelpCircle, PieChart 
 } from "lucide-react";
 import { motion } from 'framer-motion';
-import NavigationPill from "../../components/NavigationPill";
+import CreditNavigationPill from "../../components/CreditNavigationPill";
 import NotificationBell from "../../components/NotificationBell";
 
-// --- PURPLE GLOBE GRAPHIC COMPONENT ---
-const PurpleGlobeGraphic = () => (
-  <div className="relative h-full w-full flex items-center justify-center p-6 lg:p-10">
-    {/* Base Spinning Globe */}
-    <motion.div 
-      initial={{ rotate: 0 }}
-      animate={{ rotate: 360 }}
-      transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-      className="relative h-64 w-64 lg:h-80 lg:w-80 rounded-full shadow-[0_0_100px_rgba(124,58,237,0.2)] overflow-hidden border border-white/5" 
-    >
-      {/* Globe Surface with CSS Gradients */}
-      <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-purple-900 to-black scale-105" />
-      
-      {/* Globe Grid Lines */}
-      {[...Array(8)].map((_, i) => (
-        <div 
-          key={i} 
-          className="absolute inset-0 border border-white/5 rounded-full" 
-          style={{ transform: `rotateY(${i * 45}deg)` }} 
-        />
-      ))}
-      <div className="absolute inset-0 border-y border-white/5 top-1/4 h-1/2" />
-    </motion.div>
-
-    {/* Moving Arcs Layer */}
-    <div className="absolute inset-0 z-10 pointer-events-none">
-        <svg viewBox="0 0 400 400" className="h-full w-full opacity-40">
-            {/* Arcs moving from one place to another */}
-            <motion.path 
-                d="M 100 200 Q 200 50 300 200" 
-                stroke="#a78bfa" strokeWidth="2" fill="none" 
-                initial={{ pathLength: 0, opacity: 0 }} 
-                animate={{ pathLength: 1, opacity: [0, 1, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <motion.path 
-                d="M 120 250 Q 200 120 280 250" 
-                stroke="#c084fc" strokeWidth="1.5" fill="none" 
-                initial={{ pathLength: 0, opacity: 0 }} 
-                animate={{ pathLength: 1, opacity: [0, 1, 0] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
-            />
-            <motion.path 
-                d="M 150 150 Q 250 250 350 150" 
-                stroke="#8b5cf6" strokeWidth="1" fill="none" 
-                initial={{ pathLength: 0, opacity: 0 }} 
-                animate={{ pathLength: 1, opacity: [0, 1, 0] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 3 }}
-            />
-        </svg>
-    </div>
-  </div>
-);
+// Removed PurpleGlobeGraphic as requested
 
 const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   const fonts = {
     display: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
+
+  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "—";
 
   const ctaCards = [
     { 
@@ -99,30 +56,35 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
 
       <div className="px-5 pt-12 pb-8">
         {/* Header Section */}
-        <header className="relative flex items-center justify-between mb-12">
-          <div className="flex items-center gap-2.5">
-              <img src="/assets/mint-logo.png" alt="Mint" className="h-6" />
-              <span className="text-[11px] font-black text-white uppercase tracking-[0.2em] opacity-80" style={{ fontFamily: fonts.display }}>credit</span>
+        <header className="relative flex items-center justify-between mb-12 z-20">
+          <div className="flex items-center gap-3">
+            {profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={displayName || "Profile"}
+                className="h-10 w-10 rounded-full border border-white/40 object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
+                {initials}
+              </div>
+            )}
           </div>
           
-          <NavigationPill activeTab="credit" onTabChange={onTabChange} />
+          <CreditNavigationPill activeTab="credit" onTabChange={onTabChange} />
           <NotificationBell onClick={onOpenNotifications} color="white" />
         </header>
 
         {/* Hero Section */}
         <div className="flex flex-col gap-2 mb-16 relative">
+            <div className="flex items-center gap-2 mb-4 z-20">
+              <img src="/assets/mint-logo.png" alt="Mint" className="h-4" />
+              <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] opacity-80" style={{ fontFamily: fonts.display }}>credit</span>
+            </div>
             <div className="z-20">
                  <h1 className="text-white text-5xl font-light tracking-tight mb-6 leading-[1.1]" style={{ fontFamily: fonts.display }}>
-                    Borrowing has<br /> never been <span className="font-black text-violet-400">easier</span>.
+                    Borrowing has<br /> never been <span className="font-light text-violet-400">easier</span>.
                  </h1>
-                 <p className="text-white/50 text-[13px] font-medium max-w-[280px] leading-relaxed">
-                    Leverage your digital assets and history for simplified access to capital solutions.
-                 </p>
-            </div>
-
-            {/* Spinning Globe Graphic */}
-            <div className="absolute -right-20 -top-20 w-80 h-80 z-10 opacity-80">
-                <PurpleGlobeGraphic />
             </div>
         </div>
 
