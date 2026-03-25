@@ -959,7 +959,7 @@ const App = () => {
   if (currentPage === "instantLiquidity") {
     return (
       <AppLayout
-        activeTab="credit" 
+        activeTab="instantLiquidity" 
         onTabChange={handleTabChange}
         onWithdraw={handleWithdrawRequest}
         onShowComingSoon={handleShowComingSoon}

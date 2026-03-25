@@ -96,6 +96,7 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
                 transition={{ delay: i * 0.1, duration: 0.4 }}
                 onClick={() => {
                     if (item.id === "portfolio") onTabChange("instantLiquidity");
+                    if (item.id === "unsecured") onTabChange("creditApply");
                 }}
                 className="w-full group relative overflow-hidden bg-white rounded-[32px] p-6 border border-slate-200 text-left transition-all active:scale-[0.98] flex items-center gap-5 shadow-sm shadow-slate-200/50 hover:shadow-md hover:border-violet-200"
             >

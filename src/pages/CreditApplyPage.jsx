@@ -917,12 +917,13 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
      if (step === "bank_success") {
         return (
            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
-              <header className="px-6 pt-12 pb-4 w-full relative flex items-center justify-between bg-white text-slate-900">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700 uppercase">
-                  {profile?.firstName?.[0]}{profile?.lastName?.[0]}
+              <header className="px-5 pt-12 pb-8 flex items-center justify-between bg-[#0d0d12] text-white w-full relative">
+                <div className="flex items-center gap-2">
+                  <img src="/assets/mint-logo.png" alt="Mint" className="h-5" />
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-70">credit</span>
                 </div>
-                <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
-                <NotificationBell onClick={onOpenNotifications} color="black" />
+                <NavigationPill activeTab="credit" onTabChange={onTabChange} />
+                <NotificationBell onClick={onOpenNotifications} />
               </header>
 
               <div className="px-6 pb-6 pt-2 w-full flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
@@ -986,12 +987,13 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                   }
                   return (
                      <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 flex flex-col items-center px-6 pb-10 min-h-screen bg-white">
-                        <header className="px-6 pt-12 pb-4 w-full relative flex items-center justify-between bg-white text-slate-900">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700 uppercase">
-                            {profile?.firstName?.[0]}{profile?.lastName?.[0]}
+                        <header className="px-5 pt-12 pb-8 flex items-center justify-between bg-[#0d0d12] text-white w-full relative">
+                          <div className="flex items-center gap-2">
+                            <img src="/assets/mint-logo.png" alt="Mint" className="h-5" />
+                            <span className="text-[10px] font-black uppercase tracking-widest opacity-70">credit</span>
                           </div>
-                          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
-                          <NotificationBell onClick={onOpenNotifications} color="black" />
+                          <NavigationPill activeTab="credit" onTabChange={onTabChange} />
+                          <NotificationBell onClick={onOpenNotifications} />
                         </header>
 
                         <div className="px-6 pb-6 pt-2 w-full flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
