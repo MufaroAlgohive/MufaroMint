@@ -6,6 +6,7 @@ const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,16
   const containerRef = useRef(null);
   const scale = useMotionValue(0);
   const smoothScale = useSpring(scale, { stiffness: 85, damping: 18, restDelta: 0.001 });
+  const touchTimer = useRef(null);
 
   const getPos = (clientX, clientY) => {
     if (!containerRef.current) return;
@@ -27,10 +28,10 @@ const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,16
     const touch = e.touches[0];
     getPos(touch.clientX, touch.clientY);
     scale.set(1);
-  };
-
-  const handleTouchEnd = () => {
-    scale.set(0);
+    clearTimeout(touchTimer.current);
+    touchTimer.current = setTimeout(() => {
+      scale.set(0);
+    }, 350);
   };
 
   return (
@@ -41,8 +42,6 @@ const OriginButton = ({ children, onClick, className, circleColor = "rgba(148,16
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchCancel={handleTouchEnd}
       className={className}
       style={{ ...style, position: "relative", overflow: "hidden" }}
       aria-label={ariaLabel}
