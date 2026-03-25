@@ -127,7 +127,8 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               ? prices.map(p => parseFloat(p.close_price)).reverse()
               : [0, 0, 0, 0, 0, 0, 0];
 
-            const balance = item.quantity * (sec.last_price || 0);
+            // Dividing by 10 shifts the decimal one place to the right compared to the standard /100
+            const balance = (item.quantity * (sec.last_price || 0)) / 10;
 
             return {
               id: sec.id,
