@@ -54,7 +54,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
   // --- PORTFOLIO & SELECTION STATE ---
   const [portfolioItems, setPortfolioItems] = useState([]);
   const [selectedAssets, setSelectedAssets] = useState([]);
-  const [userPin, setUserPin] = useState(null);
+  const [generatedPin, setGeneratedPin] = useState("");
 
   // --- WORKFLOW STATE ---
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -216,15 +216,21 @@ const handlePledgeAll = () => {
   };
 
   // --- SUPABASE TRANSACTION ---
-  const handleConfirmPledge = async () => {
+  const initiateSessionAuth = () => {
     // EFT Payout Requirement: Bank must be verified via TruID first
     if (!bankLinked) {
       setWorkflowStep("verify_bank");
       return;
     }
+    const randomPin = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedPin(randomPin);
+    setPinInput("");
+    setWorkflowStep("auth");
+  };
 
-    if (pinInput !== userPin) {
-      alert("Incorrect Security PIN.");
+  const handleConfirmPledge = async () => {
+    if (pinInput !== generatedPin) {
+      alert("Verification code mismatch. Please type the 6-digit code shown above.");
       setPinInput("");
       return;
     }
@@ -232,38 +238,38 @@ const handlePledgeAll = () => {
     try {
         const principal = parseFloat(pledgeAmount);
         const interestRate = 10.5;
-        const annualInterest = principal * (interestRate / 100);
-        const currentLTV = (principal / totalSelectedBalance) * 100;
 
-        // Transition to 'pending_payout' as per EFT Payout Flow blueprint
+        // Calculate months for the DB constraint
+        const start = new Date();
+        const end = new Date(repaymentDate);
+        const months = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+
         const { data: loan, error: loanErr } = await supabase.from('loan_application').insert({
-            user_id: profile.id, 
-            principal_amount: principal, 
+            user_id: profile.id,
+            principal_amount: principal,
             interest_rate: interestRate,
-            amount_repayable: principal + annualInterest, 
-            status: 'pending_payout', // Trigger status for Admin Dashboard
+            amount_repayable: principal * (1 + (interestRate / 100)),
+            number_of_months: months,
             first_repayment_date: repaymentDate,
-            ltv_at_report: currentLTV,
-            payout_method: 'EFT'
+            status: 'approved',
+            step_number: 4
         }).select().single();
-        
+
         if (loanErr) throw loanErr;
 
-        // Spread the loan value across selected assets based on their balance weight
         const pledges = selectedAssets.map(item => ({
-            user_id: profile.id, 
-            loan_application_id: loan.id, 
+            user_id: profile.id,
+            loan_application_id: loan.id,
             symbol: item.code,
-            pledged_quantity: item.quantity, 
+            pledged_quantity: item.quantity,
             pledged_value: item.balance,
-            recognised_value: item.available, 
+            recognised_value: item.available,
             ltv_applied: item.ltv,
             loan_value: principal * (item.balance / totalSelectedBalance)
         }));
 
         await supabase.from('pbc_collateral_pledges').insert(pledges);
-        
-        // Update the Credit Account view (Locked until payout confirms)
+
         const { data: account } = await supabase.from('credit_accounts').select('loan_balance, available_credit').eq('user_id', profile.id).single();
         await supabase.from('credit_accounts').update({
             loan_balance: (account?.loan_balance || 0) + principal,
@@ -272,20 +278,12 @@ const handlePledgeAll = () => {
         }).eq('user_id', profile.id);
 
         setWorkflowStep("success");
-    } catch (err) { 
+    } catch (err) {
         console.error("Pledge failed:", err);
-        alert("Transaction failed. Contact support."); 
-    } finally { 
-        setIsProcessing(false); 
+        alert("Transaction failed. Check console for details.");
+    } finally {
+        setIsProcessing(false);
     }
-  };
-
-  const handleSetupPin = async () => {
-    if (newPin.length !== 5) return;
-    setIsProcessing(true);
-    const { error } = await supabase.from('profiles').update({ pin: newPin }).eq('id', profile.id);
-    if (!error) { setUserPin(newPin); setWorkflowStep("auth"); }
-    setIsProcessing(false);
   };
 
   // --- SUB-PAGE ROUTING ---
@@ -717,7 +715,7 @@ const handlePledgeAll = () => {
                     <div className="space-y-2">
                         <button 
                             disabled={!disclaimerChecked || !repaymentDate} 
-                            onClick={() => setWorkflowStep(userPin ? "auth" : "setup_pin")} 
+                            onClick={initiateSessionAuth} 
                             className="w-full bg-slate-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-30"
                         >
                             Authorize Capital
@@ -779,18 +777,26 @@ const handlePledgeAll = () => {
             {workflowStep === "auth" && (
                 <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">
                     <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><Lock size={28} /></div>
-                    <h3 className="text-xl font-bold text-slate-900 mb-2">Security Challenge</h3>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8">Confirm Secure PIN</p>
-                    <input type="password" maxLength={5} value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="•••••" className="w-full h-14 bg-slate-50 rounded-2xl text-center text-2xl font-black tracking-[0.5em] mb-8 outline-none border border-slate-100" />
-                    <button onClick={handleConfirmPledge} disabled={pinInput.length !== 5 || isProcessing} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl">
-                        {isProcessing ? "Transacting..." : "Confirm Release"}
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Security Verification</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Enter the code shown below</p>
+
+                    <div className="bg-slate-900 rounded-2xl py-4 mb-6">
+                        <span className="text-3xl font-black tracking-[0.5em] text-white ml-2">{generatedPin}</span>
+                    </div>
+
+                    <input
+                        type="text"
+                        maxLength={6}
+                        value={pinInput}
+                        onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                        placeholder="TYPE CODE"
+                        className="w-full h-14 bg-slate-50 rounded-2xl text-center text-2xl font-black tracking-[0.2em] mb-8 outline-none border border-slate-100 focus:border-violet-500"
+                    />
+
+                    <button onClick={handleConfirmPledge} disabled={pinInput.length !== 6 || isProcessing} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl">
+                        {isProcessing ? "Verifying..." : "Confirm Release"}
                     </button>
-                    <button 
-                      onClick={closeDetail} 
-                      className="w-full py-2 mt-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]"
-                    >
-                      Cancel Transaction
-                    </button>
+                    <button onClick={() => setWorkflowStep("contract")} className="w-full py-2 mt-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Go Back</button>
                 </div>
             )}
 
