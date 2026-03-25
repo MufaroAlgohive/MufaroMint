@@ -1,4 +1,56 @@
-import React from "react";
+import React, { useState, useRef, startTransition } from "react";
+import { motion, useMotionValue, useSpring } from "framer-motion";
+
+const OriginButton = ({ children, onClick, className, circleColor }) => {
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const containerRef = useRef(null);
+  const scale = useMotionValue(0);
+  const smoothScale = useSpring(scale, { stiffness: 85, damping: 18, restDelta: 0.001 });
+
+  const handleMouseEnter = (e) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    startTransition(() => setCursorPos({ x: e.clientX - rect.left, y: e.clientY - rect.top }));
+    scale.set(1);
+  };
+
+  const handleMouseLeave = (e) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    startTransition(() => setCursorPos({ x: e.clientX - rect.left, y: e.clientY - rect.top }));
+    scale.set(0);
+  };
+
+  return (
+    <button
+      ref={containerRef}
+      type="button"
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={className}
+      style={{ position: "relative", overflow: "hidden" }}
+    >
+      <motion.span
+        style={{
+          position: "absolute",
+          left: cursorPos.x,
+          top: cursorPos.y,
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          backgroundColor: circleColor,
+          scale: smoothScale,
+          x: "-50%",
+          y: "-50%",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
+      <span style={{ position: "relative", zIndex: 1 }}>{children}</span>
+    </button>
+  );
+};
 
 const OnboardingPage = ({ onCreateAccount, onLogin }) => {
   return (
@@ -23,20 +75,21 @@ const OnboardingPage = ({ onCreateAccount, onLogin }) => {
             </div>
 
             <div className="flex flex-col gap-4 animate-on-load delay-3 sm:items-start">
-              <button
-                type="button"
+              <OriginButton
                 onClick={onLogin}
-                className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 sm:w-auto"
+                circleColor="rgba(148,163,184,0.18)"
+                className="inline-flex w-full items-center justify-center rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-900 shadow-sm sm:w-auto"
               >
                 Login
-              </button>
-              <button
-                type="button"
+              </OriginButton>
+
+              <OriginButton
                 onClick={onCreateAccount}
-                className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 sm:w-auto"
+                circleColor="rgba(255,255,255,0.12)"
+                className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-slate-900/20 sm:w-auto"
               >
                 Create Account
-              </button>
+              </OriginButton>
             </div>
           </div>
         </div>
