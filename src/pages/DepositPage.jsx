@@ -50,7 +50,7 @@ const DepositPage = ({ onBack }) => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-32">
+    <div className="min-h-screen bg-slate-50 pb-8">
       {/* Header */}
       <div className="bg-gradient-to-br from-[#31005e] to-[#5b21b6] px-6 pt-14 pb-12">
         <div className="flex items-center gap-3 mb-5">
