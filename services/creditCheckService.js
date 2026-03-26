@@ -55,7 +55,7 @@ function normalizeExperianPayload(userData = {}) {
         date_of_birth: toYyyyMmDdCompact(userData.date_of_birth),
         address1: userData.address1 || userData.street_address || userData.address || '',
         address2: userData.address2 || userData.suburb_area || userData.suburb || '',
-        postal_code: userData.postal_code || '',
+        postal_code: userData.postal_code || userData.postalCode || userData.postcode || userData.zip || userData.zip_code || '',
         cell_tel_no: userData.cell_tel_no || userData.cell_phone || userData.contact_number || '',
         passport_flag: userData.passport_flag || 'N'
     };

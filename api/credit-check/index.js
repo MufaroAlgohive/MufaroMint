@@ -120,6 +120,7 @@ export default async function handler(req, res) {
     forename: overrides?.forename || overrides?.first_name || overrides?.firstName,
     date_of_birth: overrides?.date_of_birth || overrides?.dateOfBirth,
     address1: overrides?.address1 || overrides?.address,
+    postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code,
     contract_type: overrides?.contract_type || overrides?.contractType
   };
 
