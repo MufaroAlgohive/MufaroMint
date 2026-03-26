@@ -231,13 +231,22 @@ const ConnectionStage = ({ onComplete, onError }) => {
         </div>
 
         {(status === "idle" || status === "error" || status === "cancelled") && (
-          <button
-            onClick={startSession}
-            className="w-full py-4 rounded-full bg-white/80 text-slate-800 border border-white/70 font-semibold text-sm shadow-sm shadow-black/5 hover:bg-white hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center gap-2"
-          >
-            <ShieldCheck size={18} />
-            {status === "error" || status === "cancelled" ? "Try Again" : "Connect Bank"}
-          </button>
+               <div className="w-full space-y-2">
+                  <button
+                     onClick={startSession}
+                     className="w-full py-4 rounded-full bg-white/80 text-slate-800 border border-white/70 font-semibold text-sm shadow-sm shadow-black/5 hover:bg-white hover:text-slate-900 active:scale-95 transition-all flex items-center justify-center gap-2"
+                  >
+                     <ShieldCheck size={18} />
+                     {status === "error" || status === "cancelled" ? "Try Again" : "Connect Bank"}
+                  </button>
+                  <button
+                     type="button"
+                     onClick={() => onComplete(null, null)}
+                     className="w-full text-center text-xs font-semibold text-slate-500 underline underline-offset-4 hover:text-slate-700"
+                  >
+                     Skip TruID verification for now
+                  </button>
+               </div>
         )}
 
         {status === "connecting" && (
@@ -740,7 +749,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
       if (!snapshot || step !== 0) return;
       setAutoAdvance(true);
       const timer = setTimeout(() => {
-         setStep("bank_success");
+         setStep(2);
          setAutoAdvance(false);
       }, 900);
       return () => clearTimeout(timer);
@@ -802,7 +811,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
          if (snapshotData.avg_monthly_income) setField("annualIncome", String(snapshotData.avg_monthly_income * 12));
          if (snapshotData.avg_monthly_expenses) setField("annualExpenses", String(snapshotData.avg_monthly_expenses * 12));
      }
-     setStep("bank_success");
+     setStep(2);
   };
 
   const handleEnrichmentSubmit = async (finalData) => {
