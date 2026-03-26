@@ -22,6 +22,68 @@ const EXPERIAN_CONFIG = {
     mockMode: process.env.EXPERIAN_MOCK === 'true'
 };
 
+/* ── Experian payload helpers (ported from reference) ── */
+
+function toYyyyMmDdCompact(value) {
+    if (!value) return '';
+    const raw = String(value).trim();
+    if (/^\d{8}$/.test(raw)) return raw;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.replace(/-/g, '');
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().slice(0, 10).replace(/-/g, '');
+    }
+    return '';
+}
+
+/**
+ * Normalise all consumer fields to exact Experian spec before building SOAP.
+ * - gender → single uppercase char (M / F)
+ * - date_of_birth → YYYYMMDD compact
+ * - address, phone, name fallbacks unified
+ */
+function normalizeExperianPayload(userData = {}) {
+    const normalizedGender = String(userData.gender || '').toUpperCase();
+    const gender = normalizedGender.startsWith('F') ? 'F' : (normalizedGender.startsWith('M') ? 'M' : '');
+
+    return {
+        ...userData,
+        identity_number: userData.identity_number || userData.id_number || '',
+        surname: userData.surname || userData.last_name || '',
+        forename: userData.forename || userData.first_name || '',
+        gender,
+        date_of_birth: toYyyyMmDdCompact(userData.date_of_birth),
+        address1: userData.address1 || userData.street_address || userData.address || '',
+        address2: userData.address2 || userData.suburb_area || userData.suburb || '',
+        postal_code: userData.postal_code || '',
+        cell_tel_no: userData.cell_tel_no || userData.cell_phone || userData.contact_number || '',
+        passport_flag: userData.passport_flag || 'N'
+    };
+}
+
+/**
+ * Throw with a descriptive message listing any of the 7 fields Experian requires.
+ */
+function assertRequiredExperianFields(userData = {}) {
+    const requiredFields = [
+        ['identity_number', 'ID Number'],
+        ['surname', 'Surname'],
+        ['forename', 'First Name'],
+        ['gender', 'Gender'],
+        ['date_of_birth', 'Date of Birth'],
+        ['address1', 'Street Address'],
+        ['postal_code', 'Postal Code']
+    ];
+
+    const missing = requiredFields
+        .filter(([key]) => !userData[key] || !String(userData[key]).trim())
+        .map(([, label]) => label);
+
+    if (missing.length > 0) {
+        throw new Error(`Missing required Experian fields: ${missing.join(', ')}`);
+    }
+}
+
 function toArray(value) {
     if (!value) {
         return [];
@@ -371,12 +433,28 @@ async function parseExperianResponse(soapResponse) {
         const retdata = transReply?.retData || transReply?.retdata;
         
         if (!retdata) {
-            throw new Error('No retdata found in response');
+            // Dump TransReply so we can diagnose Experian error codes
+            const trKeys = transReply ? Object.keys(transReply) : [];
+            console.error('[experian] ⚠️  No retdata in TransReply. Keys present:', trKeys);
+            if (transReply?.errorCode || transReply?.errorString) {
+                console.error('[experian]    errorCode:', transReply.errorCode);
+                console.error('[experian]    errorString:', transReply.errorString);
+            }
+            if (transReply?.transactionCompleted !== undefined) {
+                console.error('[experian]    transactionCompleted:', transReply.transactionCompleted);
+            }
+            // Print full TransReply for debugging
+            console.error('[experian]    full TransReply:', JSON.stringify(transReply, null, 2));
+            throw new Error(
+                transReply?.errorString
+                    ? `Experian error ${transReply.errorCode}: ${transReply.errorString}`
+                    : 'No retdata found in Experian response'
+            );
         }
         
         return retdata;
     } catch (error) {
-        console.error('Error parsing Experian response:', error);
+        console.error('[experian] Error parsing SOAP response:', error);
         throw error;
     }
 }
@@ -648,9 +726,10 @@ async function extractCreditScore(xmlData) {
  */
 async function performCreditCheck(userData, applicationId, authToken = null) {
     try {
-        console.log('Starting credit check for application:', applicationId);
-        console.log('Experian endpoint:', EXPERIAN_CONFIG.url);
-        console.log('Experian mock mode:', EXPERIAN_CONFIG.mockMode);
+        console.log('[experian] Starting credit check for application:', applicationId);
+        console.log('[experian] Endpoint:', EXPERIAN_CONFIG.url);
+        console.log('[experian] Mock mode:', EXPERIAN_CONFIG.mockMode);
+        console.log('[experian] Credentials present — username:', Boolean(EXPERIAN_CONFIG.username && EXPERIAN_CONFIG.username !== '32389-api'), 'password:', Boolean(EXPERIAN_CONFIG.password && EXPERIAN_CONFIG.password !== '9N=v@ZQapik1'));
 
         if (EXPERIAN_CONFIG.mockMode) {
             console.log('Experian mock mode enabled - returning synthetic payload');
@@ -677,13 +756,29 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
             };
         }
         
+        // Guard: throw early if credentials are missing (don't silently mock)
+        if (!EXPERIAN_CONFIG.username || !EXPERIAN_CONFIG.password) {
+            throw new Error('Experian credentials are missing. Set EXPERIAN_USERNAME and EXPERIAN_PASSWORD in environment variables.');
+        }
+
+        // Normalise all consumer fields to Experian spec before building SOAP
+        const experianPayload = normalizeExperianPayload(userData);
+        assertRequiredExperianFields(experianPayload);
+
+        console.log('[experian] Payload — identity:', experianPayload.identity_number ? String(experianPayload.identity_number).slice(0, 6) + '...' : 'MISSING',
+            '| gender:', experianPayload.gender || 'MISSING',
+            '| dob:', experianPayload.date_of_birth || 'MISSING',
+            '| postal_code:', experianPayload.postal_code || 'MISSING',
+            '| address1:', experianPayload.address1 ? 'present' : 'MISSING');
+
         // Build SOAP XML request
         const soapRequest = buildCreditCheckXML({
-            ...userData,
+            ...experianPayload,
             client_ref: applicationId.toString()
         });
-        
-        console.log('Sending request to Experian...');
+
+        console.log('[experian] Sending SOAP request to Experian...');
+        console.log('[experian] SOAP Request:\n', soapRequest);
         
         // Send SOAP request to Experian
         const response = await axios.post(EXPERIAN_CONFIG.url, soapRequest, {
@@ -694,24 +789,33 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
             timeout: 30000 // 30 second timeout
         });
         
-        console.log('Received response from Experian, status:', response.status);
+        console.log('[experian] Received response — status:', response.status);
+        console.log('[experian] Response headers:', JSON.stringify(response.headers, null, 2));
+        console.log('[experian] SOAP Response Body:\n', response.data);
         
         // Parse response and extract retdata
         const retdata = await parseExperianResponse(response.data);
-        console.log('Experian retdata length:', typeof retdata === 'string' ? retdata.length : 0);
-        if (typeof retdata === 'string' && retdata.length > 0) {
-            console.log('Experian retdata preview:', retdata.slice(0, 120));
+        const retdataLen = typeof retdata === 'string' ? retdata.length : 0;
+        console.log('[experian] retdata length:', retdataLen);
+        if (retdataLen > 0) {
+            console.log('[experian] retdata preview (first 200):', String(retdata).slice(0, 200));
         }
         
         // Decode and extract ZIP contents
         const { pdfBuffer, pdfFilename, xmlContent } = await decodeReportAssets(retdata);
-        console.log('Credit report assets extracted:', { pdfFilename });
+        console.log('[experian] Credit report assets extracted:', { pdfFilename });
         
         // Display the extracted XML
         if (xmlContent) {
+            console.log('[experian] ========================================');
+            console.log('[experian] DECODED XML FROM ZIP:');
+            console.log('[experian] ========================================');
+            console.log(xmlContent);
+            console.log('[experian] ========================================');
+
             // Extract credit score from XML
             const creditScore = await extractCreditScore(xmlContent);
-            console.log('Extracted Credit Score:', creditScore?.score);
+            console.log('[experian] Extracted creditScore object:', JSON.stringify(creditScore, null, 2));
             
             // Save to database (pass auth token if available)
             const savedRecord = await saveCreditCheckToDatabase(
@@ -738,7 +842,13 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
         }
         
     } catch (error) {
-        console.error('Credit check failed:', error);
+        console.error('[experian] ❌ Credit check failed:', error.message);
+        console.error('[experian] Error details:', {
+            code: error.code,
+            message: error.message,
+            responseData: error.response?.data || null,
+            stack: error.stack
+        });
         
         return {
             success: false,

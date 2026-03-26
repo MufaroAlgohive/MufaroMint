@@ -178,8 +178,8 @@ export default async function handler(req, res) {
     }
   }
 
-  // Enrich from user profile if identity fields missing
-  if (supabase && userId && userId !== 'anon-dev' && !normalizedOverrides.identity_number) {
+  // Profile enrichment — always fetch, fill only missing fields
+  if (supabase && userId && userId !== 'anon-dev') {
     try {
       const dbClient = accessToken
         ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -203,6 +203,7 @@ export default async function handler(req, res) {
         if (!normalizedOverrides.address1 && profile.address_line1) normalizedOverrides.address1 = profile.address_line1;
         if (!normalizedOverrides.address2 && profile.address_line2) normalizedOverrides.address2 = profile.address_line2;
         if (!normalizedOverrides.address4 && profile.city) normalizedOverrides.address4 = profile.city;
+        // Always fill postal_code from profile if not supplied by form
         if (!normalizedOverrides.postal_code && profile.postal_code) normalizedOverrides.postal_code = profile.postal_code;
       }
     } catch (profileError) {

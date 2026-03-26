@@ -4012,8 +4012,8 @@ app.post("/api/credit-check", async (req, res) => {
       }
     }
 
-    // Profile enrichment
-    if (db && userId && userId !== 'anon-dev' && !normalizedOverrides.identity_number) {
+    // Profile enrichment — always fetch, fill only missing fields
+    if (db && userId && userId !== 'anon-dev') {
       try {
         const { data: profile } = await db
           .from('profiles')
@@ -4030,7 +4030,10 @@ app.post("/api/credit-check", async (req, res) => {
           if (!normalizedOverrides.cell_tel_no && profile.phone) normalizedOverrides.cell_tel_no = profile.phone;
           if (!normalizedOverrides.address1 && profile.address_line1) normalizedOverrides.address1 = profile.address_line1;
           if (!normalizedOverrides.address4 && profile.city) normalizedOverrides.address4 = profile.city;
+          // Always pull postal_code from profile if not supplied by form
           if (!normalizedOverrides.postal_code && profile.postal_code) normalizedOverrides.postal_code = profile.postal_code;
+          // address2 / suburb from profile
+          if (!normalizedOverrides.address2 && profile.address_line2) normalizedOverrides.address2 = profile.address_line2;
         }
       } catch (err) {
         console.warn('Profile lookup failed:', err?.message);
@@ -4089,6 +4092,21 @@ app.post("/api/credit-check", async (req, res) => {
     if (!userPayload.identity_number || !userPayload.surname || !userPayload.forename) {
       return res.status(400).json({ error: 'Missing required identity fields', required: ['identity_number', 'surname', 'forename'] });
     }
+
+    // Log the fully-enriched payload that will be sent to Experian
+    console.log('[credit-check] final enriched userPayload before Experian call:', {
+      hasIdentity: Boolean(userPayload.identity_number),
+      identity: userPayload.identity_number ? String(userPayload.identity_number).slice(0, 6) + '...' : null,
+      hasSurname: Boolean(userPayload.surname),
+      hasForename: Boolean(userPayload.forename),
+      gender: userPayload.gender || null,
+      dob: userPayload.date_of_birth || null,
+      hasAddress1: Boolean(userPayload.address1),
+      address2: userPayload.address2 || null,
+      postal_code: userPayload.postal_code || null,
+      cell_tel_no: userPayload.cell_tel_no || null,
+      mockModeEnv: process.env.EXPERIAN_MOCK === 'true'
+    });
 
     const result = await performCreditCheck(userPayload, applicationId, accessToken);
     const zipDataLength = typeof result?.zipData === 'string' ? result.zipData.length : 0;
