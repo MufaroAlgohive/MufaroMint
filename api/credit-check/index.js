@@ -390,7 +390,8 @@ export default async function handler(req, res) {
             ? accountMetrics.openAccounts
             : null,
           score_reasons: scoreReasons,
-          engine_result: breakdown
+          engine_result: breakdown,
+          created_at: new Date().toISOString()
         };
 
         const { error: insertError } = await dbClient
