@@ -4226,7 +4226,21 @@ app.post("/api/credit-check", async (req, res) => {
       recommendation: result?.recommendation, riskFlags: result?.riskFlags,
       breakdown, loanEngineScore, loanEngineScoreMax, loanEngineScoreNormalized,
       creditExposure, scoreReasons, employmentHistory,
-      cpaAccounts: result?.cpaAccounts || [], deviceFingerprint, raw: result
+      cpaAccounts: result?.cpaAccounts || [], deviceFingerprint, raw: result,
+      debug: {
+        source: 'server/index',
+        mockModeEnv,
+        mockModeReturned: result?.mockMode,
+        experianEndpoint: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
+        hasPostalCode: Boolean(userPayload?.postal_code),
+        postalCode: userPayload?.postal_code || null,
+        hasAddress1: Boolean(userPayload?.address1),
+        gender: userPayload?.gender || null,
+        dob: userPayload?.date_of_birth || null,
+        zipDataLength,
+        retdataPreview,
+        lastCreditCheck: lastCreditCheckDebug
+      }
     });
   } catch (error) {
     console.error("Credit check error:", error);

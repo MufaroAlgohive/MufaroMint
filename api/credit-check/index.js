@@ -450,7 +450,20 @@ export default async function handler(req, res) {
       employmentHistory,
       cpaAccounts: result?.cpaAccounts || [],
       deviceFingerprint,
-      raw: result
+      raw: result,
+      debug: {
+        source: 'api/credit-check',
+        mockModeEnv,
+        mockModeReturned: result?.mockMode,
+        experianEndpoint: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
+        hasPostalCode: Boolean(userPayload?.postal_code),
+        postalCode: userPayload?.postal_code || null,
+        hasAddress1: Boolean(userPayload?.address1),
+        gender: userPayload?.gender || null,
+        dob: userPayload?.date_of_birth || null,
+        zipDataLength,
+        retdataPreview: zipDataLength > 0 ? String(result?.zipData || '').slice(0, 200) : null
+      }
     });
   } catch (error) {
     console.error('Credit check API error:', error);

@@ -351,6 +351,15 @@ export function useCreditCheck() {
       });
 
       const result = await response.json();
+      console.group("[CreditCheck] API Debug");
+      console.log("HTTP status:", response.status);
+      console.log("success:", result?.success, "ok:", result?.ok);
+      console.log("debug:", result?.debug || null);
+      console.log("raw.mockMode:", result?.raw?.mockMode);
+      console.log("raw.message:", result?.raw?.message);
+      console.log("raw.error:", result?.raw?.error);
+      console.log("zipDataLength:", result?.debug?.zipDataLength ?? (typeof result?.raw?.zipData === "string" ? result.raw.zipData.length : 0));
+      console.groupEnd();
       setEngineResult(result);
       setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
     } catch (err) {
