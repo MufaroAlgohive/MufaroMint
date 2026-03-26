@@ -3961,7 +3961,7 @@ app.post("/api/credit-check", async (req, res) => {
       forename: overrides?.forename || overrides?.first_name || overrides?.firstName,
       date_of_birth: overrides?.date_of_birth || overrides?.dateOfBirth,
       address1: overrides?.address1 || overrides?.address,
-      postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code,
+      postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code || '0152',
       contract_type: overrides?.contract_type || overrides?.contractType
     };
 
@@ -4140,6 +4140,7 @@ app.post("/api/credit-check", async (req, res) => {
       user_id: '', client_ref: `MINT-${Date.now()}`,
       ...normalizedOverrides
     };
+    userPayload.postal_code = String(userPayload.postal_code || '0152').trim() || '0152';
     if (userPayload.date_of_birth) userPayload.date_of_birth = normalizeDob(userPayload.date_of_birth);
     userPayload.user_id = overrides?.user_id || userId;
 

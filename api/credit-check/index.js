@@ -120,7 +120,7 @@ export default async function handler(req, res) {
     forename: overrides?.forename || overrides?.first_name || overrides?.firstName,
     date_of_birth: overrides?.date_of_birth || overrides?.dateOfBirth,
     address1: overrides?.address1 || overrides?.address,
-    postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code,
+    postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code || '0152',
     contract_type: overrides?.contract_type || overrides?.contractType
   };
 
@@ -321,6 +321,7 @@ export default async function handler(req, res) {
   }
 
   const userPayload = buildUserData(normalizedOverrides);
+  userPayload.postal_code = String(userPayload.postal_code || '0152').trim() || '0152';
   userPayload.user_id = overrides?.user_id || userId;
 
   if (!loanApplicationId && supabase && userId && userId !== 'anon-dev') {

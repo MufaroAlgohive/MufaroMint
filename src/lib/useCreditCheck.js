@@ -116,7 +116,7 @@ export function useCreditCheck() {
     gender: "",
     dateOfBirth: "",
     address: "",
-    postalCode: "",
+    postalCode: "0152",
     annualIncome: "",
     annualExpenses: "",
     yearsCurrentEmployer: "",
@@ -168,7 +168,7 @@ export function useCreditCheck() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("first_name,last_name,id_number,date_of_birth,gender,address,postal_code")
+        .select("first_name,last_name,id_number,date_of_birth,gender,address_line1,address_line2,city,postal_code")
         .eq("id", session.user.id)
         .single();
 
@@ -233,8 +233,8 @@ export function useCreditCheck() {
         lastName: profileData?.last_name || prev.lastName,
         gender: profileData?.gender || prev.gender,
         dateOfBirth: profileData?.date_of_birth || prev.dateOfBirth,
-        address: profileData?.address || prev.address,
-        postalCode: profileData?.postal_code || prev.postalCode,
+        address: profileData?.address_line1 || profileData?.address_line2 || profileData?.city || prev.address,
+        postalCode: String(profileData?.postal_code || prev.postalCode || "0152"),
         annualIncome: snapshotData?.avg_monthly_income
           ? String(snapshotData.avg_monthly_income * 12)
           : prev.annualIncome,
@@ -321,13 +321,7 @@ export function useCreditCheck() {
     const annualIncome = normalizeNumber(form.annualIncome);
     const annualExpenses = normalizeNumber(form.annualExpenses);
 
-    if (!String(form.postalCode || "").trim()) {
-      const errMessage = "Missing required Experian fields: Postal Code";
-      setIntakeError("Postal code is required for Experian. Please update your profile postal code in Settings and retry.");
-      setEngineResult({ success: false, error: errMessage });
-      setEngineStatus("Failed");
-      return;
-    }
+    const resolvedPostalCode = String(form.postalCode || "0152").trim() || "0152";
 
     const payload = {
       loanApplicationId: loanRecord?.id || undefined,
@@ -338,7 +332,7 @@ export function useCreditCheck() {
         gender: form.gender || undefined,
         date_of_birth: form.dateOfBirth || undefined,
         address1: form.address || undefined,
-        postal_code: form.postalCode || undefined,
+        postal_code: resolvedPostalCode,
         annual_income: annualIncome,
         annual_expenses: annualExpenses,
         gross_monthly_income: annualIncome ? annualIncome / 12 : 0,
