@@ -4251,6 +4251,23 @@ app.post("/api/credit-check", async (req, res) => {
       aglRetrieval: aglRetrievalBreakdown
     };
 
+    const experianSnapshot = {
+      score: Number.isFinite(creditScoreValue) ? creditScoreValue : null,
+      riskType: creditScoreData?.riskType || null,
+      enquiryId: creditScoreData?.enquiryId || null,
+      clientRef: creditScoreData?.clientRef || null,
+      declineReasons: Array.isArray(creditScoreData?.declineReasons) ? creditScoreData.declineReasons : [],
+      activities: creditScoreData?.activities || {},
+      accountSummary: creditScoreData?.accountSummary || {},
+      retdataLength: zipDataLength,
+      xmlPreview: typeof result?.xmlContent === 'string' ? result.xmlContent.slice(0, 20000) : null,
+      extractedAt: new Date().toISOString()
+    };
+    const engineResultPayload = {
+      ...breakdown,
+      experianReport: experianSnapshot
+    };
+
     const loanEngineScore = Object.values(breakdown).map(i => i?.contributionPercent).reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
     const loanEngineScoreMax = TOTAL_LOAN_ENGINE_WEIGHT;
     const loanEngineScoreNormalized = loanEngineScoreMax > 0 ? Math.min(100, (loanEngineScore / loanEngineScoreMax) * 100) : 0;
@@ -4286,7 +4303,7 @@ app.post("/api/credit-check", async (req, res) => {
           employment_sector: normalizedOverrides?.employment_sector_type || null,
           employer_name: normalizedOverrides?.employment_employer_name || null,
           score_reasons: scoreReasons,
-          engine_result: breakdown,
+          engine_result: engineResultPayload,
           created_at: new Date().toISOString()
         };
         const { error: insertError } = await db.from('loan_engine_score').insert(loanEngineInsert);
@@ -4300,7 +4317,7 @@ app.post("/api/credit-check", async (req, res) => {
       success: result?.success === true, ok: result?.success === true,
       applicationId, userId, creditScore: creditScoreValue,
       recommendation: result?.recommendation, riskFlags: result?.riskFlags,
-      breakdown, loanEngineScore, loanEngineScoreMax, loanEngineScoreNormalized,
+      breakdown: engineResultPayload, loanEngineScore, loanEngineScoreMax, loanEngineScoreNormalized,
       creditExposure, scoreReasons, employmentHistory,
       cpaAccounts: result?.cpaAccounts || [], deviceFingerprint, raw: result,
       debug: {

@@ -127,7 +127,12 @@ const CreditScorePage = ({ onBack }) => {
   /* ── breakdown items from engine_result ── */
   const breakdownItems = useMemo(() => {
     if (!scoreSnapshot.breakdown) return [];
-    return Object.entries(scoreSnapshot.breakdown).map(([key, value]) => {
+    return Object.entries(scoreSnapshot.breakdown)
+      .filter(([, value]) => {
+        if (!value || typeof value !== "object") return false;
+        return Number.isFinite(value?.contributionPercent);
+      })
+      .map(([key, value]) => {
       const contribution = Number.isFinite(value?.contributionPercent)
         ? value.contributionPercent
         : 0;

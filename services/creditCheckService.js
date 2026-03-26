@@ -755,6 +755,7 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
                 success: true,
                 creditScore,
                 zipData: Buffer.from(mockXml).toString('base64'),
+                xmlContent: mockXml,
                 databaseId: savedRecord.id,
                 recommendation: savedRecord.recommendation,
                 riskFlags: savedRecord.risk_flags,
@@ -838,6 +839,7 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
                 creditScore,
                 zipData: retdata, // Include ZIP data as base64 for download
                 zipDataLength: typeof retdata === 'string' ? retdata.length : 0,
+                xmlContent,
                 databaseId: savedRecord.id,
                 recommendation: savedRecord.recommendation,
                 riskFlags: savedRecord.risk_flags,

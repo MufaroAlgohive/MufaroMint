@@ -421,6 +421,23 @@ export default async function handler(req, res) {
       aglRetrieval: aglRetrievalBreakdown
     };
 
+    const experianSnapshot = {
+      score: Number.isFinite(creditScoreValue) ? creditScoreValue : null,
+      riskType: creditScoreData?.riskType || null,
+      enquiryId: creditScoreData?.enquiryId || null,
+      clientRef: creditScoreData?.clientRef || null,
+      declineReasons: Array.isArray(creditScoreData?.declineReasons) ? creditScoreData.declineReasons : [],
+      activities: creditScoreData?.activities || {},
+      accountSummary: creditScoreData?.accountSummary || {},
+      retdataLength: zipDataLength,
+      xmlPreview: typeof result?.xmlContent === 'string' ? result.xmlContent.slice(0, 20000) : null,
+      extractedAt: new Date().toISOString()
+    };
+    const engineResultPayload = {
+      ...breakdown,
+      experianReport: experianSnapshot
+    };
+
     const loanEngineScore = Object.values(breakdown)
       .map(item => item?.contributionPercent)
       .reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0);
@@ -497,7 +514,7 @@ export default async function handler(req, res) {
             ? accountMetrics.openAccounts
             : null,
           score_reasons: scoreReasons,
-          engine_result: breakdown,
+          engine_result: engineResultPayload,
           created_at: new Date().toISOString()
         };
 
@@ -521,7 +538,7 @@ export default async function handler(req, res) {
       creditScore: creditScoreValue,
       recommendation: result?.recommendation,
       riskFlags: result?.riskFlags,
-      breakdown,
+      breakdown: engineResultPayload,
       loanEngineScore,
       loanEngineScoreMax,
       loanEngineScoreNormalized,
