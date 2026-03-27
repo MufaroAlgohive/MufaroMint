@@ -99,23 +99,12 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
         </svg>
       </div>
 
-      {/* FIXED HEADER ALIGNMENT */}
-      <header className="fixed top-0 left-0 right-0 h-24 px-6 pt-6 flex items-center justify-between z-50 pointer-events-none">
+      <header className="fixed top-0 left-0 right-0 h-20 px-6 pt-4 flex items-center justify-between z-50 pointer-events-none">
         <div className="flex-1 flex justify-start pointer-events-auto">
-          {profile?.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt={displayName || "Profile"}
-              className="h-10 w-10 rounded-full border border-white/20 object-cover bg-white/10 backdrop-blur-sm"
-            />
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white backdrop-blur-sm">
-              {initials}
-            </div>
-          )}
+          <div className="h-10 w-10 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm" />
         </div>
         
-        <div className="flex justify-center pointer-events-auto">
+        <div className="flex-none flex items-center justify-center pointer-events-auto">
           <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
         </div>
         
@@ -123,6 +112,7 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
           <NotificationBell onClick={onOpenNotifications} color="white" />
         </div>
       </header>
+      
 
       <div className="fixed bottom-[145px] left-6 right-6 z-30">
         <div className="mb-10">
