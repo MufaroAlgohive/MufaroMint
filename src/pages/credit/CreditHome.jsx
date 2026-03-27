@@ -37,14 +37,11 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#12042d] text-white">
-      {/* 1. Volcano Lamp Background with Texture */}
       <div className="absolute inset-0 bg-[#12042d] -z-30" />
       
-      {/* Noise Texture Overlay */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay -z-20" 
            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
 
-      {/* Animated Lava Blobs */}
       <motion.div 
         animate={{ y: [0, -100, 0], x: [0, 50, 0] }}
         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
@@ -56,29 +53,27 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
         className="absolute bottom-[-10%] right-[-10%] w-[70%] h-[50%] bg-indigo-500/10 blur-[100px] rounded-full -z-20" 
       />
 
-      {/* 2. Floating Wireframe Coins (z-index above background) */}
-      <motion.img 
+     <motion.img 
         src="/assets/images/Illustration Coin1.webp" 
         initial={{ y: 800, opacity: 0 }}
-        animate={{ y: [0, -15, 0], opacity: 0.3 }}
+        animate={{ y: [0, -15, 0], opacity: 0.4 }}
         transition={{ 
-          y: { duration: 5, repeat: Infinity, ease: "easeInOut" },
+          y: { duration: 4, repeat: Infinity, ease: "easeInOut" },
           default: { duration: 1.5, ease: "easeOut" }
         }}
-        className="absolute top-32 right-[-50px] w-72 pointer-events-none z-0 grayscale invert brightness-200"
+        className="absolute top-24 right-[-40px] w-64 pointer-events-none z-0"
       />
       <motion.img 
         src="/assets/images/Illustration Coin2.webp" 
         initial={{ y: 800, opacity: 0 }}
-        animate={{ y: [0, 12, 0], opacity: 0.2 }}
+        animate={{ y: [0, 10, 0], opacity: 0.3 }}
         transition={{ 
-          y: { duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 },
+          y: { duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.5 },
           default: { duration: 1.8, ease: "easeOut" }
         }}
-        className="absolute top-[40%] left-[-30px] w-44 pointer-events-none z-0 grayscale invert brightness-200"
+        className="absolute top-[35%] left-[-20px] w-40 pointer-events-none z-0"
       />
 
-      {/* 3. Stroke Lines (Layered behind CTAs) */}
       <div className="absolute bottom-20 left-0 w-full h-64 opacity-30 pointer-events-none z-10">
         <svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none">
           {[...Array(8)].map((_, i) => (
@@ -94,18 +89,31 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
         </svg>
       </div>
 
-      {/* 4. Fixed Header Section */}
-      <header className="fixed top-0 left-0 right-0 px-6 pt-12 flex items-center justify-between z-50 bg-transparent">
-        <div className="h-10 w-10 flex items-center justify-center rounded-full bg-white/10 border border-white/20 text-xs font-semibold backdrop-blur-sm">
-          {initials}
+      <header className="fixed top-0 left-0 right-0 px-6 pt-12 flex items-center justify-between z-50 pointer-events-none">
+        <div className="pointer-events-auto">
+          {profile?.avatarUrl ? (
+            <img
+              src={profile.avatarUrl}
+              alt={displayName || "Profile"}
+              className="h-10 w-10 rounded-full border border-white/20 object-cover bg-white/10 backdrop-blur-sm"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white backdrop-blur-sm">
+              {initials}
+            </div>
+          )}
         </div>
-        <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
-        <NotificationBell onClick={onOpenNotifications} color="white" />
+        
+        <div className="pointer-events-auto">
+          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
+        </div>
+        
+        <div className="pointer-events-auto">
+          <NotificationBell onClick={onOpenNotifications} color="white" />
+        </div>
       </header>
 
-      {/* 5. Main Content (Bottom Anchored) */}
       <div className="fixed bottom-[145px] left-6 right-6 z-30">
-        {/* Headline Group (Sitting 40px above CTAs) */}
         <div className="mb-10">
           <h1 className="text-white text-[44px] font-light tracking-tight leading-[1.05] mb-8" style={{ fontFamily: fonts.display }}>
             Borrowing has<br /> never been <span className="font-semibold text-violet-400">easier</span>
@@ -116,7 +124,6 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
           </div>
         </div>
 
-        {/* CTA Cards (Static - No Animations) */}
         <div className="space-y-4">
           {ctaCards.map((item, i) => (
             <button 
