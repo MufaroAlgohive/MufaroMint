@@ -116,7 +116,13 @@ class TruIDClient {
     };
 
     try {
+      console.log(`truID API Call: POST ${this.consultantClient.defaults.baseURL}/collections`);
+      console.log(`truID Request Body:`, JSON.stringify(payload, null, 2));
+
       const response = await this.consultantClient.post('/collections', payload);
+      
+      console.log(`truID API Success (${response.status})`);
+      
       const locationHeader = response.headers['location'];
       const consentHeader = response.headers['x-consent'];
       const payloadData = typeof response.data === 'object' && response.data !== null ? response.data : null;
@@ -132,6 +138,7 @@ class TruIDClient {
         consumerUrl
       };
     } catch (error) {
+      console.error(`truID API Error (${error.response?.status}):`, error.response?.data || error.message);
       throw this.normalizeError(error, 'Failed to create collection');
     }
   }

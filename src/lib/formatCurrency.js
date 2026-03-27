@@ -1,11 +1,13 @@
-export const formatZar = (value) => {
-  const amount = typeof value === "number" && Number.isFinite(value) ? value : 0;
-  const formatted = new Intl.NumberFormat("en-US", {
+export const formatZar = (val) => {
+  if (val === null || val === undefined) return "R 0,00";
+  return new Intl.NumberFormat('en-ZA', {
+    style: 'currency',
+    currency: 'ZAR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(amount);
-
-  return `R ${formatted}`;
+  })
+  .format(val)
+  .replace(/\./g, ','); // Correctly places the comma for cents
 };
 
 /**

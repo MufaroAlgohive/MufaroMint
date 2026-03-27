@@ -1,8 +1,12 @@
 import React from "react";
 import { X } from "lucide-react";
 import Navbar from "../components/Navbar.jsx";
+import CreditNavbar from "../components/CreditNavbar.jsx";
 
 const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal, onCloseModal, children }) => {
+  const creditTabs = ["credit", "instantLiquidity", "creditApply", "creditRepay", "liquidityHistory"];
+  const isCredit = creditTabs.includes(activeTab);
+
   return (
     <div className="app-shell flex min-h-screen flex-col overflow-hidden">
       <main
@@ -39,6 +43,12 @@ const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal
           </div>
         </div>
       ) : null}
+      {isCredit ? (
+        <CreditNavbar
+          activeTab={activeTab}
+          setActiveTab={onTabChange}
+        />
+      ) : (
         <Navbar
           activeTab={activeTab}
           setActiveTab={onTabChange}
@@ -46,6 +56,7 @@ const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal
           onShowComingSoon={onShowComingSoon}
           className="fixed bottom-0 left-0 w-full z-50"
         />
+      )}
     </div>
   );
 };

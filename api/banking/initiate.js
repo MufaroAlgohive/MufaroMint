@@ -70,7 +70,8 @@ export default async function handler(req, res) {
     const collection = await truIDClient.createCollection({
       name: fullName,
       idNumber: idNumber,
-      email: user.email
+      email: user.email,
+      force: true // Force fresh consent to bypass stale server-side sessions
     });
 
     return res.status(201).json({
@@ -79,10 +80,14 @@ export default async function handler(req, res) {
       consumerUrl: collection.consumerUrl
     });
   } catch (error) {
-    console.error("Banking initiate error:", error);
+    console.error("Banking initiate error COMPLETE:", error);
     return res.status(error.status || 500).json({
       success: false,
-      error: { message: error.message || "Internal server error" }
+      error: { 
+        message: error.message || "Internal server error",
+        status: error.status,
+        details: error.data || error.response?.data
+      }
     });
   }
 }

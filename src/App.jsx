@@ -6,7 +6,7 @@ import SwipeBackWrapper from "./components/SwipeBackWrapper.jsx";
 
 import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
-import CreditPage from "./pages/CreditPage.jsx";
+import CreditHome from "./pages/credit/CreditHome";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
@@ -21,7 +21,9 @@ import FactsheetPage from "./pages/FactsheetPage.jsx";
 import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
-import SettingsPage from "./pages/SettingsPage.jsx";
+import InstantLiquidityPage from "./pages/credit/InstantLiquidity.jsx"; 
+import { useProfile } from "./lib/useProfile";
+import SettingsPage from "./pages/SettingsPage.jsx"; 
 import TransactPage from "./pages/TransactPage.jsx";
 import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
@@ -88,6 +90,7 @@ const App = () => {
   const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
+  const { profile, loading: profileLoading } = useProfile();
   const [notificationReturnPage, setNotificationReturnPage] = useState("home");
   const [modal, setModal] = useState(null);
   const [selectedSecurity, setSelectedSecurity] = useState(null);
@@ -619,21 +622,13 @@ const App = () => {
             />
           </AppLayout>
         );
-      case 'credit':
+      case "credit":
         return (
-          <AppLayout
-            activeTab="credit"
-            onTabChange={noOp}
-            onWithdraw={noOp}
-            onShowComingSoon={noOp}
-            modal={null}
-            onCloseModal={noOp}
-          >
-            <CreditPage
-              onOpenNotifications={noOp}
-              onOpenCreditApply={noOp}
-            />
-          </AppLayout>
+          <CreditHome 
+            profile={profile} 
+            onOpenNotifications={() => setShowNotifications(true)} 
+            onTabChange={setCurrentPage} 
+          />
         );
       case 'statements':
         return (
@@ -666,6 +661,21 @@ const App = () => {
             />
           </AppLayout>
         );
+
+        case 'instantLiquidity':
+          return (
+            <AppLayout
+              activeTab="credit" // Keeps the credit tab highlighted in the layout
+              onTabChange={handleTabChange}
+              onWithdraw={handleWithdrawRequest}
+              onShowComingSoon={handleShowComingSoon}
+              modal={modal}
+              onCloseModal={closeModal}
+            >
+            <InstantLiquidityPage profile={profile} onBack={goBack} />
+            </AppLayout>
+          );
+
       case 'more':
         return (
           <AppLayout
@@ -811,7 +821,7 @@ const App = () => {
       case 'profileDetails':
         return <ProfileDetailsPage onNavigate={noOp} onBack={noOp} />;
       case 'creditApply':
-        return <CreditApplyPage onBack={noOp} />;
+        return <CreditApplyPage onBack={noOp} onTabChange={setCurrentPage} />;
       case 'creditRepay':
         return <CreditRepayPage onBack={noOp} />;
       case 'identityCheck':
@@ -934,6 +944,11 @@ const App = () => {
 
   const previousPageComponent = useMemo(() => {
     if (!previousPageName || mainTabs.includes(currentPage)) return null;
+    
+    // Skip background rendering for SDK-heavy pages to prevent duplicate listeners
+    const sdkPages = ["identityCheck", "userOnboarding", "bankLink", "creditApply"];
+    if (sdkPages.includes(previousPageName)) return null;
+
     return renderPageContent(previousPageName, true);
   }, [previousPageName, currentPage, renderPageContent]);
 
@@ -946,7 +961,7 @@ const App = () => {
 
 
 
-  if (isCheckingAuth) {
+  if (isCheckingAuth || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0d0d12]">
         <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
@@ -1050,7 +1065,7 @@ const App = () => {
           onOpenDeposit={() => handleTabChange("deposit")}
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
-          onOpenStrategyInPortfolio={(strategyId) => { setPortfolioDeepLink({ tab: "holdings", strategyId }); setCurrentPage("investments"); }}
+          onOpenInstantLiquidity={() => navigateTo("instantLiquidity")}
         />
       </AppLayout>
     );
@@ -1065,12 +1080,13 @@ const App = () => {
         modal={modal}
         onCloseModal={closeModal}
       >
-        <CreditPage
+        <CreditHome
+          profile={profile}
           onOpenNotifications={() => {
             setNotificationReturnPage("credit");
             navigateTo("notifications");
           }}
-          onOpenCreditApply={() => navigateTo("creditApply")}
+          onTabChange={setCurrentPage}
         />
       </AppLayout>
     );
@@ -1093,6 +1109,30 @@ const App = () => {
             navigateTo("notifications");
           }}
           onOpenCreditApply={() => navigateTo("creditApply")}
+        />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "instantLiquidity") {
+    return (
+      <AppLayout
+        activeTab="instantLiquidity" 
+        onTabChange={handleTabChange}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <InstantLiquidityPage 
+          profile={profile} 
+          onBack={goBack} 
+          onTabChange={handleTabChange}
+          onLinkBank={() => navigateTo("bankLink")}
+          onOpenNotifications={() => {
+            setNotificationReturnPage("instantLiquidity");
+            navigateTo("notifications");
+          }}
         />
       </AppLayout>
     );
@@ -1847,7 +1887,23 @@ const App = () => {
   if (currentPage === "creditApply") {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <CreditApplyPage onBack={goBack} />
+        <AppLayout
+          activeTab="creditApply"
+          onTabChange={handleTabChange}
+          onWithdraw={handleWithdrawRequest}
+          onShowComingSoon={handleShowComingSoon}
+          modal={modal}
+          onCloseModal={closeModal}
+        >
+          <CreditApplyPage 
+            onBack={goBack} 
+            onTabChange={setCurrentPage} 
+            onOpenNotifications={() => {
+              setNotificationReturnPage("creditApply");
+              navigateTo("notifications");
+            }}
+          />
+        </AppLayout>
       </SwipeBackWrapper>
     );
   }

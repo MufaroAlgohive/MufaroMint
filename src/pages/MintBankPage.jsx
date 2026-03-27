@@ -104,6 +104,13 @@ const MintBankPage = ({ onBack, onComplete }) => {
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [pendingTruidAccounts, setPendingTruidAccounts] = useState([]);
 
+  useEffect(() => {
+    // Clear any stale TrueID verification state on mount
+    localStorage.removeItem('truid_collection_id');
+    localStorage.removeItem('truid_consumer_url');
+    sessionStorage.removeItem('truid_consent_token');
+  }, []);
+
   const fetchBankAccounts = useCallback(async () => {
     try {
       setLoadingAccounts(true);

@@ -24,6 +24,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
+import NavigationPill from "../components/NavigationPill";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { parseOnboardingFlags } from "../lib/checkOnboardingComplete";
@@ -46,6 +47,7 @@ const HomePage = ({
   onOpenMintBalance,
   onOpenActivity,
   onOpenActions,
+  onOpenInstantLiquidity,
   onOpenInvestments,
   onOpenCredit,
   onOpenCreditApply,
@@ -636,8 +638,17 @@ const HomePage = ({
   const hasStrategies = bestStrategies && bestStrategies.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
-      <div className="rounded-b-[36px] bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 pb-12 pt-12 text-white md:px-8">
+    <div className="min-h-screen pb-[env(safe-area-inset-bottom)] text-slate-900 relative overflow-x-hidden">
+      <div className="absolute inset-x-0 top-0 -z-10 h-full">
+        <div 
+          className="absolute inset-x-0 top-0"
+          style={{ 
+            height: '100vh',
+            background: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)'
+          }} 
+        />
+      </div>
+      <div className="rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
           <header className="relative flex items-center justify-between text-white">
             <div className="flex items-center gap-3">
@@ -654,19 +665,16 @@ const HomePage = ({
               )}
             </div>
 
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              <div className="flex items-center gap-1 rounded-full bg-white/10 p-1 backdrop-blur-md">
-                <button
-                  type="button"
-                  onClick={() => { setHomeTab("invest"); }}
-                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${homeTab === "invest" || homeTab === "balance" ? "bg-white text-slate-900 shadow-sm" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
-                >
-                  Wealth
-                </button>
-                <span className="px-2 py-1.5 text-xs font-semibold text-white/30 cursor-default">Credit</span>
-                <span className="px-2 py-1.5 text-xs font-semibold text-white/30 cursor-default">Transact</span>
-              </div>
-            </div>
+            <NavigationPill 
+              activeTab="home" 
+              onTabChange={(id) => {
+                if (id === "credit") {
+                  onOpenCredit();
+                } else if (id === "home") {
+                  setHomeTab("invest");    
+                }
+              }} 
+            />
 
             <NotificationBell onClick={onOpenNotifications} />
           </header>

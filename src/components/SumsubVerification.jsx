@@ -45,6 +45,8 @@ const SumsubVerification = ({ onVerified }) => {
     return () => {
       resumeSumsubPolling();
       console.log("Sumsub widget unmounted - polling resumed");
+      // Reset mount guard last to ensure full teardown of current instance
+      initializedRef.current = false;
     };
   }, []);
 
