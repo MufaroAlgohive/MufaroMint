@@ -99,19 +99,29 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
         </svg>
       </div>
 
-      <header className="fixed top-0 left-0 right-0 h-20 px-6 pt-4 flex items-center justify-between z-50 pointer-events-none">
-        <div className="flex-1 flex justify-start pointer-events-auto">
-          <div className="h-10 w-10 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm" />
+      <div className="relative z-50 rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
+        <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
+          <header className="relative flex items-center justify-between text-white">
+            <div className="flex items-center gap-3">
+              {profile?.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={displayName || "Profile"}
+                  className="h-10 w-10 rounded-full border border-white/40 object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
+                  {initials || "—"}
+                </div>
+              )}
+            </div>
+
+            <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
+
+            <NotificationBell onClick={onOpenNotifications} />
+          </header>
         </div>
-        
-        <div className="flex-none flex items-center justify-center pointer-events-auto">
-          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
-        </div>
-        
-        <div className="flex-1 flex justify-end pointer-events-auto">
-          <NotificationBell onClick={onOpenNotifications} color="white" />
-        </div>
-      </header>
+      </div>
       
 
       <div className="fixed bottom-[145px] left-6 right-6 z-30">
