@@ -1,17 +1,14 @@
 import React from "react";
 import { 
-  Zap, ChevronRight, HelpCircle, ShieldCheck, BookOpen 
+  Zap, ArrowRight, HelpCircle, ShieldCheck 
 } from "lucide-react";
 import { motion } from 'framer-motion';
 import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
 
-// Removed PurpleGlobeGraphic as requested
-
 const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   const fonts = {
     display: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
@@ -26,105 +23,144 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   const ctaCards = [
     { 
       id: "portfolio",
-      label: "portfolio back credit", 
+      label: "Portfolio Backed Credit", 
       description: "Use your investment history for instant liquidity.", 
       icon: ShieldCheck, 
-      badge: "Asset Backed"
     },
     { 
       id: "unsecured",
-      label: "unsecured credit", 
+      label: "Unsecured Credit", 
       description: "Access capital solutions based on your digital profile.", 
       icon: Zap, 
-      badge: "Direct Access"
     }
   ];
 
   return (
-    <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900 bg-slate-50">
-      {/* Background Gradient Layer */}
-      <div className="absolute inset-x-0 top-0 -z-10 h-full">
-        <div className="absolute inset-x-0 top-0" style={{ height: '100vh', background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 15%, #e2e8f0 35%, #cbd5e1 100%)' }} />
+    <>
+      <div className="fixed inset-0 -z-30 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#3a1a7a] via-[#2d1261] to-[#1a083d]" />
+        
+        <motion.div 
+          animate={{ 
+            y: [0, -50, 0], 
+            x: [0, 30, 0],
+            scale: [1, 1.1, 1] 
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[-5%] left-[-5%] w-[90%] h-[70%] bg-violet-500/40 blur-[120px] rounded-full" 
+        />
+        <motion.div 
+          animate={{ 
+            y: [0, 50, 0], 
+            x: [0, -30, 0],
+            scale: [1, 1.2, 1] 
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-[-10%] right-[-10%] w-[80%] h-[60%] bg-indigo-400/25 blur-[100px] rounded-full" 
+        />
+        
+        <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" 
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
       </div>
 
-      <div className="px-5 pt-12 pb-8">
-        {/* Header Section */}
-        <header className="relative flex items-center justify-between mb-12 z-20">
-          <div className="flex items-center gap-3">
-            {profile?.avatarUrl ? (
-              <img
-                src={profile.avatarUrl}
-                alt={displayName || "Profile"}
-                className="h-10 w-10 rounded-full border border-slate-200 object-cover bg-white"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700">
-                {initials}
-              </div>
-            )}
-          </div>
-          
-          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
-          <NotificationBell onClick={onOpenNotifications} color="black" />
-        </header>
+      <motion.img 
+        src="/assets/images/Illustration Coin1.webp" 
+        initial={{ y: 800, opacity: 0 }}
+        animate={{ y: [0, -15, 0], opacity: 0.4 }}
+        transition={{ 
+          y: { duration: 4, repeat: Infinity, ease: "easeInOut" },
+          default: { duration: 1.5, ease: "easeOut" }
+        }}
+        className="absolute top-24 right-[-40px] w-64 pointer-events-none z-0"
+      />
+      <motion.img 
+        src="/assets/images/Illustration Coin2.webp" 
+        initial={{ y: 800, opacity: 0 }}
+        animate={{ y: [0, 10, 0], opacity: 0.3 }}
+        transition={{ 
+          y: { duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.5 },
+          default: { duration: 1.8, ease: "easeOut" }
+        }}
+        className="absolute top-[35%] left-[-20px] w-40 pointer-events-none z-0"
+      />
 
-        {/* Hero Section */}
-        <div className="flex flex-col gap-2 mb-16 relative">
-            <div className="flex items-center gap-2 mb-4 z-20">
-              <img src="/assets/mint-logo.png" alt="Mint" className="h-4 brightness-0" />
-              <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] opacity-80" style={{ fontFamily: fonts.display }}>credit</span>
+      <div className="absolute bottom-20 left-0 w-full h-64 opacity-30 pointer-events-none z-10">
+        <svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none">
+          {[...Array(8)].map((_, i) => (
+            <path 
+              key={i}
+              d={`M -50 ${190 - i*14} Q 120 ${210 - i*10} 450 ${130 - i*25}`}
+              fill="none" 
+              stroke="white" 
+              strokeWidth="0.6"
+              style={{ opacity: 0.08 + (i * 0.04) }}
+            />
+          ))}
+        </svg>
+      </div>
+
+      <div className="relative z-50 rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
+        <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
+          <header className="relative flex items-center justify-between text-white">
+            <div className="flex items-center gap-3">
+              {profile?.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={displayName || "Profile"}
+                  className="h-10 w-10 rounded-full border border-white/40 object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
+                  {initials || "—"}
+                </div>
+              )}
             </div>
-            <div className="z-20">
-                 <h1 className="text-slate-900 text-5xl font-light tracking-tight mb-6 leading-[1.1]" style={{ fontFamily: fonts.display }}>
-                    Borrowing has<br /> never been <span className="font-semibold text-violet-600">easier</span>.
-                 </h1>
-            </div>
+
+            <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
+
+            <NotificationBell onClick={onOpenNotifications} />
+          </header>
+        </div>
+      </div>
+      
+
+      <div className="fixed bottom-[145px] left-6 right-6 z-30">
+        <div className="mb-10">
+          <h1 className="text-white text-[44px] font-light tracking-tight leading-[1.05] mb-8" style={{ fontFamily: fonts.display }}>
+            Borrowing has<br /> never been <span className="font-semibold text-violet-400">easier</span>
+          </h1>
+          <div className="flex items-center justify-between opacity-60 text-white">
+            <span className="text-xs font-medium tracking-wide">How it works</span>
+            <HelpCircle className="h-6 w-6" />
+          </div>
         </div>
 
-        {/* Solutions Grid */}
-        <div className="space-y-4 relative z-20">
-          <div className="px-1 mb-4 flex items-center justify-between">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Credit Solutions Pipeline</p>
-            <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
-          </div>
-
+        <div className="space-y-4">
           {ctaCards.map((item, i) => (
-            <motion.button 
+            <button 
                 key={i} 
-                initial={{ y: 20, opacity: 0 }} 
-                animate={{ y: 0, opacity: 1 }} 
-                transition={{ delay: i * 0.1, duration: 0.4 }}
                 onClick={() => {
                     if (item.id === "portfolio") onTabChange("instantLiquidity");
                     if (item.id === "unsecured") onTabChange("creditApply");
                 }}
-                className="w-full group relative overflow-hidden bg-white rounded-[32px] p-6 border border-slate-200 text-left transition-all active:scale-[0.98] flex items-center gap-5 shadow-sm shadow-slate-200/50 hover:shadow-md hover:border-violet-200"
+                className="w-full flex items-center justify-between bg-white p-2 pl-8 rounded-full group active:scale-[0.98] transition-all shadow-2xl"
             >
-                {/* Visual Accent */}
-                <div className="absolute inset-0 bg-gradient-to-r from-violet-600/0 to-violet-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                {/* Icon section */}
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl text-violet-600 bg-violet-50 shrink-0 border border-violet-100 shadow-inner">
-                    <item.icon className="h-6 w-6" />
-                </span>
-                
-                {/* Text content */}
-                <div className="flex-1 relative z-10">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[8px] font-black text-violet-700 uppercase tracking-widest px-2 py-0.5 bg-violet-100 rounded-full">{item.badge}</span>
-                    </div>
-                    <p className="text-lg font-bold text-slate-900 mb-0.5" style={{ fontFamily: fonts.display }}>{item.label}</p>
-                    <p className="text-[11px] font-medium text-slate-500 leading-snug">{item.description}</p>
+                <div className="flex flex-col text-left py-2">
+                    <span className="text-[#6366F1] text-[17px] font-bold tracking-tight">
+                        {item.label}
+                    </span>
+                    <span className="text-slate-400 text-[10px] font-medium leading-tight max-w-[180px]">
+                        {item.description}
+                    </span>
                 </div>
-
-                <div className="flex flex-col items-center opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all z-10">
-                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-violet-600" />
+                <div className="h-14 w-14 rounded-full bg-[#6366F1] flex items-center justify-center text-white shadow-lg">
+                    <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
                 </div>
-            </motion.button>
+            </button>
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
