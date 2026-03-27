@@ -71,7 +71,7 @@ export function StrategyReturnHeaderChart({ series, onValueChange }) {
   return (
     <div className="space-y-2">
       <ChartContainer config={chartConfig} className="h-[210px] w-full overflow-visible">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minHeight={210}>
           <ComposedChart
             data={filtered}
             margin={{ top: 10, right: 16, left: 12, bottom: 10 }}

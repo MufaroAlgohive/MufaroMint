@@ -14,6 +14,11 @@ const BankLinkPage = ({ onBack, onComplete }) => {
 
   useEffect(() => {
     if (bankLinked) setStatus("already_linked");
+    
+    // Clear any stale TrueID verification state on mount
+    localStorage.removeItem('truid_collection_id');
+    localStorage.removeItem('truid_consumer_url');
+    sessionStorage.removeItem('truid_consent_token');
   }, [bankLinked]);
 
   useEffect(() => {

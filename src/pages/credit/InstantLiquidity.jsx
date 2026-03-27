@@ -12,12 +12,14 @@ import NotificationBell from "../../components/NotificationBell";
 import NavigationPill from "../../components/NavigationPill";
 import { supabase } from "../../lib/supabase";
 import { useRequiredActions } from "../../lib/useRequiredActions";
-
-// --- SUB-PAGES ---
+import LiquidityFlow from "./LiquidityFlow";
 import LiquidityHistory from "./LiquidityHistory";
 import ActiveLiquidity from "./ActiveLiquidity";
 import RepayLiquidity from "./RepayLiquidity";
-import NewPortfolio from "../NewPortfolioPage";
+import NewPortfolio from "../NewPortfolioPage.jsx";
+
+// --- LIB ---
+import { LendingEngine } from "../../lib/LendingEngine";
 
 // --- CONSTANTS ---
 const sortOptions = ["Balance (High)", "Score (High)", "Market Cap", "Dividend Yield"];
@@ -26,7 +28,7 @@ const sectorOptions = ["Technology", "Financials", "Consumer", "Healthcare", "En
 // --- MINI CHART COMPONENT ---
 const AssetMiniChart = ({ data, color = "#7c3aed" }) => (
   <div className="h-8 w-16">
-    <ResponsiveContainer width="100%" height="100%">
+    <ResponsiveContainer width="100%" height="100%" minHeight={32}>
       <LineChart data={data.map((v, i) => ({ v, i }))}>
         <YAxis hide domain={['dataMin', 'dataMax']} />
         <Line type="monotone" dataKey="v" stroke={color} strokeWidth={2} dot={false} />
@@ -35,7 +37,7 @@ const AssetMiniChart = ({ data, color = "#7c3aed" }) => (
   </div>
 );
 
-const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBank }) => {
+const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBank, onBack }) => {
   // --- CORE UI STATE ---
   const [view, setView] = useState("main");
   const [loading, setLoading] = useState(true);
@@ -62,11 +64,14 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
   const [isProcessing, setIsProcessing] = useState(false);
 
   // --- USER INPUT STATE ---
-  const [pledgeAmount, setPledgeAmount] = useState("");
+  const [pledgeAmount, setPledgeAmount] = useState(0);
   const [pinInput, setPinInput] = useState("");
   const [newPin, setNewPin] = useState("");
   const [repaymentDate, setRepaymentDate] = useState("");
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
+  const [activeLoanId, setActiveLoanId] = useState(null);
+  const [nextSalaryDate, setNextSalaryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [termMonths, setTermMonths] = useState(1);
 
   useEffect(() => { setPortalTarget(document.body); }, []);
 
@@ -128,7 +133,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               : [0, 0, 0, 0, 0, 0, 0];
 
             // Dividing by 10 shifts the decimal one place to the right compared to the standard /100
-            const balance = (item.quantity * (sec.last_price || 0)) / 10;
+            const balance = (item.quantity * (sec.last_price || 0)) / 100;
 
             return {
               id: sec.id,
@@ -213,7 +218,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
     setTimeout(() => {
       setSelectedAssets([]);
       setPinInput("");
-      setPledgeAmount("");
+      setPledgeAmount(0);
     }, 300);
   };
 
@@ -225,15 +230,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
 
   // --- SUPABASE TRANSACTION ---
   const initiateSessionAuth = () => {
-    // EFT Payout Requirement: Bank must be verified via TruID first
-    if (!bankLinked) {
-      setWorkflowStep("verify_bank");
-      return;
-    }
-    const randomPin = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedPin(randomPin);
-    setPinInput("");
-    setWorkflowStep("auth");
+    setWorkflowStep("liquidity_flow");
   };
 
   const handleConfirmPledge = async () => {
@@ -245,29 +242,35 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
     setIsProcessing(true);
     try {
       const principal = parseFloat(pledgeAmount);
-      const interestRate = 10.5;
+      
+      const engine = new LendingEngine({
+        loanType: 'securitised', // Portfolio backed
+        principal: principal,
+        originationDate: new Date(),
+        nextSalaryDate: nextSalaryDate,
+        termMonths: termMonths
+      });
 
-      // Calculate months for the DB constraint
-      const start = new Date();
-      const end = new Date(repaymentDate);
-      const months = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      const calculation = engine.calculateLoan();
 
       const { data: loan, error: loanErr } = await supabase.from('loan_application').insert({
         user_id: profile.id,
         principal_amount: principal,
-        interest_rate: interestRate,
-        amount_repayable: principal * (1 + (interestRate / 100)),
-        number_of_months: months,
-        first_repayment_date: repaymentDate,
-        status: 'approved',
-        step_number: 4
+        interest_rate: engine.getMonthlyRate(),
+        amount_repayable: calculation.totalRepayable,
+        number_of_months: termMonths,
+        first_repayment_date: calculation.paymentDates[0].toISOString(),
+        status: 'in_progress',
+        step_number: 1
       }).select().single();
 
       if (loanErr) throw loanErr;
+      setActiveLoanId(loan.id);
 
       const pledges = selectedAssets.map(item => ({
         user_id: profile.id,
         loan_application_id: loan.id,
+        security_id: item.id,
         symbol: item.code,
         pledged_quantity: item.quantity,
         pledged_value: item.balance,
@@ -276,16 +279,29 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
         loan_value: principal * (item.balance / totalSelectedBalance)
       }));
 
+      // The following tables are protected by RLS and cannot be written to directly from the client.
+      // In a production environment, these should be handled via a server-side API or RPC function.
+      /*
       await supabase.from('pbc_collateral_pledges').insert(pledges);
 
-      const { data: account } = await supabase.from('credit_accounts').select('loan_balance, available_credit').eq('user_id', profile.id).single();
-      await supabase.from('credit_accounts').update({
-        loan_balance: (account?.loan_balance || 0) + principal,
-        available_credit: (account?.available_credit || 0) + principal,
-        updated_at: new Date().toISOString()
-      }).eq('user_id', profile.id);
+      // Upsert credit account info
+      const { data: account } = await supabase.from('credit_accounts')
+        .select('loan_balance, available_credit')
+        .eq('user_id', profile.id)
+        .maybeSingle();
 
-      setWorkflowStep("success");
+      const newLoanBalance = (account?.loan_balance || 0) + principal;
+      const newAvailableCredit = (account?.available_credit || 0) + principal;
+
+      await supabase.from('credit_accounts').upsert({
+        user_id: profile.id,
+        loan_balance: newLoanBalance,
+        available_credit: newAvailableCredit,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      */
+
+      setWorkflowStep("liquidity_flow");
     } catch (err) {
       console.error("Pledge failed:", err);
       alert("Transaction failed. Check console for details.");
@@ -330,8 +346,14 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                 <button onClick={() => setInfoModal('collateral')}><Info size={11} className="text-white/30" /></button>
               </div>
               <div className="flex items-baseline text-white tracking-tight" style={{ fontFamily: fonts.display }}>
-                <span className="text-3xl font-light">R{Math.floor(totalAvailable).toLocaleString()}</span>
-                <span className="text-xl font-medium opacity-60">.00</span>
+                {loading ? (
+                  <div className="h-9 w-32 bg-white/20 animate-pulse rounded-lg mt-1" />
+                ) : (
+                  <>
+                    <span className="text-3xl font-light">R{Math.floor(totalAvailable).toLocaleString()}</span>
+                    <span className="text-xl font-medium opacity-60">.00</span>
+                  </>
+                )}
               </div>
             </div>
             <button
@@ -339,7 +361,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               disabled={qualifyingCount === 0}
               className={`w-full text-slate-900 text-[10px] uppercase tracking-[0.2em] font-black py-4 rounded-xl transition-all mt-5 shadow-xl ${qualifyingCount > 0 ? 'bg-white active:scale-[0.97]' : 'bg-white/40 opacity-50 cursor-not-allowed'}`}
             >
-              {qualifyingCount > 0 ? "Pledge All Available" : "No Available Liquidity"}
+              {loading ? "Calculating..." : (qualifyingCount > 0 ? "Pledge All Available" : "No Available Liquidity")}
             </button>
           </div>
         </div>
@@ -385,6 +407,9 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
             <p className="text-sm font-semibold text-slate-900">Eligible Collateral</p>
             <button onClick={() => setInfoModal('score')}><Info className="h-4 w-4 text-slate-300" /></button>
           </div>
+          <p className="px-5 text-[11px] font-medium text-slate-500 -mt-2 mb-4 leading-relaxed">
+            Select an asset below to use it as collateral for your instant liquidity application.
+          </p>
 
           {loading && (
             <div className="text-center py-10 opacity-40 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
@@ -437,8 +462,8 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                       )}
                     </div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.name}</p>
-                      <p className="text-xl font-bold text-slate-900" style={{ fontFamily: fonts.display }}>R{item.balance.toLocaleString()}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Recognized</p>
+                      <p className="text-xl font-bold text-slate-900" style={{ fontFamily: fonts.display }}>{formatZar(item.available)}</p>
                     </div>
                   </div>
                   <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full uppercase">Score: {item.score.toFixed(2)}</span>
@@ -446,8 +471,8 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
 
                 <div className="flex justify-between items-center pt-4 border-t border-slate-50">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Recognized</p>
-                    <p className="text-xs font-bold text-slate-900">{formatZar(item.available)}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{item.name}</p>
+                    <p className="text-xs font-bold text-slate-900">{formatZar(item.balance)}</p>
                   </div>
                   <AssetMiniChart data={item.spark} />
                   <div className="flex items-center gap-2">
@@ -590,7 +615,15 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                   {(pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) ? 'Secure Range' : 'Critical Risk'}
                 </span>
               </div>
-              <div className="relative h-4 w-full bg-slate-200 rounded-full overflow-hidden flex">
+              <div 
+                className="relative h-4 w-full bg-slate-200 rounded-full overflow-hidden flex cursor-pointer"
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  const newAmount = Math.round((totalSelectedBalance * pct) / 100) * 100;
+                  setPledgeAmount(Math.min(Math.max(1000, newAmount), totalSelectedAvailable));
+                }}
+              >
                 {/* Emerald Zone: Safe up to Margin Call  */}
                 <div
                   className="h-full bg-emerald-500"
@@ -607,7 +640,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                 {/* User's Current Needle */}
                 <div
                   className="absolute top-0 bottom-0 w-1 bg-white shadow-2xl transition-all duration-300 ring-2 ring-black/5"
-                  style={{ left: `${(pledgeAmount / totalSelectedBalance) * 100}%` }}
+                  style={{ left: `${totalSelectedBalance > 0 ? (pledgeAmount / totalSelectedBalance) * 100 : 0}%` }}
                 />
               </div>
               <div className="flex justify-between mt-3 px-1">
@@ -634,18 +667,87 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                     placeholder="0.00"
                     className="w-32 bg-slate-50 px-4 py-2 rounded-xl text-right font-bold text-slate-900 outline-none mb-1"
                   />
-                  <p className="text-[9px] font-bold text-violet-600 uppercase">Usage: {((pledgeAmount / totalSelectedBalance) * 100).toFixed(1)}% of selection</p>
+                  <p className="text-[9px] font-bold text-violet-600 uppercase">Usage: {totalSelectedBalance > 0 ? ((parseFloat(pledgeAmount) / totalSelectedBalance) * 100).toFixed(1) : 0}% of selection</p>
                 </div>
               </div>
               <input
                 type="range"
-                min="1000"
-                max={totalSelectedAvailable}
-                step="1000"
-                value={pledgeAmount}
+                min="0"
+                max={totalSelectedAvailable || 1000}
+                step={totalSelectedAvailable > 10000 ? 500 : 100}
+                value={pledgeAmount || 0}
                 onChange={(e) => setPledgeAmount(Number(e.target.value))}
-                className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none accent-violet-600 cursor-pointer"
+                className="w-full h-2 bg-slate-100 rounded-lg appearance-none accent-slate-900 cursor-pointer mb-2"
               />
+            </div>
+
+            {/* NCR Schedule Configuration */}
+            <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-lg mb-8">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Repayment Strategy</p>
+              
+              <div className="flex gap-4 mb-6">
+                <div className="flex-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Next Salary Date</label>
+                  <input 
+                    type="date" 
+                    value={nextSalaryDate}
+                    onChange={(e) => setNextSalaryDate(e.target.value)}
+                    className="w-full bg-slate-50 p-3 rounded-xl font-bold text-xs text-slate-900 border border-slate-100"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Term (Months)</label>
+                  <div className="flex bg-slate-50 rounded-xl p-1 border border-slate-100">
+                    {[1, 2, 3, 4, 5, 6].map(m => (
+                      <button 
+                        key={m}
+                        onClick={() => setTermMonths(m)}
+                        className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${termMonths === m ? "bg-slate-900 text-white shadow-md" : "text-slate-400"}`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* NCR Quote Summary */}
+              {(() => {
+                const engine = new LendingEngine({
+                  loanType: 'securitised',
+                  principal: pledgeAmount || 0,
+                  originationDate: new Date(),
+                  nextSalaryDate: nextSalaryDate,
+                  termMonths: termMonths
+                });
+                const calc = engine.calculateLoan();
+                return (
+                  <div className="bg-slate-900 rounded-2xl p-5 text-white">
+                    <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/10">
+                      <span className="text-[9px] font-bold uppercase text-white/40 tracking-wider">Estimated Installment</span>
+                      <span className="text-xl font-black">{formatZar(calc.installmentAmount)}</span>
+                    </div>
+                    <div className="space-y-2">
+                       <div className="flex justify-between text-[10px]">
+                        <span className="text-white/40">Initiation Fee (NCR Cap)</span>
+                        <span className="font-bold">{formatZar(calc.initiationFee)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-white/40">Monthly Service Fee (Pro-rated)</span>
+                        <span className="font-bold">{formatZar(calc.totalServiceFees)}</span>
+                      </div>
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-white/40">Total Interest Accrued</span>
+                        <span className="font-bold">{formatZar(calc.totalInterest)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs pt-2 mt-2 border-t border-white/10">
+                        <span className="font-black uppercase tracking-widest text-white/40 text-[9px]">Total Repayable</span>
+                        <span className="font-black text-violet-400">{formatZar(calc.totalRepayable)}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="bg-slate-50 p-6 rounded-[28px] border border-slate-100">
@@ -655,8 +757,14 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                   const weight = (asset.balance / totalSelectedBalance);
                   return (
                     <div key={asset.id} className="flex justify-between text-sm items-center">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-violet-400" />
+                      <div className="flex items-center gap-3">
+                        <div className="h-6 w-6 rounded-lg bg-white flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm shrink-0">
+                          {asset.logo ? (
+                            <img src={asset.logo} alt={asset.code} className="h-full w-full object-contain p-1" />
+                          ) : (
+                            <span className="text-[8px] font-black text-slate-400 uppercase">{asset.code?.[0]}</span>
+                          )}
+                        </div>
                         <span className="text-slate-600 font-bold">{asset.code}</span>
                       </div>
                       <span className="font-bold text-slate-900">{formatZar(pledgeAmount * weight)}</span>
@@ -670,10 +778,10 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
           <div className="p-6 bg-white border-t border-slate-100 pb-28">
             <button
               disabled={!pledgeAmount || pledgeAmount <= 0}
-              onClick={() => setWorkflowStep("contract")}
+              onClick={handleConfirmPledge}
               className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all disabled:opacity-30"
             >
-              Review Final Agreement
+              Review & Sign Agreement
             </button>
           </div>
         </div>
@@ -683,129 +791,23 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       {workflowStep !== "idle" && portalTarget && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-md px-6 pb-20">
 
-          {workflowStep === "contract" && (
-            <div className="bg-white w-full max-w-sm rounded-[36px] p-8 shadow-2xl animate-in zoom-in-95">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="h-10 w-10 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center"><FileText size={20} /></div>
-                <h3 className="text-xl font-bold text-slate-900">Legal Review</h3>
-              </div>
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between pb-3 border-b border-slate-50 text-sm">
-                  <span className="text-slate-500 font-medium">Lending Interest</span>
-                  <span className="font-bold text-slate-900">10.5% p.a.</span>
-                </div>
-                <div className="bg-slate-900 rounded-2xl p-4 flex justify-between items-center text-white">
-                  <span className="text-[10px] font-black opacity-40 uppercase">Interest Cost</span>
-                  <span className="font-bold">{formatZar((pledgeAmount * 0.105) / 12)} / mo</span>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">First Repayment Date</label>
-                  <input
-                    type="date"
-                    min={dateConstraints.min}
-                    max={dateConstraints.max}
-                    value={repaymentDate}
-                    onChange={(e) => setRepaymentDate(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-100 text-slate-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-violet-500 font-bold transition-all"
-                  />
-                </div>
-              </div>
-              <label className="flex items-start gap-3 mb-8 cursor-pointer group">
-                <div className={`mt-1 h-5 w-5 shrink-0 rounded border-2 flex items-center justify-center transition-all ${disclaimerChecked ? 'bg-violet-600 border-violet-600' : 'bg-white border-slate-200'}`}>
-                  {disclaimerChecked && <Check size={14} className="text-white" />}
-                </div>
-                <input type="checkbox" className="hidden" checked={disclaimerChecked} onChange={() => setDisclaimerChecked(!disclaimerChecked)} />
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight leading-tight">
-                  I authorize the pledge of {selectedAssets.length} assets and understand the liquidation risks.
-                </span>
-              </label>
-              <div className="space-y-2">
-                <button
-                  disabled={!disclaimerChecked || !repaymentDate}
-                  onClick={initiateSessionAuth}
-                  className="w-full bg-slate-900 text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-30"
-                >
-                  Authorize Capital
-                </button>
-                <button
-                  onClick={closeDetail}
-                  className="w-full py-2 mt-2 text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] hover:bg-rose-50 rounded-xl transition-all"
-                >
-                  Cancel Application
-                </button>
-                <button onClick={() => setWorkflowStep("idle")} className="w-full py-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Go Back</button>
-              </div>
-            </div>
-          )}
-
-          {workflowStep === "setup_pin" && (
-            <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">
-              <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><ShieldCheck size={28} /></div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Create Security PIN</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8">Set a 5-digit code for loans</p>
-              <input type="password" maxLength={5} value={newPin} onChange={(e) => setNewPin(e.target.value)} placeholder="00000" className="w-full h-14 bg-slate-50 rounded-2xl text-center text-2xl font-black tracking-[0.5em] mb-8 outline-none border border-slate-100" />
-              <button onClick={handleSetupPin} disabled={newPin.length !== 5 || isProcessing} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl">Secure My Account</button>
-              <button
-                onClick={closeDetail}
-                className="w-full py-2 mt-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]"
-              >
-                Exit & Cancel
-              </button>
-            </div>
-          )}
-
-          {workflowStep === "verify_bank" && (
-            <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">
-              <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><HandCoins size={28} /></div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Verify Bank Account</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8">TruID Verification Required for EFT Payouts</p>
-              <p className="text-sm text-slate-500 mb-8 leading-relaxed">
-                To receive funds via EFT, Mint requires a secure link to your bank account via **TruID**. This ensures capital is disbursed only to your personal verified account.
-              </p>
-              <button
-                onClick={() => {
-                  onLinkBank();
-                  closeDetail();
+          {workflowStep === "liquidity_flow" && (
+            <div className="w-full max-w-4xl max-h-screen overflow-y-auto no-scrollbar animate-in zoom-in-95">
+              <LiquidityFlow 
+                principal={pledgeAmount}
+                profile={profile}
+                loanId={activeLoanId}
+                termMonths={termMonths}
+                salaryDate={nextSalaryDate}
+                selectedAssets={selectedAssets}
+                onComplete={() => {
+                  setWorkflowStep("success");
                 }}
-                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center justify-center gap-2"
-              >
-                <Zap size={14} fill="currentColor" />
-                Verify via TruID Connect
-              </button>
-              <button
-                onClick={() => setWorkflowStep("contract")}
-                className="w-full py-2 mt-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]"
-              >
-                Go Back to Review
-              </button>
-            </div>
-          )}
-
-          {workflowStep === "auth" && (
-            <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">
-              <div className="h-16 w-16 rounded-full bg-violet-50 text-violet-600 flex items-center justify-center mx-auto mb-6"><Lock size={28} /></div>
-              <h3 className="text-xl font-bold text-slate-900 mb-2">Security Verification</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Enter the code shown below</p>
-
-              <div className="bg-slate-900 rounded-2xl py-4 mb-6">
-                <span className="text-3xl font-black tracking-[0.5em] text-white ml-2">{generatedPin}</span>
-              </div>
-
-              <input
-                type="text"
-                maxLength={6}
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
-                placeholder="TYPE CODE"
-                className="w-full h-14 bg-slate-50 rounded-2xl text-center text-2xl font-black tracking-[0.2em] mb-8 outline-none border border-slate-100 focus:border-violet-500"
+                onCancel={() => setWorkflowStep("idle")}
               />
-
-              <button onClick={handleConfirmPledge} disabled={pinInput.length !== 6 || isProcessing} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl">
-                {isProcessing ? "Verifying..." : "Confirm Release"}
-              </button>
-              <button onClick={() => setWorkflowStep("contract")} className="w-full py-2 mt-4 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Go Back</button>
             </div>
           )}
+
 
           {workflowStep === "success" && (
             <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">

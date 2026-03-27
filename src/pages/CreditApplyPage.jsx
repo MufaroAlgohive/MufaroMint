@@ -21,6 +21,11 @@ const ConnectionStage = ({ onComplete, onError }) => {
    const pollingRef = useRef(null);
 
    useEffect(() => {
+      // Clear any stale TrueID verification state on mount
+      localStorage.removeItem('truid_collection_id');
+      localStorage.removeItem('truid_consumer_url');
+      sessionStorage.removeItem('truid_consent_token');
+
       return () => {
          if (pollingRef.current) clearInterval(pollingRef.current);
       };
