@@ -1,17 +1,15 @@
 import React from "react";
 import { 
-  Zap, ChevronRight, HelpCircle, ShieldCheck, BookOpen 
+  Zap, ArrowRight, HelpCircle, ShieldCheck 
 } from "lucide-react";
 import { motion } from 'framer-motion';
 import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
-
-// Removed PurpleGlobeGraphic as requested
+import BottomNav from "../../components/BottomNav";
 
 const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   const fonts = {
-    display: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
+    display: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
   };
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
@@ -41,14 +39,48 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   ];
 
   return (
-    <div className="min-h-screen pb-32 relative overflow-x-hidden text-slate-900 bg-slate-50">
-      {/* Background Gradient Layer */}
-      <div className="absolute inset-x-0 top-0 -z-10 h-full">
+    <div className="min-h-screen pb-32 relative overflow-hidden text-slate-900 bg-slate-50">
+      <div className="absolute inset-x-0 top-0 -z-30 h-full">
         <div className="absolute inset-x-0 top-0" style={{ height: '100vh', background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 15%, #e2e8f0 35%, #cbd5e1 100%)' }} />
       </div>
 
-      <div className="px-5 pt-12 pb-8">
-        {/* Header Section */}
+      <div className="absolute bottom-0 left-0 w-full h-[40%] -z-20 opacity-30 pointer-events-none">
+        <svg width="100%" height="100%" viewBox="0 0 400 400" preserveAspectRatio="none">
+          {[...Array(6)].map((_, i) => (
+            <path 
+              key={i}
+              d={`M -50 ${380 - i*18} Q 150 ${400 - i*12} 450 ${300 - i*45}`}
+              fill="none" 
+              stroke="#6366f1" 
+              strokeWidth="1.2"
+              style={{ opacity: 0.05 + (i * 0.04) }}
+            />
+          ))}
+        </svg>
+      </div>
+
+      <motion.img 
+        src="/assets/images/Illustration Coin1.webp" 
+        initial={{ y: 900, opacity: 0 }}
+        animate={{ y: [0, -15, 0], opacity: 0.4 }}
+        transition={{ 
+          y: { duration: 5, repeat: Infinity, ease: "easeInOut" },
+          default: { duration: 1.2, ease: "easeOut" }
+        }}
+        className="absolute top-24 right-[-45px] w-64 pointer-events-none z-0"
+      />
+      <motion.img 
+        src="/assets/images/Illustration Coin2.webp" 
+        initial={{ y: 900, opacity: 0 }}
+        animate={{ y: [0, 12, 0], opacity: 0.3 }}
+        transition={{ 
+          y: { duration: 7, repeat: Infinity, ease: "easeInOut", delay: 1 },
+          default: { duration: 1.5, ease: "easeOut", delay: 0.2 }
+        }}
+        className="absolute top-[40%] left-[-20px] w-48 pointer-events-none z-0"
+      />
+
+      <div className="px-5 pt-12 relative z-20">
         <header className="relative flex items-center justify-between mb-12 z-20">
           <div className="flex items-center gap-3">
             {profile?.avatarUrl ? (
@@ -63,67 +95,57 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
               </div>
             )}
           </div>
-          
           <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
           <NotificationBell onClick={onOpenNotifications} color="black" />
         </header>
 
-        {/* Hero Section */}
-        <div className="flex flex-col gap-2 mb-16 relative">
-            <div className="flex items-center gap-2 mb-4 z-20">
-              <img src="/assets/mint-logo.png" alt="Mint" className="h-4 brightness-0" />
-              <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] opacity-80" style={{ fontFamily: fonts.display }}>credit</span>
-            </div>
-            <div className="z-20">
-                 <h1 className="text-slate-900 text-5xl font-light tracking-tight mb-6 leading-[1.1]" style={{ fontFamily: fonts.display }}>
-                    Borrowing has<br /> never been <span className="font-semibold text-violet-600">easier</span>.
-                 </h1>
-            </div>
+        <div className="flex items-center gap-2 mb-4">
+          <img src="/assets/mint-logo.png" alt="Mint" className="h-4 brightness-0" />
+          <span className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] opacity-80" style={{ fontFamily: fonts.display }}>credit</span>
         </div>
 
-        {/* Solutions Grid */}
-        <div className="space-y-4 relative z-20">
-          <div className="px-1 mb-4 flex items-center justify-between">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Credit Solutions Pipeline</p>
-            <HelpCircle className="h-3.5 w-3.5 text-slate-400" />
-          </div>
+        <h1 className="text-slate-900 text-[46px] font-light tracking-tight leading-[1.05] mb-8" style={{ fontFamily: fonts.display }}>
+            Borrowing has<br /> never been <span className="font-semibold text-violet-600">easier</span>.
+        </h1>
 
+        <div className="flex items-center justify-between mb-8 opacity-40">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">How it works</span>
+            <HelpCircle className="h-5 w-5 text-slate-400" />
+        </div>
+
+        <div className="fixed bottom-[135px] left-5 right-5 space-y-4 z-40">
           {ctaCards.map((item, i) => (
             <motion.button 
                 key={i} 
-                initial={{ y: 20, opacity: 0 }} 
-                animate={{ y: 0, opacity: 1 }} 
-                transition={{ delay: i * 0.1, duration: 0.4 }}
+                initial={{ x: -30, opacity: 0 }} 
+                animate={{ x: 0, opacity: 1 }} 
+                transition={{ delay: 0.6 + (i * 0.1), ease: "easeOut" }}
                 onClick={() => {
                     if (item.id === "portfolio") onTabChange("instantLiquidity");
                     if (item.id === "unsecured") onTabChange("creditApply");
                 }}
-                className="w-full group relative overflow-hidden bg-white rounded-[32px] p-6 border border-slate-200 text-left transition-all active:scale-[0.98] flex items-center gap-5 shadow-sm shadow-slate-200/50 hover:shadow-md hover:border-violet-200"
+                className="w-full flex items-center justify-between bg-white p-1.5 pl-8 rounded-full border border-slate-100 shadow-[0_10px_25px_rgba(0,0,0,0.05)] group active:scale-[0.98] transition-all"
             >
-                {/* Visual Accent */}
-                <div className="absolute inset-0 bg-gradient-to-r from-violet-600/0 to-violet-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                {/* Icon section */}
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl text-violet-600 bg-violet-50 shrink-0 border border-violet-100 shadow-inner">
-                    <item.icon className="h-6 w-6" />
-                </span>
-                
-                {/* Text content */}
-                <div className="flex-1 relative z-10">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[8px] font-black text-violet-700 uppercase tracking-widest px-2 py-0.5 bg-violet-100 rounded-full">{item.badge}</span>
+                <div className="flex flex-col text-left py-1">
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[7px] font-black text-violet-700 uppercase tracking-widest px-1.5 py-0.5 bg-violet-50 rounded-full">{item.badge}</span>
                     </div>
-                    <p className="text-lg font-bold text-slate-900 mb-0.5" style={{ fontFamily: fonts.display }}>{item.label}</p>
-                    <p className="text-[11px] font-medium text-slate-500 leading-snug">{item.description}</p>
+                    <span className="text-slate-900 text-[17px] font-bold tracking-tight leading-tight capitalize">
+                        {item.label}
+                    </span>
+                    <span className="text-slate-400 text-[10px] font-medium leading-tight max-w-[190px]">
+                        {item.description}
+                    </span>
                 </div>
-
-                <div className="flex flex-col items-center opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all z-10">
-                    <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-violet-600" />
+                <div className="h-14 w-14 rounded-full bg-violet-600 flex items-center justify-center text-white relative overflow-hidden shadow-lg shadow-violet-200">
+                    <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
                 </div>
             </motion.button>
           ))}
         </div>
       </div>
+
+      <BottomNav activeTab="credit" onTabChange={onTabChange} />
     </div>
   );
 };
