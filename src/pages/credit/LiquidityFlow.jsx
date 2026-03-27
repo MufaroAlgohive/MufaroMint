@@ -839,7 +839,7 @@ export default function LiquidityFlow({ principal, profile, loanId, termMonths =
     
     try {
       // 1. Generate the Professional PDF
-      await generateLoanAgreementPdf({
+      const { fileName, pdfBase64 } = await generateLoanAgreementPdf({
         profile,
         principal,
         calculation,
@@ -849,7 +849,22 @@ export default function LiquidityFlow({ principal, profile, loanId, termMonths =
         pledgedAssets: selectedAssets
       });
 
-      // 2. Save to Database
+      // 2. Email the agreement to the client
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        fetch("/api/loan/email-agreement", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({ loanId, pdfBase64, fileName }),
+        }).catch(err => console.error("Email send failed:", err));
+      } catch (emailErr) {
+        console.warn("Could not initiate email send:", emailErr);
+      }
+
+      // 3. Save to Database
       const { error } = await supabase
         .from('loan_application')
         .update({

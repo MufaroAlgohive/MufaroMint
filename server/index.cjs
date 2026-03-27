@@ -1808,6 +1808,61 @@ app.post("/api/banking/initiate", async (req, res) => {
   }
 });
 
+app.post("/api/loan/email-agreement", async (req, res) => {
+  try {
+    const { loanId, pdfBase64, fileName } = req.body;
+    if (!loanId || !pdfBase64) {
+      return res.status(400).json({ success: false, error: { message: "Missing loanId or pdfBase64" } });
+    }
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser(req.headers.authorization?.split(" ")[1]);
+    if (authError || !user) return res.status(401).json({ success: false, error: { message: "Unauthorized" } });
+
+    const resend = getResendClient();
+    if (!resend) {
+      return res.status(500).json({ success: false, error: { message: "Email service not configured" } });
+    }
+
+    // Convert data URL to base64 if needed
+    const base64Data = pdfBase64.includes(",") ? pdfBase64.split(",")[1] : pdfBase64;
+
+    const { data, error } = await resend.emails.send({
+      from: 'Mint Platforms <alerts@thealgohive.com>',
+      to: [user.email],
+      subject: 'Your Signed Loan Agreement - Mint Securities',
+      html: `
+        <div style="font-family: sans-serif; color: #374151; line-height: 1.5; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
+          <h2 style="color: #0d1b2e;">Loan Agreement Signed</h2>
+          <p>Hello,</p>
+          <p>Thank you for choosing Mint. Your loan agreement has been successfully signed and processed.</p>
+          <p>Please find the attached copy of your signed <b>Share Pledge and Secured Lending Agreement</b> for your records.</p>
+          <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 20px;">
+            <p style="margin: 0; font-size: 13px; color: #6b7280;"><b>Loan ID:</b> ${loanId}</p>
+            <p style="margin: 0; font-size: 13px; color: #6b7280;"><b>Status:</b> Pending Payout</p>
+          </div>
+          <p style="margin-top: 24px; font-size: 14px; color: #9ca3af;">
+            Best regards,<br/>
+            The Mint Team
+          </p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: fileName || 'Loan_Agreement.pdf',
+          content: Buffer.from(base64Data, 'base64'),
+        },
+      ],
+    });
+
+    if (error) throw error;
+
+    res.json({ success: true, message: "Email sent successfully" });
+  } catch (error) {
+    console.error("Email agreement error:", error);
+    res.status(500).json({ success: false, error: { message: error.message } });
+  }
+});
+
 app.get("/api/banking/status", async (req, res) => {
   try {
     const { collectionId } = req.query;

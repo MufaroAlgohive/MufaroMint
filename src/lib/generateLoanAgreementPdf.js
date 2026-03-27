@@ -288,7 +288,8 @@ export default async function generateLoanAgreementPdf({
   doc.save(fileName);
   
   const pdfOutput = doc.output("bloburl");
+  const pdfBase64 = doc.output("datauristring");
   window.open(pdfOutput, "_blank");
   
-  return { doc, agreementId, fileName };
+  return { doc, agreementId, fileName, pdfBase64 };
 }
