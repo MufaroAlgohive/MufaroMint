@@ -36,24 +36,34 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   ];
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#12042d] text-white">
-      <div className="absolute inset-0 bg-[#12042d] -z-30" />
-      
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none mix-blend-overlay -z-20" 
-           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+    <>
+      <div className="fixed inset-0 -z-30 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#3a1a7a] via-[#2d1261] to-[#1a083d]" />
+        
+        <motion.div 
+          animate={{ 
+            y: [0, -50, 0], 
+            x: [0, 30, 0],
+            scale: [1, 1.1, 1] 
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute top-[-5%] left-[-5%] w-[90%] h-[70%] bg-violet-500/40 blur-[120px] rounded-full" 
+        />
+        <motion.div 
+          animate={{ 
+            y: [0, 50, 0], 
+            x: [0, -30, 0],
+            scale: [1, 1.2, 1] 
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          className="absolute bottom-[-10%] right-[-10%] w-[80%] h-[60%] bg-indigo-400/25 blur-[100px] rounded-full" 
+        />
+        
+        <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" 
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+      </div>
 
-      <motion.div 
-        animate={{ y: [0, -100, 0], x: [0, 50, 0] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        className="absolute top-[-10%] left-[-10%] w-[80%] h-[60%] bg-violet-600/20 blur-[120px] rounded-full -z-20" 
-      />
-      <motion.div 
-        animate={{ y: [0, 100, 0], x: [0, -30, 0] }}
-        transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-        className="absolute bottom-[-10%] right-[-10%] w-[70%] h-[50%] bg-indigo-500/10 blur-[100px] rounded-full -z-20" 
-      />
-
-     <motion.img 
+      <motion.img 
         src="/assets/images/Illustration Coin1.webp" 
         initial={{ y: 800, opacity: 0 }}
         animate={{ y: [0, -15, 0], opacity: 0.4 }}
@@ -89,36 +99,31 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
         </svg>
       </div>
 
-      <header className="fixed top-0 left-0 right-0 px-6 pt-12 flex items-center justify-between z-50 pointer-events-none">
-        <div className="pointer-events-auto">
-          {profile?.avatarUrl ? (
-            <img
-              src={profile.avatarUrl}
-              alt={displayName || "Profile"}
-              className="h-10 w-10 rounded-full border border-white/20 object-cover bg-white/10 backdrop-blur-sm"
-            />
-          ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white backdrop-blur-sm">
-              {initials}
-            </div>
-          )}
-        </div>
-        
-        <div className="pointer-events-auto">
-          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
-        </div>
-        
-        <div className="pointer-events-auto">
-          <NotificationBell onClick={onOpenNotifications} color="white" />
-        </div>
-      </header>
+      <header className="relative flex items-center justify-between mb-12 z-20 px-6 pt-6">
+          <div className="flex items-center gap-3">
+            {profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={displayName || "Profile"}
+                className="h-10 w-10 rounded-full border border-slate-200 object-cover bg-white"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 border border-slate-300 text-xs font-semibold text-slate-700">
+                {initials}
+              </div>
+            )}
+          </div>
+          
+          <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="light" />
+          <NotificationBell onClick={onOpenNotifications} color="black" />
+        </header>
 
       <div className="fixed bottom-[145px] left-6 right-6 z-30">
         <div className="mb-10">
           <h1 className="text-white text-[44px] font-light tracking-tight leading-[1.05] mb-8" style={{ fontFamily: fonts.display }}>
             Borrowing has<br /> never been <span className="font-semibold text-violet-400">easier</span>
           </h1>
-          <div className="flex items-center justify-between opacity-60">
+          <div className="flex items-center justify-between opacity-60 text-white">
             <span className="text-xs font-medium tracking-wide">How it works</span>
             <HelpCircle className="h-6 w-6" />
           </div>
@@ -149,7 +154,7 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
