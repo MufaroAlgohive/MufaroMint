@@ -58,10 +58,19 @@ export default async function handler(req, res) {
 
     return res.json({ success: true, collectionId, currentStatus, outcome });
   } catch (error) {
-    console.error("Banking status error:", error);
+    console.error("TrueID collection status error:", error);
+    
+    // Propagate detailed error information to help debug 'null' collection failures
+    const errorDetails = error.response?.data || error.data || null;
+    const errorMessage = error.message || "Internal server error";
+    
     return res.status(error.status || 500).json({
       success: false,
-      error: { message: error.message || "Internal server error" }
+      error: { 
+        message: `Collection failed: ${errorMessage}`,
+        code: 9000,
+        detail: errorDetails
+      }
     });
   }
 }

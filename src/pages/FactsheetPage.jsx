@@ -542,7 +542,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
                 </div>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={192}>
                 <ComposedChart
                   data={data}
                   margin={{ top: 12, right: 16, left: 8, bottom: 28 }}

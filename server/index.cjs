@@ -1,9 +1,3 @@
-const express = require("express");
-const cors = require("cors");
-const crypto = require("crypto");
-const { Pool } = require("pg");
-const truIDClient = require("./truidClient.cjs");
-const { Resend } = require("resend");
 const fs = require("fs");
 const path = require("path");
 
@@ -32,6 +26,13 @@ try {
 } catch (e) {
   console.warn("[Server] Could not load .env file:", e.message);
 }
+
+const express = require("express");
+const cors = require("cors");
+const crypto = require("crypto");
+const { Pool } = require("pg");
+const truIDClient = require("./truidClient.cjs");
+const { Resend } = require("resend");
 
 // Helper to check both standard and VITE_ prefixed env vars
 const readEnv = (key) => process.env[key] || process.env[`VITE_${key}`];
@@ -232,6 +233,15 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
+// Local Content Security Policy for testing framing of and by TrueID
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "frame-ancestors 'self' http://localhost:5000 http://localhost:5001 http://localhost:5002 https://*.truidconnect.io https://truidconnect.io https://*.thealgohive.com https://thealgohive.com https://algo-money-nine.vercel.app"
+  );
+  next();
+});
+
 // Sumsub configuration
 const SUMSUB_APP_TOKEN = readEnv("SUMSUB_APP_TOKEN");
 const SUMSUB_SECRET_KEY = readEnv("SUMSUB_SECRET_KEY");
@@ -403,7 +413,7 @@ try {
 
 const { startMintMorningsListener, sendTestEmail } = require('./mintMorningsCron.cjs');
 if (supabaseAdmin) {
-  startMintMorningsListener(supabaseAdmin);
+  // startMintMorningsListener(supabaseAdmin);
 }
 
 function getAuthenticatedDb(token) {
@@ -1606,12 +1616,12 @@ app.post("/api/truid/initiate", async (req, res) => {
     const requestedServices = parseServices(services);
     const envServices = parseServices(process.env.TRUID_SERVICES);
     const defaultServices = envServices.length ? envServices : [
-      'eeh03fzauckvj8u982dbeq1d8',
-      'amqfuupe00xk3cfw3dergvb9n',
-      's8d7f67de8w9iekjrfu',
-      'mk2weodif8gutjre4kwsdfd',
-      '12wsdofikgjtm5k4eiduy',
-      'apw99w0lj1nwde4sfxd0'
+      "eeh03fzauckvj8u982dbeq1d8",
+      "amqfuupe00xk3cfw3dergvb9n",
+      "s8d7f67de8w9iekjrfu",
+      "mk2weodif8gutjre4kwsdfd",
+      "12wsdofikgjtm5k4eiduy",
+      "apw99w0lj1nwde4sfxd0",
     ];
     const finalServices = requestedServices.length ? requestedServices : defaultServices;
 
@@ -1621,7 +1631,8 @@ app.post("/api/truid/initiate", async (req, res) => {
       idType,
       email,
       mobile,
-      services: finalServices
+      services: finalServices,
+      force: true // Force fresh consent to bypass stale server-side sessions
     });
 
     res.status(201).json({
@@ -1761,10 +1772,22 @@ app.post("/api/banking/initiate", async (req, res) => {
       });
     }
 
+    const envServices = parseServices(process.env.TRUID_SERVICES);
+    const defaultServices = envServices.length ? envServices : [
+      "eeh03fzauckvj8u982dbeq1d8",
+      "amqfuupe00xk3cfw3dergvb9n",
+      "s8d7f67de8w9iekjrfu",
+      "mk2weodif8gutjre4kwsdfd",
+      "12wsdofikgjtm5k4eiduy",
+      "apw99w0lj1nwde4sfxd0",
+    ];
+
     const collection = await truIDClient.createCollection({
       name: fullName,
       idNumber: idNumber,
-      email: user.email
+      email: user.email,
+      services: defaultServices,
+      force: true
     });
 
     res.status(201).json({
@@ -1773,10 +1796,14 @@ app.post("/api/banking/initiate", async (req, res) => {
       consumerUrl: collection.consumerUrl
     });
   } catch (error) {
-    console.error("Banking initiate error:", error);
+    console.error("Banking initiate error COMPLETE:", error);
     res.status(error.status || 500).json({
       success: false,
-      error: { message: error.message || "Internal server error" }
+      error: { 
+        message: error.message || "Internal server error",
+        status: error.status,
+        details: error.data || error.response?.data
+      }
     });
   }
 });

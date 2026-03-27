@@ -10,6 +10,12 @@ class TruIDClient {
     this.brandId = readEnv('BRAND_ID');
     this.redirectUrl = readEnv('REDIRECT_URL');
     this.webhookUrl = readEnv('WEBHOOK_URL');
+    console.log("TruIDClient initialized with:", {
+      apiKey: this.apiKey ? "PRESENT (hidden)" : "MISSING",
+      companyId: this.companyId,
+      brandId: this.brandId,
+      baseURL: this.baseURL
+    });
   }
 
   validateSetup() {
@@ -27,7 +33,9 @@ class TruIDClient {
     const scheme = readEnv('TRUID_SCHEME') || 'https';
     const domain = readEnv('TRUID_DOMAIN') || 'hello.truidconnect.io';
     const host = domain.startsWith('www.') ? domain : `www.${domain}`;
-    return `${scheme}://${host}/consents/${consentId}`;
+    // Append force parameters and cache-buster to bypass iframe session persistence
+    const baseUrl = `${scheme}://${host}/consents/${consentId}`;
+    return `${baseUrl}?force=true&prompt=login&_cb=${Date.now()}`;
   }
 
   normalizeConsumerUrl(url) {
@@ -40,6 +48,10 @@ class TruIDClient {
       const host = domain.startsWith('www.') ? domain : `www.${domain}`;
       parsed.protocol = `${scheme}:`;
       parsed.host = host;
+      // Append force parameters and cache-buster to bypass iframe session persistence
+      parsed.searchParams.set('force', 'true');
+      parsed.searchParams.set('prompt', 'login');
+      parsed.searchParams.set('_cb', Date.now().toString());
       return parsed.toString();
     } catch (_) {
       return url;
@@ -70,6 +82,8 @@ class TruIDClient {
     const details = error.message || defaultMessage;
     const err = new Error(details);
     err.status = status;
+    // Capture root error data from the API response for detailed propagation
+    err.data = error.data || error.response?.data || null;
     return err;
   }
 
@@ -86,6 +100,9 @@ class TruIDClient {
     };
     if (body) options.body = JSON.stringify(body);
 
+    console.log(`truID API Call: ${method} ${url}`);
+    if (body) console.log(`truID Request Body:`, JSON.stringify(body, null, 2));
+
     const response = await fetch(url, options);
     const responseHeaders = {};
     response.headers.forEach((value, key) => {
@@ -101,11 +118,13 @@ class TruIDClient {
     }
 
     if (!response.ok) {
+      console.error(`truID API Error (${response.status}):`, typeof data === 'string' ? data : JSON.stringify(data, null, 2));
       const err = new Error(typeof data === 'string' ? data : JSON.stringify(data));
       err.status = response.status;
       throw err;
     }
 
+    console.log(`truID API Success (${response.status})`);
     return { status: response.status, data, headers: responseHeaders };
   }
 
@@ -131,6 +150,8 @@ class TruIDClient {
       ...(this.redirectUrl && { redirectUrl: this.redirectUrl }),
       ...(this.webhookUrl && { webhookUrl: this.webhookUrl })
     };
+
+    console.log('[truID] createCollection literal payload:', JSON.stringify(payload, null, 2));
 
     try {
       const response = await this.fetchApi('consultant-api', 'POST', '/collections', payload);

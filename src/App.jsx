@@ -90,7 +90,7 @@ const App = () => {
   const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
-  const { profile } = useProfile();
+  const { profile, loading: profileLoading } = useProfile();
   const [notificationReturnPage, setNotificationReturnPage] = useState("home");
   const [modal, setModal] = useState(null);
   const [selectedSecurity, setSelectedSecurity] = useState(null);
@@ -672,7 +672,7 @@ const App = () => {
               modal={modal}
               onCloseModal={closeModal}
             >
-              <InstantLiquidityPage onBack={goBack} />
+            <InstantLiquidityPage profile={profile} onBack={goBack} />
             </AppLayout>
           );
 
@@ -944,6 +944,11 @@ const App = () => {
 
   const previousPageComponent = useMemo(() => {
     if (!previousPageName || mainTabs.includes(currentPage)) return null;
+    
+    // Skip background rendering for SDK-heavy pages to prevent duplicate listeners
+    const sdkPages = ["identityCheck", "userOnboarding", "bankLink", "creditApply"];
+    if (sdkPages.includes(previousPageName)) return null;
+
     return renderPageContent(previousPageName, true);
   }, [previousPageName, currentPage, renderPageContent]);
 
@@ -956,7 +961,7 @@ const App = () => {
 
 
 
-  if (isCheckingAuth) {
+  if (isCheckingAuth || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#0d0d12]">
         <div className="w-8 h-8 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />

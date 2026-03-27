@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { supabase } from "../lib/supabase.js";
 
 const styles = {
@@ -147,6 +147,7 @@ const LOCAL_STORAGE_KEYS = {
 };
 
 export function TruidConnector({ onStart, onVerified, userProfile }) {
+  const isMounted = useRef(false);
   const [state, setState] = useState("idle");
   const [statusMap, setStatusMap] = useState(() =>
     steps.reduce((acc, step) => ({ ...acc, [step.id]: "pending" }), {})
@@ -175,11 +176,17 @@ export function TruidConnector({ onStart, onVerified, userProfile }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || isMounted.current) return;
+    isMounted.current = true;
+    
     const storedCollectionId = localStorage.getItem(LOCAL_STORAGE_KEYS.collectionId) || "";
     const storedConsumerUrl = localStorage.getItem(LOCAL_STORAGE_KEYS.consumerUrl) || "";
     if (storedCollectionId) setCollectionId(storedCollectionId);
     if (storedConsumerUrl) setConsumerUrl(storedConsumerUrl);
+
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -204,6 +211,11 @@ export function TruidConnector({ onStart, onVerified, userProfile }) {
     setVerificationMessage("");
     resetStatuses();
     setStatus("status-1", "loading");
+
+    // Clear any stale verification state to prevent reuse loops
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.collectionId);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.consumerUrl);
+    sessionStorage.removeItem('truid_consent_token');
 
     try {
       let email = "";
