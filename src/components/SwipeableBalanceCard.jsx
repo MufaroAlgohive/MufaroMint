@@ -588,6 +588,8 @@ const SwipeableBalanceCard = ({
   useLayoutEffect(() => {
     const el = chartWrapRef.current;
     if (!el) return;
+    let rafId = null;
+    let retryTimer = null;
     const measure = () => {
       const w = Math.round(el.getBoundingClientRect().width);
       if (w < 1) return;
@@ -598,6 +600,11 @@ const SwipeableBalanceCard = ({
       }
     };
     measure();
+    // Retry after next paint — mobile Safari may not have finished layout yet
+    rafId = requestAnimationFrame(() => {
+      measure();
+      retryTimer = setTimeout(measure, 150);
+    });
     const ro =
       typeof ResizeObserver !== "undefined"
         ? new ResizeObserver(() => measure())
@@ -606,6 +613,8 @@ const SwipeableBalanceCard = ({
     window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", measure);
     return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (retryTimer) clearTimeout(retryTimer);
       ro?.disconnect();
       window.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
@@ -903,24 +912,9 @@ const SwipeableBalanceCard = ({
                       dataKey="d"
                       type="number"
                       domain={[startTime, now]}
-                      tickFormatter={(ts) => {
-                        const date = new Date(ts);
-                        if (activeTab === "d") {
-                          return date.toLocaleTimeString("en-ZA", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          });
-                        }
-                        return date.toLocaleDateString("en-ZA", {
-                          month: "short",
-                          day: "numeric",
-                        });
-                      }}
-                      tick={{ fontSize: 9, fill: "rgba(148,163,184,0.85)" }}
+                      hide
                       axisLine={false}
                       tickLine={false}
-                      dy={4}
-                      minTickGap={28}
                     />
                     <YAxis
                       yAxisId="pnl"
