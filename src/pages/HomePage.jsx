@@ -22,86 +22,25 @@ import {
   Plus,
   Calendar,
   ChevronRight,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import NavigationPill from "../components/NavigationPill";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
+import { parseOnboardingFlags } from "../lib/checkOnboardingComplete";
+import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import { useRealtimePrices } from "../lib/useRealtimePrices";
-import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, getStrategyCurrentValue } from "../lib/strategyUtils";
-import { formatZar } from "../lib/formatCurrency";
+import { getHoldingsArray, normalizeSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot } from "../lib/strategyUtils";
 import HomeSkeleton from "../components/HomeSkeleton";
 import Skeleton from "../components/Skeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
+import SettlementBadge from "../components/PendingBadge";
 import NotificationBell from "../components/NotificationBell";
 
 const CARD_VISIBILITY_KEY = "mintBalanceVisible";
-
-const MintLogoWhite = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g>
-      <path fill="#FFFFFF" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#FFFFFF" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const MintLogoSlate = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g>
-      <path fill="#334155" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#334155" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const MintLogoSilver = ({ className = "" }) => (
-  <svg viewBox="0 0 1826.64 722.72" className={className}>
-    <g opacity="0.12">
-      <path fill="#C0C0C0" d="M1089.47,265.13c25.29,12.34,16.69,50.37-11.45,50.63h0s-512.36,0-512.36,0c-14.73,0-26.67,11.94-26.67,26.67v227.94c0,14.73-11.94,26.67-26.67,26.67H26.67c-14.73,0-26.67-11.94-26.67-26.67v-248.55c0-9.54,5.1-18.36,13.38-23.12L526.75,3.55c7.67-4.41,17.03-4.73,24.99-.85l537.73,262.43Z"/>
-      <path fill="#C0C0C0" d="M737.17,457.58c-25.29-12.34-16.69-50.37,11.45-50.63h0s512.36,0,512.36,0c14.73,0,26.67-11.94,26.67-26.67v-227.94c0-14.73,11.94-26.67,26.67-26.67h485.66c14.73,0,26.67,11.94,26.67,26.67v248.55c0,9.54-5.1,18.36-13.38,23.12l-513.38,295.15c-7.67,4.41-17.03,4.73-24.99.85l-537.73-262.43Z"/>
-    </g>
-  </svg>
-);
-
-const CardContent = ({ children, style, variant = "default" }) => {
-  const bg = "#ffffff";
-
-  return (
-    <div
-      className="absolute inset-0 rounded-[24px] overflow-hidden"
-      style={{
-        background: bg,
-        boxShadow: "0 20px 45px -18px rgba(15, 23, 42, 0.2)",
-        border: "1px solid rgba(148,163,184,0.35)",
-        backfaceVisibility: "hidden",
-        ...style,
-      }}
-    >
-      {variant !== "invest" && (
-        <>
-          <div className="absolute inset-0" style={{
-            backgroundImage: `
-              repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px),
-              repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(255,255,255,0.02) 8px, rgba(255,255,255,0.02) 9px),
-              repeating-linear-gradient(60deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px),
-              repeating-linear-gradient(-60deg, transparent, transparent 15px, rgba(255,255,255,0.015) 15px, rgba(255,255,255,0.015) 16px)
-            `,
-          }} />
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <MintLogoSilver className="w-52 h-auto" />
-          </div>
-        </>
-      )}
-      {children}
-    </div>
-  );
-};
 
 const HomePage = ({
   onOpenNotifications,
@@ -117,7 +56,9 @@ const HomePage = ({
   onOpenWithdraw,
   onOpenSettings,
   onOpenStrategies,
+  onOpenStrategyInPortfolio,
   onOpenMarkets,
+  onOpenDeposit,
   onOpenNews,
   onOpenNewsArticle,
 }) => {
@@ -135,64 +76,19 @@ const HomePage = ({
   const [news, setNews] = useState([]);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loadingNews, setLoadingNews] = useState(false);
-  const [homeTab, setHomeTab] = useState("invest");
+  const [homeTab, setHomeTab] = useState("balance");
   const [userId, setUserId] = useState(null);
   const [localBestAssets, setLocalBestAssets] = useState([]);
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
-  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [hasAnyHoldings, setHasAnyHoldings] = useState(false);
+  const { onboardingComplete, loading: onboardingLoading, refetch: fetchOnboardingStatus } = useOnboardingStatus();
+  const onboardingChecked = !onboardingLoading;
 
-  const [cardRotation, setCardRotation] = useState(-180);
-  const [isCardAnimating, setIsCardAnimating] = useState(false);
-  const dragStartXRef = useRef(0);
-  const [isCardVisible, setIsCardVisible] = useState(() => {
+  const [isCardVisible] = useState(() => {
     if (typeof window !== "undefined") {
       return window.localStorage.getItem(CARD_VISIBILITY_KEY) !== "false";
     }
     return true;
   });
-
-  const cardNormalizedIndex = Math.abs(Math.round(cardRotation / 180) % 2);
-  const isBalanceEnabled = false;
-
-  const toggleCardVisibility = () => {
-    setIsCardVisible((prev) => {
-      const next = !prev;
-      window.localStorage.setItem(CARD_VISIBILITY_KEY, String(next));
-      return next;
-    });
-  };
-
-  const handleCardDragStart = (e) => {
-    if (isCardAnimating || !isBalanceEnabled) return;
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    dragStartXRef.current = clientX;
-  };
-
-  const handleCardDragEnd = (e) => {
-    if (isCardAnimating || !isBalanceEnabled) return;
-    const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-    const diff = dragStartXRef.current - clientX;
-    if (Math.abs(diff) > 50) {
-      setIsCardAnimating(true);
-      const currentIndex = cardNormalizedIndex;
-      const newIndex = diff > 0 ? 1 : 0;
-      if (newIndex !== currentIndex) {
-        setCardRotation(newIndex === 1 ? -180 : 0);
-        setHomeTab(newIndex === 1 ? "invest" : "balance");
-      }
-      setTimeout(() => setIsCardAnimating(false), 700);
-    }
-  };
-
-  const handleDotClick = (idx) => {
-    if (isCardAnimating || !isBalanceEnabled) return;
-    if (idx !== cardNormalizedIndex) {
-      setIsCardAnimating(true);
-      setCardRotation(idx === 1 ? -180 : 0);
-      setHomeTab(idx === 1 ? "invest" : "balance");
-      setTimeout(() => setIsCardAnimating(false), 700);
-    }
-  };
 
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [goals, setGoals] = useState([]);
@@ -200,7 +96,7 @@ const HomePage = ({
   const [isCreatingGoal, setIsCreatingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: "", target_amount: "", target_date: "" });
   const [editingGoalId, setEditingGoalId] = useState(null);
-  
+
   const assetsToDisplay = localBestAssets.length > 0 ? localBestAssets : (bestAssets || []);
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -217,19 +113,18 @@ const HomePage = ({
       const { data: holdings, error: holdingsError } = await supabase
         .from('stock_holdings')
         .select('id, security_id, quantity, avg_fill, market_value, unrealized_pnl')
-        .eq('user_id', profile.id)
-        .order('market_value', { ascending: false })
-        .limit(5);
+        .eq('user_id', profile.id);
 
       if (holdingsError) throw holdingsError;
 
       if (holdings && holdings.length > 0) {
+        setHasAnyHoldings(true);
         const securityIds = holdings.map(h => h.security_id).filter(Boolean);
         let securitiesMap = {};
         let metricsMap = {};
         if (securityIds.length > 0) {
           const [secResult, metResult] = await Promise.all([
-            supabase.from('securities').select('id, symbol, name, logo_url').in('id', securityIds),
+            supabase.from('securities').select('id, symbol, name, logo_url, last_price').in('id', securityIds),
             supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
           ]);
           if (secResult.data) {
@@ -244,8 +139,24 @@ const HomePage = ({
           .filter(h => securitiesMap[h.security_id])
           .map(h => {
             const sec = securitiesMap[h.security_id];
-            const marketVal = (h.market_value || 0) / 100;
-            const costBasis = ((h.avg_fill || 0) * (h.quantity || 0)) / 100;
+            const qty = Number(h.quantity || 0);
+            const avgFill = Number(h.avg_fill || 0);
+            const isPending = !avgFill || avgFill === 0;
+            if (isPending) {
+              return {
+                symbol: sec.symbol,
+                name: sec.name,
+                logo: sec.logo_url,
+                value: 0,
+                change: 0,
+                pnlRands: 0,
+                pnlPct: 0,
+                isPending: true,
+              };
+            }
+            const livePrice = Number(sec.last_price || avgFill);
+            const marketVal = (livePrice * qty) / 100;
+            const costBasis = (avgFill * qty) / 100;
             const pnlRands = marketVal - costBasis;
             const pnlPct = costBasis > 0 ? ((pnlRands / costBasis) * 100) : 0;
             return {
@@ -259,7 +170,10 @@ const HomePage = ({
             };
           });
 
-        setLocalBestAssets(formatted);
+        const profitable = formatted.filter(a => !a.isPending && a.pnlPct > 0).sort((a, b) => b.pnlPct - a.pnlPct);
+        const pending = formatted.filter(a => a.isPending);
+        const sorted = [...profitable, ...pending].slice(0, 5);
+        setLocalBestAssets(sorted);
         return;
       }
 
@@ -304,8 +218,8 @@ const HomePage = ({
 
         setLocalBestAssets(formatted);
       }
-    } catch (e) { 
-      console.error("Asset fetch error:", e.message); 
+    } catch (e) {
+      console.error("Asset fetch error:", e.message);
     }
   }, [profile?.id]);
 
@@ -322,10 +236,10 @@ const HomePage = ({
 
       if (error) throw error;
       setGoals(data || []);
-    } catch (e) { 
-      console.error("Goal fetch error:", e.message); 
-    } finally { 
-      setLoadingGoals(false); 
+    } catch (e) {
+      console.error("Goal fetch error:", e.message);
+    } finally {
+      setLoadingGoals(false);
     }
   }, [profile?.id]);
 
@@ -337,61 +251,52 @@ const HomePage = ({
     getUser();
   }, []);
 
-  const fetchOnboardingStatus = React.useCallback(async () => {
-    if (!supabase || !profile?.id) return;
-    try {
-      const { data, error } = await supabase
-        .from("user_onboarding")
-        .select("kyc_status, sumsub_raw")
-        .eq("user_id", profile.id)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      const record = data?.[0];
-      const kycDone = record?.kyc_status === "onboarding_complete" || record?.kyc_status === "verified";
-      let mandateAgreed = false;
-      if (record?.sumsub_raw) {
-        try {
-          const raw = typeof record.sumsub_raw === "string" ? JSON.parse(record.sumsub_raw) : record.sumsub_raw;
-          mandateAgreed = !!raw?.mandate_data?.agreedMandate;
-        } catch {}
-      }
-      setOnboardingComplete(kycDone && mandateAgreed);
-      setOnboardingChecked(true);
-    } catch (err) {
-      console.error("[Onboarding Check] Error:", err);
-      setOnboardingChecked(true);
-    }
-  }, [profile?.id]);
-
   useEffect(() => {
-    fetchOnboardingStatus();
-  }, [fetchOnboardingStatus]);
+    if (!profile?.id || profile?.mintNumber) return;
+
+    const ensureMintNumber = async () => {
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token;
+        if (!token) return;
+
+        const resp = await fetch('/api/user/ensure-mint-number', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resp.ok) {
+          const result = await resp.json();
+        }
+      } catch (err) { }
+    };
+    ensureMintNumber();
+  }, [profile?.id, profile?.mintNumber]);
 
   useEffect(() => {
     if (!profile?.id) return;
 
     const homeSubscription = supabase
       .channel('home_realtime_updates')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'investment_goals', 
-        filter: `user_id=eq.${profile.id}` 
-      }, () => fetchGoals()) 
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'transactions', 
-        filter: `user_id=eq.${profile.id}` 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'investment_goals',
+        filter: `user_id=eq.${profile.id}`
+      }, () => fetchGoals())
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'transactions',
+        filter: `user_id=eq.${profile.id}`
       }, () => {
-        fetchBestAssets(); 
-        if (typeof fetchFinancialData === 'function') fetchFinancialData(); 
+        fetchBestAssets();
+        if (typeof fetchFinancialData === 'function') fetchFinancialData();
       })
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'required_actions', 
-        filter: `user_id=eq.${profile.id}` 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'required_actions',
+        filter: `user_id=eq.${profile.id}`
       }, () => {
         if (typeof fetchRequiredActions === 'function') fetchRequiredActions();
       })
@@ -452,17 +357,17 @@ const HomePage = ({
         const serverStrategies = json.strategies || [];
 
         if (serverStrategies.length === 0) {
-          console.log("[HomePage] No user strategies found");
           setBestStrategies([]);
           return;
         }
 
-        const formatted = serverStrategies.map(s => {
+        const formatted = serverStrategies.map((s) => {
           const invested = s.investedAmount || 0;
-          const metrics = s.metrics || {};
-          const currentValue = getStrategyCurrentValue(invested, metrics);
+          const currentValue = s.currentMarketValue != null ? Number(s.currentMarketValue.toFixed(2)) : invested;
+          const isPending = invested === 0 && currentValue === 0;
           const stratPnlRands = currentValue - invested;
-          const stratPnlPct = invested > 0 ? ((stratPnlRands / invested) * 100) : 0;
+          const changePctVal = invested > 0 ? (stratPnlRands / invested) * 100 : 0;
+          const stratPnlPct = changePctVal;
           return {
             id: s.id,
             name: s.name,
@@ -475,7 +380,8 @@ const HomePage = ({
             holdings: s.holdings || [],
             investedAmount: invested,
             currentValue,
-            change_pct: metrics.change_pct || 0,
+            isPending,
+            change_pct: changePctVal,
             pnlRands: stratPnlRands,
             pnlPct: stratPnlPct,
             strategy_metrics: s.metrics ? [s.metrics] : [],
@@ -571,10 +477,10 @@ const HomePage = ({
   }, []);
 
   const handleEditClick = (goal) => {
-    setNewGoal({ 
-      name: goal.name, 
-      target_amount: goal.target_amount, 
-      target_date: goal.target_date || "" 
+    setNewGoal({
+      name: goal.name,
+      target_amount: goal.target_amount,
+      target_date: goal.target_date || ""
     });
     setEditingGoalId(goal.id);
     setIsCreatingGoal(true);
@@ -621,7 +527,7 @@ const HomePage = ({
       });
 
       if (error) throw error;
-      
+
       setNewGoal({ name: "", target_amount: "", target_date: "" });
       setIsCreatingGoal(false);
       fetchGoals();
@@ -656,7 +562,7 @@ const HomePage = ({
     }
   };
 
-  const identityFullyComplete = kycVerified && onboardingComplete;
+  const identityFullyComplete = onboardingComplete || (kycVerified && onboardingComplete);
 
   const getIdentityStatusForHome = () => {
     if (identityFullyComplete) return { text: "Verified", style: "bg-green-100 text-green-600" };
@@ -678,8 +584,8 @@ const HomePage = ({
 
   const actionsData = [
     {
-      id: "identity",
-      title: "Complete identity",
+      id: "onboarding",
+      title: "Complete onboarding",
       description: getIdentityDescription(),
       priority: 1,
       status: identityStatusHome.text,
@@ -718,20 +624,21 @@ const HomePage = ({
     }
   };
 
-  const hasInvestments = assetsToDisplay.length > 0;
+  const hasProfitableAssets = assetsToDisplay.length > 0;
+  const hasInvestments = hasAnyHoldings || assetsToDisplay.length > 0;
   const hasStrategies = bestStrategies && bestStrategies.length > 0;
 
   return (
-    <div className="min-h-screen pb-[env(safe-area-inset-bottom)] text-slate-900 relative overflow-x-hidden">
-      <div className="absolute inset-x-0 top-0 -z-10 h-full">
-        <div 
-          className="absolute inset-x-0 top-0"
-          style={{ 
-            height: '100vh',
-            background: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)'
-          }} 
-        />
-      </div>
+    <div
+      className="min-h-screen pb-[env(safe-area-inset-bottom)] text-slate-900 relative overflow-x-hidden"
+      style={{
+        backgroundColor: '#f8f6fa',
+        backgroundImage: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: '100% 100vh',
+      }}
+    >
+
       <div className="rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
           <header className="relative flex items-center justify-between text-white">
@@ -749,15 +656,15 @@ const HomePage = ({
               )}
             </div>
 
-            <NavigationPill 
-              activeTab="home" 
+            <NavigationPill
+              activeTab="home"
               onTabChange={(id) => {
                 if (id === "credit") {
                   onOpenCredit();
                 } else if (id === "home") {
-                  setHomeTab("invest");    
+                  setHomeTab("invest");
                 }
-              }} 
+              }}
             />
 
             <NotificationBell onClick={onOpenNotifications} />
@@ -765,76 +672,16 @@ const HomePage = ({
 
           {homeTab === "balance" || homeTab === "invest" ? (
             <div className="relative select-none">
-              <div
-                className="relative w-full touch-pan-y"
-                style={{ aspectRatio: "1.7 / 1", perspective: "1000px", transformStyle: "preserve-3d" }}
-                onTouchStart={handleCardDragStart}
-                onTouchEnd={handleCardDragEnd}
-                onMouseDown={handleCardDragStart}
-                onMouseUp={handleCardDragEnd}
-              >
-                <CardContent style={{
-                  transform: `rotateY(${cardRotation}deg)`,
-                  transition: "transform 0.7s ease-out",
-                }}>
-                  <div className="relative h-full p-6 flex flex-col">
-                    <div className="flex items-start justify-between">
-                      <MintLogoSlate className="h-7 w-auto opacity-80" />
-                    </div>
-                    <div className="flex-1 flex flex-col items-center justify-center gap-1">
-                      <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500 font-medium" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Available Balance</p>
-                      <p className="text-[28px] md:text-[34px] font-extralight text-slate-700 tracking-wide" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", letterSpacing: "0.04em" }}>
-                        {isCardVisible ? formatZar(balance) : "••••••••"}
-                      </p>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-normal mb-1" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>Card Holder</p>
-                        <p className="text-[13px] uppercase tracking-[0.18em] text-slate-700 font-light" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", letterSpacing: "0.18em" }}>
-                          {displayName || "MINT MEMBER"}
-                        </p>
-                      </div>
-                      <div className="text-right flex items-end">
-                        <p className="text-[22px] md:text-[26px] font-light text-slate-700 tracking-wider mb-[-2px]" style={{ fontFamily: "'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", fontStyle: "italic", letterSpacing: "0.08em" }}>MINT</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-
-                <CardContent variant="invest" style={{
-                  transform: `rotateY(${cardRotation + 180}deg)`,
-                  transition: "transform 0.7s ease-out",
-                }}>
-                  <div className="relative h-full overflow-hidden">
-                    <SwipeableBalanceCard userId={userId} isBackFacing={cardNormalizedIndex === 1} forceVisible={isCardVisible} mintNumber={profile.mintNumber} />
-                  </div>
-                </CardContent>
-
-                {cardNormalizedIndex === 0 && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); toggleCardVisibility(); }}
-                    className="absolute top-4 right-4 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
-                  >
-                    {isCardVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  </button>
-                )}
-              </div>
-
-              {isBalanceEnabled && (
-                <div className="flex justify-center gap-2 mt-3">
-                  {[0, 1].map((idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleDotClick(idx)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        cardNormalizedIndex === idx ? "w-6 bg-white" : "w-2 bg-white/40 hover:bg-white/60"
-                      }`}
-                    />
-                  ))}
+              <div className="relative w-full touch-pan-y h-auto">
+                <div className="relative h-auto rounded-[28px] border border-white/10">
+                  <SwipeableBalanceCard
+                    userId={userId}
+                    isBackFacing
+                    forceVisible={isCardVisible}
+                    mintNumber={profile.mintNumber}
+                  />
                 </div>
-              )}
+              </div>
             </div>
           ) : (
             <SwipeableBalanceCard userId={userId} mintNumber={profile.mintNumber} />
@@ -845,8 +692,8 @@ const HomePage = ({
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
         <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
           {[
-            { label: <>Open<br />Strategies</>, icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
-            { label: "Markets", icon: TrendingUp, onClick: onOpenMarkets || onOpenInvest },
+            { label: "Invest", icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
+            { label: "Deposit", icon: ArrowDownToLine, onClick: onOpenDeposit },
             { label: "News", icon: Newspaper, onClick: () => (onOpenNews ? onOpenNews("news") : (onOpenInvest && onOpenInvest("news"))) },
             { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
           ].map((item, index) => {
@@ -867,6 +714,14 @@ const HomePage = ({
           })}
         </section>
 
+        {onboardingChecked && outstandingActions.length > 0 ? (
+          <OutstandingActionsSection
+            actions={outstandingActions}
+            onViewAll={onOpenActions}
+            onSelectAction={handleActionNavigation}
+          />
+        ) : null}
+
         {/* Market Insights */}
         <section>
           <div className="flex items-end justify-between px-5 mb-3">
@@ -881,7 +736,7 @@ const HomePage = ({
                 <span>Latest updates for your portfolio</span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => onOpenNews && onOpenNews()}
               className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
             >
@@ -918,7 +773,7 @@ const HomePage = ({
                 <p className="text-xs text-slate-400">No recent insights available.</p>
               </div>
             )}
-            
+
             {loadingNews && (
               <div className="divide-y divide-slate-100">
                 {[0, 1, 2].map((i) => (
@@ -936,216 +791,7 @@ const HomePage = ({
           </div>
         </section>
 
-        {onboardingChecked && outstandingActions.length > 0 ? (
-          <OutstandingActionsSection
-            actions={outstandingActions}
-            onViewAll={onOpenActions}
-            onSelectAction={handleActionNavigation}
-          />
-        ) : null}
-
-        {/* Best Performing Assets */}
-        <section>
-          <div className="flex items-end justify-between px-5 mb-3">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-900">
-                Your best performing assets
-              </p>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <Info className="h-3 w-3" />
-                </span>
-                <span>Based on your investment portfolio</span>
-              </div>
-            </div>
-            {hasInvestments && (
-              <button 
-                onClick={onOpenInvestments} 
-                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
-              >
-                View all
-              </button>
-            )}
-          </div>
-          
-          {hasInvestments ? (
-            <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {assetsToDisplay.slice(0, 5).map((asset) => (
-                <div
-                  key={asset.symbol}
-                  className="flex min-w-[260px] flex-1 snap-start items-center gap-4 rounded-3xl bg-white p-4 shadow-md"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
-                    {failedLogos[asset.symbol] || !asset.logo ? (
-                      <span className="text-sm font-semibold text-slate-600">
-                        {asset.symbol}
-                      </span>
-                    ) : (
-                      <img
-                        src={asset.logo}
-                        alt={asset.name}
-                        className="h-10 w-10 object-contain"
-                        referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
-                        onError={() =>
-                          setFailedLogos((prev) => ({ ...prev, [asset.symbol]: true }))
-                        }
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">{asset.symbol}</p>
-                    <p className="text-xs text-slate-500 line-clamp-1">{asset.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">
-                      R{typeof asset.value === 'number' ? asset.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : (asset.value || 0)}
-                    </p>
-                    {asset.pnlRands != null ? (
-                      <p className={`text-xs font-semibold ${asset.pnlRands >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {asset.pnlRands >= 0 ? '+' : ''}R{Math.abs(asset.pnlRands).toFixed(2)} ({asset.pnlPct >= 0 ? '+' : ''}{asset.pnlPct.toFixed(2)}%)
-                      </p>
-                    ) : (
-                      <p className={`text-xs font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {asset.change >= 0 ? '+' : ''}{typeof asset.change === 'number' ? asset.change.toFixed(2) : (asset.change || '0.00')}%
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
-                <TrendingUp className="h-8 w-8" />
-              </div>
-              <p className="text-sm font-semibold text-slate-900 mb-1">No investments yet</p>
-              <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
-              <button
-                type="button"
-                onClick={() => onOpenInvest && onOpenInvest("invest")}
-                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
-              >
-                Make your first investment
-              </button>
-            </div>
-          )}
-        </section>
-
-        {/* Best Performing Strategies */}
-        <section>
-          <div className="flex items-end justify-between px-5 mb-3">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-900">
-                Your best performing strategies
-              </p>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <LayoutGrid className="h-3 w-3" />
-                </span>
-                <span>Top performing curated portfolios</span>
-              </div>
-            </div>
-            {hasStrategies && (
-              <button 
-                onClick={onOpenStrategies} 
-                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
-              >
-                View all
-              </button>
-            )}
-          </div>
-          
-          {hasStrategies ? (
-            <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {bestStrategies.slice(0, 5).map((strategy) => {
-                const holdingsSnapshot = getStrategyHoldingsSnapshot(strategy, holdingsBySymbol);
-                const pct = strategy.change_pct || 0;
-                return (
-                  <button
-                    key={strategy.id}
-                    type="button"
-                    onClick={() => onOpenStrategies && onOpenStrategies(strategy)}
-                    className="flex-shrink-0 w-[280px] snap-start rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all active:scale-[0.97]"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 flex items-start justify-between gap-4">
-                        <div className="text-left space-y-1 min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">{strategy.name}</p>
-                          <p className="text-xs text-slate-600 line-clamp-1">
-                            {strategy.risk_level || 'Balanced'}{strategy.objective ? ` • ${strategy.objective}` : ''}
-                          </p>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-sm font-semibold text-slate-900">
-                            {strategy.currentValue ? `R${strategy.currentValue.toFixed(2)}` : strategy.investedAmount ? `R${strategy.investedAmount.toFixed(2)}` : '—'}
-                          </p>
-                          {strategy.pnlRands != null && strategy.investedAmount > 0 ? (
-                            <p className={`text-xs font-semibold ${strategy.pnlRands >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                              {strategy.pnlRands >= 0 ? '+' : ''}R{Math.abs(strategy.pnlRands).toFixed(2)} ({strategy.pnlPct >= 0 ? '+' : ''}{strategy.pnlPct.toFixed(2)}%)
-                            </p>
-                          ) : (
-                            <p className={`text-xs font-semibold ${pct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                              {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between">
-                      {strategy.risk_level && (
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">{strategy.risk_level}</span>
-                      )}
-                      {holdingsSnapshot.length > 0 && (
-                        <div className="flex items-center gap-2">
-                          <div className="flex -space-x-2">
-                            {holdingsSnapshot.slice(0, 3).map((h) => (
-                              <div
-                                key={`${strategy.id}-${h.id || h.symbol}-snap`}
-                                className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
-                              >
-                                {h.logo_url ? (
-                                  <img src={h.logo_url} alt={h.name} className="h-full w-full object-cover" />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">
-                                    {h.symbol?.substring(0, 2)}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                            {holdingsSnapshot.length > 3 && (
-                              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
-                                +{holdingsSnapshot.length - 3}
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[11px] text-slate-400">Holdings</span>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-slate-50 text-slate-400 mb-4">
-                <LayoutGrid className="h-8 w-8" />
-              </div>
-              <p className="text-sm font-semibold text-slate-900 mb-1">Invest in your first strategy</p>
-              <p className="text-xs text-slate-500 mb-4">Explore our curated investment portfolios</p>
-              <button
-                type="button"
-                onClick={onOpenStrategies}
-                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
-              >
-                Browse Strategies
-              </button>
-            </div>
-          )}
-        </section>
-
-        {/* Investment Goals Table */}
+        {/* Investment Goals */}
         <section>
           <div className="flex items-end justify-between px-5 mb-3">
             <div className="space-y-1">
@@ -1159,7 +805,7 @@ const HomePage = ({
                 <span>Track progress towards your goals</span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => setShowGoalsModal(true)}
               className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
             >
@@ -1250,6 +896,229 @@ const HomePage = ({
           )}
         </section>
 
+        {/* Best Performing Assets */}
+        <section>
+          <div className="flex items-end justify-between px-5 mb-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">
+                Your best performing assets
+              </p>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
+                  <Info className="h-3 w-3" />
+                </span>
+                <span>Based on your investment portfolio</span>
+              </div>
+            </div>
+            {hasInvestments && (
+              <button
+                onClick={onOpenInvestments}
+                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
+              >
+                View all
+              </button>
+            )}
+          </div>
+
+          {hasProfitableAssets ? (
+            <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {assetsToDisplay.slice(0, 5).map((asset) => (
+                <div
+                  key={asset.symbol}
+                  className="flex min-w-[260px] flex-1 snap-start items-center gap-4 rounded-3xl bg-white p-4 shadow-md"
+                >
+                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+                    {failedLogos[asset.symbol] || !asset.logo ? (
+                      <span className="text-sm font-semibold text-slate-600">
+                        {asset.symbol}
+                      </span>
+                    ) : (
+                      <img
+                        src={asset.logo}
+                        alt={asset.name}
+                        className="h-10 w-10 object-contain"
+                        referrerPolicy="no-referrer"
+                        crossOrigin="anonymous"
+                        onError={() =>
+                          setFailedLogos((prev) => ({ ...prev, [asset.symbol]: true }))
+                        }
+                      />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold text-slate-900">{asset.symbol}</p>
+                      {asset.isPending && <SettlementBadge status="pending" size="xs" />}
+                    </div>
+                    <p className="text-xs text-slate-500 line-clamp-1">{asset.name}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {asset.isPending ? (
+                      <p className="text-xs text-slate-400">Awaiting fill</p>
+                    ) : asset.pnlRands != null ? (
+                      <>
+                        <p className={`text-sm font-semibold ${asset.pnlRands >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {asset.pnlRands >= 0 ? '+' : ''}R{Math.abs(asset.pnlRands).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className={`text-xs font-semibold ${asset.pnlPct >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          ({asset.pnlPct >= 0 ? '+' : ''}{asset.pnlPct.toFixed(2)}%)
+                        </p>
+                      </>
+                    ) : (
+                      <p className={`text-sm font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {asset.change >= 0 ? '+' : ''}{typeof asset.change === 'number' ? asset.change.toFixed(2) : (asset.change || '0.00')}%
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
+                <TrendingUp className="h-8 w-8" />
+              </div>
+              {hasInvestments ? (
+                <>
+                  <p className="text-sm font-semibold text-slate-900 mb-1">No profitable assets yet</p>
+                  <p className="text-xs text-slate-500">Your best performers will appear here once any of your assets are in profit.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-slate-900 mb-1">No investments yet</p>
+                  <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
+                  <button
+                    type="button"
+                    onClick={() => onOpenInvest && onOpenInvest("invest")}
+                    className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
+                  >
+                    Make your first investment
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Best Performing Strategies */}
+        <section>
+          <div className="flex items-end justify-between px-5 mb-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-slate-900">
+                Your best performing strategies
+              </p>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
+                  <LayoutGrid className="h-3 w-3" />
+                </span>
+                <span>Top performing curated portfolios</span>
+              </div>
+            </div>
+            {hasStrategies && (
+              <button
+                onClick={onOpenStrategies}
+                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
+              >
+                View all
+              </button>
+            )}
+          </div>
+
+          {hasStrategies ? (
+            <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {bestStrategies.slice(0, 5).map((strategy) => {
+                const holdingsSnapshot = getStrategyHoldingsSnapshot(strategy, holdingsBySymbol);
+                const pct = strategy.change_pct || 0;
+                return (
+                  <button
+                    key={strategy.id}
+                    type="button"
+                    onClick={() => onOpenStrategyInPortfolio ? onOpenStrategyInPortfolio(strategy.id) : onOpenStrategies && onOpenStrategies(strategy)}
+                    className="flex-shrink-0 w-[280px] snap-start rounded-3xl border border-slate-100/80 bg-white/90 backdrop-blur-sm p-4 text-left shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] transition-all active:scale-[0.97]"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 flex items-start justify-between gap-4">
+                        <div className="text-left space-y-1 min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">{strategy.name}</p>
+                          <p className="text-xs text-slate-600 line-clamp-1">
+                            {strategy.risk_level || 'Balanced'}{strategy.objective ? ` • ${strategy.objective}` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          {strategy.isPending ? (
+                            <SettlementBadge status="pending" size="sm" />
+                          ) : (
+                            <>
+                              <p className="text-sm font-semibold text-slate-900">
+                                {strategy.currentValue ? `R${strategy.currentValue.toFixed(2)}` : strategy.investedAmount ? `R${strategy.investedAmount.toFixed(2)}` : '—'}
+                              </p>
+                              {strategy.pnlRands != null && strategy.investedAmount > 0 ? (
+                                <p className={`text-xs font-semibold ${strategy.pnlRands >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {strategy.pnlRands >= 0 ? '+' : ''}R{Math.abs(strategy.pnlRands).toFixed(2)} ({strategy.pnlPct >= 0 ? '+' : ''}{strategy.pnlPct.toFixed(2)}%)
+                                </p>
+                              ) : (
+                                <p className={`text-xs font-semibold ${pct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                  {pct >= 0 ? '+' : ''}{pct.toFixed(2)}%
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      {strategy.risk_level && (
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">{strategy.risk_level}</span>
+                      )}
+                      {holdingsSnapshot.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex -space-x-2">
+                            {holdingsSnapshot.slice(0, 3).map((h) => (
+                              <div
+                                key={`${strategy.id}-${h.id || h.symbol}-snap`}
+                                className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                              >
+                                {h.logo_url ? (
+                                  <img src={h.logo_url} alt={h.name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">
+                                    {h.symbol?.substring(0, 2)}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {holdingsSnapshot.length > 3 && (
+                              <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
+                                +{holdingsSnapshot.length - 3}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-slate-400">Holdings</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-slate-50 text-slate-400 mb-4">
+                <LayoutGrid className="h-8 w-8" />
+              </div>
+              <p className="text-sm font-semibold text-slate-900 mb-1">Invest in your first strategy</p>
+              <p className="text-xs text-slate-500 mb-4">Explore our curated investment portfolios</p>
+              <button
+                type="button"
+                onClick={onOpenStrategies}
+                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
+              >
+                Browse Strategies
+              </button>
+            </div>
+          )}
+        </section>
+
         {transactionHistory.length > 0 ? (
           <TransactionHistorySection items={transactionHistory} onViewAll={onOpenActivity} />
         ) : (
@@ -1261,7 +1130,6 @@ const HomePage = ({
             </div>
           </section>
         )}
-
       </div>
 
       {showPayModal && (
@@ -1276,7 +1144,6 @@ const HomePage = ({
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
-            
             <div className="p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900">Pay</h2>
@@ -1289,7 +1156,6 @@ const HomePage = ({
                   <X className="h-4 w-4" />
                 </button>
               </div>
-
               <div className="space-y-3">
                 <button
                   type="button"
@@ -1304,7 +1170,6 @@ const HomePage = ({
                     <p className="text-xs text-slate-500">Transfers are not available yet</p>
                   </div>
                 </button>
-
                 <button
                   type="button"
                   disabled
@@ -1336,7 +1201,6 @@ const HomePage = ({
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
-            
             <div className="p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900">Receive</h2>
@@ -1349,7 +1213,6 @@ const HomePage = ({
                   <X className="h-4 w-4" />
                 </button>
               </div>
-
               <div className="space-y-3">
                 <button
                   type="button"
@@ -1364,7 +1227,6 @@ const HomePage = ({
                     <p className="text-xs text-slate-500">Requests are not available yet</p>
                   </div>
                 </button>
-
                 <button
                   type="button"
                   disabled
@@ -1396,12 +1258,10 @@ const HomePage = ({
               setEditingGoalId(null);
             }}
           />
-          
           <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[32px] bg-white shadow-2xl animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
-            
             <div className="p-6">
               <header className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900">
@@ -1465,7 +1325,6 @@ const HomePage = ({
                         className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                       />
                     </div>
-                    
                     <div className="flex flex-col gap-3 pt-2">
                       <button
                         type="submit"
@@ -1474,7 +1333,6 @@ const HomePage = ({
                       >
                         {editingGoalId ? "Update Goal" : "Save Goal"}
                       </button>
-                      
                       {editingGoalId && (
                         <button
                           type="button"
@@ -1484,7 +1342,6 @@ const HomePage = ({
                           Delete Goal
                         </button>
                       )}
-
                       {goals.length > 0 && !editingGoalId && (
                         <button
                           type="button"
@@ -1510,14 +1367,13 @@ const HomePage = ({
                               Target: R{Number(goal.target_amount).toLocaleString()}
                             </p>
                           </div>
-                          <button 
+                          <button
                             onClick={() => handleEditClick(goal)}
                             className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-violet-50 hover:text-violet-600"
                           >
                             <FileSignature size={18} />
                           </button>
                         </div>
-                        
                         <div className="space-y-2">
                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                             <span className="text-violet-600">{Math.round(goal.target_amount > 0 ? Math.min(100, ((goal.current_amount || 0) / goal.target_amount) * 100) : 0)}% Complete</span>
@@ -1532,7 +1388,6 @@ const HomePage = ({
                         </div>
                       </div>
                     ))}
-                    
                     <button
                       onClick={() => setIsCreatingGoal(true)}
                       className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-4 text-sm font-bold text-slate-400 transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-95"
