@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
   Eye,
   EyeOff,
@@ -46,6 +46,27 @@ const formatKMB = (value) => {
 };
 
 const TIMEFRAME_DAYS = { d: 5, w: 7, m: 30 };
+
+/**
+ * Recharts maps x from data values onto the axis domain. With domain [startTime, now],
+ * points only between first/last sample timestamps occupy a fraction of the width.
+ * Pad to window edges so the stroke uses the full chart width (flat carry of first/last value).
+ */
+function padChartSeriesPoints(points, windowStart, windowEnd) {
+  if (!points?.length) return [];
+  const sorted = [...points].sort((a, b) => a.d - b.d);
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const out = [];
+  if (first.d > windowStart) {
+    out.push({ d: windowStart, v: first.v });
+  }
+  out.push(...sorted);
+  if (last.d < windowEnd) {
+    out.push({ d: windowEnd, v: last.v });
+  }
+  return out;
+}
 
 const SwipeableBalanceCard = ({
   userId,
@@ -152,6 +173,8 @@ const SwipeableBalanceCard = ({
   const [chartLoading, setChartLoading] = useState(false);
   const holdingsScrollRef = useRef(null);
   const scrollTimerRef = useRef(null);
+  const chartWrapRef = useRef(null);
+  const [chartWidth, setChartWidth] = useState(0);
 
   const scrollToHoldingIndex = (index) => {
     const container = holdingsScrollRef.current;
@@ -537,6 +560,28 @@ const SwipeableBalanceCard = ({
     fetchChartPrices();
   }, [userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading]);
 
+  useLayoutEffect(() => {
+    const el = chartWrapRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.getBoundingClientRect().width;
+      if (w >= 1) setChartWidth(Math.round(w));
+    };
+    measure();
+    const ro =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(() => measure())
+        : null;
+    ro?.observe(el);
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, []);
+
   const displayMarketValue = selectedAsset
     ? Number(selectedAsset.market_value || 0) / 100
     : dbData.totalMarketValue;
@@ -564,6 +609,8 @@ const SwipeableBalanceCard = ({
     cutoff.setDate(cutoff.getDate() - d);
     return cutoff.getTime();
   })();
+
+  const paddedChartData = padChartSeriesPoints(chartData, startTime, now);
 
   const masked = "••••";
 
@@ -774,11 +821,16 @@ const SwipeableBalanceCard = ({
           )}
         </div>
 
-        <div className="mb-3 w-full overflow-hidden" style={{ minHeight: 100, height: 100 }}>
+        <div
+          ref={chartWrapRef}
+          className="mb-3 w-full min-w-0 overflow-hidden"
+          style={{ minHeight: 100, height: 100 }}
+        >
               {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={100}>
+                chartWidth > 0 ? (
+                <ResponsiveContainer width={chartWidth} height={100}>
                   <ComposedChart
-                    data={chartData}
+                    data={paddedChartData}
                     margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
                   >
                     <defs>
@@ -833,6 +885,17 @@ const SwipeableBalanceCard = ({
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full w-full items-end gap-1 py-2">
+                    {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-sm bg-white/10"
+                        style={{ height: `${h}%` }}
+                      />
+                    ))}
+                  </div>
+                )
               ) : (
                 <div className="flex items-center justify-center h-full">
                   {chartLoading ? (
