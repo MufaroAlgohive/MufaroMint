@@ -643,12 +643,14 @@ const SwipeableBalanceCard = ({
   const paddedChartData = padChartSeriesPoints(chartData, startTime, now);
 
   const yAxisDomain = useMemo(() => {
-    if (!paddedChartData.length) return ["auto", "auto"];
+    if (!paddedChartData.length) return [0, "auto"];
     const values = paddedChartData.map((p) => p.v);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const min = Math.min(0, dataMin);
+    const max = dataMax;
     if (min === max) {
-      const pad = Math.abs(min) * 0.1 || 1;
+      const pad = Math.abs(max) * 0.1 || 1;
       return [min - pad, max + pad];
     }
     const padding = (max - min) * 0.1;
