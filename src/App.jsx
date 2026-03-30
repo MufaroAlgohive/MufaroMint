@@ -52,6 +52,29 @@ import PinLockScreen from "./components/PinLockScreen.jsx";
 import { isPinEnabled } from "./lib/usePin.js";
 import GoalLinkModal from "./components/GoalLinkModal.jsx";
 
+const PERSISTENT_KEYS = [
+  'mint_device_id',
+  'mint_theme',
+  'mint_language',
+  'mint_onboarding_completed'
+];
+
+const clearUserStorage = () => {
+  const keysToKeep = {};
+  PERSISTENT_KEYS.forEach(key => {
+    const value = localStorage.getItem(key);
+    if (value !== null) keysToKeep[key] = value;
+  });
+  
+  localStorage.clear();
+  
+  Object.entries(keysToKeep).forEach(([key, value]) => {
+    localStorage.setItem(key, value);
+  });
+  
+  sessionStorage.clear();
+};
+
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
 
@@ -100,7 +123,7 @@ const App = () => {
   const selectedGoalIdRef = useRef(null);
   const goalInvestAmountRef = useRef(0);
   const recoveryHandled = useRef(false);
-  const { refetch: refetchNotifications } = useNotificationsContext();
+  const { refetch: refetchNotifications, reset: resetNotifications } = useNotificationsContext();
   const [showPinLock, setShowPinLock] = useState(false);
 
   const currentPageRef = useRef(currentPage);
@@ -332,6 +355,12 @@ const App = () => {
         handleRecoveryFlow();
       }
       if (event === 'SIGNED_OUT') {
+        clearUserStorage();
+        if (resetNotifications) resetNotifications();
+
+        // Don't force navigate - let SessionExpired overlay handle UX gracefully
+        // This prevents jarring redirects and shows users why they were logged out
+
         if (justLoggedInRef.current || Date.now() < sessionCheckSkipUntilRef.current) {
           return;
         }

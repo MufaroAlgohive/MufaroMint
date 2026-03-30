@@ -251,7 +251,9 @@ export const NotificationsProvider = ({ children }) => {
 
     const setupSingletonRealtime = async () => {
       if (globalNotificationsSub.channel || globalNotificationsSub.isSettingUp) {
-        console.log("Notifications singleton subscription already exists or setting up");
+        if (import.meta.env.DEV) {
+          console.debug('[Notifications] Singleton already exists or setting up');
+        }
         return;
       }
 
@@ -314,6 +316,17 @@ export const NotificationsProvider = ({ children }) => {
     };
   }, [fetchNotifications]);
 
+  const resetNotifications = useCallback(async () => {
+    setState({ ...defaultState, loading: false });
+    if (globalNotificationsSub.channel) {
+      await globalNotificationsSub.channel.unsubscribe();
+      globalNotificationsSub.channel = null;
+      globalNotificationsSub.isSettingUp = false;
+      globalNotificationsSub.userId = null;
+      globalNotificationsSub.seenIds.clear();
+    }
+  }, []);
+
   const value = {
     ...state,
     markAsRead,
@@ -321,6 +334,7 @@ export const NotificationsProvider = ({ children }) => {
     deleteNotification,
     updatePreferences,
     refetch: fetchNotifications,
+    reset: resetNotifications,
   };
 
   return (
@@ -344,6 +358,7 @@ export const useNotificationsContext = () => {
       deleteNotification: () => {},
       updatePreferences: () => {},
       refetch: () => {},
+      reset: () => {},
     };
   }
   return context;
