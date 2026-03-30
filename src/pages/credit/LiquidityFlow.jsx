@@ -257,6 +257,19 @@ const S = {
     fontSize: 24,
     color: "#00c97a",
   },
+  warnIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: "50%",
+    background: "#fffbeb",
+    border: "2px solid #fde68a",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 16px",
+    fontSize: 24,
+    color: "#d97706",
+  },
   repayRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -789,14 +802,28 @@ function StepLegal({ principal, calculation, salaryDay, verifiedAcc, profile, pl
 }
 
 // ─── Step 5: Success ──────────────────────────────────────────────────────────
-function StepSuccess({ calculation, onCancel }) {
+function StepSuccess({ calculation, emailStatus, onCancel }) {
   return (
     <div className="animate-in zoom-in-95 duration-700 text-center">
-      <div style={S.succIcon}>✓</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: "#0d1b2e", marginBottom: 12 }}>Agreement Signed</div>
-      <div style={{ fontSize: 14, color: "#9ca3af", marginBottom: 24 }}>
-        Your NCR-compliant loan is finalized.<br />Funds will be disbursed within 24 hours.
+      {emailStatus === 'failed' ? (
+        <div style={S.warnIcon}>!</div>
+      ) : (
+        <div style={S.succIcon}>✓</div>
+      )}
+      
+      <div style={{ fontSize: 22, fontWeight: 800, color: "#0d1b2e", marginBottom: 12 }}>
+        {emailStatus === 'failed' ? "Order Logged (Email Pending)" : "Agreement Signed"}
       </div>
+      
+      <div style={{ fontSize: 14, color: "#9ca3af", marginBottom: 24, lineHeight: 1.5 }}>
+        Your NCR-compliant loan is finalized.<br />
+        {emailStatus === 'failed' ? (
+          <span style={{ color: "#d97706" }}>Note: Confirmation email failed to send locally. Your documents are stored safely in your profile.</span>
+        ) : (
+          "Confirmation email with your signed agreement has been sent."
+        )}
+      </div>
+
       <DarkPill label="Monthly Instalment" value={formatZAR(calculation.installmentAmount)} />
       <button style={{ ...S.ctaDark, marginTop: 24 }} onClick={onCancel}>Complete & Close</button>
     </div>
@@ -821,6 +848,8 @@ export default function LiquidityFlow({ principal, profile, loanId, termMonths =
   const [collectionId, setCollectionId] = useState("");
   const [consumerUrl, setConsumerUrl] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const [emailStatus, setEmailStatus] = useState('idle'); // idle, sending, sent, failed
 
   async function handleLegalNext(sig) {
     if (!calculation || !profile || !principal) {
@@ -855,6 +884,7 @@ export default function LiquidityFlow({ principal, profile, loanId, termMonths =
         const assetNames = selectedAssets.map(a => a.name || a.symbol || 'Asset');
 
         console.log("[LiquidityFlow] Triggering agreement email...", { loanId, assets: assetNames });
+        setEmailStatus('sending');
         
         const emailResponse = await fetch("/api/loan/email-agreement", {
           method: "POST",
@@ -874,11 +904,15 @@ export default function LiquidityFlow({ principal, profile, loanId, termMonths =
         if (!emailResponse.ok) {
           const errorData = await emailResponse.json().catch(() => ({}));
           console.error("[LiquidityFlow] Email send failed server-side:", errorData.error);
+          setEmailStatus('failed');
+          // We don't throw here because we still want to save the loan to DB
         } else {
           console.log("[LiquidityFlow] Email sent successfully");
+          setEmailStatus('sent');
         }
       } catch (emailErr) {
         console.warn("[LiquidityFlow] Could not initiate email send:", emailErr);
+        setEmailStatus('failed');
       }
 
 
@@ -965,6 +999,7 @@ export default function LiquidityFlow({ principal, profile, loanId, termMonths =
         {step === 5 && ( // StepSuccess is now step 5
           <StepSuccess 
             calculation={calculation}
+            emailStatus={emailStatus}
             onCancel={onComplete}
           />
         )}

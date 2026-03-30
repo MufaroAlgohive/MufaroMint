@@ -1810,7 +1810,7 @@ app.post("/api/banking/initiate", async (req, res) => {
     console.error("Banking initiate error COMPLETE:", error);
     res.status(error.status || 500).json({
       success: false,
-      error: { 
+      error: {
         message: error.message || "Internal server error",
         status: error.status,
         details: error.data || error.response?.data
@@ -2749,7 +2749,7 @@ app.post("/api/record-investment", async (req, res) => {
         console.error("[record-investment] WALLET DEDUCTION ERROR:", deductError.message);
         return res.status(500).json({ success: false, error: "Failed to deduct wallet balance" });
       }
-      
+
       deductionSuccessful = true;
       const feeDeducted = amount - (baseAmount || amount);
       console.log(`[Wallet] Deducted R${amount} from user ${userId}. Base: R${baseAmount || amount}, Fee: R${feeDeducted.toFixed(2)}, Final balance: R${newWalletBalance}`);
@@ -3096,8 +3096,8 @@ app.post("/api/record-investment", async (req, res) => {
     sendOrderConfirmationEmail(db, confirmEmailData).catch(() => { });
 
     console.log("[record-investment] === SUCCESS === Holding:", JSON.stringify(holdingResult.data));
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       holding: holdingResult.data,
       newWalletBalance: paymentMethod === "wallet" ? newWalletBalance : null
     });
@@ -3235,7 +3235,7 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
     try {
       const parsed = JSON.parse(tx.description || "{}");
       if (parsed.type === "eft_intent") intent = parsed;
-    } catch (_) {}
+    } catch (_) { }
 
     const { securityId, symbol, name, strategyId, amount, baseAmount } = intent;
     const userId = tx.user_id;
@@ -3251,7 +3251,7 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
     try {
       const { data: authUser } = await (supabaseAdmin || supabase).auth.admin.getUserById(userId);
       userEmail = authUser?.user?.email || null;
-    } catch (_) {}
+    } catch (_) { }
 
     if (isStrategyInvestment && securityId) {
       const { data: strategyData } = await db.from("strategies").select("holdings").eq("id", strategyId).maybeSingle();
@@ -3287,7 +3287,7 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
             await db.from("stock_holdings").insert({ user_id: userId, security_id: sec.id, strategy_id: strategyId, quantity: holdingQty, avg_fill: pc, market_value: Math.round(holdingQty * pc), unrealized_pnl: 0, as_of_date: today, Status: "active" });
           }
         }
-        
+
         // --- ADDED: user_strategies update for EFT confirmation ---
         console.log(`[confirm-eft] Upserting user_strategies for strategy: ${strategyId}`);
         const { data: existingUS } = await db.from("user_strategies").select("id, invested_amount").eq("user_id", userId).eq("strategy_id", strategyId).maybeSingle();
@@ -3330,7 +3330,7 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
       status: "posted",
       transaction_date: now,
       created_at: now,
-    }).then(() => {}).catch(() => {});
+    }).then(() => { }).catch(() => { });
 
     await db.from("transactions").update({ status: "posted" }).eq("store_reference", reference);
 
@@ -3359,8 +3359,8 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
           reference,
           orderDate: now,
           paymentMethod: 'direct_eft',
-        }).catch(() => {});
-      } catch (_) {}
+        }).catch(() => { });
+      } catch (_) { }
     }
 
     console.log(`[EFT] Payment confirmed for user ${userId}, ref: ${reference}, amount: R${amount || amountCents / 100}`);
@@ -3397,13 +3397,13 @@ app.post("/api/confirm-deposit", async (req, res) => {
 
     const userId = tx.user_id;
     // Use manual amount from admin panel (cents) or stored amount
-    const depositAmount = manualAmount || tx.amount; 
+    const depositAmount = manualAmount || tx.amount;
 
     // 1. Update transaction status
-    await db.from("transactions").update({ 
-      status: "posted", 
+    await db.from("transactions").update({
+      status: "posted",
       amount: depositAmount,
-      updated_at: new Date().toISOString() 
+      updated_at: new Date().toISOString()
     }).eq("id", tx.id);
 
     let newBalance = 0;
@@ -3425,11 +3425,11 @@ app.post("/api/confirm-deposit", async (req, res) => {
         const { buildDepositConfirmationHtml } = await import("../api/_lib/order-email-templates.js");
         const { Resend } = await import("resend");
         const resend = new Resend(process.env.RESEND_API_KEY);
-        const html = buildDepositConfirmationHtml({ 
-          amountCents: depositAmount, 
+        const html = buildDepositConfirmationHtml({
+          amountCents: depositAmount,
           newBalanceCents: newBalance,
-          reference, 
-          dateStr: new Date().toISOString() 
+          reference,
+          dateStr: new Date().toISOString()
         });
 
         await resend.emails.send({
@@ -3443,7 +3443,7 @@ app.post("/api/confirm-deposit", async (req, res) => {
       console.warn("[confirm-deposit] Email skip:", emailErr?.message);
     }
 
-    console.log(`[confirm-deposit] User ${userId} wallet topped up by R${depositAmount/100}`);
+    console.log(`[confirm-deposit] User ${userId} wallet topped up by R${depositAmount / 100}`);
     return res.status(200).json({ success: true });
 
   } catch (err) {
@@ -5484,7 +5484,7 @@ app.get("/api/onboarding/status", async (req, res) => {
             raw = typeof data.sumsub_raw === "string" ? JSON.parse(data.sumsub_raw) : data.sumsub_raw;
             // Robust grandfathering: if they have a signed_at date, they've passed the essential hurdles
             const isGrandfathered = (kycDone && (!!raw?.signed_at || !!raw?.account_agreement_signed)) || (data.kyc_status === "onboarding_complete");
-            
+
             if (isGrandfathered) {
               taxDone = true; bankDone = true; mandateAgreed = true;
               riskDone = true; sofDone = true; termsDone = true;
@@ -5688,8 +5688,8 @@ app.get("/api/health", async (req, res) => {
   try {
     const db = supabaseAdmin || supabase;
     const { error } = await db.from('profiles').select('id').limit(1);
-    
-    res.json({ 
+
+    res.json({
       status: 'ok',
       database: error ? 'disconnected' : 'connected',
       version: packageJson.version,
@@ -5697,15 +5697,15 @@ app.get("/api/health", async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (err) {
-    res.status(503).json({ 
+    res.status(503).json({
       status: 'error',
-      message: err.message 
+      message: err.message
     });
   }
 });
 
 app.get("/api/version", (req, res) => {
-  res.json({ 
+  res.json({
     version: packageJson.version,
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString()
