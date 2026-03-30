@@ -774,6 +774,12 @@ const SwipeableBalanceCard = ({
                     data={chartData}
                     margin={{ top: 2, right: 0, left: 0, bottom: 0 }}
                   >
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={chartColor} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <XAxis 
                       dataKey="d" 
                       type="number" 
@@ -792,7 +798,7 @@ const SwipeableBalanceCard = ({
                           <div className="bg-white/95 backdrop-blur-sm border border-slate-200 rounded-lg px-2 py-1 shadow-md">
                             <p className="text-[9px] text-slate-500">{dateFormatted}</p>
                             <p className="text-[10px] font-semibold text-slate-800">
-                              {formatKMB(payload[0]?.value)}
+                              R{Number(payload[0]?.value).toFixed(2)}
                             </p>
                           </div>
                         );
@@ -808,14 +814,14 @@ const SwipeableBalanceCard = ({
                       type="monotone"
                       dataKey="v"
                       stroke="none"
-                      fill={chartColor}
-                      fillOpacity={0.1}
+                      fill="url(#colorValue)"
+                      fillOpacity={1}
                     />
                     <Line
                       type="monotone"
                       dataKey="v"
                       stroke={chartColor}
-                      strokeWidth={2}
+                      strokeWidth={3}
                       dot={false}
                     />
                   </ComposedChart>
