@@ -45,7 +45,7 @@ const formatKMB = (value) => {
   return `${sign}R${formatted}`;
 };
 
-const TIMEFRAME_DAYS = { d: 2, w: 7, m: 30 };
+const TIMEFRAME_DAYS = { d: 5, w: 7, m: 30 };
 
 const SwipeableBalanceCard = ({
   userId,
@@ -500,10 +500,9 @@ const SwipeableBalanceCard = ({
         }
       });
 
+      // Start with the calculated startTime to define the chart window bounds
       const points = [];
-
-      // Always anchor to the start of the requested timeframe window if it's the first point
-      points.push({ d: startTime, v: 0 });
+      const now = Date.now();
 
       for (const dateKey of sortedDates) {
         let totalPnl = 0;
@@ -783,7 +782,7 @@ const SwipeableBalanceCard = ({
                     <XAxis 
                       dataKey="d" 
                       type="number" 
-                      domain={['auto', 'auto']} 
+                      domain={[startTime, now]} 
                       hide 
                     />
                     <Tooltip
