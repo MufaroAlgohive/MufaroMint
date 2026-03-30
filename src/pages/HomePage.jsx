@@ -96,7 +96,7 @@ const HomePage = ({
   const [isCreatingGoal, setIsCreatingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: "", target_amount: "", target_date: "" });
   const [editingGoalId, setEditingGoalId] = useState(null);
-  
+
   const assetsToDisplay = localBestAssets.length > 0 ? localBestAssets : (bestAssets || []);
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -218,8 +218,8 @@ const HomePage = ({
 
         setLocalBestAssets(formatted);
       }
-    } catch (e) { 
-      console.error("Asset fetch error:", e.message); 
+    } catch (e) {
+      console.error("Asset fetch error:", e.message);
     }
   }, [profile?.id]);
 
@@ -236,10 +236,10 @@ const HomePage = ({
 
       if (error) throw error;
       setGoals(data || []);
-    } catch (e) { 
-      console.error("Goal fetch error:", e.message); 
-    } finally { 
-      setLoadingGoals(false); 
+    } catch (e) {
+      console.error("Goal fetch error:", e.message);
+    } finally {
+      setLoadingGoals(false);
     }
   }, [profile?.id]);
 
@@ -251,31 +251,23 @@ const HomePage = ({
     getUser();
   }, []);
 
-  // onboardingComplete is now managed by useOnboardingStatus hook
-  
-  // Ensure Mint Number generation
   useEffect(() => {
     if (!profile?.id || profile?.mintNumber) return;
-    
+
     const ensureMintNumber = async () => {
       try {
         const { data: sess } = await supabase.auth.getSession();
         const token = sess?.session?.access_token;
         if (!token) return;
-        
+
         const resp = await fetch('/api/user/ensure-mint-number', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
         });
         if (resp.ok) {
           const result = await resp.json();
-          if (result.mint_number) {
-            // Update profile via hook context if possible, 
-            // but we can also just rely on the next refresh or set locally if we had a setter.
-            // Since useProfile returns a profile object, we might need to refresh it.
-          }
         }
-      } catch (err) {}
+      } catch (err) { }
     };
     ensureMintNumber();
   }, [profile?.id, profile?.mintNumber]);
@@ -285,26 +277,26 @@ const HomePage = ({
 
     const homeSubscription = supabase
       .channel('home_realtime_updates')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'investment_goals', 
-        filter: `user_id=eq.${profile.id}` 
-      }, () => fetchGoals()) 
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'transactions', 
-        filter: `user_id=eq.${profile.id}` 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'investment_goals',
+        filter: `user_id=eq.${profile.id}`
+      }, () => fetchGoals())
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'transactions',
+        filter: `user_id=eq.${profile.id}`
       }, () => {
-        fetchBestAssets(); 
-        if (typeof fetchFinancialData === 'function') fetchFinancialData(); 
+        fetchBestAssets();
+        if (typeof fetchFinancialData === 'function') fetchFinancialData();
       })
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'required_actions', 
-        filter: `user_id=eq.${profile.id}` 
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'required_actions',
+        filter: `user_id=eq.${profile.id}`
       }, () => {
         if (typeof fetchRequiredActions === 'function') fetchRequiredActions();
       })
@@ -365,7 +357,6 @@ const HomePage = ({
         const serverStrategies = json.strategies || [];
 
         if (serverStrategies.length === 0) {
-          console.log("[HomePage] No user strategies found");
           setBestStrategies([]);
           return;
         }
@@ -486,10 +477,10 @@ const HomePage = ({
   }, []);
 
   const handleEditClick = (goal) => {
-    setNewGoal({ 
-      name: goal.name, 
-      target_amount: goal.target_amount, 
-      target_date: goal.target_date || "" 
+    setNewGoal({
+      name: goal.name,
+      target_amount: goal.target_amount,
+      target_date: goal.target_date || ""
     });
     setEditingGoalId(goal.id);
     setIsCreatingGoal(true);
@@ -536,7 +527,7 @@ const HomePage = ({
       });
 
       if (error) throw error;
-      
+
       setNewGoal({ name: "", target_amount: "", target_date: "" });
       setIsCreatingGoal(false);
       fetchGoals();
@@ -638,16 +629,16 @@ const HomePage = ({
   const hasStrategies = bestStrategies && bestStrategies.length > 0;
 
   return (
-    <div className="min-h-screen pb-[env(safe-area-inset-bottom)] text-slate-900 relative overflow-x-hidden">
-      <div className="absolute inset-x-0 top-0 -z-10 h-full">
-        <div 
-          className="absolute inset-x-0 top-0"
-          style={{ 
-            height: '100vh',
-            background: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)'
-          }} 
-        />
-      </div>
+    <div
+      className="min-h-screen pb-[env(safe-area-inset-bottom)] text-slate-900 relative overflow-x-hidden"
+      style={{
+        backgroundColor: '#f8f6fa',
+        backgroundImage: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: '100% 100vh',
+      }}
+    >
+
       <div className="rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
           <header className="relative flex items-center justify-between text-white">
@@ -665,15 +656,15 @@ const HomePage = ({
               )}
             </div>
 
-            <NavigationPill 
-              activeTab="home" 
+            <NavigationPill
+              activeTab="home"
               onTabChange={(id) => {
                 if (id === "credit") {
                   onOpenCredit();
                 } else if (id === "home") {
-                  setHomeTab("invest");    
+                  setHomeTab("invest");
                 }
-              }} 
+              }}
             />
 
             <NotificationBell onClick={onOpenNotifications} />
@@ -745,7 +736,7 @@ const HomePage = ({
                 <span>Latest updates for your portfolio</span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => onOpenNews && onOpenNews()}
               className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
             >
@@ -782,7 +773,7 @@ const HomePage = ({
                 <p className="text-xs text-slate-400">No recent insights available.</p>
               </div>
             )}
-            
+
             {loadingNews && (
               <div className="divide-y divide-slate-100">
                 {[0, 1, 2].map((i) => (
@@ -800,7 +791,7 @@ const HomePage = ({
           </div>
         </section>
 
-        {/* Investment Goals Table */}
+        {/* Investment Goals */}
         <section>
           <div className="flex items-end justify-between px-5 mb-3">
             <div className="space-y-1">
@@ -814,7 +805,7 @@ const HomePage = ({
                 <span>Track progress towards your goals</span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => setShowGoalsModal(true)}
               className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
             >
@@ -920,15 +911,15 @@ const HomePage = ({
               </div>
             </div>
             {hasInvestments && (
-              <button 
-                onClick={onOpenInvestments} 
+              <button
+                onClick={onOpenInvestments}
                 className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
               >
                 View all
               </button>
             )}
           </div>
-          
+
           {hasProfitableAssets ? (
             <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {assetsToDisplay.slice(0, 5).map((asset) => (
@@ -1024,15 +1015,15 @@ const HomePage = ({
               </div>
             </div>
             {hasStrategies && (
-              <button 
-                onClick={onOpenStrategies} 
+              <button
+                onClick={onOpenStrategies}
                 className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70 transition-colors"
               >
                 View all
               </button>
             )}
           </div>
-          
+
           {hasStrategies ? (
             <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {bestStrategies.slice(0, 5).map((strategy) => {
@@ -1139,7 +1130,6 @@ const HomePage = ({
             </div>
           </section>
         )}
-
       </div>
 
       {showPayModal && (
@@ -1154,7 +1144,6 @@ const HomePage = ({
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
-            
             <div className="p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900">Pay</h2>
@@ -1167,7 +1156,6 @@ const HomePage = ({
                   <X className="h-4 w-4" />
                 </button>
               </div>
-
               <div className="space-y-3">
                 <button
                   type="button"
@@ -1182,7 +1170,6 @@ const HomePage = ({
                     <p className="text-xs text-slate-500">Transfers are not available yet</p>
                   </div>
                 </button>
-
                 <button
                   type="button"
                   disabled
@@ -1214,7 +1201,6 @@ const HomePage = ({
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
-            
             <div className="p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900">Receive</h2>
@@ -1227,7 +1213,6 @@ const HomePage = ({
                   <X className="h-4 w-4" />
                 </button>
               </div>
-
               <div className="space-y-3">
                 <button
                   type="button"
@@ -1242,7 +1227,6 @@ const HomePage = ({
                     <p className="text-xs text-slate-500">Requests are not available yet</p>
                   </div>
                 </button>
-
                 <button
                   type="button"
                   disabled
@@ -1274,12 +1258,10 @@ const HomePage = ({
               setEditingGoalId(null);
             }}
           />
-          
           <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[32px] bg-white shadow-2xl animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
-            
             <div className="p-6">
               <header className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900">
@@ -1343,7 +1325,6 @@ const HomePage = ({
                         className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                       />
                     </div>
-                    
                     <div className="flex flex-col gap-3 pt-2">
                       <button
                         type="submit"
@@ -1352,7 +1333,6 @@ const HomePage = ({
                       >
                         {editingGoalId ? "Update Goal" : "Save Goal"}
                       </button>
-                      
                       {editingGoalId && (
                         <button
                           type="button"
@@ -1362,7 +1342,6 @@ const HomePage = ({
                           Delete Goal
                         </button>
                       )}
-
                       {goals.length > 0 && !editingGoalId && (
                         <button
                           type="button"
@@ -1388,14 +1367,13 @@ const HomePage = ({
                               Target: R{Number(goal.target_amount).toLocaleString()}
                             </p>
                           </div>
-                          <button 
+                          <button
                             onClick={() => handleEditClick(goal)}
                             className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-violet-50 hover:text-violet-600"
                           >
                             <FileSignature size={18} />
                           </button>
                         </div>
-                        
                         <div className="space-y-2">
                           <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
                             <span className="text-violet-600">{Math.round(goal.target_amount > 0 ? Math.min(100, ((goal.current_amount || 0) / goal.target_amount) * 100) : 0)}% Complete</span>
@@ -1410,7 +1388,6 @@ const HomePage = ({
                         </div>
                       </div>
                     ))}
-                    
                     <button
                       onClick={() => setIsCreatingGoal(true)}
                       className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-4 text-sm font-bold text-slate-400 transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-95"
