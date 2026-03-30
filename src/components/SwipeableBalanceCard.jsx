@@ -556,6 +556,14 @@ const SwipeableBalanceCard = ({
       ? ((displayReturn / displayInvested) * 100).toFixed(1)
       : "0.0";
   const chartColor = isLoss ? "#FB7185" : "#10B981";
+  const now = Date.now();
+  const startTime = (() => {
+    const d = TIMEFRAME_DAYS[activeTab] || 30;
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - d);
+    return cutoff.getTime();
+  })();
 
   const masked = "••••";
 
