@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "swift-5.8", "java-graalvm22.3", "python-3.11", "postgresql-16"]
+modules = ["nodejs-20", "web", "swift-5.8", "java-graalvm22.3"]
 [agent]
 expertMode = true
 integrations = ["resend:1.0.0"]
