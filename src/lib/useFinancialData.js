@@ -8,27 +8,47 @@ async function getAuthToken() {
 }
 
 async function fetchServerHoldings(token) {
-  const res = await fetch("/api/user/holdings", {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    console.error("Failed to fetch holdings from server:", res.status);
+  try {
+    const res = await fetch("/api/user/holdings", {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) {
+      console.error("Failed to fetch holdings from server:", res.status);
+      return [];
+    }
+    const json = await res.json();
+    return json.holdings || [];
+  } catch (err) {
+    if (err.name === "TimeoutError" || err.name === "AbortError") {
+      console.warn("[useFinancialData] Holdings fetch timed out, returning empty");
+    } else {
+      console.error("Failed to fetch holdings:", err);
+    }
     return [];
   }
-  const json = await res.json();
-  return json.holdings || [];
 }
 
 async function fetchServerTransactions(token, limit = 50) {
-  const res = await fetch(`/api/user/transactions?limit=${limit}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) {
-    console.error("Failed to fetch transactions from server:", res.status);
+  try {
+    const res = await fetch(`/api/user/transactions?limit=${limit}`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) {
+      console.error("Failed to fetch transactions from server:", res.status);
+      return [];
+    }
+    const json = await res.json();
+    return json.transactions || [];
+  } catch (err) {
+    if (err.name === "TimeoutError" || err.name === "AbortError") {
+      console.warn("[useFinancialData] Transactions fetch timed out, returning empty");
+    } else {
+      console.error("Failed to fetch transactions:", err);
+    }
     return [];
   }
-  const json = await res.json();
-  return json.transactions || [];
 }
 
 let financialDataCache = null;
@@ -136,7 +156,15 @@ export const useFinancialData = () => {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    const safetyTimer = setTimeout(() => {
+      setData((prev) => {
+        if (!prev.loading) return prev;
+        console.warn("[useFinancialData] Safety timeout reached, unblocking UI");
+        return { ...prev, loading: false };
+      });
+    }, 15000);
+    fetchData().finally(() => clearTimeout(safetyTimer));
+    return () => clearTimeout(safetyTimer);
   }, [fetchData]);
 
   useEffect(() => {
