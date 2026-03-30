@@ -51,6 +51,7 @@ export const useProfile = () => {
 
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData?.user) {
+        setProfile(emptyProfile);
         setLoading(false);
         return;
       }
@@ -129,18 +130,34 @@ export const useProfile = () => {
 
   useEffect(() => {
     loadProfile();
-  }, [loadProfile]);
 
-  const refetch = useCallback(() => {
-    loadProfile();
-  }, [loadProfile]);
+    let authSub;
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+            await loadProfile();
+          } else if (event === 'SIGNED_OUT') {
+            setProfile(emptyProfile);
+            setLoading(false);
+          }
+        }
+      );
+      authSub = subscription;
+    }
 
-  useEffect(() => {
     const handleProfileUpdate = () => {
       loadProfile();
     };
     window.addEventListener("profile-updated", handleProfileUpdate);
-    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
+    return () => {
+      if (authSub) authSub.unsubscribe();
+      window.removeEventListener("profile-updated", handleProfileUpdate);
+    };
+  }, [loadProfile]);
+
+  const refetch = useCallback(() => {
+    loadProfile();
   }, [loadProfile]);
 
   return { profile, loading, setProfile, refetch };

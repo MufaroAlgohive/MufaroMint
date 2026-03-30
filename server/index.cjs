@@ -5341,9 +5341,35 @@ app.post('/api/test-mint-mornings', async (req, res) => {
 
 const PORT = process.env.API_PORT || 3001;
 
+const packageJson = require('../package.json');
+
 // Health check endpoint
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/health", async (req, res) => {
+  try {
+    const db = supabaseAdmin || supabase;
+    const { error } = await db.from('profiles').select('id').limit(1);
+    
+    res.json({ 
+      status: 'ok',
+      database: error ? 'disconnected' : 'connected',
+      version: packageJson.version,
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(503).json({ 
+      status: 'error',
+      message: err.message 
+    });
+  }
+});
+
+app.get("/api/version", (req, res) => {
+  res.json({ 
+    version: packageJson.version,
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // ── News_articles diagnostic endpoint ─────────────────────────────────────────
