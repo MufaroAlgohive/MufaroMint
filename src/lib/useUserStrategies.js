@@ -210,11 +210,24 @@ function formatChartData(priceHistory, timeFilter) {
         grouped[key] = p.nav;
       });
       const entries = Object.entries(grouped);
-      return entries.map(([day, value]) => ({
+      const result = entries.map(([day, value]) => ({
         day,
         value,
         fullDate: day,
       }));
+      // Ensure we have at least 2 points to show a line instead of a dot
+      if (result.length === 1 && priceHistory.length > 0) {
+        const firstEntry = result[0];
+        // Add a synthetic start point with same value for a flat line
+        const firstPrice = priceHistory[0];
+        const { year, month, day } = parseDateParts(firstPrice.ts);
+        const startLabel = `${day} ${MONTH_NAMES_SHORT[month - 1]}`;
+        return [
+          { day: startLabel, value: firstEntry.value, fullDate: `${day} ${MONTH_NAMES_SHORT[month - 1]} ${year}` },
+          firstEntry,
+        ];
+      }
+      return result;
     }
     default:
       return priceHistory.map((p) => {

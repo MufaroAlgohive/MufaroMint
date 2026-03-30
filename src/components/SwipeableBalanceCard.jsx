@@ -924,12 +924,11 @@ const SwipeableBalanceCard = ({
                       yAxisId="pnl"
                       orientation="right"
                       domain={yAxisDomain}
-                      width={44}
-                      tickFormatter={(v) => formatKMB(v)}
-                      tick={{ fontSize: 9, fill: "rgba(148,163,184,0.85)" }}
+                      width={0}
+                      tick={false}
                       axisLine={false}
                       tickLine={false}
-                      dx={2}
+                      hide
                     />
                     <Tooltip content={<BalanceChartTooltip />} />
                     <ReferenceLine
