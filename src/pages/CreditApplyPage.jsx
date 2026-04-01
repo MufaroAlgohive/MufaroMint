@@ -890,119 +890,215 @@ const LoanCalculatorStep = () => {
    }, []);
 
    return (
-      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-500">
-         {/* ── Header banner ── */}
-         <div className="relative overflow-hidden rounded-3xl bg-[#0d0d12] px-5 py-5 flex items-center gap-4">
-            <div className="absolute right-0 top-0 w-48 h-full bg-blue-600/10 blur-2xl pointer-events-none" />
-            <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10 shrink-0">
-               <TrendingUp className="h-5 w-5 text-white" />
+      <div className="space-y-3 animate-in fade-in slide-in-from-bottom-6 duration-500">
+
+         {/* ── Hero card ── */}
+         <div className="relative overflow-hidden rounded-[28px] bg-[#0d0d12] px-6 pt-5 pb-6">
+            {/* Decorative blobs */}
+            <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-36 h-36 rounded-full bg-violet-600/10 blur-2xl pointer-events-none" />
+
+            {/* Header row */}
+            <div className="relative flex items-center justify-between mb-5">
+               <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-white/[0.08] border border-white/10 flex items-center justify-center shrink-0">
+                     <TrendingUp className="h-4 w-4 text-white" />
+                  </div>
+                  <div>
+                     <p className="text-[15px] font-semibold text-white leading-tight">Loan Calculator</p>
+                     <p className="text-[11px] text-white/40 leading-none mt-0.5">Personalise your offer</p>
+                  </div>
+               </div>
+               <div className="rounded-full bg-white/[0.06] border border-white/10 px-3 py-1">
+                  <span className="text-[10px] font-medium text-white/45 tracking-[0.08em]">STEP 4 / 4</span>
+               </div>
             </div>
-            <div>
-               <h2 className="text-[17px] font-semibold text-white tracking-tight leading-snug">Loan Calculator</h2>
-               <p className="text-[11px] text-white/45 mt-0.5 leading-relaxed">Select an amount and repayment period</p>
+
+            {/* Payment figures */}
+            <div className="relative flex items-end justify-between">
+               <div>
+                  <p className="text-[10px] font-medium text-white/30 uppercase tracking-[0.12em] mb-1.5">Monthly Repayment</p>
+                  <div className="flex items-start gap-1 leading-none">
+                     <span className="text-[18px] font-light text-white/50 mt-2">R</span>
+                     <span className="text-[52px] font-bold tracking-[-0.04em] text-white leading-none">{formatMoney(monthlyPayment)}</span>
+                  </div>
+               </div>
+               <div className="text-right mb-1">
+                  <p className="text-[10px] text-white/30 uppercase tracking-[0.1em] mb-2">Interest</p>
+                  <div className="flex items-center gap-1.5 justify-end">
+                     <span className="h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0" />
+                     <span className="text-[18px] font-semibold text-white/75">R {formatMoney(totalInterest)}</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* Total repayable footer */}
+            <div className="relative mt-5 pt-4 border-t border-white/[0.07] flex items-center justify-between">
+               <span className="text-[11px] text-white/35 font-medium">Total repayable</span>
+               <span className="text-[13px] font-bold text-white/65">R {formatMoney(monthlyPayment * loanPeriod)}</span>
             </div>
          </div>
 
-         <div className="bg-white rounded-[20px] px-5 py-4 flex items-end justify-between">
-            <div>
-               <div className="flex items-start gap-0.5 leading-none">
-                  <span className="text-base font-medium text-slate-900 mt-1">R</span>
-                  <span className="text-[42px] font-bold tracking-[-0.04em] text-slate-900 leading-none">{formatMoney(monthlyPayment)}</span>
-               </div>
-               <p className="text-xs text-slate-400 mt-1">Monthly Payment</p>
-            </div>
-            <div className="text-right">
-               <div className="flex items-start justify-end gap-0.5 leading-none">
-                  <span className="text-xs font-medium text-slate-900 mt-1">R</span>
-                  <span className="text-[22px] font-bold tracking-[-0.02em] text-slate-900">{formatMoney(totalInterest)}</span>
-               </div>
-               <p className="text-xs text-slate-400 mt-1">Interest Paid</p>
-            </div>
-         </div>
-
-         <div className="bg-white rounded-[20px] p-4 space-y-3">
-            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">Loan Amount</p>
-            <div
-               ref={amountTrackRef}
-               className="relative h-[52px] rounded-[14px] bg-slate-200/90 overflow-visible cursor-pointer select-none touch-none"
-               onMouseDown={(e) => beginDrag("amount", e)}
-               onTouchStart={(e) => beginDrag("amount", e, true)}
-            >
-               <div className="absolute top-0 left-0 h-[52px] rounded-[14px] bg-slate-900 px-4 flex items-center justify-between overflow-hidden"
-                  style={{ width: `${Math.max(4, amountPct * 100)}%` }}>
-                  <div className="flex items-baseline gap-1" style={{ opacity: amountPct < LIGHT_THRESHOLD ? 0 : 1 }}>
-                     <span className="text-[13px] font-medium text-white/60">R</span>
-                     <span className="text-2xl font-bold tracking-[-0.02em] text-white leading-none">{formatInt(loanAmount)}</span>
-                  </div>
-                  <div className="flex flex-col gap-1 ml-3">
-                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
-                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
-                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
-                  </div>
-               </div>
-               <div
-                  className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-900 whitespace-nowrap pl-1.5 transition-opacity ${amountPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
-                  style={{ left: `calc(${Math.max(10, amountPct * 100)}% + 8px)` }}
-               >
-                  R {formatInt(loanAmount)}
-               </div>
-            </div>
-         </div>
-
-         <div className="bg-white rounded-[20px] p-4 space-y-3">
-            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">Loan Period</p>
-            <div
-               ref={periodTrackRef}
-               className="relative h-[52px] rounded-[14px] bg-slate-200/90 overflow-visible cursor-pointer select-none touch-none"
-               onMouseDown={(e) => beginDrag("period", e)}
-               onTouchStart={(e) => beginDrag("period", e, true)}
-            >
-               <div className="absolute top-0 left-0 h-[52px] rounded-[14px] bg-slate-900 px-4 flex items-center justify-between overflow-hidden"
-                  style={{ width: `${Math.max(4, periodPct * 100)}%` }}>
-                  <div className="flex items-baseline gap-1" style={{ opacity: periodPct < LIGHT_THRESHOLD ? 0 : 1 }}>
-                     <span className="text-2xl font-bold tracking-[-0.02em] text-white leading-none">{loanPeriod}</span>
-                     <span className="text-[13px] font-normal text-slate-400">months</span>
-                  </div>
-                  <div className="flex flex-col gap-1 ml-3">
-                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
-                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
-                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
+         {/* ── Sliders card ── */}
+         <div className="bg-white rounded-[24px] px-5 py-5">
+            {/* Amount slider */}
+            <div className="space-y-3">
+               <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Loan Amount</p>
+                  <div className="flex items-baseline gap-0.5">
+                     <span className="text-[12px] font-medium text-slate-400">R</span>
+                     <span className="text-[17px] font-bold tracking-[-0.02em] text-slate-900">{formatInt(loanAmount)}</span>
                   </div>
                </div>
                <div
-                  className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-900 whitespace-nowrap pl-1.5 transition-opacity ${periodPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
-                  style={{ left: `calc(${Math.max(10, periodPct * 100)}% + 8px)` }}
+                  ref={amountTrackRef}
+                  className="relative h-[54px] rounded-2xl bg-slate-100 overflow-visible cursor-pointer select-none touch-none"
+                  onMouseDown={(e) => beginDrag("amount", e)}
+                  onTouchStart={(e) => beginDrag("amount", e, true)}
                >
-                  {loanPeriod} mo
+                  <div
+                     className="absolute top-0 left-0 h-[54px] rounded-2xl overflow-hidden flex items-center justify-between px-4"
+                     style={{
+                        width: `${Math.max(4, amountPct * 100)}%`,
+                        background: "linear-gradient(90deg, #0d0d12 0%, #1c1c2e 100%)"
+                     }}
+                  >
+                     <div className="flex items-baseline gap-1" style={{ opacity: amountPct < LIGHT_THRESHOLD ? 0 : 1 }}>
+                        <span className="text-[12px] font-medium text-white/50">R</span>
+                        <span className="text-[22px] font-bold tracking-[-0.02em] text-white leading-none">{formatInt(loanAmount)}</span>
+                     </div>
+                     <div className="flex flex-col gap-[3px] ml-2 shrink-0">
+                        <span className="block w-[3px] h-[3px] rounded-full bg-white/20" />
+                        <span className="block w-[3px] h-[3px] rounded-full bg-white/20" />
+                        <span className="block w-[3px] h-[3px] rounded-full bg-white/20" />
+                     </div>
+                  </div>
+                  <div
+                     className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-700 whitespace-nowrap pl-3 transition-opacity ${amountPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
+                     style={{ left: `${Math.max(0, amountPct * 100)}%` }}
+                  >
+                     R {formatInt(loanAmount)}
+                  </div>
+               </div>
+               <div className="flex justify-between px-0.5">
+                  <span className="text-[10px] text-slate-400 font-medium">R 1,000</span>
+                  <span className="text-[10px] text-slate-400 font-medium">R 5,000</span>
+               </div>
+            </div>
+
+            {/* Divider */}
+            <div className="my-5 border-t border-slate-100" />
+
+            {/* Period slider */}
+            <div className="space-y-3">
+               <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400">Loan Period</p>
+                  <div className="flex items-baseline gap-1">
+                     <span className="text-[17px] font-bold tracking-[-0.02em] text-slate-900">{loanPeriod}</span>
+                     <span className="text-[12px] font-medium text-slate-400">{loanPeriod === 1 ? "month" : "months"}</span>
+                  </div>
+               </div>
+               <div
+                  ref={periodTrackRef}
+                  className="relative h-[54px] rounded-2xl bg-slate-100 overflow-visible cursor-pointer select-none touch-none"
+                  onMouseDown={(e) => beginDrag("period", e)}
+                  onTouchStart={(e) => beginDrag("period", e, true)}
+               >
+                  <div
+                     className="absolute top-0 left-0 h-[54px] rounded-2xl overflow-hidden flex items-center justify-between px-4"
+                     style={{
+                        width: `${Math.max(4, periodPct * 100)}%`,
+                        background: "linear-gradient(90deg, #0d0d12 0%, #1c1c2e 100%)"
+                     }}
+                  >
+                     <div className="flex items-baseline gap-1.5" style={{ opacity: periodPct < LIGHT_THRESHOLD ? 0 : 1 }}>
+                        <span className="text-[22px] font-bold tracking-[-0.02em] text-white leading-none">{loanPeriod}</span>
+                        <span className="text-[12px] font-normal text-white/50">mo</span>
+                     </div>
+                     <div className="flex flex-col gap-[3px] ml-2 shrink-0">
+                        <span className="block w-[3px] h-[3px] rounded-full bg-white/20" />
+                        <span className="block w-[3px] h-[3px] rounded-full bg-white/20" />
+                        <span className="block w-[3px] h-[3px] rounded-full bg-white/20" />
+                     </div>
+                  </div>
+                  <div
+                     className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-700 whitespace-nowrap pl-3 transition-opacity ${periodPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
+                     style={{ left: `${Math.max(0, periodPct * 100)}%` }}
+                  >
+                     {loanPeriod} mo
+                  </div>
+               </div>
+               <div className="flex justify-between px-0.5">
+                  <span className="text-[10px] text-slate-400 font-medium">1 month</span>
+                  <span className="text-[10px] text-slate-400 font-medium">5 months</span>
                </div>
             </div>
          </div>
 
-         <div className="bg-white rounded-[20px] px-5 pt-5 pb-2">
-            <div className="flex items-center justify-between py-2.5 border-b border-slate-100">
-               <span className="text-[13px] text-slate-400 font-medium">Loan Amount</span>
-               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">R {formatInt(loanAmount)}</span>
+         {/* ── Repayment summary card ── */}
+         <div className="bg-white rounded-[24px] px-5 py-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 mb-4">Repayment Summary</p>
+
+            <div className="space-y-0">
+               {[
+                  { label: "Principal Amount",   value: `R ${formatInt(loanAmount)}`,          dot: "bg-slate-900" },
+                  { label: "Loan Period",         value: `${loanPeriod} ${loanPeriod === 1 ? "month" : "months"}`, dot: "bg-slate-400" },
+                  { label: "Monthly Repayment",   value: `R ${formatMoney(monthlyPayment)}`,    dot: "bg-blue-600" },
+                  { label: "Interest Charged",    value: `R ${formatMoney(totalInterest)}`,     dot: "bg-blue-300" },
+               ].map((row, i, arr) => (
+                  <div key={row.label} className={`flex items-center justify-between py-3 ${i < arr.length - 1 ? "border-b border-slate-100" : ""}`}>
+                     <div className="flex items-center gap-2.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${row.dot}`} />
+                        <span className="text-[13px] text-slate-500 font-medium">{row.label}</span>
+                     </div>
+                     <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">{row.value}</span>
+                  </div>
+               ))}
             </div>
-            <div className="flex items-center justify-between py-2.5 border-b border-slate-100">
-               <span className="text-[13px] text-slate-400 font-medium">Loan Period</span>
-               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">{loanPeriod} {loanPeriod === 1 ? "month" : "months"}</span>
-            </div>
-            <div className="flex items-center justify-between py-2.5 border-b border-slate-100">
-               <span className="text-[13px] text-slate-400 font-medium">Monthly Payment</span>
-               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">R {formatMoney(monthlyPayment)}</span>
-            </div>
-            <div className="flex items-center justify-between py-2.5">
-               <span className="text-[13px] text-slate-400 font-medium">Interest Paid</span>
-               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">R {formatMoney(totalInterest)}</span>
+
+            {/* Principal vs Interest split bar */}
+            <div className="mt-4 pt-4 border-t border-slate-100">
+               <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] text-slate-400 font-medium">Principal</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Interest</span>
+               </div>
+               <div className="h-2 rounded-full bg-slate-100 overflow-hidden flex">
+                  {(() => {
+                     const total = monthlyPayment * loanPeriod;
+                     const prinPct = total > 0 ? (loanAmount / total) * 100 : 100;
+                     return (
+                        <>
+                           <div className="h-full bg-slate-900 rounded-l-full transition-all duration-500" style={{ width: `${prinPct}%` }} />
+                           <div className="h-full bg-blue-400 flex-1 rounded-r-full" />
+                        </>
+                     );
+                  })()}
+               </div>
+               <div className="flex items-center justify-between mt-1.5">
+                  <span className="text-[10px] font-bold text-slate-600">R {formatInt(loanAmount)}</span>
+                  <span className="text-[10px] font-bold text-blue-500">R {formatMoney(totalInterest)}</span>
+               </div>
             </div>
          </div>
 
+         {/* ── NCA compliance badge ── */}
+         <div className="bg-white rounded-[20px] px-5 py-3.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+               <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
+               <span className="text-[12px] font-medium text-slate-600">NCA-compliant · Annual rate: <strong className="text-slate-800">6.8%</strong></span>
+            </div>
+            <span className="text-[11px] font-medium text-slate-400">p.a.</span>
+         </div>
+
+         {/* ── CTA ── */}
          <button
             type="button"
-            className="w-full py-[17px] rounded-full bg-blue-600 text-white text-[15px] font-semibold tracking-[0.01em] shadow-lg shadow-blue-600/30 active:scale-[0.98] transition-transform"
+            className="w-full py-[18px] rounded-full bg-slate-900 text-white text-[15px] font-semibold tracking-[0.01em] shadow-xl shadow-slate-900/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
          >
-            Next Step
+            Apply for this loan
+            <ArrowRight className="h-4 w-4" />
          </button>
+
       </div>
    );
 };
