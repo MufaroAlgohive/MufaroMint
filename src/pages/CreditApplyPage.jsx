@@ -784,6 +784,222 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
    );
 };
 
+const LoanCalculatorStep = () => {
+   const LIGHT_THRESHOLD = 0.36;
+   const [loanAmount, setLoanAmount] = useState(3000);
+   const [loanPeriod, setLoanPeriod] = useState(3);
+   const amountTrackRef = useRef(null);
+   const periodTrackRef = useRef(null);
+   const dragRef = useRef({ active: false, type: null, startX: 0, startValue: 0, isTouch: false });
+
+   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+   const snap = (value, min, max, step) => {
+      const limited = clamp(value, min, max);
+      return Math.round((limited - min) / step) * step + min;
+   };
+
+   const monthlyRate = 0.068 / 12;
+   const monthlyPayment = (() => {
+      const numerator = loanAmount * monthlyRate * Math.pow(1 + monthlyRate, loanPeriod);
+      const denominator = Math.pow(1 + monthlyRate, loanPeriod) - 1;
+      return denominator > 0 ? numerator / denominator : 0;
+   })();
+   const totalInterest = Math.max(0, monthlyPayment * loanPeriod - loanAmount);
+
+   const formatMoney = (value) => value.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+   const formatInt = (value) => Math.round(value).toLocaleString("en-ZA");
+
+   const amountPct = (loanAmount - 1000) / (5000 - 1000);
+   const periodPct = (loanPeriod - 1) / (5 - 1);
+
+   const getClientX = (event, isTouch) => {
+      if (isTouch) return event.touches?.[0]?.clientX ?? event.changedTouches?.[0]?.clientX ?? 0;
+      return event.clientX ?? 0;
+   };
+
+   const beginDrag = (type, event, isTouch = false) => {
+      const track = type === "amount" ? amountTrackRef.current : periodTrackRef.current;
+      if (!track) return;
+
+      const rect = track.getBoundingClientRect();
+      const clientX = getClientX(event, isTouch);
+      const x = clamp(clientX - rect.left, 0, rect.width);
+      const pct = rect.width > 0 ? x / rect.width : 0;
+
+      if (type === "amount") {
+         const next = snap(1000 + pct * (5000 - 1000), 1000, 5000, 100);
+         setLoanAmount(next);
+      } else {
+         const next = snap(1 + pct * (5 - 1), 1, 5, 1);
+         setLoanPeriod(next);
+      }
+
+      dragRef.current = {
+         active: true,
+         type,
+         startX: clientX,
+         startValue: type === "amount" ? loanAmount : loanPeriod,
+         isTouch
+      };
+
+      if (isTouch) {
+         event.preventDefault();
+      }
+   };
+
+   useEffect(() => {
+      const onMove = (event) => {
+         if (!dragRef.current.active) return;
+
+         const { type, startX, startValue, isTouch } = dragRef.current;
+         const track = type === "amount" ? amountTrackRef.current : periodTrackRef.current;
+         if (!track) return;
+
+         const rect = track.getBoundingClientRect();
+         const clientX = getClientX(event, isTouch);
+         const dx = clientX - startX;
+         const range = type === "amount" ? 5000 - 1000 : 5 - 1;
+         const delta = rect.width > 0 ? (dx / rect.width) * range : 0;
+
+         if (type === "amount") {
+            const next = snap(startValue + delta, 1000, 5000, 100);
+            setLoanAmount(next);
+         } else {
+            const next = snap(startValue + delta, 1, 5, 1);
+            setLoanPeriod(next);
+         }
+
+         if (isTouch) event.preventDefault();
+      };
+
+      const onEnd = () => {
+         dragRef.current.active = false;
+      };
+
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onEnd);
+      window.addEventListener("touchmove", onMove, { passive: false });
+      window.addEventListener("touchend", onEnd);
+
+      return () => {
+         window.removeEventListener("mousemove", onMove);
+         window.removeEventListener("mouseup", onEnd);
+         window.removeEventListener("touchmove", onMove);
+         window.removeEventListener("touchend", onEnd);
+      };
+   }, []);
+
+   return (
+      <div className="space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-500">
+         <div className="space-y-1 px-1">
+            <h2 className="text-[26px] font-bold tracking-[-0.02em] text-slate-900">Loan Calculator</h2>
+            <p className="text-[13px] text-slate-400 leading-relaxed">Select the amount needed<br />and the reimbursement period</p>
+         </div>
+
+         <div className="bg-white rounded-[20px] px-5 py-4 flex items-end justify-between">
+            <div>
+               <div className="flex items-start gap-0.5 leading-none">
+                  <span className="text-base font-medium text-slate-900 mt-1">R</span>
+                  <span className="text-[42px] font-bold tracking-[-0.04em] text-slate-900 leading-none">{formatMoney(monthlyPayment)}</span>
+               </div>
+               <p className="text-xs text-slate-400 mt-1">Monthly Payment</p>
+            </div>
+            <div className="text-right">
+               <div className="flex items-start justify-end gap-0.5 leading-none">
+                  <span className="text-xs font-medium text-slate-900 mt-1">R</span>
+                  <span className="text-[22px] font-bold tracking-[-0.02em] text-slate-900">{formatMoney(totalInterest)}</span>
+               </div>
+               <p className="text-xs text-slate-400 mt-1">Interest Paid</p>
+            </div>
+         </div>
+
+         <div className="bg-white rounded-[20px] p-4 space-y-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">Loan Amount</p>
+            <div
+               ref={amountTrackRef}
+               className="relative h-[52px] rounded-[14px] bg-slate-200/90 overflow-visible cursor-pointer select-none touch-none"
+               onMouseDown={(e) => beginDrag("amount", e)}
+               onTouchStart={(e) => beginDrag("amount", e, true)}
+            >
+               <div className="absolute top-0 left-0 h-[52px] rounded-[14px] bg-slate-900 px-4 flex items-center justify-between overflow-hidden"
+                  style={{ width: `${Math.max(4, amountPct * 100)}%` }}>
+                  <div className="flex items-baseline gap-1" style={{ opacity: amountPct < LIGHT_THRESHOLD ? 0 : 1 }}>
+                     <span className="text-[13px] font-medium text-white/60">R</span>
+                     <span className="text-2xl font-bold tracking-[-0.02em] text-white leading-none">{formatInt(loanAmount)}</span>
+                  </div>
+                  <div className="flex flex-col gap-1 ml-3">
+                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
+                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
+                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
+                  </div>
+               </div>
+               <div
+                  className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-900 whitespace-nowrap pl-1.5 transition-opacity ${amountPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
+                  style={{ left: `calc(${Math.max(10, amountPct * 100)}% + 8px)` }}
+               >
+                  R {formatInt(loanAmount)}
+               </div>
+            </div>
+         </div>
+
+         <div className="bg-white rounded-[20px] p-4 space-y-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">Loan Period</p>
+            <div
+               ref={periodTrackRef}
+               className="relative h-[52px] rounded-[14px] bg-slate-200/90 overflow-visible cursor-pointer select-none touch-none"
+               onMouseDown={(e) => beginDrag("period", e)}
+               onTouchStart={(e) => beginDrag("period", e, true)}
+            >
+               <div className="absolute top-0 left-0 h-[52px] rounded-[14px] bg-slate-900 px-4 flex items-center justify-between overflow-hidden"
+                  style={{ width: `${Math.max(4, periodPct * 100)}%` }}>
+                  <div className="flex items-baseline gap-1" style={{ opacity: periodPct < LIGHT_THRESHOLD ? 0 : 1 }}>
+                     <span className="text-2xl font-bold tracking-[-0.02em] text-white leading-none">{loanPeriod}</span>
+                     <span className="text-[13px] font-normal text-slate-400">months</span>
+                  </div>
+                  <div className="flex flex-col gap-1 ml-3">
+                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
+                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
+                     <span className="w-[3px] h-[3px] rounded-full bg-slate-600" />
+                  </div>
+               </div>
+               <div
+                  className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-900 whitespace-nowrap pl-1.5 transition-opacity ${periodPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
+                  style={{ left: `calc(${Math.max(10, periodPct * 100)}% + 8px)` }}
+               >
+                  {loanPeriod} mo
+               </div>
+            </div>
+         </div>
+
+         <div className="bg-white rounded-[20px] px-5 pt-5 pb-2">
+            <div className="flex items-center justify-between py-2.5 border-b border-slate-100">
+               <span className="text-[13px] text-slate-400 font-medium">Loan Amount</span>
+               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">R {formatInt(loanAmount)}</span>
+            </div>
+            <div className="flex items-center justify-between py-2.5 border-b border-slate-100">
+               <span className="text-[13px] text-slate-400 font-medium">Loan Period</span>
+               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">{loanPeriod} {loanPeriod === 1 ? "month" : "months"}</span>
+            </div>
+            <div className="flex items-center justify-between py-2.5 border-b border-slate-100">
+               <span className="text-[13px] text-slate-400 font-medium">Monthly Payment</span>
+               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">R {formatMoney(monthlyPayment)}</span>
+            </div>
+            <div className="flex items-center justify-between py-2.5">
+               <span className="text-[13px] text-slate-400 font-medium">Interest Paid</span>
+               <span className="text-[14px] text-slate-900 font-bold tracking-[-0.01em]">R {formatMoney(totalInterest)}</span>
+            </div>
+         </div>
+
+         <button
+            type="button"
+            className="w-full py-[17px] rounded-full bg-blue-600 text-white text-[15px] font-semibold tracking-[0.01em] shadow-lg shadow-blue-600/30 active:scale-[0.98] transition-transform"
+         >
+            Next Step
+         </button>
+      </div>
+   );
+};
+
 
 // --- ORCHESTRATOR ---
 
@@ -1313,19 +1529,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                onContinue={() => setStep(4)}
             />;
          case 4:
-            return (
-               <MintCard className="animate-in fade-in slide-in-from-bottom-6 duration-500">
-                  <div className="flex flex-col items-center text-center gap-3 py-8">
-                     <div className="h-14 w-14 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center">
-                        <CheckCircle2 size={24} />
-                     </div>
-                     <h3 className="text-lg font-semibold text-slate-900">Step 4 Ready</h3>
-                     <p className="text-sm text-slate-500 max-w-[280px]">
-                        Your step 3 assessment is complete. This is the new step 4 placeholder.
-                     </p>
-                  </div>
-               </MintCard>
-            );
+            return <LoanCalculatorStep />;
          default:
             return null;
       }
