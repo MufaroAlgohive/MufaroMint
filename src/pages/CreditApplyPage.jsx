@@ -699,6 +699,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
    const [autoAdvance, setAutoAdvance] = useState(false);
    const [checkedExistingScore, setCheckedExistingScore] = useState(false);
+   const [checkedEmploymentSnapshot, setCheckedEmploymentSnapshot] = useState(false);
    const [loanApplications, setLoanApplications] = useState([]);
    const [loadingLoans, setLoadingLoans] = useState(true);
    const [showDetails, setShowDetails] = useState(false);
@@ -780,6 +781,37 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    }, [loadingProfile, checkedExistingScore, onComplete]);
 
    useEffect(() => {
+      if (loadingProfile || step !== 2 || checkedEmploymentSnapshot) return;
+
+      const checkEmploymentSnapshot = async () => {
+         if (!supabase) return;
+         const { data: sessionData } = await supabase.auth.getSession();
+         const userId = sessionData?.session?.user?.id;
+         if (!userId) return;
+
+         const { data: employmentSnapshot } = await supabase
+            .from("loan_engine_score")
+            .select("years_current_employer,contract_type,is_new_borrower,employment_sector,employer_name")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+         const hasEmploymentDetails = Number.isFinite(Number(employmentSnapshot?.years_current_employer))
+            && Boolean(employmentSnapshot?.contract_type)
+            && typeof employmentSnapshot?.is_new_borrower === "boolean"
+            && Boolean(employmentSnapshot?.employment_sector)
+            && Boolean(employmentSnapshot?.employer_name);
+
+         if (hasEmploymentDetails) {
+            setStep(3);
+         }
+      };
+
+      checkEmploymentSnapshot().finally(() => setCheckedEmploymentSnapshot(true));
+   }, [loadingProfile, step, checkedEmploymentSnapshot]);
+
+   useEffect(() => {
       const loadLoanApplications = async () => {
          if (!supabase) return;
          const { data: sessionData } = await supabase.auth.getSession();
@@ -824,6 +856,14 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       if (finalData.contractType) setField("contractType", finalData.contractType);
       if (finalData.yearsCurrentEmployer) setField("yearsCurrentEmployer", finalData.yearsCurrentEmployer);
 
+      const yearsValue = finalData.yearsCurrentEmployer === "<1"
+         ? 0.5
+         : finalData.yearsCurrentEmployer === "4+"
+            ? 4
+            : Number(finalData.yearsCurrentEmployer);
+
+      const isNewBorrowerValue = checkForm.isNewBorrower === "yes";
+
       const shouldSaveOnboarding = (!onboardingEmployerName && finalData.employerName)
          || (!contractTypeLocked && finalData.contractType)
          || (!sectorLocked && finalData.employmentSector);
@@ -848,33 +888,45 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
          }
       }
 
-      if (!yearsAtEmployerLocked && finalData.yearsCurrentEmployer) {
+      if (finalData.yearsCurrentEmployer || finalData.contractType || finalData.employmentSector || finalData.employerName) {
          try {
             const { data: { session } } = await supabase.auth.getSession();
             const userId = session?.user?.id;
             if (userId) {
-               const yearsValue = finalData.yearsCurrentEmployer === "<1"
-                  ? 0.5
-                  : finalData.yearsCurrentEmployer === "4+"
-                     ? 4
-                     : Number(finalData.yearsCurrentEmployer);
-
                const { data: existingScore } = await supabase
                   .from("loan_engine_score")
                   .select("id")
                   .eq("user_id", userId)
+                  .order("created_at", { ascending: false })
                   .limit(1)
                   .maybeSingle();
+
+               const employmentPayload = {
+                  years_current_employer: Number.isFinite(yearsValue) ? yearsValue : null,
+                  contract_type: finalData.contractType || null,
+                  is_new_borrower: isNewBorrowerValue,
+                  employment_sector: finalData.employmentSector || null,
+                  employer_name: finalData.employerName || null,
+                  updated_at: new Date().toISOString()
+               };
 
                if (existingScore?.id) {
                   await supabase
                      .from("loan_engine_score")
-                     .update({ years_current_employer: yearsValue })
+                     .update(employmentPayload)
                      .eq("id", existingScore.id);
+               } else {
+                  await supabase
+                     .from("loan_engine_score")
+                     .insert({
+                        user_id: userId,
+                        ...employmentPayload,
+                        created_at: new Date().toISOString()
+                     });
                }
             }
          } catch (error) {
-            console.warn("Failed to save years at employer:", error?.message || error);
+            console.warn("Failed to save employment snapshot:", error?.message || error);
          }
       }
 
