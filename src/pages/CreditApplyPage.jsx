@@ -889,6 +889,24 @@ const LoanCalculatorStep = () => {
       };
    }, []);
 
+   // Attach non-passive touchstart directly so preventDefault() works
+   useEffect(() => {
+      const amountEl = amountTrackRef.current;
+      const periodEl = periodTrackRef.current;
+      if (!amountEl || !periodEl) return;
+
+      const onAmountTouch = (e) => beginDrag("amount", e, true);
+      const onPeriodTouch = (e) => beginDrag("period", e, true);
+
+      amountEl.addEventListener("touchstart", onAmountTouch, { passive: false });
+      periodEl.addEventListener("touchstart", onPeriodTouch, { passive: false });
+
+      return () => {
+         amountEl.removeEventListener("touchstart", onAmountTouch);
+         periodEl.removeEventListener("touchstart", onPeriodTouch);
+      };
+   }, []);
+
    return (
       <div className="space-y-3 animate-in fade-in slide-in-from-bottom-6 duration-500">
 
@@ -954,7 +972,6 @@ const LoanCalculatorStep = () => {
                   ref={amountTrackRef}
                   className="relative h-[54px] rounded-2xl bg-slate-100 overflow-visible cursor-pointer select-none touch-none"
                   onMouseDown={(e) => beginDrag("amount", e)}
-                  onTouchStart={(e) => beginDrag("amount", e, true)}
                >
                   <div
                      className="absolute top-0 left-0 h-[54px] rounded-2xl overflow-hidden flex items-center justify-between px-4"
@@ -1002,7 +1019,6 @@ const LoanCalculatorStep = () => {
                   ref={periodTrackRef}
                   className="relative h-[54px] rounded-2xl bg-slate-100 overflow-visible cursor-pointer select-none touch-none"
                   onMouseDown={(e) => beginDrag("period", e)}
-                  onTouchStart={(e) => beginDrag("period", e, true)}
                >
                   <div
                      className="absolute top-0 left-0 h-[54px] rounded-2xl overflow-hidden flex items-center justify-between px-4"
