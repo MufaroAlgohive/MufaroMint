@@ -169,14 +169,12 @@ export function useCreditCheck() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("first_name,last_name,id_number,date_of_birth,gender,address_line1,address_line2,city,postal_code")
+        .select("first_name,last_name,id_number,date_of_birth,gender,address,phone_number")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
-        setIntakeError("Unable to load your profile details. Please refresh.");
-        setLoadingProfile(false);
-        return;
+        console.warn("Profile load error:", profileError?.message);
       }
 
       const { data: snapshotData } = await supabase
@@ -241,8 +239,8 @@ export function useCreditCheck() {
         lastName: profileData?.last_name || prev.lastName,
         gender: profileData?.gender || prev.gender,
         dateOfBirth: profileData?.date_of_birth || prev.dateOfBirth,
-        address: profileData?.address_line1 || profileData?.address_line2 || profileData?.city || prev.address,
-        postalCode: String(profileData?.postal_code || prev.postalCode || "0152"),
+        address: profileData?.address || prev.address,
+        postalCode: prev.postalCode || "0152",
         annualIncome: snapshotData?.avg_monthly_income
           ? String(snapshotData.avg_monthly_income * 12)
           : prev.annualIncome,

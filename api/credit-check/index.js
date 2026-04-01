@@ -271,7 +271,7 @@ export default async function handler(req, res) {
 
       const { data: profile } = await dbClient
         .from('profiles')
-        .select('id_number,first_name,last_name,date_of_birth,gender,phone,address_line1,address_line2,city,postal_code')
+        .select('id_number,first_name,last_name,date_of_birth,gender,phone_number,address')
         .eq('id', userId)
         .maybeSingle();
 
@@ -281,11 +281,8 @@ export default async function handler(req, res) {
         if (!normalizedOverrides.forename && profile.first_name) normalizedOverrides.forename = profile.first_name;
         if (!normalizedOverrides.date_of_birth && profile.date_of_birth) normalizedOverrides.date_of_birth = profile.date_of_birth;
         if (!normalizedOverrides.gender && profile.gender) normalizedOverrides.gender = profile.gender;
-        if (!normalizedOverrides.cell_tel_no && profile.phone) normalizedOverrides.cell_tel_no = profile.phone;
-        if (!normalizedOverrides.address1 && profile.address_line1) normalizedOverrides.address1 = profile.address_line1;
-        if (!normalizedOverrides.address2 && profile.address_line2) normalizedOverrides.address2 = profile.address_line2;
-        if (!normalizedOverrides.address4 && profile.city) normalizedOverrides.address4 = profile.city;
-        if (!normalizedOverrides.postal_code && profile.postal_code) normalizedOverrides.postal_code = profile.postal_code;
+        if (!normalizedOverrides.cell_tel_no && profile.phone_number) normalizedOverrides.cell_tel_no = profile.phone_number;
+        if (!normalizedOverrides.address1 && profile.address) normalizedOverrides.address1 = profile.address;
       }
     } catch (profileError) {
       console.warn('Profile lookup failed:', profileError?.message || profileError);
