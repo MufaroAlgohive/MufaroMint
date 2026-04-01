@@ -191,6 +191,12 @@ export function useCreditCheck() {
         .eq("user_id", session.user.id)
         .maybeSingle();
 
+      const { data: packDetailsRow } = await supabase
+        .from("user_onboarding_pack_details")
+        .select("pack_details")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
       const { data: onboardingData } = await supabase
         .from("user_onboarding")
         .select("employer_name,employment_type,employer_industry")
@@ -227,6 +233,21 @@ export function useCreditCheck() {
       const normalizedYearsAtEmployer = normalizeYearsAtEmployerValue(engineData?.years_current_employer);
       const yearsLocked = Boolean(normalizedYearsAtEmployer);
 
+      const packDetails = packDetailsRow?.pack_details || {};
+      const packInfo = packDetails?.info || {};
+      const packAddresses = Array.isArray(packInfo?.addresses) ? packInfo.addresses : [];
+      const packIdDocs = Array.isArray(packInfo?.idDocs) ? packInfo.idDocs : [];
+      const firstPackAddress = packAddresses.find((entry) => entry && (entry.street || entry.town || entry.formattedAddress || entry.postCode)) || null;
+      const packAddressDoc = packIdDocs.find((entry) => entry?.address?.street || entry?.address?.town || entry?.address?.formattedAddress || entry?.address?.postCode || entry?.rawAddress) || null;
+
+      const packStreet = firstPackAddress?.street || packAddressDoc?.address?.street || null;
+      const packTown = firstPackAddress?.town || packAddressDoc?.address?.town || null;
+      const packFormattedAddress = firstPackAddress?.formattedAddress || packAddressDoc?.address?.formattedAddress || packAddressDoc?.rawAddress || null;
+      const packPostalCode = firstPackAddress?.postCode || packAddressDoc?.address?.postCode || null;
+
+      const resolvedAddress = [packStreet, packTown].filter(Boolean).join(", ") || packFormattedAddress || null;
+      const resolvedPostalCodeFromPack = packPostalCode ? String(packPostalCode).trim() : null;
+
       setOnboardingEmployerName(onboardingData?.employer_name || null);
       setOnboardingEmploymentType(normalizedEmploymentType || null);
       setOnboardingEmploymentSector(normalizedSector || null);
@@ -239,8 +260,8 @@ export function useCreditCheck() {
         lastName: profileData?.last_name || prev.lastName,
         gender: profileData?.gender || prev.gender,
         dateOfBirth: profileData?.date_of_birth || prev.dateOfBirth,
-        address: profileData?.address || prev.address,
-        postalCode: prev.postalCode || "0152",
+        address: profileData?.address || resolvedAddress || prev.address,
+        postalCode: resolvedPostalCodeFromPack || prev.postalCode || "0152",
         annualIncome: snapshotData?.avg_monthly_income
           ? String(snapshotData.avg_monthly_income * 12)
           : prev.annualIncome,
