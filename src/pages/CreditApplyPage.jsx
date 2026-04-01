@@ -790,6 +790,7 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
 const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotifications }) => {
    const { profile } = useProfile();
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
+   const [resolving, setResolving] = useState(true); // gate: hide UI while checkpoint resolves
    const [autoAdvance, setAutoAdvance] = useState(false);
    const [autoAdvanceCopy, setAutoAdvanceCopy] = useState({
       title: "Bank data already captured",
@@ -797,9 +798,6 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       tone: "emerald"
    });
    const [checkedExistingScore, setCheckedExistingScore] = useState(false);
-   const [checkedEmploymentSnapshot, setCheckedEmploymentSnapshot] = useState(false);
-   const [checkedResumeCheckpoint, setCheckedResumeCheckpoint] = useState(false);
-   const [resumeStep, setResumeStep] = useState(0);
    const [loanApplications, setLoanApplications] = useState([]);
    const [loadingLoans, setLoadingLoans] = useState(true);
    const [showDetails, setShowDetails] = useState(false);
@@ -865,22 +863,18 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       }
    }, [snapshot, setField]);
 
+   // ── Single checkpoint resolver: runs behind the loader, determines final step ──
    useEffect(() => {
-      if (loadingProfile || checkedResumeCheckpoint || step !== 0) return;
+      if (!resolving || loadingProfile) return;
 
-      const resolveResumeCheckpoint = async () => {
-         if (!supabase) {
-            setCheckedResumeCheckpoint(true);
-            return;
-         }
+      const resolveCheckpoint = async () => {
+         if (!supabase) { setResolving(false); return; }
 
          const { data: sessionData } = await supabase.auth.getSession();
          const userId = sessionData?.session?.user?.id;
-         if (!userId) {
-            setCheckedResumeCheckpoint(true);
-            return;
-         }
+         if (!userId) { setResolving(false); return; }
 
+         // 1. Check loan_application checkpoint
          const { data: latestLoan } = await supabase
             .from("loan_application")
             .select("step_number")
@@ -891,22 +885,41 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
             .maybeSingle();
 
          const checkpointStep = Number(latestLoan?.step_number || 0);
-         setResumeStep(checkpointStep);
 
+         // 2. If checkpoint says step 3, go straight there
          if (checkpointStep >= 3) {
-            // Instant resume — no pulse, no flash
             setStep(3);
-            setCheckedEmploymentSnapshot(true); // skip step-2 check
-         } else if (checkpointStep >= 2 || snapshot || bankLinked) {
-            // Instant resume — no pulse, no flash
-            setStep(2);
+            setResolving(false);
+            return;
          }
 
-         setCheckedResumeCheckpoint(true);
+         // 3. If checkpoint says step 2, or bank is linked, check employment too
+         if (checkpointStep >= 2 || snapshot || bankLinked) {
+            const { data: empSnap } = await supabase
+               .from("loan_engine_score")
+               .select("years_current_employer,contract_type,is_new_borrower,employment_sector,employer_name")
+               .eq("user_id", userId)
+               .order("created_at", { ascending: false })
+               .limit(1)
+               .maybeSingle();
+
+            const hasEmployment = Number.isFinite(Number(empSnap?.years_current_employer))
+               && Boolean(empSnap?.contract_type)
+               && typeof empSnap?.is_new_borrower === "boolean"
+               && Boolean(empSnap?.employment_sector)
+               && Boolean(empSnap?.employer_name);
+
+            setStep(hasEmployment ? 3 : 2);
+            setResolving(false);
+            return;
+         }
+
+         // 4. Fresh user — stay on step 0
+         setResolving(false);
       };
 
-      resolveResumeCheckpoint();
-   }, [loadingProfile, checkedResumeCheckpoint, step, snapshot, bankLinked, triggerAutoAdvance]);
+      resolveCheckpoint();
+   }, [resolving, loadingProfile, snapshot, bankLinked]);
 
 
 
@@ -936,38 +949,6 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    }, [loadingProfile, checkedExistingScore, onComplete]);
 
    useEffect(() => {
-      if (loadingProfile || step !== 2 || checkedEmploymentSnapshot) return;
-
-      const checkEmploymentSnapshot = async () => {
-         if (!supabase) return;
-         const { data: sessionData } = await supabase.auth.getSession();
-         const userId = sessionData?.session?.user?.id;
-         if (!userId) return;
-
-         const { data: employmentSnapshot } = await supabase
-            .from("loan_engine_score")
-            .select("years_current_employer,contract_type,is_new_borrower,employment_sector,employer_name")
-            .eq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-         const hasEmploymentDetails = Number.isFinite(Number(employmentSnapshot?.years_current_employer))
-            && Boolean(employmentSnapshot?.contract_type)
-            && typeof employmentSnapshot?.is_new_borrower === "boolean"
-            && Boolean(employmentSnapshot?.employment_sector)
-            && Boolean(employmentSnapshot?.employer_name);
-
-         if (hasEmploymentDetails) {
-            // Instant skip — no pulse card flash
-            setStep(3);
-         }
-      };
-
-      checkEmploymentSnapshot().finally(() => setCheckedEmploymentSnapshot(true));
-   }, [loadingProfile, step, checkedEmploymentSnapshot]);
-
-   useEffect(() => {
       const loadLoanApplications = async () => {
          if (!supabase) return;
          const { data: sessionData } = await supabase.auth.getSession();
@@ -990,9 +971,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    }, []);
 
    const handleStart = () => {
-      if (resumeStep >= 3) {
-         setStep(3);
-      } else if (resumeStep >= 2 || snapshot || bankLinked) {
+      if (snapshot || bankLinked) {
          setStep(2);
       } else {
          setStep(1);
@@ -1335,6 +1314,24 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       if (step === 0) return "Start";
       return `${step} / 3`;
    };
+
+   // ── Resolving gate: show branded loader while checkpoints resolve ──
+   if (resolving) {
+      return (
+         <div className="flex flex-col items-center justify-center min-h-screen bg-white">
+            <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300">
+               <div className="relative h-14 w-14">
+                  <div className="absolute inset-0 rounded-full border-[3px] border-slate-100" />
+                  <div className="absolute inset-0 rounded-full border-[3px] border-t-violet-600 animate-spin" />
+               </div>
+               <div className="text-center">
+                  <p className="text-sm font-semibold text-slate-700">Loading your application</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Checking progress…</p>
+               </div>
+            </div>
+         </div>
+      );
+   }
 
    if (step === 0 || step === "bank_success") {
       return renderContent();
