@@ -891,9 +891,16 @@ const LoanCalculatorStep = () => {
 
    return (
       <div className="space-y-4 animate-in fade-in slide-in-from-bottom-6 duration-500">
-         <div className="space-y-1 px-1">
-            <h2 className="text-[26px] font-bold tracking-[-0.02em] text-slate-900">Loan Calculator</h2>
-            <p className="text-[13px] text-slate-400 leading-relaxed">Select the amount needed<br />and the reimbursement period</p>
+         {/* ── Header banner ── */}
+         <div className="relative overflow-hidden rounded-3xl bg-[#0d0d12] px-5 py-5 flex items-center gap-4">
+            <div className="absolute right-0 top-0 w-48 h-full bg-blue-600/10 blur-2xl pointer-events-none" />
+            <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10 shrink-0">
+               <TrendingUp className="h-5 w-5 text-white" />
+            </div>
+            <div>
+               <h2 className="text-[17px] font-semibold text-white tracking-tight leading-snug">Loan Calculator</h2>
+               <p className="text-[11px] text-white/45 mt-0.5 leading-relaxed">Select an amount and repayment period</p>
+            </div>
          </div>
 
          <div className="bg-white rounded-[20px] px-5 py-4 flex items-end justify-between">
