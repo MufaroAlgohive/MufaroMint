@@ -793,7 +793,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    const [autoAdvance, setAutoAdvance] = useState(false);
    const [autoAdvanceCopy, setAutoAdvanceCopy] = useState({
       title: "Bank data already captured",
-      subtitle: "Taking you to the review step…"
+      subtitle: "Taking you to the review step…",
+      tone: "emerald"
    });
    const [checkedExistingScore, setCheckedExistingScore] = useState(false);
    const [checkedEmploymentSnapshot, setCheckedEmploymentSnapshot] = useState(false);
@@ -834,12 +835,12 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       return `R ${numeric.toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
    };
 
-   const triggerAutoAdvance = useCallback((nextStep, title, subtitle) => {
+   const triggerAutoAdvance = useCallback((nextStep, title, subtitle, tone = "emerald") => {
       if (autoAdvanceTimerRef.current) {
          clearTimeout(autoAdvanceTimerRef.current);
       }
 
-      setAutoAdvanceCopy({ title, subtitle });
+      setAutoAdvanceCopy({ title, subtitle, tone });
       setAutoAdvance(true);
 
       autoAdvanceTimerRef.current = setTimeout(() => {
@@ -896,13 +897,15 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
             triggerAutoAdvance(
                3,
                "Application checkpoint found",
-               "Taking you straight to your affordability result…"
+               "Taking you straight to your affordability result…",
+               "indigo"
             );
          } else if (checkpointStep >= 2 || snapshot || bankLinked) {
             triggerAutoAdvance(
                2,
                "Bank data already captured",
-               "Taking you to the review step…"
+               "Taking you to the review step…",
+               "emerald"
             );
          }
 
@@ -966,7 +969,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
             triggerAutoAdvance(
                3,
                "Employment details already captured",
-               "Taking you to your affordability result…"
+               "Taking you to your affordability result…",
+               "violet"
             );
          }
       };
@@ -1167,18 +1171,37 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       }
 
       if (autoAdvance && (step === 0 || step === 2)) {
+         const toneStyles = {
+            emerald: {
+               iconWrap: "bg-emerald-100 text-emerald-600",
+               metaText: "text-emerald-600",
+               dot: "bg-emerald-500"
+            },
+            violet: {
+               iconWrap: "bg-violet-100 text-violet-600",
+               metaText: "text-violet-600",
+               dot: "bg-violet-500"
+            },
+            indigo: {
+               iconWrap: "bg-indigo-100 text-indigo-600",
+               metaText: "text-indigo-600",
+               dot: "bg-indigo-500"
+            }
+         };
+         const tone = toneStyles[autoAdvanceCopy.tone] || toneStyles.emerald;
+
          return (
             <MintCard className="animate-in fade-in zoom-in-95 duration-700">
                <div className="flex flex-col items-center gap-4 py-8 text-center">
-                  <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center animate-pulse">
+                  <div className={`h-16 w-16 rounded-full flex items-center justify-center animate-pulse ${tone.iconWrap}`}>
                      <CheckCircle2 size={28} />
                   </div>
                   <div className="space-y-2">
                      <h3 className="text-lg font-bold text-slate-900">{autoAdvanceCopy.title}</h3>
                      <p className="text-sm text-slate-500">{autoAdvanceCopy.subtitle}</p>
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600">
-                     <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                  <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest ${tone.metaText}`}>
+                     <span className={`h-2 w-2 rounded-full animate-ping ${tone.dot}`}></span>
                      Auto‑continue
                   </div>
                </div>
