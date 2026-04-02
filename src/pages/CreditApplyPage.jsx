@@ -908,10 +908,10 @@ const LoanCalculatorStep = () => {
    }, []);
 
    return (
-      <div className="space-y-3 animate-in fade-in slide-in-from-bottom-6 duration-500">
+      <div className="space-y-2 animate-in fade-in slide-in-from-bottom-6 duration-500">
 
          {/* ── Hero card ── */}
-         <div className="relative overflow-hidden rounded-[28px] bg-[#160d2a] px-6 pt-5 pb-6">
+         <div className="relative overflow-hidden rounded-[28px] bg-[#160d2a] px-6 pt-4 pb-5">
             {/* Decorative blobs */}
             <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-blue-600/15 blur-3xl pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-36 h-36 rounded-full bg-violet-600/10 blur-2xl pointer-events-none" />
@@ -951,7 +951,7 @@ const LoanCalculatorStep = () => {
             </div>
 
             {/* Total repayable footer */}
-            <div className="relative mt-5 pt-4 border-t border-white/[0.07] flex items-center justify-between">
+            <div className="relative mt-4 pt-3 border-t border-white/[0.07] flex items-center justify-between">
                <span className="text-[11px] text-white/35 font-medium">Total repayable</span>
                <span className="text-[13px] font-bold text-white/65">R {formatMoney(monthlyPayment * loanPeriod)}</span>
             </div>
@@ -1052,8 +1052,8 @@ const LoanCalculatorStep = () => {
          </div>
 
          {/* ── Repayment summary card ── */}
-         <div className="bg-white rounded-[24px] px-5 py-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 mb-4">Repayment Summary</p>
+         <div className="bg-white rounded-[24px] px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-400 mb-3">Repayment Summary</p>
 
             <div className="space-y-0">
                {[
@@ -1095,15 +1095,14 @@ const LoanCalculatorStep = () => {
                   <span className="text-[10px] font-bold text-blue-500">R {formatMoney(totalInterest)}</span>
                </div>
             </div>
-         </div>
 
-         {/* ── NCA compliance badge ── */}
-         <div className="bg-white rounded-[20px] px-5 py-3.5 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-               <ShieldCheck className="h-4 w-4 text-emerald-500 shrink-0" />
-               <span className="text-[12px] font-medium text-slate-600">NCA-compliant · Annual rate: <strong className="text-slate-800">6.8%</strong></span>
+            {/* NCA compliance inline */}
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+               <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                  <span className="text-[11px] font-medium text-slate-500">NCA-compliant · Annual rate: <strong className="text-slate-700">6.8%</strong> p.a.</span>
+               </div>
             </div>
-            <span className="text-[11px] font-medium text-slate-400">p.a.</span>
          </div>
 
          {/* ── CTA ── */}
