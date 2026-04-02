@@ -991,8 +991,8 @@ const LoanCalculatorStep = () => {
                      </div>
                   </div>
                   <div
-                     className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-700 whitespace-nowrap pl-3 transition-opacity ${amountPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
-                     style={{ left: `${Math.max(0, amountPct * 100)}%` }}
+                     className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-700 whitespace-nowrap transition-opacity ${amountPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
+                     style={{ left: `calc(${Math.max(4, amountPct * 100)}% + 10px)` }}
                   >
                      R {formatInt(loanAmount)}
                   </div>
@@ -1038,8 +1038,8 @@ const LoanCalculatorStep = () => {
                      </div>
                   </div>
                   <div
-                     className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-700 whitespace-nowrap pl-3 transition-opacity ${periodPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
-                     style={{ left: `${Math.max(0, periodPct * 100)}%` }}
+                     className={`absolute top-1/2 -translate-y-1/2 text-[13px] font-bold text-slate-700 whitespace-nowrap transition-opacity ${periodPct < LIGHT_THRESHOLD ? "opacity-100" : "opacity-0"}`}
+                     style={{ left: `calc(${Math.max(4, periodPct * 100)}% + 10px)` }}
                   >
                      {loanPeriod} mo
                   </div>
