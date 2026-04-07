@@ -34,7 +34,7 @@ export const MintGradientLayout = ({ children, title, subtitle, onBack, stepInfo
           </div>
         </div>
       </div>
-      <div className="mx-auto -mt-8 w-full max-w-2xl px-4 md:px-8 space-y-6 pb-36">
+      <div className="mx-auto -mt-8 w-full max-w-2xl px-4 md:px-8 space-y-6">
         {children}
       </div>
     </div>

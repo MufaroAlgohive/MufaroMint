@@ -409,6 +409,29 @@ export function useCreditCheck() {
     setIsUpdatingLoan(false);
   }, [loanRecord]);
 
+  // Hydrate existing score from DB so ResultStage shows previous results
+  const hydrateExistingScore = useCallback((dbRow) => {
+    if (!dbRow) return;
+    const result = dbRow.engine_result || {};
+    const score = Number(dbRow.engine_score ?? 0);
+    const normalized = {
+      ...result,
+      success: true,
+      loanEngineScoreNormalized: score,
+      loanEngineScore: score,
+      creditScore: dbRow.experian_score ?? result.creditScore ?? null,
+      scoreReasons: dbRow.score_reasons || result.scoreReasons || [],
+      breakdown: result,
+      creditExposure: {
+        totalBalance: dbRow.exposure_total_balance ?? null,
+        totalLimits: dbRow.exposure_total_limit ?? null,
+        totalMonthlyInstallment: result.totalMonthlyInstallment ?? null,
+      },
+    };
+    setEngineResult(normalized);
+    setEngineStatus("Complete");
+  }, []);
+
   const contractTypeLocked = Boolean(
     onboardingEmploymentType && CONTRACT_TYPE_VALUES.has(onboardingEmploymentType)
   );
@@ -442,6 +465,7 @@ export function useCreditCheck() {
     onboardingYearsAtEmployer,
     yearsAtEmployerLocked,
     proceedToStep3,
-    isUpdatingLoan
+    isUpdatingLoan,
+    hydrateExistingScore
   };
 }
