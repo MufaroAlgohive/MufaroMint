@@ -74,6 +74,8 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         )
         .eq("user_id", profile.id)
         .in("status", ["active", "in_progress"])
+        .gt("principal_amount", 0)
+        .gt("amount_repayable", 0)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -242,12 +244,11 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
 
         {/* Quick actions */}
         <p className="text-[14px] font-medium text-slate-900 mb-3">Quick actions</p>
-        <div className="grid grid-cols-4 gap-2.5 mb-7">
+        <div className="grid grid-cols-3 gap-2.5 mb-7">
           {[
             { label: "Repay", icon: ArrowDown,   onClick: () => onTabChange?.("creditRepay") },
             { label: "Top up",  icon: Plus,        onClick: () => onTabChange?.("creditApply") },
             { label: "Statement", icon: FileText,  onClick: () => {} },
-            { label: "Portfolio", icon: Layers,    onClick: () => onTabChange?.("instantLiquidity") },
           ].map(({ label, icon: Icon, onClick }) => (
             <button
               key={label}

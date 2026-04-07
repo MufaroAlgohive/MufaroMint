@@ -1691,7 +1691,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
 
    const handleLoanAgreementAccepted = useCallback(async (quote) => {
       if (!supabase) {
-         if (typeof onTabChange === "function") onTabChange("unsecuredCreditDashboard");
+         alert("Unable to save your application right now. Please try again.");
          return;
       }
 
@@ -1744,7 +1744,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                first_repayment_date: firstRepaymentDateStr,
                salary_date: salaryDayOfMonth, // day-of-month (1–31)
                step_number: 4,                // max allowed by CHECK constraint
-               status: "active",
+               status: "in_progress",
                repayment_schedule: repaymentSchedule,
                updated_at: new Date().toISOString(),
             };
@@ -1763,7 +1763,16 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                   .from("loan_application")
                   .update(payload)
                   .eq("id", existingLoan.id);
-               if (updateErr) throw updateErr;
+               if (updateErr) {
+                  const { error: insertFallbackErr } = await supabase
+                     .from("loan_application")
+                     .insert({
+                        user_id: userId,
+                        created_at: new Date().toISOString(),
+                        ...payload,
+                     });
+                  if (insertFallbackErr) throw insertFallbackErr;
+               }
             } else {
                const { error: insertErr } = await supabase
                   .from("loan_application")
@@ -1775,12 +1784,12 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                if (insertErr) throw insertErr;
             }
          }
+         if (typeof onTabChange === "function") {
+            onTabChange("unsecuredCreditDashboard");
+         }
       } catch (error) {
          console.warn("Failed to save signed loan agreement:", error?.message || error);
-      }
-
-      if (typeof onTabChange === "function") {
-         onTabChange("unsecuredCreditDashboard");
+         alert(`Could not save your loan application: ${error?.message || "Unknown error"}. Please try again.`);
       }
    }, [onTabChange]);
 
