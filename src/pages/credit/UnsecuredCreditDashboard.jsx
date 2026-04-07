@@ -16,17 +16,56 @@ const Spark = ({ points = "0,20 10,18 20,22 30,12 40,14 50,8 60,10 70,6", color 
 );
 
 // ─── Payment row ─────────────────────────────────────────────────────────────
-const TxnRow = ({ icon: Icon, iconBg, iconColor, title, date, amount, amountColor, isLast }) => (
-  <div className={`flex items-center gap-3 px-4 py-3.5 ${!isLast ? "border-b border-slate-100" : ""}`}>
-    <div className={`h-9 w-9 rounded-[14px] flex items-center justify-center shrink-0 ${iconBg}`}>
-      <Icon size={15} className={iconColor} />
-    </div>
-    <div className="flex-1 min-w-0">
-      <p className="text-[13px] font-medium text-slate-900 leading-tight">{title}</p>
-      <p className="text-[11px] text-slate-400 mt-0.5">{date}</p>
-    </div>
-    <span className={`text-[13px] font-medium ${amountColor}`}>{amount}</span>
-    <ChevronRight size={14} className="text-slate-300 shrink-0" />
+const TxnRow = ({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  title,
+  date,
+  amount,
+  amountColor,
+  isLast,
+  expanded,
+  onToggle,
+  statusLabel,
+  statusTone,
+  statusDotTone,
+  details = [],
+}) => (
+  <div className={`${!isLast ? "border-b border-slate-100" : ""}`}>
+    <button type="button" onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+      <div className={`h-9 w-9 rounded-[14px] flex items-center justify-center shrink-0 ${iconBg}`}>
+        <Icon size={15} className={iconColor} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-slate-900 leading-tight">{title}</p>
+        <p className="text-[11px] text-slate-400 mt-0.5">{date}</p>
+      </div>
+      <span className={`text-[13px] font-medium ${amountColor}`}>{amount}</span>
+      <ChevronRight size={14} className={`text-slate-300 shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`} />
+    </button>
+
+    {expanded ? (
+      <div className="px-4 pb-3.5">
+        <div className="ml-12 rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Transaction details</p>
+            <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full ${statusTone}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${statusDotTone}`} />
+              {statusLabel}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-y-1.5 gap-x-3">
+            {details.map((d) => (
+              <React.Fragment key={d.label}>
+                <p className="text-[11px] text-slate-500">{d.label}</p>
+                <p className="text-[11px] text-slate-900 text-right">{d.value}</p>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+    ) : null}
   </div>
 );
 
@@ -58,6 +97,8 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
   const [loading, setLoading] = useState(true);
   const [historyRows, setHistoryRows] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [showLoanBreakdown, setShowLoanBreakdown] = useState(false);
+  const [expandedTxnId, setExpandedTxnId] = useState(null);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -153,6 +194,25 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
     daysUntilDue === 1 ? "Tomorrow" :
     `In ${daysUntilDue} days`;
 
+  const normalizedLoanStatus = String(loan?.status || "").toLowerCase();
+  const isPendingStatus = ["pending", "in_progress", "pending_approval", "pending_payout"].includes(normalizedLoanStatus);
+  const isAcceptedStatus = ["active", "approved", "completed", "repaid"].includes(normalizedLoanStatus);
+  const statusTone = isAcceptedStatus
+    ? "text-emerald-700 bg-emerald-50"
+    : isPendingStatus
+      ? "text-amber-700 bg-amber-50"
+      : "text-slate-700 bg-slate-100";
+  const statusDotTone = isAcceptedStatus
+    ? "bg-emerald-500"
+    : isPendingStatus
+      ? "bg-amber-500"
+      : "bg-slate-400";
+  const statusLabel = isAcceptedStatus
+    ? "Accepted"
+    : isPendingStatus
+      ? "Pending"
+      : (loan?.status ? String(loan.status).replace(/_/g, " ") : "Unknown");
+
   // ─── Display rate strings ────────────────────────────────────────────────
   const annualRate  = "60%";
   const monthlyRate = "5%";
@@ -183,7 +243,12 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         {/* Balance card */}
         <div className="mx-5 bg-white/30 backdrop-blur-xl rounded-[28px] p-5 border border-white/60 shadow-xl">
           {/* Inner dark card */}
-          <div className="rounded-[22px] p-5" style={{ background: "linear-gradient(135deg, #4c2e75, #2a1a46)" }}>
+          <button
+            type="button"
+            onClick={() => loan && setShowLoanBreakdown((prev) => !prev)}
+            className="w-full text-left rounded-[22px] p-5"
+            style={{ background: "linear-gradient(135deg, #4c2e75, #2a1a46)" }}
+          >
 
             {loading ? (
               <div className="h-24 animate-pulse rounded-xl bg-white/10" />
@@ -215,9 +280,41 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
                   <span className="text-[10px] text-white/45">{formatZar(loanBalance)} used</span>
                   <span className="text-[10px] text-white/45">{formatZar(available)} available</span>
                 </div>
+
+                {loan ? (
+                  <p className="text-[10px] text-white/50 mt-3">Tap card to {showLoanBreakdown ? "hide" : "view"} loan breakdown</p>
+                ) : null}
+
+                {loan && showLoanBreakdown ? (
+                  <div className="mt-3.5 bg-white/10 border border-white/15 rounded-2xl p-3.5">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/70">Loan breakdown</p>
+                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-full ${statusTone}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full animate-pulse ${statusDotTone}`} />
+                        {statusLabel}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-3">
+                      <p className="text-[11px] text-white/65">Principal</p>
+                      <p className="text-[11px] text-white text-right">{formatZar(principal)}</p>
+
+                      <p className="text-[11px] text-white/65">Total repayable</p>
+                      <p className="text-[11px] text-white text-right">{formatZar(totalRepay)}</p>
+
+                      <p className="text-[11px] text-white/65">Monthly</p>
+                      <p className="text-[11px] text-white text-right">{formatZar(monthlyPay)}</p>
+
+                      <p className="text-[11px] text-white/65">Term</p>
+                      <p className="text-[11px] text-white text-right">{months > 0 ? `${months} months` : "—"}</p>
+
+                      <p className="text-[11px] text-white/65">Opened</p>
+                      <p className="text-[11px] text-white text-right">{loan?.created_at ? fmtDate(new Date(loan.created_at)) : "—"}</p>
+                    </div>
+                  </div>
+                ) : null}
               </>
             )}
-          </div>
+          </button>
         </div>
 
         <div className="mt-4 flex justify-center">
@@ -327,9 +424,11 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
               const rawType = String(entry?.transaction_type || "transaction");
               const title = entry?.description || rawType.replace(/_/g, " ");
               const txDate = entry?.occurred_at ? fmtDate(new Date(entry.occurred_at)) : "—";
+              const txnId = entry.id || `history-${i}`;
+              const expanded = expandedTxnId === txnId;
               return (
                 <TxnRow
-                  key={entry.id || i}
+                  key={txnId}
                   icon={isCredit ? Check : Circle}
                   iconBg={isCredit ? "bg-emerald-50" : "bg-slate-100"}
                   iconColor={isCredit ? "text-emerald-600" : "text-slate-400"}
@@ -337,6 +436,17 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
                   date={txDate}
                   amount={`${isCredit ? "+" : "−"}${formatZar(Number(entry?.amount || 0))}`}
                   amountColor={isCredit ? "text-emerald-600" : "text-slate-900"}
+                  expanded={expanded}
+                  onToggle={() => setExpandedTxnId(expanded ? null : txnId)}
+                  statusLabel={isCredit ? "Accepted" : "Pending"}
+                  statusTone={isCredit ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"}
+                  statusDotTone={isCredit ? "bg-emerald-500" : "bg-amber-500"}
+                  details={[
+                    { label: "Type", value: rawType.replace(/_/g, " ") },
+                    { label: "Direction", value: direction || "—" },
+                    { label: "Amount", value: formatZar(Number(entry?.amount || 0)) },
+                    { label: "Date", value: txDate },
+                  ]}
                   isLast={i === Math.min(historyRows.length, 4) - 1}
                 />
               );
@@ -351,6 +461,17 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
                 date={loan.created_at ? fmtDate(new Date(loan.created_at)) + " · Activated" : "—"}
                 amount={`+${formatZar(principal)}`}
                 amountColor="text-emerald-600"
+                expanded={expandedTxnId === "fallback-disbursed"}
+                onToggle={() => setExpandedTxnId(expandedTxnId === "fallback-disbursed" ? null : "fallback-disbursed")}
+                statusLabel="Accepted"
+                statusTone="text-emerald-700 bg-emerald-50"
+                statusDotTone="bg-emerald-500"
+                details={[
+                  { label: "Type", value: "application created" },
+                  { label: "Direction", value: "credit" },
+                  { label: "Amount", value: formatZar(principal) },
+                  { label: "Date", value: loan.created_at ? fmtDate(new Date(loan.created_at)) : "—" },
+                ]}
               />
               {/* Render up to 3 schedule entries */}
               {schedule.slice(0, 3).map((entry, i) => (
@@ -363,6 +484,17 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
                   date={entry.due_date ? fmtDate(new Date(entry.due_date)) : "—"}
                   amount={`−${formatZar(entry.amount)}`}
                   amountColor={entry.status === "paid" ? "text-slate-900" : "text-slate-400"}
+                  expanded={expandedTxnId === `fallback-repay-${i}`}
+                  onToggle={() => setExpandedTxnId(expandedTxnId === `fallback-repay-${i}` ? null : `fallback-repay-${i}`)}
+                  statusLabel={entry.status === "paid" ? "Accepted" : "Pending"}
+                  statusTone={entry.status === "paid" ? "text-emerald-700 bg-emerald-50" : "text-amber-700 bg-amber-50"}
+                  statusDotTone={entry.status === "paid" ? "bg-emerald-500" : "bg-amber-500"}
+                  details={[
+                    { label: "Type", value: "repayment" },
+                    { label: "Direction", value: "debit" },
+                    { label: "Amount", value: formatZar(Number(entry.amount || 0)) },
+                    { label: "Due date", value: entry.due_date ? fmtDate(new Date(entry.due_date)) : "—" },
+                  ]}
                   isLast={i === Math.min(schedule.length, 3) - 1}
                 />
               ))}
@@ -375,6 +507,17 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
                   date={nextDueDate ? fmtDate(nextDueDate) : "—"}
                   amount={`−${formatZar(monthlyPay)}`}
                   amountColor="text-slate-400"
+                  expanded={expandedTxnId === "fallback-first-repay"}
+                  onToggle={() => setExpandedTxnId(expandedTxnId === "fallback-first-repay" ? null : "fallback-first-repay")}
+                  statusLabel="Pending"
+                  statusTone="text-amber-700 bg-amber-50"
+                  statusDotTone="bg-amber-500"
+                  details={[
+                    { label: "Type", value: "repayment" },
+                    { label: "Direction", value: "debit" },
+                    { label: "Amount", value: formatZar(Number(monthlyPay || 0)) },
+                    { label: "Due date", value: nextDueDate ? fmtDate(nextDueDate) : "—" },
+                  ]}
                   isLast
                 />
               )}
