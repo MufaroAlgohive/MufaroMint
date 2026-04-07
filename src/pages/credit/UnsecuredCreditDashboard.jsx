@@ -240,12 +240,9 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
       const generated = new Intl.DateTimeFormat("en-ZA", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
       const borrowerName = displayName || "Borrower";
 
-      // ── Initiation fee & credit life estimates ───────────────────────────
-      const initiationFee = Math.min(1005, Math.max(0, principal * 0.15 + 10));
-      const creditLifeMonthly = principal * 0.00417;
-      const totalCreditLife = creditLifeMonthly * months;
+      // ── Fee calculations (only interest + admin fee) ─────────────────────
       const totalAdminFees = 69 * months;
-      const totalInterest = totalRepay - principal - initiationFee - totalCreditLife - totalAdminFees;
+      const totalInterest = Math.max(0, totalRepay - principal - totalAdminFees);
 
       // ══════════════════════════════════════════════════
       // PAGE 1 — HEADER + COMPLIANCE
@@ -350,12 +347,10 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         head: [["Item", "Rate / Detail", "Amount (ZAR)"]],
         body: [
           ["Principal amount disbursed", "—", formatZar(principal)],
-          ["Initiation fee (incl. VAT)", "15% of principal + R10, max R1,005", formatZar(initiationFee)],
-          ["Monthly service fee × " + months, "R69.00 per month (NCR regulated)", formatZar(totalAdminFees)],
-          ["Credit life insurance × " + months, "0.417% of principal per month", formatZar(totalCreditLife)],
-          ["Interest (5% p.m. on reducing balance)", "60% p.a. — NCA s105 max rate", formatZar(Math.max(0, totalInterest))],
+          ["Interest (5% p.m. on reducing balance)", "60% p.a. — NCA s105 max rate", formatZar(totalInterest)],
+          ["Monthly admin fee × " + months, "R69.00 per month (fixed)", formatZar(totalAdminFees)],
           ["", "", ""],
-          [{ content: "TOTAL COST OF CREDIT (TCC)", styles: { fontStyle: "bold" } }, { content: "", styles: {} }, { content: formatZar(totalRepay - principal), styles: { fontStyle: "bold" } }],
+          [{ content: "TOTAL COST OF CREDIT (TCC)", styles: { fontStyle: "bold" } }, { content: "Interest + admin fees", styles: {} }, { content: formatZar(totalRepay - principal), styles: { fontStyle: "bold" } }],
           [{ content: "TOTAL AMOUNT REPAYABLE", styles: { fontStyle: "bold", fillColor: darkPurple, textColor: 255 } }, { content: "", styles: { fillColor: darkPurple } }, { content: formatZar(totalRepay), styles: { fontStyle: "bold", fillColor: darkPurple, textColor: 255 } }],
         ],
       });
