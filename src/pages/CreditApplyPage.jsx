@@ -1476,17 +1476,20 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
          const userId = sessionData?.session?.user?.id;
          if (!userId) { setResolving(false); return; }
 
-         // 1. If user already has loan_engine_score data, step 3 is considered complete.
+         // 1. If user already has loan_engine_score data, check the score.
+         //    Score >= 50 → eligible, go to step 4 (calculator).
+         //    Score < 50  → declined, stay on step 3 (results screen).
          const { data: existingStep3Data } = await supabase
             .from("loan_engine_score")
-            .select("id")
+            .select("id, engine_score")
             .eq("user_id", userId)
             .order("run_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
          if (existingStep3Data?.id) {
-            setStep(4);
+            const score = Number(existingStep3Data.engine_score ?? 0);
+            setStep(score >= 50 ? 4 : 3);
             setResolving(false);
             return;
          }
