@@ -56,6 +56,8 @@ const OfferRow = ({ icon: Icon, title, desc, onClick, disabled = false }) => (
 const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications }) => {
   const [loan, setLoan] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [historyRows, setHistoryRows] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -69,23 +71,46 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
   // ── fetch most-recent active unsecured loan ────────────────────────────────
   useEffect(() => {
     async function fetchLoan() {
-      if (!profile?.id || !supabase) { setLoading(false); return; }
+      if (!profile?.id || !supabase) {
+        setLoading(false);
+        setHistoryLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from("loan_application")
         .select(
           "id, principal_amount, amount_repayable, interest_rate, " +
           "number_of_months, monthly_repayable, first_repayment_date, " +
-          "salary_date, status, repayment_schedule, created_at, updated_at, application_id"
+          "salary_date, status, repayment_schedule, created_at, updated_at, application_id, Secured_Unsecured"
         )
         .eq("user_id", profile.id)
+        .eq("Secured_Unsecured", "unsecured")
         .in("status", ["active", "in_progress"])
         .gt("principal_amount", 0)
         .gt("amount_repayable", 0)
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      const { data: historyData, error: historyErr } = await supabase
+        .from("credit_transactions_history")
+        .select("id, transaction_type, direction, amount, occurred_at, description")
+        .eq("user_id", profile.id)
+        .eq("loan_type", "unsecured")
+        .order("occurred_at", { ascending: false })
+        .limit(20);
+
+      if (historyErr) {
+        console.warn("Failed to fetch unsecured credit history:", historyErr.message || historyErr);
+        setHistoryRows([]);
+      } else {
+        setHistoryRows(historyData || []);
+      }
+
       setLoan(data || null);
       setLoading(false);
+      setHistoryLoading(false);
     }
     fetchLoan();
   }, [profile?.id]);
@@ -293,7 +318,30 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         </div>
 
         <div className="bg-white border border-slate-100 rounded-[20px] overflow-hidden shadow-sm mb-7">
-          {loan ? (
+          {historyLoading ? (
+            <div className="py-8 text-center text-[12px] text-slate-400">Loading history…</div>
+          ) : historyRows.length > 0 ? (
+            historyRows.slice(0, 4).map((entry, i) => {
+              const direction = String(entry?.direction || "").toLowerCase();
+              const isCredit = direction === "credit";
+              const rawType = String(entry?.transaction_type || "transaction");
+              const title = entry?.description || rawType.replace(/_/g, " ");
+              const txDate = entry?.occurred_at ? fmtDate(new Date(entry.occurred_at)) : "—";
+              return (
+                <TxnRow
+                  key={entry.id || i}
+                  icon={isCredit ? Check : Circle}
+                  iconBg={isCredit ? "bg-emerald-50" : "bg-slate-100"}
+                  iconColor={isCredit ? "text-emerald-600" : "text-slate-400"}
+                  title={title}
+                  date={txDate}
+                  amount={`${isCredit ? "+" : "−"}${formatZar(Number(entry?.amount || 0))}`}
+                  amountColor={isCredit ? "text-emerald-600" : "text-slate-900"}
+                  isLast={i === Math.min(historyRows.length, 4) - 1}
+                />
+              );
+            })
+          ) : loan ? (
             <>
               <TxnRow
                 icon={Check}
@@ -333,7 +381,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
             </>
           ) : (
             <div className="py-8 text-center text-[12px] text-slate-400">
-              No active loan found.
+              No credit history found.
             </div>
           )}
         </div>
