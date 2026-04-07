@@ -1691,7 +1691,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
 
    const handleLoanAgreementAccepted = useCallback(async (quote) => {
       if (!supabase) {
-         if (typeof onTabChange === "function") onTabChange("credit");
+         if (typeof onTabChange === "function") onTabChange("unsecuredCreditDashboard");
          return;
       }
 
@@ -1737,7 +1737,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       }
 
       if (typeof onTabChange === "function") {
-         onTabChange("credit");
+         onTabChange("unsecuredCreditDashboard");
       }
    }, [onTabChange]);
 
