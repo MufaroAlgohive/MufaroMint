@@ -784,7 +784,7 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
    );
 };
 
-const LoanCalculatorStep = () => {
+const LoanCalculatorStep = ({ onSignedContinue }) => {
    const LIGHT_THRESHOLD = 0.36;
    const [loanAmount, setLoanAmount] = useState(3000);
    const [loanPeriod, setLoanPeriod] = useState(3);
@@ -835,6 +835,13 @@ const LoanCalculatorStep = () => {
    const monthlyPayment = monthlyPrincipalInterest + monthlyServiceFee + monthlyCreditLife;
 
    const [showFees, setShowFees] = useState(false);
+   const [showContract, setShowContract] = useState(false);
+   const [hasSignature, setHasSignature] = useState(false);
+   const [signatureError, setSignatureError] = useState("");
+   const [isSubmittingSignature, setIsSubmittingSignature] = useState(false);
+   const signatureCanvasRef = useRef(null);
+   const signatureDrawingRef = useRef(false);
+   const signatureDirtyRef = useRef(false);
 
    const formatMoney = (value) => value.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
    const formatInt = (value) => Math.round(value).toLocaleString("en-ZA");
@@ -936,6 +943,119 @@ const LoanCalculatorStep = () => {
          periodEl.removeEventListener("touchstart", onPeriodTouch);
       };
    }, []);
+
+   useEffect(() => {
+      if (!showContract) return;
+
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.scale(dpr, dpr);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.strokeStyle = "#160d2a";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      signatureDirtyRef.current = false;
+      setHasSignature(false);
+      setSignatureError("");
+   }, [showContract]);
+
+   const getSignaturePoint = (event) => {
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      const source = event.touches?.[0] || event.changedTouches?.[0] || event;
+      return {
+         x: source.clientX - rect.left,
+         y: source.clientY - rect.top,
+      };
+   };
+
+   const startSignature = (event) => {
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const { x, y } = getSignaturePoint(event);
+      signatureDrawingRef.current = true;
+      signatureDirtyRef.current = true;
+      setHasSignature(true);
+      setSignatureError("");
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      if (event.cancelable) event.preventDefault();
+   };
+
+   const moveSignature = (event) => {
+      if (!signatureDrawingRef.current) return;
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const { x, y } = getSignaturePoint(event);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      if (event.cancelable) event.preventDefault();
+   };
+
+   const endSignature = () => {
+      signatureDrawingRef.current = false;
+   };
+
+   const clearSignature = () => {
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const displayWidth = canvas.width / (window.devicePixelRatio || 1);
+      const displayHeight = canvas.height / (window.devicePixelRatio || 1);
+      ctx.clearRect(0, 0, displayWidth, displayHeight);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, displayWidth, displayHeight);
+      signatureDirtyRef.current = false;
+      setHasSignature(false);
+      setSignatureError("");
+   };
+
+   const handleContractAccept = async () => {
+      if (!hasSignature || !signatureDirtyRef.current) {
+         setSignatureError("Please sign before continuing.");
+         return;
+      }
+
+      setIsSubmittingSignature(true);
+      try {
+         const signatureDataUrl = signatureCanvasRef.current?.toDataURL("image/png") || null;
+         if (onSignedContinue) {
+            await onSignedContinue({
+               loanAmount,
+               loanPeriod,
+               monthlyPayment,
+               totalRepayable,
+               totalCostOfCredit,
+               totalInterest,
+               totalServiceFees,
+               totalCreditLife,
+               initiationFee,
+               signatureDataUrl,
+            });
+         }
+         setShowContract(false);
+      } finally {
+         setIsSubmittingSignature(false);
+      }
+   };
 
    return (
       <div className="space-y-2 animate-in fade-in slide-in-from-bottom-6 duration-500">
@@ -1167,11 +1287,90 @@ const LoanCalculatorStep = () => {
          {/* ── CTA ── */}
          <button
             type="button"
+            onClick={() => setShowContract(true)}
             className="w-full py-[18px] rounded-full bg-[#160d2a] text-white text-[15px] font-semibold tracking-[0.01em] shadow-xl shadow-violet-950/30 active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
          >
             Apply for this loan
             <ArrowRight className="h-4 w-4" />
          </button>
+
+         {showContract && (
+            <div className="fixed inset-0 z-[120] bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center px-4 py-4">
+               <div className="w-full max-w-2xl bg-white rounded-[28px] overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                     <div>
+                        <p className="text-[10px] uppercase tracking-[0.14em] font-bold text-slate-400">Loan Agreement</p>
+                        <h3 className="text-[17px] font-semibold text-slate-900">Unsecured Credit Contract</h3>
+                     </div>
+                     <button
+                        type="button"
+                        onClick={() => setShowContract(false)}
+                        className="h-9 w-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
+                     >
+                        <X className="h-4 w-4" />
+                     </button>
+                  </div>
+
+                  <div className="px-5 py-4 max-h-[52vh] overflow-y-auto space-y-4">
+                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-xs font-semibold text-slate-700 mb-2">Repayment Summary</p>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[12px]">
+                           <span className="text-slate-500">Principal</span><span className="font-semibold text-slate-900 text-right">R {formatInt(loanAmount)}</span>
+                           <span className="text-slate-500">Term</span><span className="font-semibold text-slate-900 text-right">{loanPeriod} {loanPeriod === 1 ? "month" : "months"}</span>
+                           <span className="text-slate-500">Monthly installment</span><span className="font-semibold text-slate-900 text-right">R {formatMoney(monthlyPayment)}</span>
+                           <span className="text-slate-500">Total repayable</span><span className="font-semibold text-slate-900 text-right">R {formatMoney(totalRepayable)}</span>
+                        </div>
+                     </div>
+
+                     <div className="space-y-3 text-[12px] text-slate-600 leading-relaxed">
+                        <p><strong className="text-slate-800">1. Facility:</strong> This unsecured credit facility is granted subject to affordability, identity verification, and final approval checks.</p>
+                        <p><strong className="text-slate-800">2. Pricing:</strong> Interest is charged at 5% per month in line with the NCA short-term credit category, plus applicable initiation, service, and credit life fees.</p>
+                        <p><strong className="text-slate-800">3. Fees Breakdown:</strong> Initiation fee R {formatMoney(initiationFee)}, service fees R {formatMoney(totalServiceFees)}, credit life insurance R {formatMoney(totalCreditLife)}, total interest R {formatMoney(totalInterest)}.</p>
+                        <p><strong className="text-slate-800">4. Payment Obligation:</strong> You agree to pay the installment on scheduled due dates. Missed payments may incur default collection processes as permitted by law.</p>
+                        <p><strong className="text-slate-800">5. Early Settlement:</strong> You may settle early in accordance with the National Credit Act and receive an adjusted settlement quote where applicable.</p>
+                        <p><strong className="text-slate-800">6. Consent:</strong> By signing below, you confirm you understood the repayment schedule, costs, and legal obligations of this loan agreement.</p>
+                     </div>
+
+                     <div className="rounded-2xl border border-slate-200 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Client Signature</p>
+                           <button type="button" onClick={clearSignature} className="text-[11px] font-semibold text-violet-600">Clear</button>
+                        </div>
+                        <canvas
+                           ref={signatureCanvasRef}
+                           className="w-full h-32 rounded-xl border border-dashed border-slate-300 bg-white touch-none"
+                           onMouseDown={startSignature}
+                           onMouseMove={moveSignature}
+                           onMouseUp={endSignature}
+                           onMouseLeave={endSignature}
+                           onTouchStart={startSignature}
+                           onTouchMove={moveSignature}
+                           onTouchEnd={endSignature}
+                        />
+                        {signatureError && <p className="mt-2 text-[11px] text-red-500 font-medium">{signatureError}</p>}
+                     </div>
+                  </div>
+
+                  <div className="px-5 py-4 border-t border-slate-100 bg-white flex gap-3">
+                     <button
+                        type="button"
+                        onClick={() => setShowContract(false)}
+                        className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold text-sm"
+                     >
+                        Cancel
+                     </button>
+                     <button
+                        type="button"
+                        disabled={isSubmittingSignature}
+                        onClick={handleContractAccept}
+                        className="flex-1 py-3 rounded-xl bg-[#160d2a] text-white font-semibold text-sm disabled:opacity-60"
+                     >
+                        {isSubmittingSignature ? "Processing..." : "Accept & Continue"}
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
 
       </div>
    );
@@ -1490,6 +1689,58 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       await runEngine();
    };
 
+   const handleLoanAgreementAccepted = useCallback(async (quote) => {
+      if (!supabase) {
+         if (typeof onTabChange === "function") onTabChange("credit");
+         return;
+      }
+
+      try {
+         const { data: sessionData } = await supabase.auth.getSession();
+         const userId = sessionData?.session?.user?.id;
+         if (userId) {
+            const { data: existingLoan } = await supabase
+               .from("loan_application")
+               .select("id")
+               .eq("user_id", userId)
+               .eq("status", "in_progress")
+               .order("updated_at", { ascending: false })
+               .limit(1)
+               .maybeSingle();
+
+            const payload = {
+               principal_amount: quote?.loanAmount,
+               amount_repayable: quote?.totalRepayable,
+               number_of_months: quote?.loanPeriod,
+               step_number: 5,
+               updated_at: new Date().toISOString(),
+            };
+
+            if (existingLoan?.id) {
+               await supabase
+                  .from("loan_application")
+                  .update(payload)
+                  .eq("id", existingLoan.id);
+            } else {
+               await supabase
+                  .from("loan_application")
+                  .insert({
+                     user_id: userId,
+                     status: "in_progress",
+                     created_at: new Date().toISOString(),
+                     ...payload,
+                  });
+            }
+         }
+      } catch (error) {
+         console.warn("Failed to save signed loan agreement:", error?.message || error);
+      }
+
+      if (typeof onTabChange === "function") {
+         onTabChange("credit");
+      }
+   }, [onTabChange]);
+
    // Prepare "defaultValues" for Step 2 using the hook's current form state
    const enrichmentDefaults = {
       employerName: checkForm.employerName,
@@ -1706,7 +1957,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                onContinue={() => setStep(4)}
             />;
          case 4:
-            return <LoanCalculatorStep />;
+            return <LoanCalculatorStep onSignedContinue={handleLoanAgreementAccepted} />;
          default:
             return null;
       }
@@ -1751,7 +2002,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    return (
       <MintGradientLayout
          title={getTitle()}
-         subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : step === 4 ? "Placeholder step for post-assessment flow." : ""}
+         subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : step === 4 ? "Configure your loan and sign your agreement." : ""}
          stepInfo={getStepInfo()}
          onBack={() => setStep(s => s - 1)}
       >
