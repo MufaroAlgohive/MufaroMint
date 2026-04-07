@@ -242,7 +242,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
 
         {/* Balance card — 3D flip */}
         <div
-          className="mx-5 border border-white/60 shadow-xl"
+          className="mx-5"
           style={{ perspective: "1200px", borderRadius: "28px" }}
         >
           {/* Spinning wrapper */}
@@ -252,54 +252,65 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
               transformStyle: "preserve-3d",
               transition: "transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)",
               transform: showLoanBreakdown ? "rotateY(180deg)" : "rotateY(0deg)",
-              minHeight: "200px",
+              minHeight: "172px",
             }}
           >
             {/* ── FRONT FACE ── */}
             <div
-              className="rounded-[28px] bg-white/30 backdrop-blur-xl p-5 w-full"
+              className="w-full"
               style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
             >
               <button
                 type="button"
                 onClick={() => loan && setShowLoanBreakdown(true)}
-                className="w-full text-left rounded-[22px] p-5"
-                style={{ background: "linear-gradient(135deg, #4c2e75, #2a1a46)" }}
+                className="w-full text-left rounded-[28px] px-5 pt-5 pb-5"
+                style={{ background: "linear-gradient(135deg, #2a1a46 0%, #4c2e75 55%, #7a4aa7 100%)" }}
               >
                 {loading ? (
-                  <div className="h-24 animate-pulse rounded-xl bg-white/10" />
+                  <div className="h-[148px] animate-pulse rounded-xl bg-white/10" />
                 ) : (
                   <>
-                    <p className="text-[9px] font-bold text-white/50 uppercase tracking-[0.18em] mb-1">Outstanding loan balance</p>
-                    <div className="flex items-baseline text-white">
-                      <span className="text-[30px] font-light leading-none">
-                        {formatZar(loanBalance)}
-                      </span>
+                    {/* Top row — chip + status pill */}
+                    <div className="flex items-center justify-between mb-4">
+                      {/* SIM-chip */}
+                      <div className="h-6 w-8 rounded-[5px] border border-white/25 bg-gradient-to-br from-white/25 to-white/10 flex items-center justify-center">
+                        <div className="h-2.5 w-5 rounded-[2px] border border-white/30 grid grid-cols-3 gap-px p-px">
+                          <div className="bg-white/40 rounded-[1px]" />
+                          <div className="bg-white/40 rounded-[1px]" />
+                          <div className="bg-white/40 rounded-[1px]" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 bg-white/10 rounded-full px-2.5 py-1">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span className="text-[9px] text-white/70">
+                          {loan ? "Active" : "No active loan"}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-white/45 mt-1.5">of {formatZar(facilityLimit)} credit facility</p>
 
-                    <div className="flex items-center gap-1.5 mt-2.5 w-fit bg-white/10 border border-white/15 rounded-full px-3 py-1">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                      <span className="text-[10px] text-white/80">
-                        {loan ? "Active · Good standing" : "No active loan"}
-                      </span>
+                    {/* Balance */}
+                    <p className="text-[8px] font-semibold text-white/40 uppercase tracking-[0.2em] mb-0.5">Outstanding balance</p>
+                    <p className="text-[28px] font-light text-white leading-none">{formatZar(loanBalance)}</p>
+
+                    {/* Progress bar */}
+                    <div className="mt-3 h-[3px] bg-white/15 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-white/60 rounded-full"
+                        style={{ width: `${Math.min(facilityLimit > 0 ? (loanBalance / facilityLimit) * 100 : 0, 100)}%` }}
+                      />
                     </div>
 
-                    {/* Amount repaid row */}
-                    <div className="mt-3.5 flex items-center justify-between bg-white/10 border border-white/15 rounded-2xl px-3.5 py-2.5">
+                    {/* Repaid / Remaining */}
+                    <div className="flex justify-between mt-1.5">
                       <div>
-                        <p className="text-[9px] text-white/50 uppercase tracking-[0.12em]">Amount repaid</p>
-                        <p className="text-[15px] font-medium text-white mt-0.5">{formatZar(totalPaid)}</p>
+                        <p className="text-[8px] text-white/35 uppercase tracking-[0.1em]">Repaid</p>
+                        <p className="text-[11px] text-white/70">{formatZar(totalPaid)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[9px] text-white/50 uppercase tracking-[0.12em]">Remaining</p>
-                        <p className="text-[15px] font-medium text-white mt-0.5">{formatZar(loanBalance)}</p>
+                        <p className="text-[8px] text-white/35 uppercase tracking-[0.1em]">Remaining</p>
+                        <p className="text-[11px] text-white/70">{formatZar(loanBalance)}</p>
                       </div>
                     </div>
-
-                    {loan ? (
-                      <p className="text-[10px] text-white/40 mt-3">Tap to flip and view loan breakdown →</p>
-                    ) : null}
                   </>
                 )}
               </button>
@@ -307,7 +318,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
 
             {/* ── BACK FACE ── */}
             <div
-              className="rounded-[28px] bg-white/30 backdrop-blur-xl p-5 w-full absolute inset-0"
+              className="w-full absolute inset-0"
               style={{
                 backfaceVisibility: "hidden",
                 WebkitBackfaceVisibility: "hidden",
@@ -317,8 +328,8 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
               <button
                 type="button"
                 onClick={() => setShowLoanBreakdown(false)}
-                className="w-full text-left rounded-[22px] p-5 h-full"
-                style={{ background: "linear-gradient(135deg, #4c2e75, #2a1a46)" }}
+                className="w-full text-left rounded-[28px] px-5 pt-5 pb-5 h-full"
+                style={{ background: "linear-gradient(135deg, #2a1a46 0%, #4c2e75 55%, #7a4aa7 100%)" }}
               >
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-white/70">Loan breakdown</p>
