@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ArrowDown, Plus, FileText, Layers, ChevronRight,
   Check, AlertTriangle, Circle, Bell, Lock
@@ -7,6 +7,8 @@ import { formatZar } from "../../lib/formatCurrency";
 import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
 import { supabase } from "../../lib/supabase";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // ─── Sparkline SVG ──────────────────────────────────────────────────────────
 const Spark = ({ points = "0,20 10,18 20,22 30,12 40,14 50,8 60,10 70,6", color = "#7c3aed" }) => (
@@ -99,6 +101,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
   const [historyLoading, setHistoryLoading] = useState(true);
   const [showLoanBreakdown, setShowLoanBreakdown] = useState(false);
   const [expandedTxnId, setExpandedTxnId] = useState(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -223,6 +226,266 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
     ? new Intl.DateTimeFormat("en-ZA", { day: "numeric", month: "short", year: "numeric" }).format(d)
     : "—";
 
+  // ─── PDF statement generator ──────────────────────────────────────────────
+  const generateStatement = useCallback(async () => {
+    if (!loan || generatingPdf) return;
+    setGeneratingPdf(true);
+    try {
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const W = doc.internal.pageSize.getWidth();
+      const purple = [74, 46, 117];
+      const darkPurple = [42, 26, 70];
+      const lightGray = [245, 245, 248];
+      const textGray = [100, 100, 110];
+      const generated = new Intl.DateTimeFormat("en-ZA", { day: "numeric", month: "long", year: "numeric" }).format(new Date());
+      const borrowerName = displayName || "Borrower";
+
+      // ── Initiation fee & credit life estimates ───────────────────────────
+      const initiationFee = Math.min(1005, Math.max(0, principal * 0.15 + 10));
+      const creditLifeMonthly = principal * 0.00417;
+      const totalCreditLife = creditLifeMonthly * months;
+      const totalAdminFees = 69 * months;
+      const totalInterest = totalRepay - principal - initiationFee - totalCreditLife - totalAdminFees;
+
+      // ══════════════════════════════════════════════════
+      // PAGE 1 — HEADER + COMPLIANCE
+      // ══════════════════════════════════════════════════
+      // Full-width header bar
+      doc.setFillColor(...purple);
+      doc.rect(0, 0, W, 28, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("mint", 14, 12);
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.text("financial services", 14, 17);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("LOAN STATEMENT", W - 14, 12, { align: "right" });
+      doc.setFontSize(7);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generated: ${generated}`, W - 14, 17, { align: "right" });
+      if (loan.application_id) {
+        doc.text(`Ref: ${loan.application_id}`, W - 14, 21, { align: "right" });
+      }
+
+      let y = 36;
+
+      // ── Compliance block ─────────────────────────────────────────────────
+      doc.setFillColor(...lightGray);
+      doc.roundedRect(10, y, W - 20, 72, 3, 3, "F");
+      y += 5;
+      doc.setTextColor(255, 140, 0);
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      doc.text("REGULATORY & COMPLIANCE DISCLOSURE", 15, y);
+      y += 5;
+      doc.setTextColor(...textGray);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      const complianceLines = [
+        "This credit agreement is governed by the National Credit Act 34 of 2005 (NCA) and all regulations",
+        "promulgated thereunder. The credit provider is registered with the National Credit Regulator (NCR).",
+        "",
+        "NCR REGISTRATION: Mint Financial Services is a registered credit provider as required under s40 of the NCA.",
+        "Cost of credit is disclosed in full below as required by s92 of the NCA. The consumer has a right to receive",
+        "a pre-agreement statement and quotation before concluding any credit agreement (NCA s92 & s93).",
+        "",
+        "CONSUMER RIGHTS: You have the right to request a credit report at no charge once per year. You have",
+        "the right to dispute incorrect information with any credit bureau. You may settle this agreement early",
+        "at any time (NCA s125). In the event of debt review, contact an NCR-registered debt counsellor.",
+        "",
+        "INTEREST RATE DISCLOSURE: The interest rate applied is 5% per month (60% per annum), which is the",
+        "maximum permissible rate under the NCA for unsecured short-term credit agreements.",
+      ];
+      complianceLines.forEach((line) => {
+        doc.text(line, 15, y);
+        y += 3.8;
+      });
+      y += 4;
+
+      // ── Borrower info row ────────────────────────────────────────────────
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 10, right: 10 },
+        theme: "plain",
+        styles: { fontSize: 7.5, cellPadding: 2 },
+        headStyles: { fillColor: darkPurple, textColor: 255, fontStyle: "bold", fontSize: 7 },
+        head: [["BORROWER INFORMATION", "", "AGREEMENT INFORMATION", ""]],
+        body: [
+          ["Full name", borrowerName, "Application ID", loan.application_id || "—"],
+          ["Status", statusLabel, "Opened", loan.created_at ? fmtDate(new Date(loan.created_at)) : "—"],
+          ["Contact", profile?.email || "—", "Credit type", "Unsecured · Short-term"],
+        ],
+        columnStyles: {
+          0: { textColor: textGray, cellWidth: 28 },
+          1: { fontStyle: "bold", cellWidth: 45 },
+          2: { textColor: textGray, cellWidth: 28 },
+          3: { fontStyle: "bold" },
+        },
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // ══════════════════════════════════════════════════
+      // DETAILED COST OF CREDIT BREAKDOWN
+      // ══════════════════════════════════════════════════
+      doc.setTextColor(...darkPurple);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("DETAILED COST OF CREDIT BREAKDOWN", 10, y);
+      y += 4;
+      doc.setDrawColor(...purple);
+      doc.setLineWidth(0.5);
+      doc.line(10, y, W - 10, y);
+      y += 4;
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 10, right: 10 },
+        theme: "striped",
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        headStyles: { fillColor: purple, textColor: 255, fontStyle: "bold", fontSize: 7.5 },
+        columnStyles: { 0: { cellWidth: 90 }, 1: { halign: "right" }, 2: { halign: "right" } },
+        head: [["Item", "Rate / Detail", "Amount (ZAR)"]],
+        body: [
+          ["Principal amount disbursed", "—", formatZar(principal)],
+          ["Initiation fee (incl. VAT)", "15% of principal + R10, max R1,005", formatZar(initiationFee)],
+          ["Monthly service fee × " + months, "R69.00 per month (NCR regulated)", formatZar(totalAdminFees)],
+          ["Credit life insurance × " + months, "0.417% of principal per month", formatZar(totalCreditLife)],
+          ["Interest (5% p.m. on reducing balance)", "60% p.a. — NCA s105 max rate", formatZar(Math.max(0, totalInterest))],
+          ["", "", ""],
+          [{ content: "TOTAL COST OF CREDIT (TCC)", styles: { fontStyle: "bold" } }, { content: "", styles: {} }, { content: formatZar(totalRepay - principal), styles: { fontStyle: "bold" } }],
+          [{ content: "TOTAL AMOUNT REPAYABLE", styles: { fontStyle: "bold", fillColor: darkPurple, textColor: 255 } }, { content: "", styles: { fillColor: darkPurple } }, { content: formatZar(totalRepay), styles: { fontStyle: "bold", fillColor: darkPurple, textColor: 255 } }],
+        ],
+      });
+      y = doc.lastAutoTable.finalY + 8;
+
+      // ── Monthly repayment summary rows ───────────────────────────────────
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 10, right: 10 },
+        theme: "plain",
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: lightGray, textColor: 60, fontStyle: "bold", fontSize: 7.5 },
+        columnStyles: { 0: { cellWidth: 90 }, 1: { halign: "right" } },
+        head: [["Monthly repayment breakdown", "Amount"]],
+        body: [
+          ["Monthly instalment (principal + interest)", formatZar(monthlyPay)],
+          ["Loan term", months > 0 ? `${months} month${months > 1 ? "s" : ""}` : "—"],
+          ["First repayment date", loan.first_repayment_date ? fmtDate(new Date(loan.first_repayment_date)) : "—"],
+          ["Interest rate", "5% per month (60% p.a.)"],
+          ["Amount already repaid", formatZar(totalPaid)],
+          ["Outstanding balance", formatZar(loanBalance)],
+        ],
+      });
+      y = doc.lastAutoTable.finalY + 10;
+
+      // ══════════════════════════════════════════════════
+      // REPAYMENT SCHEDULE
+      // ══════════════════════════════════════════════════
+      if (schedule.length > 0) {
+        if (y > 220) { doc.addPage(); y = 20; }
+        doc.setTextColor(...darkPurple);
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("REPAYMENT SCHEDULE", 10, y);
+        y += 4;
+        doc.setDrawColor(...purple);
+        doc.line(10, y, W - 10, y);
+        y += 4;
+        autoTable(doc, {
+          startY: y,
+          margin: { left: 10, right: 10 },
+          theme: "striped",
+          styles: { fontSize: 7.5, cellPadding: 2 },
+          headStyles: { fillColor: purple, textColor: 255, fontStyle: "bold", fontSize: 7.5 },
+          columnStyles: { 0: { cellWidth: 18 }, 3: { halign: "right" }, 4: { halign: "right", cellWidth: 28 } },
+          head: [["Month", "Due Date", "Status", "Amount", "Running Balance"]],
+          body: schedule.map((s, idx) => {
+            const runningBalance = Math.max(0, totalRepay - (idx + 1) * (s.amount || monthlyPay));
+            return [
+              s.month || (idx + 1),
+              s.due_date ? fmtDate(new Date(s.due_date)) : "—",
+              s.status ? String(s.status).charAt(0).toUpperCase() + String(s.status).slice(1) : "Pending",
+              formatZar(s.amount || monthlyPay),
+              formatZar(runningBalance),
+            ];
+          }),
+        });
+        y = doc.lastAutoTable.finalY + 10;
+      }
+
+      // ══════════════════════════════════════════════════
+      // PAYMENT HISTORY
+      // ══════════════════════════════════════════════════
+      if (y > 220) { doc.addPage(); y = 20; }
+      doc.setTextColor(...darkPurple);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("TRANSACTION & PAYMENT HISTORY", 10, y);
+      y += 4;
+      doc.setDrawColor(...purple);
+      doc.line(10, y, W - 10, y);
+      y += 4;
+
+      const historyForPdf = historyRows.length > 0
+        ? historyRows.map((h) => [
+            h.occurred_at ? fmtDate(new Date(h.occurred_at)) : "—",
+            (h.description || h.transaction_type || "transaction").replace(/_/g, " "),
+            String(h.direction || "").toLowerCase() === "credit" ? "Credit" : "Debit",
+            formatZar(Number(h.amount || 0)),
+            String(h.direction || "").toLowerCase() === "credit" ? "Accepted" : "Pending",
+          ])
+        : [[fmtDate(new Date(loan.created_at)), "Loan disbursed", "Credit", formatZar(principal), "Accepted"]];
+
+      autoTable(doc, {
+        startY: y,
+        margin: { left: 10, right: 10 },
+        theme: "striped",
+        styles: { fontSize: 7.5, cellPadding: 2.5 },
+        headStyles: { fillColor: purple, textColor: 255, fontStyle: "bold", fontSize: 7.5 },
+        columnStyles: { 2: { cellWidth: 20 }, 3: { halign: "right", cellWidth: 28 }, 4: { cellWidth: 22 } },
+        head: [["Date", "Description", "Direction", "Amount", "Status"]],
+        body: historyForPdf,
+        didParseCell: (data) => {
+          if (data.column.index === 4 && data.section === "body") {
+            const val = String(data.cell.raw || "");
+            if (val === "Accepted") {
+              data.cell.styles.textColor = [5, 150, 105];
+              data.cell.styles.fontStyle = "bold";
+            } else if (val === "Pending") {
+              data.cell.styles.textColor = [180, 120, 0];
+              data.cell.styles.fontStyle = "bold";
+            }
+          }
+        },
+      });
+
+      // ── Footer on each page ───────────────────────────────────────────────
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(6.5);
+        doc.setTextColor(180, 180, 185);
+        doc.setFont("helvetica", "normal");
+        doc.text(
+          "This document is computer-generated and does not require a signature. Mint Financial Services · NCR Registered · NCA Compliant",
+          W / 2, doc.internal.pageSize.getHeight() - 8, { align: "center" }
+        );
+        doc.text(`Page ${i} of ${pageCount}`, W - 10, doc.internal.pageSize.getHeight() - 8, { align: "right" });
+      }
+
+      const filename = `Mint_Loan_Statement_${loan.application_id || "loan"}_${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }, [loan, profile, displayName, principal, totalRepay, monthlyPay, months, totalPaid,
+      loanBalance, schedule, historyRows, statusLabel, nextDueDate, fmtDate, generatingPdf]);
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
 
@@ -272,7 +535,9 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
                   <>
                     {/* Top row — app name + status pill */}
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-[15px] font-semibold tracking-tight text-white/90">mint</span>
+                      <span className="text-[11px] font-semibold tracking-tight text-white/75 font-mono">
+                        {loan?.application_id ? loan.application_id.toUpperCase().slice(0, 14) : "MINT CREDIT"}
+                      </span>
                       <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${isPendingStatus ? "bg-amber-400/20" : isAcceptedStatus ? "bg-emerald-400/20" : "bg-white/10"}`}>
                         <div className={`h-1.5 w-1.5 rounded-full ${statusDotTone}`} />
                         <span className={`text-[9px] ${isPendingStatus ? "text-amber-300" : isAcceptedStatus ? "text-emerald-300" : "text-white/70"}`}>
@@ -425,7 +690,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
               onClick: () => onTabChange?.("creditApply"),
               disabled: !canStartNewLoan,
             },
-            { label: "Statement", icon: FileText,  onClick: () => {} },
+            { label: generatingPdf ? "Generating…" : "Statement", icon: FileText, onClick: generateStatement },
           ].map(({ label, icon: Icon, onClick, disabled }) => (
             <button
               key={label}
