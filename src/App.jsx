@@ -8,6 +8,7 @@ import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import CreditHome from "./pages/credit/CreditHome";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
+import UnsecuredCreditDashboard from "./pages/credit/UnsecuredCreditDashboard.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import NewPortfolioPage from "./pages/NewPortfolioPage.jsx";
@@ -1945,6 +1946,28 @@ const App = () => {
           />
         </AppLayout>
       </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "unsecuredCreditDashboard") {
+    return (
+      <AppLayout
+        activeTab="creditApply"
+        onTabChange={handleTabChange}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <UnsecuredCreditDashboard
+          profile={profile}
+          onTabChange={setCurrentPage}
+          onOpenNotifications={() => {
+            setNotificationReturnPage("unsecuredCreditDashboard");
+            navigateTo("notifications");
+          }}
+        />
+      </AppLayout>
     );
   }
 

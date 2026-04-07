@@ -87,6 +87,7 @@ const buildWarningList = (form, profile) => {
   if (!form.identityNumber) warnings.push("Missing ID number.");
   if (!form.firstName) warnings.push("Missing first name.");
   if (!form.lastName) warnings.push("Missing surname.");
+  if (!form.postalCode) warnings.push("Missing postal code.");
   if (!profile?.id_number) warnings.push("Profile ID number not found in Supabase.");
   return warnings;
 };
@@ -95,6 +96,7 @@ export function useCreditCheck() {
   const [loanRecord, setLoanRecord] = useState(null);
   const [profile, setProfile] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
+  const [bankLinked, setBankLinked] = useState(false);
   const [onboardingEmployerName, setOnboardingEmployerName] = useState(null);
   const [onboardingEmploymentType, setOnboardingEmploymentType] = useState(null);
   const [onboardingEmploymentSector, setOnboardingEmploymentSector] = useState(null);
@@ -115,6 +117,7 @@ export function useCreditCheck() {
     gender: "",
     dateOfBirth: "",
     address: "",
+    postalCode: "0152",
     annualIncome: "",
     annualExpenses: "",
     yearsCurrentEmployer: "",
@@ -166,14 +169,12 @@ export function useCreditCheck() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("first_name,last_name,id_number,date_of_birth,gender,address")
+        .select("first_name,last_name,id_number,date_of_birth,gender,address,phone_number")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) {
-        setIntakeError("Unable to load your profile details. Please refresh.");
-        setLoadingProfile(false);
-        return;
+        console.warn("Profile load error:", profileError?.message);
       }
 
       const { data: snapshotData } = await supabase
@@ -182,6 +183,18 @@ export function useCreditCheck() {
         .eq("user_id", session.user.id)
         .order("captured_at", { ascending: false })
         .limit(1)
+        .maybeSingle();
+
+      const { data: actionsData } = await supabase
+        .from("required_actions")
+        .select("bank_linked")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      const { data: packDetailsRow } = await supabase
+        .from("user_onboarding_pack_details")
+        .select("pack_details")
+        .eq("user_id", session.user.id)
         .maybeSingle();
 
       const { data: onboardingData } = await supabase
@@ -208,6 +221,7 @@ export function useCreditCheck() {
 
       setProfile(profileData || null);
       setSnapshot(snapshotData || null);
+      setBankLinked(Boolean(snapshotData || actionsData?.bank_linked));
       const normalizedEmploymentType = normalizeContractTypeValue(onboardingData?.employment_type);
       const contractTypeLocked = Boolean(
         normalizedEmploymentType && CONTRACT_TYPE_VALUES.has(normalizedEmploymentType)
@@ -218,6 +232,21 @@ export function useCreditCheck() {
 
       const normalizedYearsAtEmployer = normalizeYearsAtEmployerValue(engineData?.years_current_employer);
       const yearsLocked = Boolean(normalizedYearsAtEmployer);
+
+      const packDetails = packDetailsRow?.pack_details || {};
+      const packInfo = packDetails?.info || {};
+      const packAddresses = Array.isArray(packInfo?.addresses) ? packInfo.addresses : [];
+      const packIdDocs = Array.isArray(packInfo?.idDocs) ? packInfo.idDocs : [];
+      const firstPackAddress = packAddresses.find((entry) => entry && (entry.street || entry.town || entry.formattedAddress || entry.postCode)) || null;
+      const packAddressDoc = packIdDocs.find((entry) => entry?.address?.street || entry?.address?.town || entry?.address?.formattedAddress || entry?.address?.postCode || entry?.rawAddress) || null;
+
+      const packStreet = firstPackAddress?.street || packAddressDoc?.address?.street || null;
+      const packTown = firstPackAddress?.town || packAddressDoc?.address?.town || null;
+      const packFormattedAddress = firstPackAddress?.formattedAddress || packAddressDoc?.address?.formattedAddress || packAddressDoc?.rawAddress || null;
+      const packPostalCode = firstPackAddress?.postCode || packAddressDoc?.address?.postCode || null;
+
+      const resolvedAddress = [packStreet, packTown].filter(Boolean).join(", ") || packFormattedAddress || null;
+      const resolvedPostalCodeFromPack = packPostalCode ? String(packPostalCode).trim() : null;
 
       setOnboardingEmployerName(onboardingData?.employer_name || null);
       setOnboardingEmploymentType(normalizedEmploymentType || null);
@@ -231,7 +260,8 @@ export function useCreditCheck() {
         lastName: profileData?.last_name || prev.lastName,
         gender: profileData?.gender || prev.gender,
         dateOfBirth: profileData?.date_of_birth || prev.dateOfBirth,
-        address: profileData?.address || prev.address,
+        address: profileData?.address || resolvedAddress || prev.address,
+        postalCode: resolvedPostalCodeFromPack || prev.postalCode || "0152",
         annualIncome: snapshotData?.avg_monthly_income
           ? String(snapshotData.avg_monthly_income * 12)
           : prev.annualIncome,
@@ -318,6 +348,8 @@ export function useCreditCheck() {
     const annualIncome = normalizeNumber(form.annualIncome);
     const annualExpenses = normalizeNumber(form.annualExpenses);
 
+    const resolvedPostalCode = String(form.postalCode || "0152").trim() || "0152";
+
     const payload = {
       loanApplicationId: loanRecord?.id || undefined,
       userData: {
@@ -327,6 +359,7 @@ export function useCreditCheck() {
         gender: form.gender || undefined,
         date_of_birth: form.dateOfBirth || undefined,
         address1: form.address || undefined,
+        postal_code: resolvedPostalCode,
         annual_income: annualIncome,
         annual_expenses: annualExpenses,
         gross_monthly_income: annualIncome ? annualIncome / 12 : 0,
@@ -351,6 +384,15 @@ export function useCreditCheck() {
       });
 
       const result = await response.json();
+      console.group("[CreditCheck] API Debug");
+      console.log("HTTP status:", response.status);
+      console.log("success:", result?.success, "ok:", result?.ok);
+      console.log("debug:", result?.debug || null);
+      console.log("raw.mockMode:", result?.raw?.mockMode);
+      console.log("raw.message:", result?.raw?.message);
+      console.log("raw.error:", result?.raw?.error);
+      console.log("zipDataLength:", result?.debug?.zipDataLength ?? (typeof result?.raw?.zipData === "string" ? result.raw.zipData.length : 0));
+      console.groupEnd();
       setEngineResult(result);
       setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
     } catch (err) {
@@ -380,6 +422,7 @@ export function useCreditCheck() {
     normalizedContractType,
     profile,
     snapshot,
+    bankLinked,
     loadingProfile,
     intakeError,
     locked,

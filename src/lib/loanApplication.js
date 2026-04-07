@@ -10,6 +10,14 @@ const STEP_PAGES = {
 const DEFAULT_INTEREST_RATE = 0.15;
 const STALE_LOAN_MS = 60 * 60 * 1000;
 
+function normalizeLoanType(value, fallback = "unsecured") {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (normalized === "secured" || normalized === "unsecured") return normalized;
+  return fallback;
+}
+
 async function getSessionUser() {
   if (!supabase) return null;
   const {
@@ -93,12 +101,16 @@ export async function getActiveStoredLoan() {
 
 export async function updateLoan(loanId, fields) {
   if (!loanId || !supabase) return null;
+  const nextFields = {
+    ...fields,
+    updated_at: new Date().toISOString(),
+  };
+  if (Object.prototype.hasOwnProperty.call(nextFields, "Secured_Unsecured")) {
+    nextFields.Secured_Unsecured = normalizeLoanType(nextFields.Secured_Unsecured);
+  }
   const { data, error } = await supabase
     .from("loan_application")
-    .update({
-      ...fields,
-      updated_at: new Date().toISOString(),
-    })
+    .update(nextFields)
     .eq("id", loanId)
     .select()
     .single();
@@ -122,6 +134,7 @@ async function createLoan(stepNumber) {
       step_number: stepNumber,
       interest_rate: DEFAULT_INTEREST_RATE,
       status: "in_progress",
+      Secured_Unsecured: normalizeLoanType("unsecured"),
       principal_amount: 0,
       amount_repayable: 0,
       number_of_months: 1,

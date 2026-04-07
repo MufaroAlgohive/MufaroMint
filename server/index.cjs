@@ -4009,136 +4009,455 @@ app.get("/api/debug/user-investments", async (req, res) => {
   }
 });
 
+let lastCreditCheckDebug = null;
+
 app.post("/api/credit-check", async (req, res) => {
   try {
-    const { userData, loanApplicationId } = req.body;
-    if (!userData) {
-      return res.status(400).json({ success: false, error: "Missing userData" });
+    // Dynamic import for ESM service modules
+    const { performCreditCheck } = await import("../services/creditCheckService.js");
+    const {
+      TOTAL_LOAN_ENGINE_WEIGHT,
+      extractClientDeviceMetadata,
+      computeCreditScoreContribution,
+      computeAdverseListingsContribution,
+      computeCreditUtilizationContribution,
+      computeDeviceFingerprintContribution,
+      computeDTIContribution,
+      computeEmploymentTenureContribution,
+      computeContractTypeContribution,
+      computeEmploymentCategoryContribution,
+      computeIncomeStabilityContribution,
+      computeAlgolendRepaymentContribution,
+      computeAglRetrievalContribution
+    } = await import("../services/loanEngine.js");
+
+    let body = req.body || {};
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body || '{}'); } catch { body = {}; }
     }
 
-    const annualIncome = Number(userData.annual_income) || 0;
-    const annualExpenses = Number(userData.annual_expenses) || 0;
-    const grossMonthly = annualIncome / 12;
-    const netMonthly = (annualIncome - annualExpenses) / 12;
-    const monthsInJob = Number(userData.months_in_current_job) || 0;
-    const contractType = userData.contract_type || "UNEMPLOYED_OR_UNKNOWN";
-    const sectorType = userData.employment_sector_type || "other";
-    const isNewBorrower = userData.algolend_is_new_borrower === true;
+    const authHeader = req.headers.authorization || '';
+    const accessToken = authHeader.startsWith('Bearer ')
+      ? authHeader.slice('Bearer '.length).trim()
+      : null;
 
-    let score = 0;
-    const scoreReasons = [];
-    const breakdown = {};
+    let userId = null;
+    const db = supabaseAdmin || supabase;
+    if (accessToken && db) {
+      const { data: userData, error: userError } = await db.auth.getUser(accessToken);
+      if (!userError && userData?.user?.id) {
+        userId = userData.user.id;
+      }
+    }
+    if (!userId) userId = 'anon-dev';
 
-    const dti = grossMonthly > 0 ? ((grossMonthly - netMonthly) / grossMonthly) * 100 : 100;
-    breakdown.debtToIncome = { ratio: Math.round(dti), maxAllowed: 50 };
+    let loanApplicationId = body.loanApplicationId || body.loan_application_id || null;
+    const applicationId = body.applicationId || loanApplicationId || `app_${Date.now()}`;
+    const overrides = body.userData || body;
+    const normalizedOverrides = {
+      ...overrides,
+      identity_number: overrides?.identity_number || overrides?.id_number || overrides?.identityNumber,
+      surname: overrides?.surname || overrides?.last_name || overrides?.lastName,
+      forename: overrides?.forename || overrides?.first_name || overrides?.firstName,
+      date_of_birth: overrides?.date_of_birth || overrides?.dateOfBirth,
+      address1: overrides?.address1 || overrides?.address,
+      postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code || '0152',
+      contract_type: overrides?.contract_type || overrides?.contractType
+    };
 
-    if (dti <= 30) {
-      score += 30;
-      scoreReasons.push({ factor: "Debt-to-Income", impact: "positive", detail: `DTI ${Math.round(dti)}% is healthy (≤30%)` });
-    } else if (dti <= 50) {
-      score += 15;
-      scoreReasons.push({ factor: "Debt-to-Income", impact: "neutral", detail: `DTI ${Math.round(dti)}% is moderate (30-50%)` });
-    } else {
-      score += 5;
-      scoreReasons.push({ factor: "Debt-to-Income", impact: "negative", detail: `DTI ${Math.round(dti)}% is high (>50%)` });
+    const mockModeEnv = process.env.EXPERIAN_MOCK === 'true';
+    const maskedIdentity = normalizedOverrides?.identity_number
+      ? String(normalizedOverrides.identity_number).slice(0, 6).padEnd(String(normalizedOverrides.identity_number).length, '*')
+      : null;
+    console.log('[credit-check] incoming request', {
+      applicationId,
+      userId,
+      mockModeEnv,
+      hasPostalCode: Boolean(normalizedOverrides?.postal_code),
+      postalCode: normalizedOverrides?.postal_code || null,
+      hasAddress1: Boolean(normalizedOverrides?.address1),
+      identity: maskedIdentity
+    });
+
+    if (normalizedOverrides?.annual_income && !normalizedOverrides?.gross_monthly_income) {
+      const annualIncome = Number(normalizedOverrides.annual_income);
+      if (Number.isFinite(annualIncome)) {
+        normalizedOverrides.gross_monthly_income = annualIncome / 12;
+      }
     }
 
-    breakdown.employmentTenure = { monthsInCurrentJob: monthsInJob, contractType };
-    if (monthsInJob >= 36) {
-      score += 25;
-      scoreReasons.push({ factor: "Employment Tenure", impact: "positive", detail: `${Math.round(monthsInJob / 12)}+ years at current employer` });
-    } else if (monthsInJob >= 12) {
-      score += 15;
-      scoreReasons.push({ factor: "Employment Tenure", impact: "neutral", detail: `${Math.round(monthsInJob / 12)} year(s) at current employer` });
-    } else if (monthsInJob > 0) {
-      score += 8;
-      scoreReasons.push({ factor: "Employment Tenure", impact: "negative", detail: `Less than 1 year at current employer` });
-    } else {
-      score += 2;
-      scoreReasons.push({ factor: "Employment Tenure", impact: "negative", detail: "Employment tenure unknown" });
+    if (normalizedOverrides?.years_in_current_job && !normalizedOverrides?.months_in_current_job) {
+      const yearsValue = Number(normalizedOverrides.years_in_current_job);
+      if (Number.isFinite(yearsValue)) {
+        normalizedOverrides.months_in_current_job = yearsValue * 12;
+      }
     }
 
-    breakdown.contractStability = { type: contractType };
-    const stableContracts = new Set(["PERMANENT", "PERMANENT_ON_PROBATION", "SELF_EMPLOYED_12_PLUS", "FIXED_TERM_12_PLUS"]);
-    if (stableContracts.has(contractType)) {
-      score += 20;
-      scoreReasons.push({ factor: "Contract Type", impact: "positive", detail: `${contractType.replace(/_/g, " ")} is considered stable` });
-    } else {
-      score += 5;
-      scoreReasons.push({ factor: "Contract Type", impact: "negative", detail: `${contractType.replace(/_/g, " ")} carries higher risk` });
-    }
-
-    breakdown.incomeLevel = { grossMonthly: Math.round(grossMonthly) };
-    if (grossMonthly >= 25000) {
-      score += 15;
-      scoreReasons.push({ factor: "Income Level", impact: "positive", detail: "Above-average monthly income" });
-    } else if (grossMonthly >= 10000) {
-      score += 10;
-      scoreReasons.push({ factor: "Income Level", impact: "neutral", detail: "Moderate monthly income" });
-    } else if (grossMonthly > 0) {
-      score += 5;
-      scoreReasons.push({ factor: "Income Level", impact: "negative", detail: "Below-average monthly income" });
-    } else {
-      scoreReasons.push({ factor: "Income Level", impact: "negative", detail: "No income data available" });
-    }
-
-    breakdown.sectorRisk = { sector: sectorType };
-    if (sectorType === "government" || sectorType === "listed") {
-      score += 10;
-      scoreReasons.push({ factor: "Employment Sector", impact: "positive", detail: `${sectorType} sector has lower risk` });
-    } else if (sectorType === "private") {
-      score += 7;
-      scoreReasons.push({ factor: "Employment Sector", impact: "neutral", detail: "Private sector" });
-    } else {
-      score += 3;
-      scoreReasons.push({ factor: "Employment Sector", impact: "negative", detail: "Unclassified sector" });
-    }
-
-    const normalizedScore = Math.min(100, Math.max(0, score));
-
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
+    // TruID snapshot lookup
+    if (db && userId && userId !== 'anon-dev') {
       try {
-        const token = authHeader.split(" ")[1];
-        const supabaseUrl = process.env.VITE_SUPABASE_URL;
-        const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (supabaseUrl && supabaseKey) {
-          const { createClient } = require("@supabase/supabase-js");
-          const sb = createClient(supabaseUrl, supabaseKey);
-          const { data: { user } } = await sb.auth.getUser(token);
-          if (user?.id) {
-            await sb.from("loan_engine_score").upsert({
-              user_id: user.id,
-              engine_score: normalizedScore,
-              years_current_employer: Number(userData.years_in_current_job) || 0,
-              run_at: new Date().toISOString()
-            }, { onConflict: "user_id" });
+        const { data: snapshotData } = await db
+          .from('truid_bank_snapshots')
+          .select('months_captured,main_salary')
+          .eq('user_id', userId)
+          .order('captured_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-            if (loanApplicationId) {
-              await sb.from("loan_application").update({
-                engine_score: normalizedScore,
-                step_number: 3,
-                updated_at: new Date().toISOString()
-              }).eq("id", loanApplicationId);
-            }
-          }
+        if (snapshotData) {
+          normalizedOverrides.truid_months_captured = snapshotData.months_captured;
+          normalizedOverrides.truid_main_salary = snapshotData.main_salary;
         }
-      } catch (saveErr) {
-        console.error("Failed to save score:", saveErr.message);
+      } catch (err) {
+        console.warn('TruID snapshot lookup failed:', err?.message);
+      }
+    }
+
+    // ── PRIMARY ENRICHMENT: Sumsub pack_details (KYC-verified address/identity) ──
+    if (db && userId && userId !== 'anon-dev') {
+      try {
+        const { data: packRow } = await db
+          .from('user_onboarding_pack_details')
+          .select('pack_details')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        console.log('[credit-check] pack_details row found:', !!packRow);
+
+        const pack = packRow?.pack_details || {};
+        const info = pack?.info || {};
+        const addresses = Array.isArray(info?.addresses) ? info.addresses : [];
+        const idDocs = Array.isArray(info?.idDocs) ? info.idDocs : [];
+
+        const firstAddress = addresses.find(a => a && (a.postCode || a.street || a.town)) || null;
+        const addressDoc = idDocs.find(d => d?.address?.postCode || d?.rawAddress || d?.address?.street) || null;
+        const idCardDoc = idDocs.find(d => d?.number) || null;
+
+        const packPostalCode = firstAddress?.postCode || addressDoc?.address?.postCode || null;
+        const packStreet = firstAddress?.street || addressDoc?.address?.street || null;
+        const packTown = firstAddress?.town || addressDoc?.address?.town || null;
+        const packFormatted = firstAddress?.formattedAddress || addressDoc?.address?.formattedAddress || addressDoc?.rawAddress || null;
+        const packDob = info?.dob || idCardDoc?.dob || null;
+        const packIdentity = idCardDoc?.number || null;
+        const packFirstName = info?.firstNameEn || info?.firstName || idCardDoc?.firstNameEn || idCardDoc?.firstName || null;
+        const packLastName = info?.lastNameEn || info?.lastName || idCardDoc?.lastNameEn || idCardDoc?.lastName || null;
+        const packPhone = pack?.phone || null;
+
+        console.log('[credit-check] pack_details extracted:', {
+          packPostalCode,
+          packStreet: packStreet ? packStreet.substring(0, 30) : null,
+          packTown,
+          packIdentity: packIdentity ? packIdentity.slice(0, 6) + '***' : null,
+          packFirstName,
+          packLastName,
+          packDob,
+          addressesCount: addresses.length,
+          idDocsCount: idDocs.length
+        });
+
+        const deriveGenderFromSaId = (idValue) => {
+          const raw = String(idValue || '').replace(/\D/g, '');
+          if (raw.length !== 13) return null;
+          const genderDigits = Number(raw.slice(6, 10));
+          if (!Number.isFinite(genderDigits)) return null;
+          return genderDigits >= 5000 ? 'M' : 'F';
+        };
+        const inferredGender = deriveGenderFromSaId(packIdentity || normalizedOverrides.identity_number);
+
+        if (!normalizedOverrides.identity_number && packIdentity) normalizedOverrides.identity_number = packIdentity;
+        if (!normalizedOverrides.forename && packFirstName) normalizedOverrides.forename = packFirstName;
+        if (!normalizedOverrides.surname && packLastName) normalizedOverrides.surname = packLastName;
+        if (!normalizedOverrides.date_of_birth && packDob) normalizedOverrides.date_of_birth = packDob;
+        if (!normalizedOverrides.gender && inferredGender) normalizedOverrides.gender = inferredGender;
+        if (!normalizedOverrides.address1 && packStreet) normalizedOverrides.address1 = packStreet;
+        if (!normalizedOverrides.address2 && packTown) normalizedOverrides.address2 = packTown;
+        if (!normalizedOverrides.address4 && packTown) normalizedOverrides.address4 = packTown;
+        if (!normalizedOverrides.postal_code && packPostalCode) normalizedOverrides.postal_code = String(packPostalCode);
+        if (!normalizedOverrides.cell_tel_no && packPhone) normalizedOverrides.cell_tel_no = packPhone;
+
+        if (!normalizedOverrides.address1 && packFormatted) {
+          normalizedOverrides.address1 = packFormatted;
+        }
+
+        console.log('[credit-check] after pack_details enrichment, postal_code =', normalizedOverrides.postal_code || '[STILL EMPTY]');
+      } catch (err) {
+        console.warn('Pack details lookup failed:', err?.message);
+      }
+    }
+
+    // Profile enrichment — secondary source, fill only still-missing fields
+    if (db && userId && userId !== 'anon-dev') {
+      try {
+        const { data: profile } = await db
+          .from('profiles')
+          .select('id_number,first_name,last_name,date_of_birth,gender,phone_number,address')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile) {
+          if (!normalizedOverrides.identity_number && profile.id_number) normalizedOverrides.identity_number = profile.id_number;
+          if (!normalizedOverrides.surname && profile.last_name) normalizedOverrides.surname = profile.last_name;
+          if (!normalizedOverrides.forename && profile.first_name) normalizedOverrides.forename = profile.first_name;
+          if (!normalizedOverrides.date_of_birth && profile.date_of_birth) normalizedOverrides.date_of_birth = profile.date_of_birth;
+          if (!normalizedOverrides.gender && profile.gender) normalizedOverrides.gender = profile.gender;
+          if (!normalizedOverrides.cell_tel_no && profile.phone_number) normalizedOverrides.cell_tel_no = profile.phone_number;
+          if (!normalizedOverrides.address1 && profile.address) normalizedOverrides.address1 = profile.address;
+        }
+      } catch (err) {
+        console.warn('Profile lookup failed:', err?.message);
+      }
+    }
+
+    // Onboarding enrichment
+    if (db && userId && userId !== 'anon-dev') {
+      try {
+        const { data: onboarding } = await db
+          .from('user_onboarding')
+          .select('employer_name,employment_type,employer_industry')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (onboarding) {
+          if (!normalizedOverrides.employment_employer_name && onboarding.employer_name) normalizedOverrides.employment_employer_name = onboarding.employer_name;
+          if (!normalizedOverrides.contract_type && onboarding.employment_type) normalizedOverrides.contract_type = onboarding.employment_type;
+          if (!normalizedOverrides.employment_sector_type && onboarding.employer_industry) normalizedOverrides.employment_sector_type = onboarding.employer_industry;
+        }
+      } catch (err) {
+        console.warn('Onboarding lookup failed:', err?.message);
+      }
+    }
+
+    function normalizeDob(dob) { return dob ? String(dob).replace(/-/g, '') : dob; }
+
+    const userPayload = {
+      reference: 'mintcheck',
+      identity_number: '', passport_number: '', surname: '', forename: '', middle_name: '',
+      gender: '', date_of_birth: '', address1: '', address2: '', address3: '', address4: '',
+      postal_code: '', cell_tel_no: '', work_tel_no: '', home_tel_no: '', email: '',
+      user_id: '', client_ref: `MINT-${Date.now()}`,
+      ...normalizedOverrides
+    };
+    userPayload.postal_code = String(userPayload.postal_code || '0152').trim() || '0152';
+    userPayload.client_ref = String(userPayload.client_ref || `MINT${Date.now()}`).trim().slice(0, 20);
+    if (userPayload.date_of_birth) userPayload.date_of_birth = normalizeDob(userPayload.date_of_birth);
+    userPayload.user_id = overrides?.user_id || userId;
+
+    // Lookup loan application
+    if (!loanApplicationId && db && userId && userId !== 'anon-dev') {
+      try {
+        const { data: loanApp } = await db
+          .from('loan_application')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('status', 'in_progress')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (loanApp?.id) loanApplicationId = loanApp.id;
+      } catch (err) {
+        console.warn('Loan application lookup failed:', err?.message);
+      }
+    }
+
+    if (!userPayload.identity_number || !userPayload.surname || !userPayload.forename) {
+      return res.status(400).json({ error: 'Missing required identity fields', required: ['identity_number', 'surname', 'forename'] });
+    }
+
+    // Log the fully-enriched payload that will be sent to Experian
+    console.log('[credit-check] final enriched userPayload before Experian call:', {
+      hasIdentity: Boolean(userPayload.identity_number),
+      identity: userPayload.identity_number ? String(userPayload.identity_number).slice(0, 6) + '...' : null,
+      hasSurname: Boolean(userPayload.surname),
+      hasForename: Boolean(userPayload.forename),
+      gender: userPayload.gender || null,
+      dob: userPayload.date_of_birth || null,
+      hasAddress1: Boolean(userPayload.address1),
+      address2: userPayload.address2 || null,
+      postal_code: userPayload.postal_code || null,
+      cell_tel_no: userPayload.cell_tel_no || null,
+      mockModeEnv: process.env.EXPERIAN_MOCK === 'true'
+    });
+
+    const result = await performCreditCheck(userPayload, applicationId, accessToken);
+    const zipDataLength = typeof result?.zipData === 'string' ? result.zipData.length : 0;
+    const retdataPreview = zipDataLength > 0 ? String(result.zipData).slice(0, 120) : null;
+    console.log('[credit-check] experian response summary', {
+      applicationId,
+      success: result?.success === true,
+      mockModeReturned: result?.mockMode,
+      zipDataLength,
+      message: result?.message || null,
+      error: result?.error || null
+    });
+    if (retdataPreview) {
+      console.log('[credit-check] retdata preview:', retdataPreview);
+    }
+
+    lastCreditCheckDebug = {
+      checkedAt: new Date().toISOString(),
+      applicationId,
+      userId,
+      mockModeEnv,
+      mockModeReturned: result?.mockMode,
+      success: result?.success === true,
+      hasPostalCode: Boolean(userPayload?.postal_code),
+      postalCode: userPayload?.postal_code || null,
+      address1: userPayload?.address1 || null,
+      gender: userPayload?.gender || null,
+      enrichmentOrder: 'form → pack_details → profile → onboarding',
+      experianEndpoint: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
+      zipDataLength,
+      retdataPreview,
+      error: result?.error || null
+    };
+
+    const creditScoreData = (result && typeof result.creditScore === 'object' && result.creditScore)
+      ? result.creditScore : (result?.creditScoreData || {});
+
+    function normalizeCreditScore(r) {
+      const candidates = [
+        r?.extracted?.extractedCreditScore,
+        typeof r?.creditScore === 'number' ? r.creditScore : r?.creditScore?.score,
+        typeof r?.creditScoreData === 'number' ? r.creditScoreData : r?.creditScoreData?.score,
+        r?.creditScoreData?.creditScore
+      ];
+      for (const c of candidates) {
+        const s = Number(c);
+        if (Number.isFinite(s) && s > 0) return s;
+      }
+      return 0;
+    }
+
+    const creditScoreValue = normalizeCreditScore({ ...result, creditScoreData, creditScore: creditScoreData });
+
+    const accountExposure = creditScoreData?.accounts?.exposure || {};
+    const accountSummary = creditScoreData?.accountSummary || {};
+    const accountMetrics = { ...accountExposure, ...accountSummary, totalMonthlyInstallment: accountExposure.totalMonthlyInstallments ?? accountSummary.totalMonthlyInstallments ?? 0 };
+    const employmentHistory = creditScoreData?.employmentHistory || result?.employmentHistory || [];
+    const deviceFingerprint = extractClientDeviceMetadata(req);
+
+    const creditScoreBreakdown = computeCreditScoreContribution(creditScoreValue);
+    const adverseListingsBreakdown = computeAdverseListingsContribution(creditScoreData);
+    const creditUtilizationBreakdown = computeCreditUtilizationContribution(accountMetrics);
+    const deviceFingerprintBreakdown = computeDeviceFingerprintContribution(deviceFingerprint);
+    const dtiBreakdown = computeDTIContribution(accountMetrics.totalMonthlyInstallment || 0, Number(userPayload.gross_monthly_income || 0));
+    const employmentTenureBreakdown = computeEmploymentTenureContribution(userPayload.months_in_current_job);
+    const contractTypeBreakdown = computeContractTypeContribution(userPayload.contract_type);
+    const employmentCategoryBreakdown = computeEmploymentCategoryContribution(userPayload);
+    const incomeStabilityBreakdown = computeIncomeStabilityContribution(userPayload);
+    const algolendRepaymentBreakdown = computeAlgolendRepaymentContribution(userPayload.algolend_is_new_borrower);
+    const aglRetrievalBreakdown = computeAglRetrievalContribution();
+
+    const breakdown = {
+      creditScore: creditScoreBreakdown, creditUtilization: creditUtilizationBreakdown,
+      adverseListings: adverseListingsBreakdown, deviceFingerprint: deviceFingerprintBreakdown,
+      dti: dtiBreakdown, employmentTenure: employmentTenureBreakdown,
+      contractType: contractTypeBreakdown, employmentCategory: employmentCategoryBreakdown,
+      incomeStability: incomeStabilityBreakdown, algolendRepayment: algolendRepaymentBreakdown,
+      aglRetrieval: aglRetrievalBreakdown
+    };
+
+    const experianSnapshot = {
+      score: Number.isFinite(creditScoreValue) ? creditScoreValue : null,
+      riskType: creditScoreData?.riskType || null,
+      enquiryId: creditScoreData?.enquiryId || null,
+      clientRef: creditScoreData?.clientRef || null,
+      declineReasons: Array.isArray(creditScoreData?.declineReasons) ? creditScoreData.declineReasons : [],
+      activities: creditScoreData?.activities || {},
+      accountSummary: creditScoreData?.accountSummary || {},
+      retdataLength: zipDataLength,
+      xmlPreview: typeof result?.xmlContent === 'string' ? result.xmlContent.slice(0, 20000) : null,
+      extractedAt: new Date().toISOString()
+    };
+    const engineResultPayload = {
+      ...breakdown,
+      experianReport: experianSnapshot
+    };
+
+    const loanEngineScore = Object.values(breakdown).map(i => i?.contributionPercent).reduce((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
+    const loanEngineScoreMax = TOTAL_LOAN_ENGINE_WEIGHT;
+    const loanEngineScoreNormalized = loanEngineScoreMax > 0 ? Math.min(100, (loanEngineScore / loanEngineScoreMax) * 100) : 0;
+
+    const creditExposure = {
+      totalBalance: accountMetrics.totalBalance || 0, totalLimits: accountMetrics.totalLimits || 0,
+      revolvingBalance: accountMetrics.revolvingBalance || 0, revolvingLimits: accountMetrics.revolvingLimits || 0,
+      totalMonthlyInstallment: accountMetrics.totalMonthlyInstallment || 0
+    };
+
+    const scoreReasons = [];
+    if (creditScoreValue < 580) scoreReasons.push('Low credit score');
+    if (creditUtilizationBreakdown.ratioPercent !== null && creditUtilizationBreakdown.ratioPercent > 75) scoreReasons.push('High credit utilization');
+    if ((adverseListingsBreakdown.totalAdverse || 0) > 0) scoreReasons.push('Adverse listings present');
+    if (dtiBreakdown.dtiPercent !== null && dtiBreakdown.dtiPercent > 50) scoreReasons.push('High debt-to-income ratio');
+    if ((employmentTenureBreakdown.monthsInCurrentJob || 0) < 6) scoreReasons.push('Short employment tenure');
+
+    // Persist to Supabase
+    if (db && userId && userId !== 'anon-dev') {
+      try {
+        const loanEngineInsert = {
+          user_id: userId, loan_application_id: loanApplicationId,
+          engine_score: Number.isFinite(loanEngineScoreNormalized) ? Math.round(loanEngineScoreNormalized) : null,
+          score_band: creditScoreData?.riskType || 'UNKNOWN',
+          experian_score: Number.isFinite(creditScoreValue) ? creditScoreValue : null,
+          experian_weight: creditScoreBreakdown?.weightPercent ?? null,
+          engine_total_contribution: Number.isFinite(loanEngineScore) ? loanEngineScore : null,
+          annual_income: Number.isFinite(Number(normalizedOverrides?.annual_income)) ? Number(normalizedOverrides.annual_income) : null,
+          annual_expenses: Number.isFinite(Number(normalizedOverrides?.annual_expenses)) ? Number(normalizedOverrides.annual_expenses) : null,
+          years_current_employer: Number.isFinite(Number(normalizedOverrides?.years_in_current_job)) ? Number(normalizedOverrides.years_in_current_job) : null,
+          contract_type: normalizedOverrides?.contract_type || null,
+          is_new_borrower: Boolean(normalizedOverrides?.algolend_is_new_borrower),
+          employment_sector: normalizedOverrides?.employment_sector_type || null,
+          employer_name: normalizedOverrides?.employment_employer_name || null,
+          score_reasons: scoreReasons,
+          engine_result: engineResultPayload,
+          created_at: new Date().toISOString()
+        };
+        const { error: insertError } = await db.from('loan_engine_score').insert(loanEngineInsert);
+        if (insertError) console.warn('Loan engine score insert failed:', insertError.message);
+      } catch (dbError) {
+        console.warn('Loan engine score insert exception:', dbError?.message);
       }
     }
 
     res.json({
-      success: true,
-      loanEngineScore: normalizedScore,
-      loanEngineScoreNormalized: normalizedScore,
-      breakdown,
-      scoreReasons
+      success: result?.success === true, ok: result?.success === true,
+      applicationId, userId, creditScore: creditScoreValue,
+      recommendation: result?.recommendation, riskFlags: result?.riskFlags,
+      breakdown: engineResultPayload, loanEngineScore, loanEngineScoreMax, loanEngineScoreNormalized,
+      creditExposure, scoreReasons, employmentHistory,
+      cpaAccounts: result?.cpaAccounts || [], deviceFingerprint, raw: result,
+      debug: {
+        source: 'server/index',
+        mockModeEnv,
+        mockModeReturned: result?.mockMode,
+        experianEndpoint: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
+        hasPostalCode: Boolean(userPayload?.postal_code),
+        postalCode: userPayload?.postal_code || null,
+        hasAddress1: Boolean(userPayload?.address1),
+        gender: userPayload?.gender || null,
+        dob: userPayload?.date_of_birth || null,
+        zipDataLength,
+        retdataPreview,
+        lastCreditCheck: lastCreditCheckDebug
+      }
     });
   } catch (error) {
     console.error("Credit check error:", error);
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+app.get("/api/mock-mode", (req, res) => {
+  const mockMode = process.env.EXPERIAN_MOCK === 'true';
+  res.json({ mock: mockMode, mockMode });
+});
+
+app.get("/api/credit-check-debug", (req, res) => {
+  res.json({
+    mockMode: process.env.EXPERIAN_MOCK === 'true',
+    endpoint: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
+    lastCreditCheck: lastCreditCheckDebug
+  });
 });
 
 app.post("/api/sessions/record", async (req, res) => {

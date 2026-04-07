@@ -4,7 +4,7 @@ import Navbar from "../components/Navbar.jsx";
 import CreditNavbar from "../components/CreditNavbar.jsx";
 
 const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal, onCloseModal, children }) => {
-  const creditTabs = ["credit", "instantLiquidity", "creditApply", "creditRepay", "liquidityHistory"];
+  const creditTabs = ["credit", "instantLiquidity", "creditApply", "creditRepay", "liquidityHistory", "unsecuredCreditDashboard"];
   const isCredit = creditTabs.includes(activeTab);
 
   return (
