@@ -1076,7 +1076,7 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
    };
 
    return (
-      <div className="space-y-2 animate-in fade-in slide-in-from-bottom-6 duration-500">
+      <div className="space-y-2 animate-in fade-in slide-in-from-bottom-6 duration-500 pb-36">
 
          {/* ── Hero card ── */}
          <div className="relative overflow-hidden rounded-[28px] bg-[#160d2a] px-6 pt-4 pb-5">
@@ -1432,7 +1432,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       contractTypeLocked,
       sectorLocked,
       onboardingYearsAtEmployer,
-      yearsAtEmployerLocked
+      yearsAtEmployerLocked,
+      hydrateExistingScore
    } = useCreditCheck();
 
    const isCalculating = engineStatus === "Running";
@@ -1488,18 +1489,25 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
 
          // 1. If user already has loan_engine_score data, check the score.
          //    Score >= 50 → eligible, go to step 4 (calculator).
-         //    Score < 50  → declined, stay on step 3 (results screen).
+         //    Score < 50  → declined, stay on step 3 (results screen) and show previous result.
          const { data: existingStep3Data } = await supabase
             .from("loan_engine_score")
-            .select("id, engine_score")
+            .select("id, engine_score, engine_result, experian_score, score_reasons, exposure_total_balance, exposure_total_limit")
             .eq("user_id", userId)
             .order("run_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
          if (existingStep3Data?.id) {
-            const score = Number(existingStep3Data.engine_score ?? 0);
-            setStep(score >= 50 ? 4 : 3);
+            const existingScore = Number(existingStep3Data.engine_score ?? 0);
+            // Always hydrate so ResultStage shows previous result (prevents re-run)
+            hydrateExistingScore(existingStep3Data);
+            if (existingScore >= 50) {
+               setStep(4);
+            } else {
+               // Declined — stay on step 3 results screen
+               setStep(3);
+            }
             setResolving(false);
             return;
          }
@@ -1549,7 +1557,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       };
 
       resolveCheckpoint();
-   }, [resolving, loadingProfile, snapshot, bankLinked]);
+   }, [resolving, loadingProfile, snapshot, bankLinked, hydrateExistingScore]);
 
 
 
@@ -2109,7 +2117,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
          title={getTitle()}
          subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : step === 4 ? "Configure your loan and sign your agreement." : ""}
          stepInfo={getStepInfo()}
-         onBack={() => setStep(s => s - 1)}
+         onBack={() => onBack ? onBack() : window.history.back()}
       >
          {renderContent()}
       </MintGradientLayout>
