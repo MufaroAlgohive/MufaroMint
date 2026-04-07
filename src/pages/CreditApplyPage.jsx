@@ -2117,7 +2117,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
          title={getTitle()}
          subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : step === 4 ? "Configure your loan and sign your agreement." : ""}
          stepInfo={getStepInfo()}
-         onBack={() => setStep(s => s - 1)}
+         onBack={() => onBack ? onBack() : window.history.back()}
       >
          {renderContent()}
       </MintGradientLayout>
