@@ -31,10 +31,11 @@ const TxnRow = ({ icon: Icon, iconBg, iconColor, title, date, amount, amountColo
 );
 
 // ─── Offer row ────────────────────────────────────────────────────────────────
-const OfferRow = ({ icon: Icon, title, desc, onClick }) => (
+const OfferRow = ({ icon: Icon, title, desc, onClick, disabled = false }) => (
   <button
-    onClick={onClick}
-    className="flex items-center gap-3 w-full bg-white border border-slate-100 rounded-[20px] px-4 py-3.5 mb-2.5 active:scale-[0.98] transition-all text-left"
+    onClick={!disabled ? onClick : undefined}
+    disabled={disabled}
+    className={`flex items-center gap-3 w-full bg-white border border-slate-100 rounded-[20px] px-4 py-3.5 mb-2.5 transition-all text-left ${disabled ? "opacity-50 cursor-not-allowed" : "active:scale-[0.98]"}`}
   >
     <div className="h-10 w-10 rounded-2xl bg-violet-50 flex items-center justify-center shrink-0">
       <Icon size={16} className="text-violet-600" />
@@ -129,6 +130,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
   // ─── Display rate strings (from DB or NCR default) ──────────────────────
   const annualRate  = `${storedAnnualRate.toFixed(1)}%`;
   const monthlyRate = `${storedMonthlyRate.toFixed(1)}%`;
+  const canStartNewLoan = !loan || loanBalance <= 0;
 
   // ─── helpers ─────────────────────────────────────────────────────────────
   const fmtDate = (d) => d
@@ -148,7 +150,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
           <div className="h-[38px] w-[38px] rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-[11px] font-semibold text-white uppercase">
             {initials}
           </div>
-          <NavigationPill activeTab="creditApply" onTabChange={onTabChange} />
+          <div className="w-[38px]" />
           <NotificationBell onClick={onOpenNotifications} />
         </div>
 
@@ -190,6 +192,14 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
               </>
             )}
           </div>
+        </div>
+
+        <div className="mt-4 flex justify-center">
+          <NavigationPill
+            activeTab="credit"
+            onTabChange={onTabChange}
+            className="!static !left-auto !top-auto !translate-x-0 !translate-y-0 scale-90 sm:scale-100"
+          />
         </div>
       </div>
 
@@ -247,13 +257,19 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         <div className="grid grid-cols-3 gap-2.5 mb-7">
           {[
             { label: "Repay", icon: ArrowDown,   onClick: () => onTabChange?.("creditRepay") },
-            { label: "Top up",  icon: Plus,        onClick: () => onTabChange?.("creditApply") },
+            {
+              label: "New loan",
+              icon: Plus,
+              onClick: () => onTabChange?.("creditApply"),
+              disabled: !canStartNewLoan,
+            },
             { label: "Statement", icon: FileText,  onClick: () => {} },
-          ].map(({ label, icon: Icon, onClick }) => (
+          ].map(({ label, icon: Icon, onClick, disabled }) => (
             <button
               key={label}
-              onClick={onClick}
-              className="flex flex-col items-center gap-1.5 bg-white border border-slate-100 rounded-[18px] py-3 px-1.5 text-slate-700 shadow-sm active:scale-95 transition-all"
+              onClick={!disabled ? onClick : undefined}
+              disabled={disabled}
+              className={`flex flex-col items-center gap-1.5 bg-white border border-slate-100 rounded-[18px] py-3 px-1.5 text-slate-700 shadow-sm transition-all ${disabled ? "opacity-50 cursor-not-allowed" : "active:scale-95"}`}
             >
               <div className="h-8 w-8 rounded-full bg-violet-50 flex items-center justify-center">
                 <Icon size={15} className="text-violet-600" />
@@ -322,9 +338,10 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         <p className="text-[14px] font-medium text-slate-900 mb-3">More credit options</p>
         <OfferRow
           icon={Plus}
-          title="Top-up loan available"
-          desc="Apply for additional credit on your profile"
+          title="New loan"
+          desc={canStartNewLoan ? "Start a fresh unsecured loan application" : "Available once your current loan is fully paid"}
           onClick={() => onTabChange?.("creditApply")}
+          disabled={!canStartNewLoan}
         />
         <OfferRow
           icon={Layers}

@@ -1214,6 +1214,10 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
                   <span className="text-[10px] text-slate-400 font-medium">6 months</span>
                </div>
             </div>
+
+            <p className="mt-4 text-[10px] text-slate-400 font-medium text-center">
+               Min R1,000 · Max R9,000 · Term 3–6 months
+            </p>
          </div>
 
          {/* ── Repayment summary card ── */}
