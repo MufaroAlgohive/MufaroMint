@@ -786,6 +786,11 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
 
 const LoanCalculatorStep = ({ onSignedContinue }) => {
    const LIGHT_THRESHOLD = 0.36;
+   const MIN_LOAN_AMOUNT = 1000;
+   const MAX_LOAN_AMOUNT = 9000;
+   const AMOUNT_STEP = 100;
+   const MIN_LOAN_PERIOD = 3;
+   const MAX_LOAN_PERIOD = 6;
    const [loanAmount, setLoanAmount] = useState(3000);
    const [loanPeriod, setLoanPeriod] = useState(3);
    const amountTrackRef = useRef(null);
@@ -805,17 +810,16 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
    // Credit life insurance: R4.50 per R1,000 per month + 15% VAT
    const VAT = 1.15;
    const MONTHLY_RATE = 0.05; // 5% per month (60% p.a.)
-   const SERVICE_FEE_EXCL = 60; // R60 excl. VAT per month
    const CREDIT_LIFE_PER_1K_EXCL = 4.50; // R4.50 per R1,000 excl. VAT
 
    const initiationFee = (() => {
-      const base = loanAmount <= 1000
+      const base = loanAmount <= MIN_LOAN_AMOUNT
          ? 150
-         : 150 + (loanAmount - 1000) * 0.10;
+         : 150 + (loanAmount - MIN_LOAN_AMOUNT) * 0.10;
       return Math.round(base * VAT * 100) / 100;
    })();
 
-   const monthlyServiceFee = Math.round(SERVICE_FEE_EXCL * VAT * 100) / 100; // R69
+   const monthlyServiceFee = 69; // Admin/service fee fixed at R69 per month
    const monthlyCreditLife = Math.round((loanAmount / 1000) * CREDIT_LIFE_PER_1K_EXCL * VAT * 100) / 100;
 
    // Amortized monthly payment (principal + interest only)
@@ -846,8 +850,8 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
    const formatMoney = (value) => value.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
    const formatInt = (value) => Math.round(value).toLocaleString("en-ZA");
 
-   const amountPct = (loanAmount - 1000) / (5000 - 1000);
-   const periodPct = (loanPeriod - 1) / (5 - 1);
+   const amountPct = (loanAmount - MIN_LOAN_AMOUNT) / (MAX_LOAN_AMOUNT - MIN_LOAN_AMOUNT);
+   const periodPct = (loanPeriod - MIN_LOAN_PERIOD) / (MAX_LOAN_PERIOD - MIN_LOAN_PERIOD);
 
    const getClientX = (event, isTouch) => {
       if (isTouch) return event.touches?.[0]?.clientX ?? event.changedTouches?.[0]?.clientX ?? 0;
@@ -864,10 +868,20 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
       const pct = rect.width > 0 ? x / rect.width : 0;
 
       if (type === "amount") {
-         const next = snap(1000 + pct * (5000 - 1000), 1000, 5000, 100);
+         const next = snap(
+            MIN_LOAN_AMOUNT + pct * (MAX_LOAN_AMOUNT - MIN_LOAN_AMOUNT),
+            MIN_LOAN_AMOUNT,
+            MAX_LOAN_AMOUNT,
+            AMOUNT_STEP
+         );
          setLoanAmount(next);
       } else {
-         const next = snap(1 + pct * (5 - 1), 1, 5, 1);
+         const next = snap(
+            MIN_LOAN_PERIOD + pct * (MAX_LOAN_PERIOD - MIN_LOAN_PERIOD),
+            MIN_LOAN_PERIOD,
+            MAX_LOAN_PERIOD,
+            1
+         );
          setLoanPeriod(next);
       }
 
@@ -895,14 +909,16 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
          const rect = track.getBoundingClientRect();
          const clientX = getClientX(event, isTouch);
          const dx = clientX - startX;
-         const range = type === "amount" ? 5000 - 1000 : 5 - 1;
+         const range = type === "amount"
+            ? MAX_LOAN_AMOUNT - MIN_LOAN_AMOUNT
+            : MAX_LOAN_PERIOD - MIN_LOAN_PERIOD;
          const delta = rect.width > 0 ? (dx / rect.width) * range : 0;
 
          if (type === "amount") {
-            const next = snap(startValue + delta, 1000, 5000, 100);
+            const next = snap(startValue + delta, MIN_LOAN_AMOUNT, MAX_LOAN_AMOUNT, AMOUNT_STEP);
             setLoanAmount(next);
          } else {
-            const next = snap(startValue + delta, 1, 5, 1);
+            const next = snap(startValue + delta, MIN_LOAN_PERIOD, MAX_LOAN_PERIOD, 1);
             setLoanPeriod(next);
          }
 
@@ -1148,7 +1164,7 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
                </div>
                <div className="flex justify-between px-0.5">
                   <span className="text-[10px] text-slate-400 font-medium">R 1,000</span>
-                  <span className="text-[10px] text-slate-400 font-medium">R 5,000</span>
+                  <span className="text-[10px] text-slate-400 font-medium">R 9,000</span>
                </div>
             </div>
 
@@ -1194,8 +1210,8 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
                   </div>
                </div>
                <div className="flex justify-between px-0.5">
-                  <span className="text-[10px] text-slate-400 font-medium">1 month</span>
-                  <span className="text-[10px] text-slate-400 font-medium">5 months</span>
+                  <span className="text-[10px] text-slate-400 font-medium">3 months</span>
+                  <span className="text-[10px] text-slate-400 font-medium">6 months</span>
                </div>
             </div>
          </div>
@@ -1709,7 +1725,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
             const salaryDayOfMonth = firstRepayment.getDate(); // 1-31
 
             // ── Repayment schedule JSON ────────────────────────────────────────
-            const months = quote?.loanPeriod ?? 1;
+            const months = quote?.loanPeriod ?? 3;
             const monthly = quote?.monthlyPayment ?? 0;
             const scheduleEntries = Array.from({ length: months }, (_, i) => {
                const due = new Date(firstRepayment);
