@@ -273,6 +273,27 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       if (loanErr) throw loanErr;
       setActiveLoanId(loan.id);
 
+      const { error: historyErr } = await supabase
+        .from('credit_transactions_history')
+        .insert({
+          user_id: profile.id,
+          loan_application_id: loan.id,
+          loan_type: normalizeLoanType('secured'),
+          transaction_type: 'application_created',
+          direction: 'credit',
+          amount: Number(principal),
+          occurred_at: new Date().toISOString(),
+          description: 'Secured loan application created',
+          metadata: {
+            number_of_months: termMonths,
+            first_repayment_date: calculation.paymentDates?.[0]?.toISOString?.() || null,
+          },
+        });
+
+      if (historyErr && historyErr.code !== '23505') {
+        console.warn('Failed to create secured credit history row:', historyErr.message || historyErr);
+      }
+
       const pledges = selectedAssets.map(item => ({
         user_id: profile.id,
         loan_application_id: loan.id,

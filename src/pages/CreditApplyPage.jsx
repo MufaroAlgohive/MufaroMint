@@ -1785,30 +1785,61 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                .limit(1)
                .maybeSingle();
 
+            let persistedLoanId = existingLoan?.id || null;
+
             if (existingLoan?.id) {
                const { error: updateErr } = await supabase
                   .from("loan_application")
                   .update(payload)
                   .eq("id", existingLoan.id);
                if (updateErr) {
-                  const { error: insertFallbackErr } = await supabase
+                  const { data: insertedFallbackLoan, error: insertFallbackErr } = await supabase
                      .from("loan_application")
                      .insert({
                         user_id: userId,
                         created_at: new Date().toISOString(),
                         ...payload,
-                     });
+                     })
+                     .select("id")
+                     .single();
                   if (insertFallbackErr) throw insertFallbackErr;
+                  persistedLoanId = insertedFallbackLoan?.id || null;
                }
             } else {
-               const { error: insertErr } = await supabase
+               const { data: insertedLoan, error: insertErr } = await supabase
                   .from("loan_application")
                   .insert({
                      user_id: userId,
                      created_at: new Date().toISOString(),
                      ...payload,
-                  });
+                  })
+                  .select("id")
+                  .single();
                if (insertErr) throw insertErr;
+               persistedLoanId = insertedLoan?.id || null;
+            }
+
+            if (persistedLoanId && Number(payload.principal_amount) > 0) {
+               const { error: historyErr } = await supabase
+                  .from("credit_transactions_history")
+                  .insert({
+                     user_id: userId,
+                     loan_application_id: persistedLoanId,
+                     loan_type: normalizeLoanType("unsecured"),
+                     transaction_type: "application_created",
+                     direction: "credit",
+                     amount: Number(payload.principal_amount),
+                     occurred_at: new Date().toISOString(),
+                     description: "Unsecured loan application created",
+                     metadata: {
+                        number_of_months: payload.number_of_months,
+                        first_repayment_date: payload.first_repayment_date,
+                     },
+                  });
+
+               if (historyErr && historyErr.code !== "23505") {
+                  console.warn("Failed to create unsecured credit history row:", historyErr.message || historyErr);
+               }
             }
          }
          if (typeof onTabChange === "function") {
