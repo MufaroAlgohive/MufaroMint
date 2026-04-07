@@ -250,9 +250,9 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
             style={{
               position: "relative",
               transformStyle: "preserve-3d",
-              transition: "transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1)",
+              transition: "transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1), min-height 0.4s ease",
               transform: showLoanBreakdown ? "rotateY(180deg)" : "rotateY(0deg)",
-              minHeight: "172px",
+              minHeight: showLoanBreakdown ? "280px" : "196px",
             }}
           >
             {/* ── FRONT FACE ── */}
@@ -263,27 +263,20 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
               <button
                 type="button"
                 onClick={() => loan && setShowLoanBreakdown(true)}
-                className="w-full text-left rounded-[28px] px-5 pt-5 pb-5"
+                className="w-full text-left rounded-[28px] px-5 pt-5 pb-6"
                 style={{ background: "linear-gradient(135deg, #2a1a46 0%, #4c2e75 55%, #7a4aa7 100%)" }}
               >
                 {loading ? (
-                  <div className="h-[148px] animate-pulse rounded-xl bg-white/10" />
+                  <div className="h-[164px] animate-pulse rounded-xl bg-white/10" />
                 ) : (
                   <>
-                    {/* Top row — chip + status pill */}
+                    {/* Top row — app name + status pill */}
                     <div className="flex items-center justify-between mb-4">
-                      {/* SIM-chip */}
-                      <div className="h-6 w-8 rounded-[5px] border border-white/25 bg-gradient-to-br from-white/25 to-white/10 flex items-center justify-center">
-                        <div className="h-2.5 w-5 rounded-[2px] border border-white/30 grid grid-cols-3 gap-px p-px">
-                          <div className="bg-white/40 rounded-[1px]" />
-                          <div className="bg-white/40 rounded-[1px]" />
-                          <div className="bg-white/40 rounded-[1px]" />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 bg-white/10 rounded-full px-2.5 py-1">
-                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        <span className="text-[9px] text-white/70">
-                          {loan ? "Active" : "No active loan"}
+                      <span className="text-[15px] font-semibold tracking-tight text-white/90">mint</span>
+                      <div className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${isPendingStatus ? "bg-amber-400/20" : isAcceptedStatus ? "bg-emerald-400/20" : "bg-white/10"}`}>
+                        <div className={`h-1.5 w-1.5 rounded-full ${statusDotTone}`} />
+                        <span className={`text-[9px] ${isPendingStatus ? "text-amber-300" : isAcceptedStatus ? "text-emerald-300" : "text-white/70"}`}>
+                          {loan ? statusLabel : "No active loan"}
                         </span>
                       </div>
                     </div>
@@ -328,7 +321,7 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
               <button
                 type="button"
                 onClick={() => setShowLoanBreakdown(false)}
-                className="w-full text-left rounded-[28px] px-5 pt-5 pb-5 h-full"
+                className="w-full text-left rounded-[28px] px-5 pt-5 pb-6 h-full"
                 style={{ background: "linear-gradient(135deg, #2a1a46 0%, #4c2e75 55%, #7a4aa7 100%)" }}
               >
                 <div className="flex items-center justify-between mb-3">
