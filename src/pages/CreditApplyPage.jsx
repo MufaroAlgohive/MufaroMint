@@ -9,6 +9,12 @@ import { useCreditCheck } from "../lib/useCreditCheck";
 import NotificationBell from "../components/NotificationBell";
 import CreditApplySkeleton from "../components/CreditApplySkeleton";
 
+const normalizeLoanType = (value, fallback = "unsecured") => {
+   const normalized = String(value || "").trim().toLowerCase();
+   if (normalized === "secured" || normalized === "unsecured") return normalized;
+   return fallback;
+};
+
 // --- Subcomponents for Stages ---
 
 // Stage 1: TruID Connect (in-app iframe)
@@ -1765,6 +1771,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                salary_date: salaryDayOfMonth, // day-of-month (1–31)
                step_number: 4,                // max allowed by CHECK constraint
                status: "in_progress",
+               Secured_Unsecured: normalizeLoanType("unsecured"),
                repayment_schedule: repaymentSchedule,
                updated_at: new Date().toISOString(),
             };

@@ -24,6 +24,11 @@ import { LendingEngine } from "../../lib/LendingEngine";
 // --- CONSTANTS ---
 const sortOptions = ["Balance (High)", "Score (High)", "Market Cap", "Dividend Yield"];
 const sectorOptions = ["Technology", "Financials", "Consumer", "Healthcare", "Energy", "Materials"];
+const normalizeLoanType = (value, fallback = "secured") => {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "secured" || normalized === "unsecured") return normalized;
+  return fallback;
+};
 
 // --- MINI CHART COMPONENT ---
 const AssetMiniChart = ({ data, color = "#7c3aed" }) => (
@@ -261,6 +266,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
         number_of_months: termMonths,
         first_repayment_date: calculation.paymentDates[0].toISOString(),
         status: 'in_progress',
+        Secured_Unsecured: normalizeLoanType('secured'),
         step_number: 1
       }).select().single();
 

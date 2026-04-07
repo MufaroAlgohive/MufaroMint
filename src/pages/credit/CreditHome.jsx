@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { 
   Zap, ArrowRight, HelpCircle, ShieldCheck 
 } from "lucide-react";
 import { motion } from 'framer-motion';
 import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
+import { supabase } from "../../lib/supabase";
 
 const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   const fonts = {
@@ -19,6 +20,41 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
     .map((part) => part[0])
     .join("")
     .toUpperCase() || "—";
+
+  const [navigating, setNavigating] = useState(false);
+
+  // Checkpoint: if the user has an active unsecured loan → dashboard, else → apply flow
+  const handleUnsecuredClick = useCallback(async () => {
+    if (navigating) return;
+    setNavigating(true);
+    try {
+      if (profile?.id && supabase) {
+        const { data: activeLoan } = await supabase
+          .from("loan_application")
+          .select("id, principal_amount")
+          .eq("user_id", profile.id)
+          .eq("Secured_Unsecured", "unsecured")
+          .in("status", ["active", "in_progress"])
+          .gt("principal_amount", 0)
+          .gt("amount_repayable", 0)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activeLoan?.id) {
+          onTabChange("unsecuredCreditDashboard");
+          return;
+        }
+      }
+      // No active loan — go to the apply flow (resolves to step 4 calculator if eligible)
+      onTabChange("creditApply");
+    } catch (err) {
+      console.warn("Unsecured checkpoint check failed:", err?.message || err);
+      onTabChange("creditApply");
+    } finally {
+      setNavigating(false);
+    }
+  }, [profile?.id, onTabChange, navigating]);
 
   const ctaCards = [
     { 
@@ -142,8 +178,9 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
                 key={i} 
                 onClick={() => {
                     if (item.id === "portfolio") onTabChange("instantLiquidity");
-                    if (item.id === "unsecured") onTabChange("creditApply");
+                    if (item.id === "unsecured") handleUnsecuredClick();
                 }}
+                disabled={navigating}
                 className="w-full flex items-center justify-between bg-white p-2 pl-8 rounded-full group active:scale-[0.98] transition-all shadow-2xl"
             >
                 <div className="flex flex-col text-left py-2">
