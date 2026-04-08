@@ -78,22 +78,26 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 focus:outline-none"
+        className="flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 focus:outline-none transition-all duration-200"
+        style={{
+          background: open ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.10)",
+          border: "1px solid rgba(255,255,255,0.18)",
+        }}
         aria-label="Open family menu"
       >
         {avatarUrl ? (
           <img
             src={avatarUrl}
             alt={displayName}
-            className="h-10 w-10 rounded-full border border-white/40 object-cover"
+            className="h-8 w-8 rounded-full border border-white/30 object-cover"
           />
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white">
             {initials || "—"}
           </div>
         )}
         <ChevronDown
-          className={`h-4 w-4 text-white/70 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 text-white/70 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
 
