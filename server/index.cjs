@@ -6270,10 +6270,61 @@ app.post("/api/ozow/notify", async (req, res) => {
 // ─── Family Members ──────────────────────────────────────────────────────────
 
 async function ensureFamilyMembersTable() {
+  // Run migrations directly against Supabase via the service role key
+  if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    const sql = `
+      CREATE TABLE IF NOT EXISTS family_members (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        primary_user_id UUID,
+        relationship    TEXT,
+        first_name      TEXT,
+        last_name       TEXT DEFAULT '',
+        date_of_birth   DATE,
+        avatar_url      TEXT,
+        mint_number     TEXT DEFAULT '',
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS primary_user_id UUID;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS relationship TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS first_name TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT '';
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT '';
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id);
+    `;
+    try {
+      const resp = await globalThis.fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ sql_query: sql }),
+      });
+      if (resp.ok) {
+        console.log('[family] family_members table ready (Supabase migration applied)');
+      } else {
+        const text = await resp.text();
+        console.warn('[family] exec_sql RPC unavailable, falling back to pgPool:', text);
+        await ensureFamilyMembersTablePg();
+      }
+    } catch (e) {
+      console.warn('[family] exec_sql fetch failed, falling back to pgPool:', e.message);
+      await ensureFamilyMembersTablePg();
+    }
+  } else {
+    await ensureFamilyMembersTablePg();
+  }
+}
+
+async function ensureFamilyMembersTablePg() {
   if (!pgPool) return;
   const client = await pgPool.connect();
   try {
-    // Create the table if it doesn't exist at all
     await client.query(`
       CREATE TABLE IF NOT EXISTS family_members (
         id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -6287,9 +6338,7 @@ async function ensureFamilyMembersTable() {
         created_at      TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-
-    // Patch any missing columns in case the table was created with an old schema
-    const alterations = [
+    const cols = [
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS primary_user_id UUID`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS relationship TEXT`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS first_name TEXT`,
@@ -6299,14 +6348,13 @@ async function ensureFamilyMembersTable() {
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT ''`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
     ];
-    for (const sql of alterations) {
-      try { await client.query(sql); } catch (_) { /* column already exists */ }
+    for (const sql of cols) {
+      try { await client.query(sql); } catch (_) {}
     }
-
     await client.query(`CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id)`);
-    console.log('[family] family_members table ready (columns verified)');
+    console.log('[family] family_members table ready (pgPool migration applied)');
   } catch (e) {
-    console.error('[family] Failed to create family_members table:', e.message);
+    console.error('[family] pgPool migration failed:', e.message);
   } finally {
     client.release();
   }
