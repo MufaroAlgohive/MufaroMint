@@ -139,7 +139,7 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
     const points = [];
     const now = Date.now();
     const startValue = 0;
-    
+
     // Use selected asset or total portfolio for end value
     const targetSet = selectedAsset ? [selectedAsset] : holdings;
     const endValue = targetSet.reduce((acc, h) => {
@@ -147,7 +147,7 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
       const invested = (Number(h.avg_fill || 0) * Number(h.quantity || 1)) / 100;
       return acc + (marketValue - invested);
     }, 0);
-    
+
     for (let i = days; i >= 0; i--) {
       const date = new Date(now - i * 24 * 60 * 60 * 1000);
       const progress = 1 - (i / days);
@@ -155,7 +155,7 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
       const value = startValue + (endValue - startValue) * (Math.pow(progress, 0.8));
       points.push({ d: date.getTime(), v: Number(value.toFixed(2)) });
     }
-    
+
     console.log(`📊 [Chart] Initialized with fallback to endValue: R${endValue.toFixed(2)}`);
     return points;
   }, [activeTab, holdings, selectedAsset]);
@@ -219,7 +219,7 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
             const current = Number(sh.market_value || 0) / 100;
             const cost = (Number(sh.avg_fill || 0) * Number(sh.quantity || 1)) / 100;
             if (latest > 0) {
-              history.forEach(p => { 
+              history.forEach(p => {
                 const k = p.ts.split("T")[0];
                 stratPnl[k] = (stratPnl[k] || 0) + (current * (p.nav / latest) - cost);
               });
@@ -246,7 +246,7 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
             });
             if (stratPnl[dKey]) total += stratPnl[dKey];
             const [y, m, d] = dKey.split("-").map(Number);
-            return { d: new Date(y, m-1, d).getTime(), v: Number(total.toFixed(2)) };
+            return { d: new Date(y, m - 1, d).getTime(), v: Number(total.toFixed(2)) };
           });
         }
 
@@ -333,21 +333,21 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
           fetch("/api/user/strategies", { headers: { Authorization: `Bearer ${session?.access_token}` } }).then(r => r.json())
         ]);
         const stockH = (holdRes.holdings || []).filter(h => !h.strategy_id);
-        const stratH = (stratRes.strategies || []).map(s => ({ symbol: s.shortName || s.name || "Strat", name: s.name, market_value: Math.round((s.currentMarketValue || s.investedAmount || 0) * 100), invested_amount: Math.round((s.investedAmount || 0) * 100), avg_fill: Math.round((s.investedAmount || 0)*100), quantity: 1, isStrategy: true, strategyId: s.id, firstInvestedDate: s.firstInvestedDate }));
+        const stratH = (stratRes.strategies || []).map(s => ({ symbol: s.shortName || s.name || "Strat", name: s.name, market_value: Math.round((s.currentMarketValue || s.investedAmount || 0) * 100), invested_amount: Math.round((s.investedAmount || 0) * 100), avg_fill: Math.round((s.investedAmount || 0) * 100), quantity: 1, isStrategy: true, strategyId: s.id, firstInvestedDate: s.firstInvestedDate }));
         const enriched = [...stockH, ...stratH];
-        setDbData({ holdings: enriched, totalMarketValue: enriched.reduce((a, h) => a + Number(h.market_value || 0)/100, 0), totalInvested: enriched.reduce((a,h) => a + (Number(h.avg_fill || 0)*Number(h.quantity||0))/100, 0), totalInvestedAmount: enriched.reduce((a,h) => a + Number(h.invested_amount||h.market_value||0)/100,0), holdingsCount: enriched.length });
-      } catch (e) {} finally { setLoading(false); }
+        setDbData({ holdings: enriched, totalMarketValue: enriched.reduce((a, h) => a + Number(h.market_value || 0) / 100, 0), totalInvested: enriched.reduce((a, h) => a + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100, 0), totalInvestedAmount: enriched.reduce((a, h) => a + Number(h.invested_amount || h.market_value || 0) / 100, 0), holdingsCount: enriched.length });
+      } catch (e) { } finally { setLoading(false); }
     };
     loadD();
   }, [userId, lastUpdated]);
 
   const { chartData, isLoading: chartLoading } = useChartData(userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading);
   useEffect(() => { if (chartData.length > 0) hasChartDataRef.current = true; }, [chartData]);
-  
+
   const startTime = getWindowStart(activeTab, dbData.holdings);
   const now = Date.now();
   const padded = useMemo(() => padChartSeriesPoints(chartData, startTime, now), [chartData, startTime, now]);
-  
+
   const shouldShowChart = chartData.length > 0;
   const shouldShowSkeleton = chartLoading && !hasChartDataRef.current && chartData.length === 0;
 
@@ -365,9 +365,9 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
     ro.observe(el); return () => ro.disconnect();
   }, []);
 
-  const mV = selectedAsset ? Number(selectedAsset.market_value || 0)/100 : dbData.totalMarketValue;
-  const iA = selectedAsset ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0)/100 : dbData.totalInvestedAmount;
-  const iB = selectedAsset ? (Number(selectedAsset.avg_fill || 0)*Number(selectedAsset.quantity || 0))/100 : dbData.totalInvested;
+  const mV = selectedAsset ? Number(selectedAsset.market_value || 0) / 100 : dbData.totalMarketValue;
+  const iA = selectedAsset ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100 : dbData.totalInvestedAmount;
+  const iB = selectedAsset ? (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100 : dbData.totalInvested;
   const pnl = mV - iB;
   const isLoss = pnl < 0;
 
@@ -390,7 +390,7 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
           <span className={`px-2 py-0.5 rounded-xl border text-sm font-semibold shrink-0 ${isLoss ? "border-rose-700/70 bg-rose-600/15 text-rose-300" : "border-emerald-700/70 bg-emerald-600/15 text-emerald-300"}`}>
             {isLoss ? "▼" : "▲"} {formatKMB(Math.abs(pnl))}
           </span>
-          <span className={`text-[12px] font-medium ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>{iB > 0 ? ((pnl/iB)*100).toFixed(1) : "0.0"}% all time</span>
+          <span className={`text-[12px] font-medium ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>{iB > 0 ? ((pnl / iB) * 100).toFixed(1) : "0.0"}% all time</span>
         </div>
         <div ref={chartWrapRef} className="mb-3 w-full h-[170px] relative">
           {shouldShowChart ? (
@@ -405,7 +405,7 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
               </ComposedChart>
             </ResponsiveContainer>
           ) : shouldShowSkeleton ? (
-             <div className="flex items-end gap-1 w-full h-full py-2">
+            <div className="flex items-end gap-1 w-full h-full py-2">
               {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (<Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />))}
             </div>
           ) : (
