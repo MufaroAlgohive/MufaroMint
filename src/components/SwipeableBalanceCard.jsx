@@ -27,6 +27,17 @@ import {
   getSettlementStatusForHolding,
 } from "../lib/useSettlementStatus";
 
+// Shared promise to avoid lock contention when multiple cards mount at once
+let sharedSessionPromise = null;
+const getCoalescedSession = async () => {
+  if (sharedSessionPromise) return sharedSessionPromise;
+  sharedSessionPromise = supabase.auth.getSession().finally(() => {
+    // Reset after a short delay to allow fresh tokens but prevent immediate contention
+    setTimeout(() => { sharedSessionPromise = null; }, 5000);
+  });
+  return sharedSessionPromise;
+};
+
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
 
 const formatFull = (value) => {
@@ -267,9 +278,7 @@ const SwipeableBalanceCard = ({
       if (!userId) return;
       setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await getCoalescedSession();
       const token = session?.access_token;
 
       const [holdingsRes, strategiesRes] = token
