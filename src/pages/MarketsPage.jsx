@@ -7,6 +7,7 @@ import { useProfile } from "../lib/useProfile";
 import { TrendingUp, Search, SlidersHorizontal, X, ChevronRight, Star } from "lucide-react";
 import { saveMarketsInvestFilters, loadMarketsInvestFilters, saveMarketsStrategyFilters, loadMarketsStrategyFilters, buildInvestChips, buildChipsFromFilters } from "../lib/usePersistedFilters.js";
 import NotificationBell from "../components/NotificationBell";
+import FamilyDropdown from "../components/FamilyDropdown";
 import Skeleton from "../components/Skeleton";
 import { ChartContainer } from "../components/ui/line-charts-2";
 import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -914,7 +915,18 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 </svg>
               </button>
             ) : (
-              <div className="h-10 w-10" />
+              <FamilyDropdown
+                profile={profile}
+                userId={profile?.id}
+                initials={initials}
+                avatarUrl={profile?.avatarUrl}
+                onOpenFamily={() =>
+                  window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
+                }
+                onSelectMember={(member) =>
+                  window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
+                }
+              />
             )}
             <h1 className="text-lg font-semibold">Markets</h1>
             <NotificationBell onClick={onOpenNotifications} />

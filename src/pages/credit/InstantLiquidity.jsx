@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { formatZar } from "../../lib/formatCurrency";
 import NotificationBell from "../../components/NotificationBell";
 import NavigationPill from "../../components/NavigationPill";
+import FamilyDropdown from "../../components/FamilyDropdown";
 import { supabase } from "../../lib/supabase";
 import { useRequiredActions } from "../../lib/useRequiredActions";
 import LiquidityFlow from "./LiquidityFlow";
@@ -353,9 +354,18 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       <div className="px-5 pt-12 pb-8">
         {/* Exact Header Styling */}
         <header className="relative flex items-center justify-between mb-10 text-white">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold uppercase">
-            {profile?.firstName?.[0]}{profile?.lastName?.[0]}
-          </div>
+          <FamilyDropdown
+            profile={profile}
+            userId={profile?.id}
+            initials={`${profile?.firstName?.[0] || ""}${profile?.lastName?.[0] || ""}`.toUpperCase()}
+            avatarUrl={profile?.avatarUrl}
+            onOpenFamily={() =>
+              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
+            }
+            onSelectMember={(member) =>
+              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
+            }
+          />
           <NavigationPill activeTab="credit" onTabChange={onTabChange} />
           <NotificationBell onClick={onOpenNotifications} />
         </header>
