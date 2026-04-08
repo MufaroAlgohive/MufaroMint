@@ -425,100 +425,130 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
 
   return (
     <div className="relative w-full z-10 rounded-[26px] overflow-visible">
-      <div className="absolute inset-0 rounded-[26px] overflow-hidden">
+      {/* Background with clipping wrapper */}
+      <div className="absolute inset-0 rounded-[26px] overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(88,62,186,0.45),rgba(8,8,48,0.95)_46%,rgba(5,5,33,0.98)_100%)]" />
       </div>
-      <div className="relative z-10 flex flex-col p-4 text-slate-100">
-        <div className="mb-2 flex items-start justify-between">
+
+      <div className="relative z-10 flex flex-col p-5 text-slate-100">
+        {/* Top Header Row */}
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-bold">
+            PORTFOLIO VALUE
+          </p>
+          <div className="flex items-center gap-3">
+            {/* Status Dot */}
+            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+            {/* Timeframe Tabs */}
+            <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/10">
+              {["d", "w", "m"].map(t => (
+                <button
+                  key={t}
+                  onClick={(e) => { e.stopPropagation(); setActiveTab(t); }}
+                  className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${
+                    activeTab === t ? "bg-white/10 text-white" : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {t.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Balance Display */}
+        <p className="text-[42px] font-bold text-white mb-2 tracking-tight leading-none">
+          {formatFull(iA + pnl)}
+        </p>
+
+        {/* P&L & Dropdown Row */}
+        <div className="flex items-center justify-between mb-4 mt-1">
+          {/* P&L Pill */}
+          <div className="flex items-center gap-2">
+            <span className={`px-2.5 py-1 rounded-full border text-[11px] font-bold flex items-center gap-1.5 ${
+              isLoss 
+                ? "border-rose-500/30 bg-rose-500/10 text-rose-300" 
+                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+            }`}>
+              <span className="text-[10px]">{isLoss ? "▼" : "▲"}</span>
+              {formatKMB(Math.abs(pnl))}
+              <span className="opacity-80">
+                {iB > 0 ? `${((pnl / iB) * 100).toFixed(1)}%` : "0.0%"}
+              </span>
+              <span className="text-[9px] opacity-60 font-medium">
+                {viewMode === 'portfolio' ? "all time" : "since day invested"}
+              </span>
+            </span>
+          </div>
+
+          {/* Filter Dropdown Toggle (Relocated to Right) */}
           <div className="relative" ref={dropdownRef}>
             <button 
               onClick={() => setIsOpen(!isOpen)}
-              className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 transition-colors group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
             >
-              <p className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-white font-medium">
+              <LayoutGrid size={12} className={viewMode === 'strategies' ? 'text-purple-400' : viewMode === 'stocks' ? 'text-blue-400' : 'text-slate-400'} />
+              <span className="text-[11px] font-semibold text-slate-200 uppercase tracking-wider">
                 {headerTitle}
-              </p>
-              <ChevronDown size={10} className={`text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+              </span>
+              <ChevronDown size={12} className={`text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isOpen && (
-              <div className="absolute top-full left-0 mt-1 w-56 bg-[#0a0a2a] border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                <div className="px-3 py-1.5 mb-1 border-b border-white/5">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Select View</p>
+              <div className="absolute top-full right-0 mt-2 w-60 bg-[#16163a]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-2 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                <div className="px-4 py-2 mb-1 border-b border-white/5">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em]">Select View</p>
                 </div>
                 
                 <button 
                   onClick={() => { setViewMode("portfolio"); setSelectedAsset(null); setIsOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-left transition-colors"
                 >
                   <TrendingUp size={14} className="text-emerald-400" />
-                  <span className={`text-[12px] ${viewMode === 'portfolio' ? 'text-white font-bold' : 'text-slate-300'}`}>Total Portfolio</span>
+                  <span className={`text-[12px] font-medium ${viewMode === 'portfolio' ? 'text-white font-bold' : 'text-slate-300'}`}>Total Portfolio</span>
                 </button>
 
-                <div className="mt-2 px-3 py-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">Segments</div>
+                <div className="mt-2 px-4 py-2 text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em]">Segments</div>
                 <button 
                   onClick={() => { setViewMode("stocks"); setSelectedAsset(null); setIsOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-left transition-colors"
                 >
                   <LayoutGrid size={13} className="text-blue-400" />
-                  <span className={`text-[12px] ${viewMode === 'stocks' ? 'text-white font-bold' : 'text-slate-300'}`}>All Individual Stocks</span>
+                  <span className={`text-[12px] font-medium ${viewMode === 'stocks' ? 'text-white font-bold' : 'text-slate-300'}`}>All Individual Stocks</span>
                 </button>
                 <button 
                   onClick={() => { setViewMode("strategies"); setSelectedAsset(null); setIsOpen(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 text-left transition-colors"
                 >
                   <LayoutGrid size={13} className="text-purple-400" />
-                  <span className={`text-[12px] ${viewMode === 'strategies' ? 'text-white font-bold' : 'text-slate-300'}`}>All Strategy Investments</span>
+                  <span className={`text-[12px] font-medium ${viewMode === 'strategies' ? 'text-white font-bold' : 'text-slate-300'}`}>All Strategy Investments</span>
                 </button>
 
-                <div className="mt-2 px-3 py-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">Assets</div>
-                <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                <div className="mt-2 px-4 py-2 text-[10px] text-slate-500 font-bold uppercase tracking-[0.1em]">Assets</div>
+                <div className="max-h-56 overflow-y-auto custom-scrollbar">
                   {dbData.holdings.map((h, i) => (
                     <button 
                       key={h.security_id || h.strategy_id || i}
                       onClick={() => { setSelectedAsset(h); setViewMode("asset"); setIsOpen(false); }}
-                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-white/5 text-left transition-colors"
                     >
                       <div className="flex flex-col">
                         <span className={`text-[12px] ${(viewMode === 'asset' && selectedAsset?.symbol === h.symbol) ? 'text-white font-bold' : 'text-slate-300'}`}>{h.symbol}</span>
-                        <span className="text-[9px] text-slate-500">{h.name}</span>
+                        <span className="text-[9px] text-slate-500 font-medium truncate w-32">{h.name}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400">{formatKMB(Number(h.market_value || 0) / 100)}</span>
+                      <span className="text-[10px] font-mono text-slate-400">{formatKMB(Number(h.market_value || 0) / 100)}</span>
                     </button>
                   ))}
                 </div>
               </div>
             )}
           </div>
+        </div>
 
-          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/11">
-            {["d", "w", "m"].map(t => (
-              <button
-                key={t}
-                onClick={(e) => { e.stopPropagation(); setActiveTab(t); }}
-                className={`px-3 py-1 text-[10px] font-semibold rounded-md transition-colors ${
-                  activeTab === t ? "bg-white/10 text-white" : "text-slate-300 hover:text-white"
-                }`}
-              >
-                {t.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="text-[36px] font-bold text-white mb-3 truncate">{formatFull(iA + pnl)}</p>
-        <div className="mb-2 flex items-center gap-2">
-          <span className={`px-2 py-0.5 rounded-xl border text-sm font-semibold shrink-0 ${
-            isLoss ? "border-rose-700/70 bg-rose-600/15 text-rose-300" : "border-emerald-700/70 bg-emerald-600/15 text-emerald-300"
-          }`}>
-            {isLoss ? "▼" : "▲"} {formatKMB(Math.abs(pnl))}
-          </span>
-          <span className={`text-[12px] font-medium ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>
-            {iB > 0 ? ((pnl / iB) * 100).toFixed(1) : "0.0"}% {viewMode === 'portfolio' ? "all time" : "since day invested"}
-          </span>
-        </div>
-        <div ref={chartWrapRef} className="mb-3 w-full h-[170px] relative">
+        {/* Chart Area */}
+        <div ref={chartWrapRef} className="mb-4 w-full h-[180px] relative">
           {padded.length > 0 ? (
-            <ResponsiveContainer key={`chart-${chartKey}-${activeTab}`} width="100%" height={170}>
+            <ResponsiveContainer key={`chart-${chartKey}-${activeTab}`} width="100%" height={180}>
               <ComposedChart data={padded}>
                 <defs>
                   <linearGradient id={`colorV-${chartKey}`} x1="0" y1="0" x2="0" y2="1">
@@ -529,39 +559,41 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
                 <XAxis dataKey="d" type="number" domain={[startTime, now]} hide />
                 <YAxis yAxisId="pnl" domain={yDomain} hide />
                 <Tooltip content={<BalanceChartTooltip />} />
-                <ReferenceLine yAxisId="pnl" y={0} stroke="rgba(148,163,184,0.4)" strokeDasharray="3 3" />
+                <ReferenceLine yAxisId="pnl" y={0} stroke="rgba(148,163,184,0.3)" strokeDasharray="3 3" />
                 <Area
                   yAxisId="pnl"
                   type="monotone"
                   dataKey="v"
                   stroke={isLoss ? "#FB7185" : "#10B981"}
-                  strokeWidth={2}
+                  strokeWidth={3}
                   fill={`url(#colorV-${chartKey})`}
                   isAnimationActive={false}
                 />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (loading || chartLoading) ? (
-            <div className="flex items-end gap-1 w-full h-full py-2">
-              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (
-                <Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />
+            <div className="flex items-end gap-1.5 w-full h-[180px] py-4">
+              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50, 60, 40].map((h, i) => (
+                <Skeleton key={i} className="flex-1 rounded-sm bg-white/5" style={{ height: `${h}%` }} />
               ))}
             </div>
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-[9px] text-slate-400">No chart data available</p>
+            <div className="flex items-center justify-center h-[180px]">
+              <p className="text-[10px] text-slate-500 font-medium tracking-wide">NO DATA AVAILABLE</p>
             </div>
           )}
         </div>
-        <div className="mt-auto pt-3 pb-5 border-t border-white/10 flex items-start">
-          <div className="flex-1 pr-3">
-            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">ACCOUNT BALANCE</p>
-            <p className="text-[11px] font-semibold text-slate-100 truncate">{formatFull(walletBalance)}</p>
+
+        {/* Card Footer */}
+        <div className="mt-auto pt-4 border-t border-white/10 flex items-start gap-3">
+          <div className="flex-1">
+            <p className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-bold mb-1">ACCOUNT BALANCE</p>
+            <p className="text-[12px] font-bold text-slate-100">{formatFull(walletBalance)}</p>
           </div>
-          <div className="w-px self-stretch bg-white/10 mx-3" />
-          <div className="flex-1 pl-3">
-            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">MINT NUMBER</p>
-            <p className="text-[11px] font-mono font-bold truncate">{mintNumber || "GENERATING..."}</p>
+          <div className="w-px self-stretch bg-white/10" />
+          <div className="flex-1">
+            <p className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-bold mb-1">MINT NUMBER</p>
+            <p className="text-[12px] font-mono font-bold text-slate-300 tracking-tight">{mintNumber || "GENERATING..."}</p>
           </div>
         </div>
       </div>
