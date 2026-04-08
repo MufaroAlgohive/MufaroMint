@@ -50,9 +50,9 @@ import BankLinkPage from "./pages/BankLinkPage.jsx";
 import MintBankPage from "./pages/MintBankPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
 import ActiveSessionsPage from "./pages/ActiveSessionsPage.jsx";
-import FamilyDashboardPage from "./pages/FamilyDashboardPage.jsx";
-import MemberPortfolioPage from "./pages/MemberPortfolioPage.jsx";
 import PinSetupPage from "./pages/PinSetupPage.jsx";
+import FamilyDashboardPage from "./pages/FamilyDashboardPage.jsx";
+import ChildDashboardPage from "./pages/ChildDashboardPage.jsx";
 import { useInactivityTimeout } from "./lib/useInactivityTimeout.jsx";
 import PinLockScreen from "./components/PinLockScreen.jsx";
 import { isPinEnabled } from "./lib/usePin.js";
@@ -121,6 +121,7 @@ const App = () => {
   const [selectedSecurity, setSelectedSecurity] = useState(null);
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [selectedArticleId, setSelectedArticleId] = useState(null);
+  const [selectedFamilyChild, setSelectedFamilyChild] = useState(null);
   const [marketsInitialView, setMarketsInitialView] = useState(null);
   const [portfolioDeepLink, setPortfolioDeepLink] = useState(null);
   const [investmentAmount, setInvestmentAmount] = useState(0);
@@ -132,7 +133,6 @@ const App = () => {
   const [pendingPaymentInfo, setPendingPaymentInfo] = useState(null);
   const [pendingGoalFlow, setPendingGoalFlow] = useState(null);
   const [selectedGoalId, setSelectedGoalId] = useState(null);
-  const [selectedMember, setSelectedMember] = useState(null);
   const selectedGoalIdRef = useRef(null);
   const goalInvestAmountRef = useRef(0);
   const pendingPaymentTypeRef = useRef(null);
@@ -368,6 +368,9 @@ const App = () => {
       const { page, member } = e.detail || {};
       if (member) setSelectedMember(member);
       if (page) {
+        if (page === 'childDashboard' && e.detail?.child) {
+          setSelectedFamilyChild(e.detail.child);
+        }
         if (page === 'userOnboarding') {
           setNotificationReturnPage(currentPage);
         }
@@ -982,10 +985,28 @@ const App = () => {
         return <PaymentSuccessPage onDone={noOp} />;
       case 'userOnboarding':
         return <UserOnboardingPage onComplete={noOp} />;
+      case 'familyDashboard':
+        return (
+          <FamilyDashboardPage
+            onBack={noOp}
+            userId={profile?.id}
+            onOpenChildDashboard={(child) => {
+              setSelectedFamilyChild(child);
+              navigateTo('childDashboard');
+            }}
+          />
+        );
+      case 'childDashboard':
+        return (
+          <ChildDashboardPage
+            child={selectedFamilyChild}
+            onBack={noOp}
+          />
+        );
       default:
         return null;
     }
-  }, [selectedSecurity, selectedStrategy, selectedArticleId, stockCheckout, investmentAmount]);
+  }, [selectedSecurity, selectedStrategy, selectedArticleId, stockCheckout, investmentAmount, selectedFamilyChild]);
 
   const previousPageComponent = useMemo(() => {
     if (!previousPageName || mainTabs.includes(currentPage)) return null;
@@ -1111,27 +1132,10 @@ const App = () => {
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
           onOpenInstantLiquidity={() => navigateTo("instantLiquidity")}
-          onOpenFamily={() => navigateTo("family")}
-          onSelectMember={(member) => { setSelectedMember(member); navigateTo("memberPortfolio"); }}
         />
       </AppLayout>
     );
   }
-  if (currentPage === "family") {
-    return (
-      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <FamilyDashboardPage onBack={goBack} userId={profile?.id} />
-      </SwipeBackWrapper>
-    );
-  }
-  if (currentPage === "memberPortfolio" && selectedMember) {
-    return (
-      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <MemberPortfolioPage member={selectedMember} onBack={goBack} />
-      </SwipeBackWrapper>
-    );
-  }
-
   if (currentPage === "credit") {
     return (
       <AppLayout
@@ -1832,6 +1836,32 @@ const App = () => {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <EditProfilePage onNavigate={navigateTo} onBack={goBack} />
+      </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "familyDashboard") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <FamilyDashboardPage
+          onBack={goBack}
+          userId={profile?.id}
+          onOpenChildDashboard={(child) => {
+            setSelectedFamilyChild(child);
+            navigateTo("childDashboard");
+          }}
+        />
+      </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "childDashboard") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <ChildDashboardPage
+          child={selectedFamilyChild}
+          onBack={goBack}
+        />
       </SwipeBackWrapper>
     );
   }
