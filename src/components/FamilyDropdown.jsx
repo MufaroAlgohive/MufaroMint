@@ -30,14 +30,18 @@ function MemberAvatar({ firstName, avatarUrl, size = "h-9 w-9", isChild = false,
 export default function FamilyDropdown({ profile, userId, initials, avatarUrl, onOpenFamily }) {
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
   const dropdownRef = useRef(null);
+  const fetchedRef = useRef(false);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "My Account";
 
   useEffect(() => {
-    if (open && userId) fetchMembers();
-  }, [open, userId]);
+    if (userId && !fetchedRef.current) {
+      fetchedRef.current = true;
+      fetchMembers();
+    }
+  }, [userId]);
 
   useEffect(() => {
     function handleOutside(e) {
@@ -51,7 +55,6 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
 
   async function fetchMembers() {
     if (!userId) return;
-    setLoading(true);
     try {
       const res = await fetch(`/api/family-members?user_id=${userId}`);
       const json = await res.json();
@@ -59,7 +62,7 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
     } catch (e) {
       console.error("[family] fetch error", e);
     } finally {
-      setLoading(false);
+      setReady(true);
     }
   }
 
@@ -125,50 +128,59 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
               <span className="h-2 w-2 rounded-full bg-emerald-400 flex-shrink-0" />
             </div>
 
-            {/* Spouse section */}
-            <div style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-bold tracking-widest text-white/35 uppercase flex items-center gap-1.5">
-                <Heart className="h-3 w-3" /> Spouse Account
-              </p>
-              {spouse ? (
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <MemberAvatar firstName={spouse.first_name} avatarUrl={spouse.avatar_url} isSpouse />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">
-                      {[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")}
-                    </p>
-                    {spouse.mint_number && (
-                      <p className="text-[11px] text-white/40 font-mono">{spouse.mint_number}</p>
-                    )}
+            {/* Members — shown only once data is ready */}
+            {!ready ? (
+              /* Unified skeleton — whole section at once, no partial loading */
+              <div className="px-4 py-4 space-y-3">
+                {[1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-3 animate-pulse">
+                    <div className="h-9 w-9 rounded-full flex-shrink-0" style={{ background: "rgba(255,255,255,0.08)" }} />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-2.5 rounded-full w-28" style={{ background: "rgba(255,255,255,0.08)" }} />
+                      <div className="h-2 rounded-full w-16" style={{ background: "rgba(255,255,255,0.05)" }} />
+                    </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                {/* Spouse section */}
+                <div style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                  <p className="px-4 pt-3 pb-1 text-[10px] font-bold tracking-widest text-white/35 uppercase flex items-center gap-1.5">
+                    <Heart className="h-3 w-3" /> Spouse Account
+                  </p>
+                  {spouse ? (
+                    <div className="flex items-center gap-3 px-4 py-2.5">
+                      <MemberAvatar firstName={spouse.first_name} avatarUrl={spouse.avatar_url} isSpouse />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">
+                          {[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")}
+                        </p>
+                        {spouse.mint_number && (
+                          <p className="text-[11px] text-white/40 font-mono">{spouse.mint_number}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={goToFamily} className="flex items-center gap-2.5 px-4 py-2.5 w-full text-left group">
+                      <div
+                        className="h-9 w-9 rounded-full border-2 border-dashed flex items-center justify-center flex-shrink-0 transition-colors group-hover:border-violet-400"
+                        style={{ borderColor: "rgba(139,92,246,0.4)" }}
+                      >
+                        <Plus className="h-3.5 w-3.5 text-violet-400" />
+                      </div>
+                      <span className="text-sm font-medium text-violet-400 group-hover:text-violet-300 transition-colors">
+                        Add Spouse Account
+                      </span>
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <button
-                  onClick={goToFamily}
-                  className="flex items-center gap-2.5 px-4 py-2.5 w-full text-left group"
-                >
-                  <div
-                    className="h-9 w-9 rounded-full border-2 border-dashed flex items-center justify-center flex-shrink-0 transition-colors group-hover:border-violet-400"
-                    style={{ borderColor: "rgba(139,92,246,0.4)" }}
-                  >
-                    <Plus className="h-3.5 w-3.5 text-violet-400" />
-                  </div>
-                  <span className="text-sm font-medium text-violet-400 group-hover:text-violet-300 transition-colors">
-                    Add Spouse Account
-                  </span>
-                </button>
-              )}
-            </div>
 
-            {/* Children section */}
-            <div>
-              <p className="px-4 pt-3 pb-1 text-[10px] font-bold tracking-widest text-white/35 uppercase flex items-center gap-1.5">
-                <Users className="h-3 w-3" /> Child Accounts
-              </p>
-              {loading ? (
-                <div className="px-4 py-3 text-xs text-white/40">Loading...</div>
-              ) : (
-                <>
+                {/* Children section */}
+                <div>
+                  <p className="px-4 pt-3 pb-1 text-[10px] font-bold tracking-widest text-white/35 uppercase flex items-center gap-1.5">
+                    <Users className="h-3 w-3" /> Child Accounts
+                  </p>
                   {children.map((child) => {
                     const age = getAge(child.date_of_birth);
                     return (
@@ -187,10 +199,7 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                       </div>
                     );
                   })}
-                  <button
-                    onClick={goToFamily}
-                    className="flex items-center gap-2.5 px-4 py-3 w-full text-left group"
-                  >
+                  <button onClick={goToFamily} className="flex items-center gap-2.5 px-4 py-3 w-full text-left group">
                     <div
                       className="h-9 w-9 rounded-full border-2 border-dashed flex items-center justify-center flex-shrink-0 transition-colors group-hover:border-violet-400"
                       style={{ borderColor: "rgba(139,92,246,0.4)" }}
@@ -201,9 +210,9 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                       Add Child Account
                     </span>
                   </button>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            )}
 
             {/* View all link */}
             {members.length > 0 && (
