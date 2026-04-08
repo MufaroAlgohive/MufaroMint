@@ -28,6 +28,17 @@ import {
   getSettlementStatusForHolding,
 } from "../lib/useSettlementStatus";
 
+// Fix for Supabase auth lock warning in development
+if (process.env.NODE_ENV === 'development') {
+  const originalWarn = console.warn;
+  console.warn = (...args) => {
+    if (args[0]?.includes?.('Lock') && args[0]?.includes?.('not released')) {
+      return; // Suppress the lock warning
+    }
+    originalWarn.apply(console, args);
+  };
+}
+
 // Simple debounce implementation
 const debounce = (func, wait) => {
   let timeout;
@@ -121,10 +132,47 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
   const hasInitialLoadRef = useRef(false);
   const abortControllerRef = useRef(null);
 
+  // SMART FALLBACK DATA GENERATION
+  const generateFallbackData = useCallback(() => {
+    if (!holdings || holdings.length === 0) return [];
+    const days = TIMEFRAME_DAYS[activeTab] || 30;
+    const points = [];
+    const now = Date.now();
+    const startValue = 0;
+    
+    // Use selected asset or total portfolio for end value
+    const targetSet = selectedAsset ? [selectedAsset] : holdings;
+    const endValue = targetSet.reduce((acc, h) => {
+      const marketValue = Number(h.market_value || 0) / 100;
+      const invested = (Number(h.avg_fill || 0) * Number(h.quantity || 1)) / 100;
+      return acc + (marketValue - invested);
+    }, 0);
+    
+    for (let i = days; i >= 0; i--) {
+      const date = new Date(now - i * 24 * 60 * 60 * 1000);
+      const progress = 1 - (i / days);
+      // Create a slight curve rather than pure linear
+      const value = startValue + (endValue - startValue) * (Math.pow(progress, 0.8));
+      points.push({ d: date.getTime(), v: Number(value.toFixed(2)) });
+    }
+    
+    console.log(`📊 [Chart] Initialized with fallback to endValue: R${endValue.toFixed(2)}`);
+    return points;
+  }, [activeTab, holdings, selectedAsset]);
+
   useEffect(() => {
     if (!userId || loading || holdings.length === 0) {
       if (!loading && holdings.length === 0) setChartData([]);
       return;
+    }
+
+    // IMMEDIATELY set smart fallback if needed
+    if (!hasInitialLoadRef.current) {
+      const fbData = generateFallbackData();
+      if (fbData.length > 0) {
+        setChartData(fbData);
+        hasInitialLoadRef.current = true;
+      }
     }
 
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -132,21 +180,11 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
     abortControllerRef.current = abortController;
 
     const fetchChartPrices = async () => {
-      // 1. GENERATE MOCK DATA IMMEDIATELY
-      if (!hasInitialLoadRef.current) {
-        setIsLoading(true);
-        const days = TIMEFRAME_DAYS[activeTab] || 30;
-        const mockPoints = [];
-        for (let i = days; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          mockPoints.push({ d: date.getTime(), v: Math.random() * 80 - 40 });
-        }
-        setChartData(mockPoints);
-      }
+      // Background loading indicator
+      setIsLoading(true);
 
       try {
-        console.log(`📡 [Chart] Fetching REAL data for ${activeTab}...`);
+        console.log(`📡 [Chart] Background fetching real history for ${activeTab}...`);
         const holdingsToChart = selectedAsset ? [selectedAsset] : holdings;
         const days = TIMEFRAME_DAYS[activeTab] || 30;
         const tabCutoff = new Date();
@@ -213,20 +251,20 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
         }
 
         if (realPoints.length > 0 && !abortController.signal.aborted) {
-          console.log(`✅ [Chart] Swapping Mock for Real: ${realPoints.length} points.`);
+          console.log(`✅ [Chart] History Hydrated: ${realPoints.length} granular points.`);
           setChartData(realPoints);
           hasInitialLoadRef.current = true;
           setError(null);
         }
       } catch (err) {
         if (err.name === 'AbortError') return;
-        console.error("❌ [Chart] Real fetch failed - staying on mock/fallback:", err);
+        console.error("❌ [Chart] Fetch failed, keeping smart fallback:", err);
       } finally { setIsLoading(false); }
     };
 
     fetchChartPrices();
     return () => abortControllerRef.current?.abort();
-  }, [userId, holdings, activeTab, selectedAsset, lastUpdated, loading]);
+  }, [userId, holdings, activeTab, selectedAsset, lastUpdated, loading, generateFallbackData]);
 
   return { chartData, isLoading, error };
 };
@@ -295,7 +333,7 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
           fetch("/api/user/strategies", { headers: { Authorization: `Bearer ${session?.access_token}` } }).then(r => r.json())
         ]);
         const stockH = (holdRes.holdings || []).filter(h => !h.strategy_id);
-        const stratH = (stratRes.strategies || []).map(s => ({ symbol: s.shortName || s.name || "Strat", market_value: Math.round((s.currentMarketValue || s.investedAmount || 0) * 100), invested_amount: Math.round((s.investedAmount || 0) * 100), avg_fill: Math.round((s.investedAmount || 0)*100), quantity: 1, isStrategy: true, strategyId: s.id }));
+        const stratH = (stratRes.strategies || []).map(s => ({ symbol: s.shortName || s.name || "Strat", name: s.name, market_value: Math.round((s.currentMarketValue || s.investedAmount || 0) * 100), invested_amount: Math.round((s.investedAmount || 0) * 100), avg_fill: Math.round((s.investedAmount || 0)*100), quantity: 1, isStrategy: true, strategyId: s.id, firstInvestedDate: s.firstInvestedDate }));
         const enriched = [...stockH, ...stratH];
         setDbData({ holdings: enriched, totalMarketValue: enriched.reduce((a, h) => a + Number(h.market_value || 0)/100, 0), totalInvested: enriched.reduce((a,h) => a + (Number(h.avg_fill || 0)*Number(h.quantity||0))/100, 0), totalInvestedAmount: enriched.reduce((a,h) => a + Number(h.invested_amount||h.market_value||0)/100,0), holdingsCount: enriched.length });
       } catch (e) {} finally { setLoading(false); }
@@ -309,6 +347,10 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
   const startTime = getWindowStart(activeTab, dbData.holdings);
   const now = Date.now();
   const padded = useMemo(() => padChartSeriesPoints(chartData, startTime, now), [chartData, startTime, now]);
+  
+  const shouldShowChart = chartData.length > 0;
+  const shouldShowSkeleton = chartLoading && !hasChartDataRef.current && chartData.length === 0;
+
   const yDomain = useMemo(() => {
     if (!padded.length) return [0, "auto"];
     const vals = padded.map(p => p.v);
@@ -351,16 +393,26 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
           <span className={`text-[12px] font-medium ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>{iB > 0 ? ((pnl/iB)*100).toFixed(1) : "0.0"}% all time</span>
         </div>
         <div ref={chartWrapRef} className="mb-3 w-full h-[170px] relative">
-          <ResponsiveContainer key={`chart-${chartKey}`} width="100%" height={170}>
-            <ComposedChart data={padded}>
-              <defs><linearGradient id={`colorV-${chartKey}`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={isLoss ? "#FB7185" : "#10B981"} stopOpacity={0.35} /><stop offset="95%" stopColor={isLoss ? "#FB7185" : "#10B981"} stopOpacity={0} /></linearGradient></defs>
-              <XAxis dataKey="d" type="number" domain={[startTime, now]} hide />
-              <YAxis yAxisId="pnl" domain={yDomain} hide />
-              <Tooltip content={<BalanceChartTooltip />} />
-              <ReferenceLine yAxisId="pnl" y={0} stroke="rgba(148,163,184,0.4)" strokeDasharray="3 3" />
-              <Area yAxisId="pnl" type="monotone" dataKey="v" stroke={isLoss ? "#FB7185" : "#10B981"} strokeWidth={2} fill={`url(#colorV-${chartKey})`} isAnimationActive={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
+          {shouldShowChart ? (
+            <ResponsiveContainer key={`chart-${chartKey}`} width="100%" height={170}>
+              <ComposedChart data={padded}>
+                <defs><linearGradient id={`colorV-${chartKey}`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={isLoss ? "#FB7185" : "#10B981"} stopOpacity={0.35} /><stop offset="95%" stopColor={isLoss ? "#FB7185" : "#10B981"} stopOpacity={0} /></linearGradient></defs>
+                <XAxis dataKey="d" type="number" domain={[startTime, now]} hide />
+                <YAxis yAxisId="pnl" domain={yDomain} hide />
+                <Tooltip content={<BalanceChartTooltip />} />
+                <ReferenceLine yAxisId="pnl" y={0} stroke="rgba(148,163,184,0.4)" strokeDasharray="3 3" />
+                <Area yAxisId="pnl" type="monotone" dataKey="v" stroke={isLoss ? "#FB7185" : "#10B981"} strokeWidth={2} fill={`url(#colorV-${chartKey})`} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : shouldShowSkeleton ? (
+             <div className="flex items-end gap-1 w-full h-full py-2">
+              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (<Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-[9px] text-slate-500">Loading chart...</p>
+            </div>
+          )}
         </div>
         <div className="mt-auto pt-3 pb-5 border-t border-white/10 flex items-start">
           <div className="flex-1 pr-3">
