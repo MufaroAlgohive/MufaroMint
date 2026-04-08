@@ -51,6 +51,7 @@ import MintBankPage from "./pages/MintBankPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
 import ActiveSessionsPage from "./pages/ActiveSessionsPage.jsx";
 import FamilyDashboardPage from "./pages/FamilyDashboardPage.jsx";
+import MemberPortfolioPage from "./pages/MemberPortfolioPage.jsx";
 import PinSetupPage from "./pages/PinSetupPage.jsx";
 import { useInactivityTimeout } from "./lib/useInactivityTimeout.jsx";
 import PinLockScreen from "./components/PinLockScreen.jsx";
@@ -131,6 +132,7 @@ const App = () => {
   const [pendingPaymentInfo, setPendingPaymentInfo] = useState(null);
   const [pendingGoalFlow, setPendingGoalFlow] = useState(null);
   const [selectedGoalId, setSelectedGoalId] = useState(null);
+  const [selectedMember, setSelectedMember] = useState(null);
   const selectedGoalIdRef = useRef(null);
   const goalInvestAmountRef = useRef(0);
   const pendingPaymentTypeRef = useRef(null);
@@ -1109,6 +1111,7 @@ const App = () => {
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
           onOpenInstantLiquidity={() => navigateTo("instantLiquidity")}
           onOpenFamily={() => navigateTo("family")}
+          onSelectMember={(member) => { setSelectedMember(member); navigateTo("memberPortfolio"); }}
         />
       </AppLayout>
     );
@@ -1117,6 +1120,13 @@ const App = () => {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <FamilyDashboardPage onBack={goBack} userId={profile?.id} />
+      </SwipeBackWrapper>
+    );
+  }
+  if (currentPage === "memberPortfolio" && selectedMember) {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <MemberPortfolioPage member={selectedMember} onBack={goBack} />
       </SwipeBackWrapper>
     );
   }

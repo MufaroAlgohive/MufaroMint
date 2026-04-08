@@ -27,7 +27,7 @@ function MemberAvatar({ firstName, avatarUrl, size = "h-9 w-9", isChild = false,
   );
 }
 
-export default function FamilyDropdown({ profile, userId, initials, avatarUrl, onOpenFamily }) {
+export default function FamilyDropdown({ profile, userId, initials, avatarUrl, onOpenFamily, onSelectMember }) {
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState([]);
   const [ready, setReady] = useState(false);
@@ -154,7 +154,10 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                     <Heart className="h-3 w-3" /> Spouse Account
                   </p>
                   {spouse ? (
-                    <div className="flex items-center gap-3 px-4 py-2.5">
+                    <button
+                      onClick={() => { setOpen(false); if (onSelectMember) onSelectMember(spouse); }}
+                      className="flex items-center gap-3 px-4 py-2.5 w-full text-left hover:bg-white/5 transition-colors"
+                    >
                       <MemberAvatar firstName={spouse.first_name} avatarUrl={spouse.avatar_url} isSpouse />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-white truncate">
@@ -164,7 +167,8 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                           <p className="text-[11px] text-white/40 font-mono">{spouse.mint_number}</p>
                         )}
                       </div>
-                    </div>
+                      <span className="text-white/30 text-xs">›</span>
+                    </button>
                   ) : (
                     <button onClick={goToFamily} className="flex items-center gap-2.5 px-4 py-2.5 w-full text-left group">
                       <div
@@ -188,7 +192,11 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                   {children.map((child) => {
                     const age = getAge(child.date_of_birth);
                     return (
-                      <div key={child.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <button
+                        key={child.id}
+                        onClick={() => { setOpen(false); if (onSelectMember) onSelectMember(child); }}
+                        className="flex items-center gap-3 px-4 py-2.5 w-full text-left hover:bg-white/5 transition-colors"
+                      >
                         <MemberAvatar firstName={child.first_name} avatarUrl={child.avatar_url} isChild />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-white truncate">
@@ -200,7 +208,8 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                             {child.mint_number || ""}
                           </p>
                         </div>
-                      </div>
+                        <span className="text-white/30 text-xs">›</span>
+                      </button>
                     );
                   })}
                   <button onClick={goToFamily} className="flex items-center gap-2.5 px-4 py-3 w-full text-left group">

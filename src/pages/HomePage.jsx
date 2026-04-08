@@ -63,6 +63,7 @@ const HomePage = ({
   onOpenNews,
   onOpenNewsArticle,
   onOpenFamily,
+  onSelectMember,
 }) => {
   const { profile, loading } = useProfile();
   const { bankLinked, loading: actionsLoading, refetch: fetchRequiredActions } = useRequiredActions();
@@ -650,6 +651,7 @@ const HomePage = ({
               initials={initials}
               avatarUrl={profile.avatarUrl}
               onOpenFamily={onOpenFamily}
+              onSelectMember={onSelectMember}
             />
 
             <NavigationPill
