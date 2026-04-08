@@ -50,9 +50,9 @@ function Avatar({ name, gradient, size = "h-14 w-14", text = "text-xl" }) {
   );
 }
 
-// ─── AddMemberForm ───────────────────────────────────────────────────────────
+// ─── AddMemberModal (bottom-sheet) ───────────────────────────────────────────
 
-function AddMemberForm({ type, userId, onSave, onCancel }) {
+function AddMemberModal({ type, userId, onSave, onClose }) {
   const [form, setForm] = useState({ first_name: "", last_name: "", date_of_birth: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -88,82 +88,104 @@ function AddMemberForm({ type, userId, onSave, onCancel }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.96, y: -10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.96, y: -10 }}
-      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-      className="rounded-3xl bg-white shadow-lg border border-slate-100 p-6 mb-5 overflow-hidden relative"
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
     >
-      {/* Coloured accent strip */}
-      <div
-        className="absolute top-0 left-0 right-0 h-1 rounded-t-3xl"
-        style={{ background: isSpouse ? "linear-gradient(90deg,#fb7185,#f43f5e)" : "linear-gradient(90deg,#818cf8,#6366f1)" }}
+      {/* Backdrop */}
+      <motion.div
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
       />
 
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <div
-            className="h-10 w-10 rounded-xl flex items-center justify-center"
-            style={{ background: isSpouse ? "linear-gradient(135deg,#fda4af,#fb7185)" : "linear-gradient(135deg,#a5b4fc,#818cf8)" }}
-          >
-            {isSpouse ? <Heart className="h-4.5 w-4.5 text-white h-5 w-5" /> : <Baby className="h-5 w-5 text-white" />}
-          </div>
-          <div>
-            <p className="text-sm font-bold text-slate-900">{isSpouse ? "Add Spouse" : "Add Child"}</p>
-            <p className="text-xs text-slate-400">{isSpouse ? "Link your partner's account" : "Add a child account"}</p>
-          </div>
-        </div>
-        <button
-          onClick={onCancel}
-          className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      {/* Sheet */}
+      <motion.div
+        className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]"
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", stiffness: 380, damping: 38 }}
+      >
+        {/* Coloured accent strip */}
+        <div
+          className="h-1 w-full"
+          style={{ background: isSpouse ? "linear-gradient(90deg,#fb7185,#f43f5e)" : "linear-gradient(90deg,#818cf8,#6366f1)" }}
+        />
 
-      <div className="space-y-3">
-        <input
-          type="text"
-          value={form.first_name}
-          onChange={(e) => setForm(f => ({ ...f, first_name: e.target.value }))}
-          placeholder="First name *"
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
-        />
-        <input
-          type="text"
-          value={form.last_name}
-          onChange={(e) => setForm(f => ({ ...f, last_name: e.target.value }))}
-          placeholder="Last name"
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
-        />
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-            Date of birth{type === "child" ? " *" : ""}
-          </label>
-          <input
-            type="date"
-            value={form.date_of_birth}
-            onChange={(e) => setForm(f => ({ ...f, date_of_birth: e.target.value }))}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
-          />
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full bg-slate-200" />
         </div>
 
-        {error && (
-          <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
-            <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-red-500">{error}</p>
+        <div className="px-6 pt-3 pb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div
+                className="h-10 w-10 rounded-xl flex items-center justify-center"
+                style={{ background: isSpouse ? "linear-gradient(135deg,#fda4af,#fb7185)" : "linear-gradient(135deg,#a5b4fc,#818cf8)" }}
+              >
+                {isSpouse ? <Heart className="h-5 w-5 text-white" /> : <Baby className="h-5 w-5 text-white" />}
+              </div>
+              <div>
+                <p className="text-base font-bold text-slate-900">{isSpouse ? "Add Spouse" : "Add Child"}</p>
+                <p className="text-xs text-slate-400">{isSpouse ? "Link your partner's account" : "Add a child account"}</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
-        )}
 
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
-        >
-          {saving ? "Saving…" : isSpouse ? "Add Spouse" : "Add Child"}
-        </button>
-      </div>
+          <div className="space-y-3">
+            <input
+              type="text"
+              value={form.first_name}
+              onChange={(e) => setForm(f => ({ ...f, first_name: e.target.value }))}
+              placeholder="First name *"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
+            />
+            <input
+              type="text"
+              value={form.last_name}
+              onChange={(e) => setForm(f => ({ ...f, last_name: e.target.value }))}
+              placeholder="Last name"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
+            />
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                Date of birth{type === "child" ? " *" : ""}
+              </label>
+              <input
+                type="date"
+                value={form.date_of_birth}
+                onChange={(e) => setForm(f => ({ ...f, date_of_birth: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
+              />
+            </div>
+
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-red-500">{error}</p>
+              </div>
+            )}
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+            >
+              {saving ? "Saving…" : isSpouse ? "Add Spouse" : "Add Child"}
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -330,18 +352,6 @@ export default function FamilyDashboardPage({ onBack, userId }) {
       {/* ── Content ── */}
       <div className="mx-auto w-full max-w-sm px-4 pb-12 md:max-w-md">
 
-        {/* Add form */}
-        <AnimatePresence>
-          {addingType && (
-            <AddMemberForm
-              type={addingType}
-              userId={userId}
-              onSave={handleMemberSaved}
-              onCancel={() => setAddingType(null)}
-            />
-          )}
-        </AnimatePresence>
-
         <motion.div variants={container} initial="hidden" animate="show" className="space-y-4">
 
           {/* ── Portfolio card ── */}
@@ -423,21 +433,6 @@ export default function FamilyDashboardPage({ onBack, userId }) {
                 </p>
               </div>
             </motion.div>
-          )}
-
-          {/* ── Add Child button ── */}
-          {!addingType && (
-            <motion.button
-              variants={item}
-              onClick={() => setAddingType("child")}
-              whileTap={{ scale: 0.98 }}
-              className="w-full flex items-center justify-center gap-3 rounded-2xl bg-white shadow-sm border border-slate-100 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
-            >
-              <div className="h-7 w-7 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg,#a5b4fc,#818cf8)" }}>
-                <Plus className="h-3.5 w-3.5 text-white" />
-              </div>
-              Add Child Account
-            </motion.button>
           )}
 
           {/* ── Parents section ── */}
@@ -543,6 +538,18 @@ export default function FamilyDashboardPage({ onBack, userId }) {
           )}
         </motion.div>
       </div>
+
+      {/* ── Add member modal (bottom-sheet, fixed overlay) ── */}
+      <AnimatePresence>
+        {addingType && (
+          <AddMemberModal
+            type={addingType}
+            userId={userId}
+            onSave={handleMemberSaved}
+            onClose={() => setAddingType(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
