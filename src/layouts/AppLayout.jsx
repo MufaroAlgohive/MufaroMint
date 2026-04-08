@@ -2,13 +2,42 @@ import React from "react";
 import { X } from "lucide-react";
 import Navbar from "../components/Navbar.jsx";
 import CreditNavbar from "../components/CreditNavbar.jsx";
+import FamilyDropdown from "../components/FamilyDropdown.jsx";
+import { useProfile } from "../lib/useProfile.js";
 
 const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal, onCloseModal, children }) => {
+  const { profile } = useProfile({ enabled: true });
+  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
+  const showFamilyDropdown = activeTab !== "home";
   const creditTabs = ["credit", "instantLiquidity", "creditApply", "creditRepay", "liquidityHistory", "unsecuredCreditDashboard"];
   const isCredit = creditTabs.includes(activeTab);
 
   return (
     <div className="app-shell flex min-h-screen flex-col overflow-hidden">
+      {/* Family profile dropdown — fixed overlay on all tabs except home (home renders its own inline) */}
+      {showFamilyDropdown && profile && (
+        <div className="fixed top-11 left-4 z-[200] pointer-events-auto">
+          <FamilyDropdown
+            profile={profile}
+            userId={profile?.id}
+            initials={initials}
+            avatarUrl={profile?.avatarUrl}
+            onOpenFamily={() =>
+              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
+            }
+            onSelectMember={(member) =>
+              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
+            }
+          />
+        </div>
+      )}
       <main
         className="app-content flex-1 overflow-y-auto pb-[calc(7rem+env(safe-area-inset-bottom))]"
       >
