@@ -365,7 +365,8 @@ const App = () => {
 
   useEffect(() => {
     const handleNavigationEvent = (e) => {
-      const page = e.detail?.page;
+      const { page, member } = e.detail || {};
+      if (member) setSelectedMember(member);
       if (page) {
         if (page === 'userOnboarding') {
           setNotificationReturnPage(currentPage);

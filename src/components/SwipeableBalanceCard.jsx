@@ -27,6 +27,17 @@ import {
   getSettlementStatusForHolding,
 } from "../lib/useSettlementStatus";
 
+// Shared promise to avoid lock contention when multiple cards mount at once
+let sharedSessionPromise = null;
+const getCoalescedSession = async () => {
+  if (sharedSessionPromise) return sharedSessionPromise;
+  sharedSessionPromise = supabase.auth.getSession().finally(() => {
+    // Reset after a short delay to allow fresh tokens but prevent immediate contention
+    setTimeout(() => { sharedSessionPromise = null; }, 5000);
+  });
+  return sharedSessionPromise;
+};
+
 const VISIBILITY_STORAGE_KEY = "mintBalanceVisible";
 
 const formatFull = (value) => {
@@ -267,9 +278,7 @@ const SwipeableBalanceCard = ({
       if (!userId) return;
       setLoading(true);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await getCoalescedSession();
       const token = session?.access_token;
 
       const [holdingsRes, strategiesRes] = token
@@ -382,11 +391,12 @@ const SwipeableBalanceCard = ({
       const startTime = cutoff.getTime();
       const startDateStr = cutoff.toISOString().split("T")[0];
 
-      if (selectedAsset?.isStrategy && selectedAsset?.strategyId) {
+      if ((selectedAsset?.isStrategy || selectedAsset?.strategy_id) && (selectedAsset?.strategy_id || selectedAsset?.id)) {
         const timeframeMap = { d: "1D", w: "1W", m: "1M" };
         const tf = timeframeMap[activeTab] || "1M";
+        const sid = selectedAsset.strategy_id || selectedAsset.id;
         let priceHistory = await getStrategyPriceHistory(
-          selectedAsset.strategyId,
+          sid,
           tf,
         );
         const purchaseDateStr = selectedAsset.firstInvestedDate ? selectedAsset.firstInvestedDate.slice(0, 10) : null;
@@ -422,13 +432,13 @@ const SwipeableBalanceCard = ({
                 });
             });
             setChartData(points);
-            console.log(`✅ [Chart] Generated ${points.length} points for strategy: ${selectedAsset.symbol}`);
+            console.log(`✅ [Chart] Generated ${points.length} points for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
           } else {
-            console.warn(`⚠️ [Chart] Strategy ${selectedAsset.symbol} has 0 NAV.`);
+            console.warn(`⚠️ [Chart] Strategy ${selectedAsset.name || selectedAsset.symbol} has 0 NAV.`);
             setChartData([]);
           }
         } else {
-          console.warn(`⚠️ [Chart] No price history found for strategy: ${selectedAsset.symbol}`);
+          console.warn(`⚠️ [Chart] No price history found for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
           setChartData([]);
         }
         setChartLoading(false);
@@ -436,10 +446,10 @@ const SwipeableBalanceCard = ({
       }
 
       const stockHoldings = holdingsToChart.filter(
-        (h) => h.security_id && !h.isStrategy,
+        (h) => h.security_id && !h.strategy_id,
       );
       const strategyHoldings = holdingsToChart.filter(
-        (h) => h.isStrategy && h.strategyId,
+        (h) => !!h.strategy_id,
       );
 
       const strategyPnlByDate = {};
@@ -447,8 +457,9 @@ const SwipeableBalanceCard = ({
       const tf = timeframeMap[activeTab] || "1M";
       for (const sh of strategyHoldings) {
         try {
-          let priceHistory = await getStrategyPriceHistory(sh.strategyId, tf);
-          const pDateStr = sh.firstInvestedDate ? sh.firstInvestedDate.slice(0, 10) : null;
+          const sid = sh.strategy_id || sh.id;
+          let priceHistory = await getStrategyPriceHistory(sid, tf);
+          const pDateStr = (sh.firstInvestedDate || sh.created_at || "").slice(0, 10);
           if (pDateStr && priceHistory && priceHistory.length > 0) {
             const afterP = priceHistory.filter(p => p.ts.split("T")[0] >= pDateStr);
             if (afterP.length >= 1) {
@@ -477,6 +488,7 @@ const SwipeableBalanceCard = ({
         } catch (e) { }
       }
 
+      const pricePromises = stockHoldings.map(async (h) => {
         try {
           let { data, error } = await supabase
             .from("security_prices")
@@ -531,6 +543,7 @@ const SwipeableBalanceCard = ({
           console.error(`❌ [Chart] Failed to fetch prices for ${h.symbol || h.security_id}:`, err);
           return null;
         }
+      });
 
       const allPriceData = (await Promise.all(pricePromises)).filter(Boolean);
       const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;

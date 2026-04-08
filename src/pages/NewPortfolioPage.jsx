@@ -12,6 +12,7 @@ import { clearMarketDataCache } from "../lib/marketData";
 import SwipeBackWrapper from "../components/SwipeBackWrapper.jsx";
 import PortfolioSkeleton from "../components/PortfolioSkeleton";
 import SettlementBadge from "../components/PendingBadge";
+import FamilyDropdown from "../components/FamilyDropdown";
 
 
 
@@ -328,7 +329,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           const investedVal = matchedHolding ? (matchedHolding.avg_fill * matchedHolding.quantity) / 100 : 0;
           const currentVal = matchedHolding ? (matchedHolding.market_value || 0) / 100 : 0;
           const actualPnlPct = investedVal > 0 ? (currentVal - investedVal) / investedVal : null;
-          data = await getStockMonthlyReturns(calendarFilter, matchedHolding?.created_at || null, actualPnlPct);
+          const livePriceCents = matchedHolding?.last_price ? Number(matchedHolding.last_price) : null;
+          const livePriceRands = livePriceCents ? livePriceCents / 100 : null;
+          data = await getStockMonthlyReturns(calendarFilter, matchedHolding?.created_at || null, actualPnlPct, livePriceRands);
         }
       }
       if (!cancelled) {
@@ -634,18 +637,18 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           {/* Top row: Avatar stacked with greeting, notification on right */}
           <header className="flex items-start justify-between">
             <div className="flex flex-col gap-1">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full overflow-hidden bg-white/20 border border-white/30 text-sm font-semibold text-white">
-                {profile.avatarUrl ? (
-                  <img
-                    src={profile.avatarUrl}
-                    alt={fullName}
-                    className="h-full w-full object-cover"
-                    onError={(e) => { e.target.style.display = 'none'; e.target.parentNode.innerText = initials; }}
-                  />
-                ) : (
-                  <span>{initials}</span>
-                )}
-              </div>
+              <FamilyDropdown
+                profile={profile}
+                userId={profile?.id}
+                initials={initials}
+                avatarUrl={profile?.avatarUrl}
+                onOpenFamily={() =>
+                  window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
+                }
+                onSelectMember={(member) =>
+                  window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
+                }
+              />
               <p className="text-lg font-medium text-white/90 mt-1">{fullName}</p>
             </div>
             <button

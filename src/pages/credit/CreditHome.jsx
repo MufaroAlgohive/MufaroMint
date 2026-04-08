@@ -5,6 +5,7 @@ import {
 import { motion } from 'framer-motion';
 import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
+import FamilyDropdown from "../../components/FamilyDropdown";
 import { supabase } from "../../lib/supabase";
 
 const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
@@ -138,19 +139,18 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
       <div className="relative z-50 rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
           <header className="relative flex items-center justify-between text-white">
-            <div className="flex items-center gap-3">
-              {profile?.avatarUrl ? (
-                <img
-                  src={profile.avatarUrl}
-                  alt={displayName || "Profile"}
-                  className="h-10 w-10 rounded-full border border-white/40 object-cover"
-                />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
-                  {initials || "—"}
-                </div>
-              )}
-            </div>
+            <FamilyDropdown
+              profile={profile}
+              userId={profile?.id}
+              initials={initials}
+              avatarUrl={profile?.avatarUrl}
+              onOpenFamily={() =>
+                window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
+              }
+              onSelectMember={(member) =>
+                window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
+              }
+            />
 
             <NavigationPill activeTab="credit" onTabChange={onTabChange} theme="dark" />
 

@@ -627,33 +627,6 @@ export const getMonthlyReturns = async (strategyId, startDate = null, actualPnlP
       }
     });
 
-    // CRITICAL FIX: Inject live prices for the current month so calendar isn't stale
-    const today = new Date();
-    const liveKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-    if (typeof actualPnlPct === 'number' && navByDate && Object.keys(navByDate).length > 0) {
-      const sortedDates = Object.keys(navByDate).sort();
-      const lastHistDate = sortedDates[sortedDates.length - 1];
-      const lastHistNav = navByDate[lastHistDate];
-      
-      // If we only have data from this month, we can trust actualPnlPct as the source of truth
-      // We set a pseudo-NAV for the current month that represents the live gain
-      const prevMonths = Object.keys(monthlyLastNav).filter(k => k < liveKey).sort();
-      if (prevMonths.length > 0) {
-        const lastMonthEndNav = monthlyLastNav[prevMonths[prevMonths.length - 1]];
-        // We don't have the explicit MTD return here, but we can compute it if we 
-        // approximate. If we want the *entire row* to be correct, it's best to 
-        // inject a NAV that reflects the live state.
-        // For now, let's just make the current month row match any 'live' movement we have.
-        monthlyLastNav[liveKey] = lastMonthEndNav * (1 + actualPnlPct);
-      } else {
-        // First month - just use the relative gain from 100
-        monthlyLastNav[liveKey] = 100 * (1 + actualPnlPct);
-        if (!monthlyFirstNavAfterPurchase[liveKey]) {
-          monthlyFirstNavAfterPurchase[liveKey] = 100;
-        }
-      }
-    }
-
     const sortedMonths = Object.keys(monthlyLastNav).sort();
     const result = {};
 
@@ -724,27 +697,43 @@ export const getMonthlyReturns = async (strategyId, startDate = null, actualPnlP
   }
 };
 
-export const getStockMonthlyReturns = async (securityId, startDate = null, actualPnlPct = null) => {
+export const getStockMonthlyReturns = async (securityId, startDate = null, actualPnlPct = null, livePrice = null) => {
   if (!supabase || !securityId) return {};
 
   const cacheKey = `monthly_returns_stock_${securityId}_${startDate || 'all'}`;
-  const cached = cache.priceHistory.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp) < 300000) {
-    const cachedResult = { ...cached.data };
-    if (typeof actualPnlPct === 'number' && startDate) {
-      const startYMKey = startDate.slice(0, 7);
-      const [sy, sm] = startYMKey.split("-");
-      if (!cachedResult[sy]?.[sm]) {
-        if (!cachedResult[sy]) cachedResult[sy] = {};
-        cachedResult[sy][sm] = actualPnlPct;
+
+  // Only use cache when we have no live price to inject (live price must always be fresh)
+  if (!livePrice) {
+    const cached = cache.priceHistory.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < 300000) {
+      const cachedResult = { ...cached.data };
+      if (typeof actualPnlPct === 'number' && startDate) {
+        const startYMKey = startDate.slice(0, 7);
+        const [sy, sm] = startYMKey.split("-");
+        if (!cachedResult[sy]?.[sm]) {
+          if (!cachedResult[sy]) cachedResult[sy] = {};
+          cachedResult[sy][sm] = actualPnlPct;
+        }
       }
+      return cachedResult;
     }
-    return cachedResult;
   }
 
   try {
     const priceSeries = await getSecurityPrices(securityId, "1Y");
     if (!priceSeries || priceSeries.length < 2) return {};
+
+    // Inject today's live price so the current month reflects the actual live value
+    // rather than stale security_prices data (which may lag by a day or more)
+    if (livePrice && livePrice > 0) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const lastEntry = priceSeries[priceSeries.length - 1];
+      if (lastEntry && lastEntry.ts && lastEntry.ts.slice(0, 10) === todayStr) {
+        lastEntry.close = livePrice;
+      } else {
+        priceSeries.push({ ts: todayStr, close: livePrice });
+      }
+    }
 
     const filterStart = startDate ? startDate.slice(0, 10) : null;
     const startYM = filterStart ? filterStart.slice(0, 7) : null;
@@ -815,7 +804,10 @@ export const getStockMonthlyReturns = async (securityId, startDate = null, actua
     }
 
     // Cache price-series result before injecting actual P&L
-    cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
+    // Skip cache when live price was injected so we don't store stale live data
+    if (!livePrice) {
+      cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
+    }
 
     // Inject actual P&L for start month if price series didn't cover post-purchase period
     if (typeof actualPnlPct === 'number' && startYM) {
@@ -834,10 +826,14 @@ export const getStockMonthlyReturns = async (securityId, startDate = null, actua
 };
 
 export const getOverallPortfolioMonthlyReturns = async (strategyIds, stockSecurityIds, strategies, rawHoldings) => {
+  // Skip cache when there are stock holdings — live prices must always be fresh
+  const hasStockHoldings = stockSecurityIds && stockSecurityIds.length > 0;
   const cacheKey = `monthly_returns_overall_${strategyIds.sort().join("_")}_${stockSecurityIds.sort().join("_")}`;
-  const cached = cache.priceHistory.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp) < 300000) {
-    return cached.data;
+  if (!hasStockHoldings) {
+    const cached = cache.priceHistory.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < 300000) {
+      return cached.data;
+    }
   }
 
   try {
@@ -858,10 +854,11 @@ export const getOverallPortfolioMonthlyReturns = async (strategyIds, stockSecuri
     for (const secId of stockSecurityIds) {
       const holding = rawHoldings.find(h => h.security_id === secId);
       const investedVal = holding ? (holding.avg_fill * holding.quantity) / 100 : 0;
-      const currentVal = holding ? (holding.market_value || 0) / 100 : 0;
-      const actualPnlPct = investedVal > 0 ? (currentVal - investedVal) / investedVal : null;
-      const returns = await getStockMonthlyReturns(secId, holding?.created_at || null, actualPnlPct);
-      const value = currentVal || investedVal || 0;
+      const livePrice = holding?.last_price ? Number(holding.last_price) / 100 : null;
+      const liveMarketVal = livePrice && holding?.quantity ? livePrice * holding.quantity : holding ? (holding.market_value || 0) / 100 : 0;
+      const actualPnlPct = investedVal > 0 ? (liveMarketVal - investedVal) / investedVal : null;
+      const returns = await getStockMonthlyReturns(secId, holding?.created_at || null, actualPnlPct, livePrice);
+      const value = liveMarketVal || investedVal || 0;
       if (Object.keys(returns).length > 0) {
         allMonthlyData.push({ returns, value });
       }
