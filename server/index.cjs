@@ -6273,21 +6273,38 @@ async function ensureFamilyMembersTable() {
   if (!pgPool) return;
   const client = await pgPool.connect();
   try {
+    // Create the table if it doesn't exist at all
     await client.query(`
       CREATE TABLE IF NOT EXISTS family_members (
-        id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-        primary_user_id UUID NOT NULL,
-        relationship TEXT NOT NULL CHECK (relationship IN ('spouse', 'child')),
-        first_name   TEXT NOT NULL,
-        last_name    TEXT DEFAULT '',
-        date_of_birth DATE,
-        avatar_url   TEXT,
-        mint_number  TEXT DEFAULT '',
-        created_at   TIMESTAMPTZ DEFAULT NOW()
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        primary_user_id UUID,
+        relationship    TEXT,
+        first_name      TEXT,
+        last_name       TEXT DEFAULT '',
+        date_of_birth   DATE,
+        avatar_url      TEXT,
+        mint_number     TEXT DEFAULT '',
+        created_at      TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+
+    // Patch any missing columns in case the table was created with an old schema
+    const alterations = [
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS primary_user_id UUID`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS relationship TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS first_name TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT ''`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS date_of_birth DATE`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT ''`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
+    ];
+    for (const sql of alterations) {
+      try { await client.query(sql); } catch (_) { /* column already exists */ }
+    }
+
     await client.query(`CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id)`);
-    console.log('[family] family_members table ready');
+    console.log('[family] family_members table ready (columns verified)');
   } catch (e) {
     console.error('[family] Failed to create family_members table:', e.message);
   } finally {
