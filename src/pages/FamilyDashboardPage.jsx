@@ -78,8 +78,12 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
   /* ── Spouse submit ── */
   async function handleSpouseSubmit() {
-    if (!spouseForm.email?.includes("@")) {
-      setError("Please enter a valid email address.");
+    if (!spouseForm.first_name?.trim() || !spouseForm.last_name?.trim()) {
+      setError("First name and last name are required.");
+      return;
+    }
+    if (spouseForm.email?.trim() && !spouseForm.email.includes("@")) {
+      setError("If provided, email must be valid.");
       return;
     }
     setSaving(true);
@@ -275,7 +279,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 />
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                    Email address *
+                    Email address (optional)
                   </label>
                   <input
                     type="email"
@@ -288,7 +292,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 </div>
 
                 <p className="text-[11px] text-slate-400 leading-relaxed px-1">
-                  We'll check if your spouse is already on Mint. If not, we'll send them an invite to join.
+                  We'll detect your spouse using first name + surname (case-insensitive). Add email only if you want us to send an invite when no match is found.
                 </p>
 
                 {error && (

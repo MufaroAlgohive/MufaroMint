@@ -34,56 +34,107 @@ function buildInviteHtml(inviterName) {
 </div></body></html>`;
 }
 
-async function findExistingUserByEmail(db, normalizedEmail) {
-  const { data: profileMatch, error: profileErr } = await db
+function normalizeName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function pickExactNameMatches(rows, firstName, lastName) {
+  const normalizedFirst = normalizeName(firstName);
+  const normalizedLast = normalizeName(lastName);
+  return (rows || []).filter((row) => (
+    normalizeName(row.first_name) === normalizedFirst
+    && normalizeName(row.last_name) === normalizedLast
+  ));
+}
+
+async function findExistingUserByName(db, firstName, lastName, normalizedEmailHint) {
+  const { data: profileRows, error: profileErr } = await db
     .from("profiles")
     .select("id, first_name, last_name, email")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
+    .ilike("first_name", firstName)
+    .ilike("last_name", lastName)
+    .limit(20);
 
-  if (!profileErr && profileMatch) {
-    return {
-      id: profileMatch.id,
-      first_name: profileMatch.first_name || "",
-      last_name: profileMatch.last_name || "",
-      email: profileMatch.email || normalizedEmail,
-    };
+  if (!profileErr) {
+    const exactProfiles = pickExactNameMatches(profileRows, firstName, lastName);
+    if (exactProfiles.length === 1) {
+      return { match: exactProfiles[0], ambiguous: false };
+    }
+    if (exactProfiles.length > 1) {
+      if (normalizedEmailHint) {
+        const byEmail = exactProfiles.find((p) => normalizeName(p.email) === normalizedEmailHint);
+        if (byEmail) return { match: byEmail, ambiguous: false };
+      }
+      return { match: null, ambiguous: true };
+    }
   }
 
-  const { data: onboardingMatch, error: onboardingErr } = await db
+  const { data: onboardingRows, error: onboardingErr } = await db
     .from("user_onboarding")
     .select("id, user_id, first_name, last_name, email")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
+    .ilike("first_name", firstName)
+    .ilike("last_name", lastName)
+    .limit(20);
 
-  if (!onboardingErr && onboardingMatch) {
-    const linkedUserId = onboardingMatch.user_id || onboardingMatch.id || null;
-    if (linkedUserId) {
-      const { data: linkedProfile, error: linkedProfileErr } = await db
+  if (!onboardingErr) {
+    const exactOnboarding = pickExactNameMatches(onboardingRows, firstName, lastName);
+    if (exactOnboarding.length === 1) {
+      const row = exactOnboarding[0];
+      const linkedUserId = row.user_id || row.id || null;
+      if (!linkedUserId) return { match: null, ambiguous: false };
+
+      const { data: linkedProfile } = await db
         .from("profiles")
         .select("id, first_name, last_name, email")
         .eq("id", linkedUserId)
         .maybeSingle();
 
-      if (!linkedProfileErr && linkedProfile) {
+      if (linkedProfile) {
         return {
-          id: linkedProfile.id,
-          first_name: linkedProfile.first_name || onboardingMatch.first_name || "",
-          last_name: linkedProfile.last_name || onboardingMatch.last_name || "",
-          email: linkedProfile.email || onboardingMatch.email || normalizedEmail,
+          match: {
+            id: linkedProfile.id,
+            first_name: linkedProfile.first_name || row.first_name || "",
+            last_name: linkedProfile.last_name || row.last_name || "",
+            email: linkedProfile.email || row.email || null,
+          },
+          ambiguous: false,
         };
       }
 
       return {
-        id: linkedUserId,
-        first_name: onboardingMatch.first_name || "",
-        last_name: onboardingMatch.last_name || "",
-        email: onboardingMatch.email || normalizedEmail,
+        match: {
+          id: linkedUserId,
+          first_name: row.first_name || "",
+          last_name: row.last_name || "",
+          email: row.email || null,
+        },
+        ambiguous: false,
       };
+    }
+
+    if (exactOnboarding.length > 1) {
+      if (normalizedEmailHint) {
+        const byEmail = exactOnboarding.find((p) => normalizeName(p.email) === normalizedEmailHint);
+        if (byEmail) {
+          const linkedUserId = byEmail.user_id || byEmail.id || null;
+          if (linkedUserId) {
+            return {
+              match: {
+                id: linkedUserId,
+                first_name: byEmail.first_name || "",
+                last_name: byEmail.last_name || "",
+                email: byEmail.email || null,
+              },
+              ambiguous: false,
+            };
+          }
+        }
+      }
+      return { match: null, ambiguous: true };
     }
   }
 
-  return null;
+  return { match: null, ambiguous: false };
 }
 
 /* ── handler ──────────────────────────────────────────────────────────────── */
@@ -133,8 +184,11 @@ export default async function handler(req, res) {
     try {
       /* ──────────────── SPOUSE ──────────────── */
       if (relationship === "spouse") {
-        if (!email || !email.includes("@")) {
-          return res.status(400).json({ error: "A valid email address is required to link a spouse." });
+        if (!first_name?.trim() || !last_name?.trim()) {
+          return res.status(400).json({ error: "First name and last name are required to link a spouse." });
+        }
+        if (email && !email.includes("@")) {
+          return res.status(400).json({ error: "If provided, email must be valid." });
         }
 
         // Already have a spouse?
@@ -148,9 +202,22 @@ export default async function handler(req, res) {
           return res.status(409).json({ error: "A spouse is already linked to this account." });
         }
 
-        // Look up spouse in profiles, then fallback to user_onboarding
-        const normalizedEmail = email.toLowerCase().trim();
-        const matchedProfile = await findExistingUserByEmail(db, normalizedEmail);
+        // Look up spouse by case-insensitive name + surname
+        const normalizedEmail = email?.toLowerCase().trim() || null;
+        const nameFirst = first_name.trim();
+        const nameLast = last_name.trim();
+        const { match: matchedProfile, ambiguous } = await findExistingUserByName(
+          db,
+          nameFirst,
+          nameLast,
+          normalizedEmail
+        );
+
+        if (ambiguous) {
+          return res.status(409).json({
+            error: "Multiple users found with that name. Please provide their email to disambiguate.",
+          });
+        }
 
         if (matchedProfile) {
           // Prevent self-linking
@@ -177,7 +244,7 @@ export default async function handler(req, res) {
             relationship: "spouse",
             first_name: matchedProfile.first_name || first_name?.trim() || "",
             last_name: matchedProfile.last_name || last_name?.trim() || "",
-            spouse_email: normalizedEmail,
+            spouse_email: normalizedEmail || matchedProfile.email || null,
             mint_number: spouseMintNumber,
           };
 
@@ -206,7 +273,13 @@ export default async function handler(req, res) {
           return res.status(201).json({ member, linked: true });
         }
 
-        /* ── user NOT found → send invite email ── */
+        /* ── user NOT found → optional invite email ── */
+        if (!normalizedEmail) {
+          return res.status(404).json({
+            error: "No Mint account found for that name and surname. Add an email to send an invite.",
+          });
+        }
+
         const { data: inviterProfile } = await db
           .from("profiles")
           .select("first_name, last_name")
