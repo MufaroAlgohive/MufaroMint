@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, TrendingUp, TrendingDown, Heart, Users,
-  ShieldCheck, Crown, Baby, Sparkles, UserPlus
+  ShieldCheck, Crown, Baby, Sparkles, UserPlus, Mail, Upload, Check, FileText
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
@@ -52,14 +52,36 @@ function Avatar({ name, gradient, size = "h-14 w-14", text = "text-xl" }) {
 
 // ─── AddMemberModal (bottom-sheet) ───────────────────────────────────────────
 
+const slideVariants = {
+  enter: (dir) => ({ x: dir * 200, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir) => ({ x: dir * -200, opacity: 0 }),
+};
+
 function AddMemberModal({ type, userId, onSave, onClose }) {
-  const [form, setForm] = useState({ first_name: "", last_name: "", date_of_birth: "" });
+  /* ── Spouse state ── */
+  const [spouseForm, setSpouseForm] = useState({ first_name: "", last_name: "", email: "" });
+  const [spouseResult, setSpouseResult] = useState(null); // null | { linked, member } | { invited, … }
+
+  /* ── Child state ── */
+  const [childForm, setChildForm] = useState({ first_name: "", last_name: "", date_of_birth: "" });
+  const [childStep, setChildStep] = useState(0); // 0 = details, 1 = certificate
+  const [slideDir, setSlideDir] = useState(1);
+  const [certFile, setCertFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
+  /* ── Shared ── */
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSave() {
-    if (!form.first_name.trim()) { setError("First name is required."); return; }
-    if (type === "child" && !form.date_of_birth) { setError("Date of birth is required for a child."); return; }
+  const isSpouse = type === "spouse";
+
+  /* ── Spouse submit ── */
+  async function handleSpouseSubmit() {
+    if (!spouseForm.email?.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
     setSaving(true);
     setError("");
     try {
@@ -68,15 +90,23 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           primary_user_id: userId,
-          relationship: type,
-          first_name: form.first_name,
-          last_name: form.last_name,
-          date_of_birth: form.date_of_birth || null,
+          relationship: "spouse",
+          first_name: spouseForm.first_name,
+          last_name: spouseForm.last_name,
+          email: spouseForm.email,
         }),
       });
       const json = await res.json();
-      if (!res.ok) { setError(json.error || "Could not add family member."); return; }
-      onSave(json.member);
+      if (!res.ok && !json.invited) {
+        setError(json.error || "Could not link spouse.");
+        return;
+      }
+      if (json.invited) {
+        setSpouseResult({ invited: true, ...json });
+      } else {
+        // Show success screen first — onSave fires when user taps "Done"
+        setSpouseResult({ linked: true, member: json.member });
+      }
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -84,8 +114,92 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
     }
   }
 
-  const isSpouse = type === "spouse";
+  /* ── Child: advance to cert step ── */
+  function handleChildNext() {
+    if (!childForm.first_name.trim()) { setError("First name is required."); return; }
+    if (!childForm.date_of_birth) { setError("Date of birth is required."); return; }
+    setError("");
+    setSlideDir(1);
+    setChildStep(1);
+  }
 
+  function handleChildBack() {
+    setError("");
+    setSlideDir(-1);
+    setChildStep(0);
+  }
+
+  /* ── Child: file pick ── */
+  function handleCertSelect(e) {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError("File must be under 10 MB.");
+        return;
+      }
+      setError("");
+      setCertFile(file);
+    }
+  }
+
+  /* ── Child: upload cert + save ── */
+  async function handleChildSubmit() {
+    if (!certFile) { setError("Please upload the birth certificate."); return; }
+    setSaving(true);
+    setUploading(true);
+    setError("");
+    try {
+      // Upload to Supabase storage
+      const safeFileName = certFile.name.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
+      const filePath = `${userId}/${Date.now()}-${safeFileName}`;
+
+      let certificateUrl = null;
+      if (supabase) {
+        const { error: uploadError } = await supabase.storage
+          .from("birth-certificates")
+          .upload(filePath, certFile, { upsert: true });
+
+        if (uploadError) {
+          console.warn("[family] Certificate upload failed:", uploadError.message);
+          certificateUrl = `pending://${safeFileName}`;
+        } else {
+          certificateUrl = `storage://birth-certificates/${filePath}`;
+        }
+      } else {
+        certificateUrl = `pending://${safeFileName}`;
+      }
+
+      setUploading(false);
+
+      // POST to API
+      const res = await fetch("/api/family-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          primary_user_id: userId,
+          relationship: "child",
+          first_name: childForm.first_name,
+          last_name: childForm.last_name,
+          date_of_birth: childForm.date_of_birth,
+          certificate_url: certificateUrl,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error || "Could not add child."); return; }
+      onSave(json.member);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+      setUploading(false);
+    }
+  }
+
+  /* ── input classes (shared) ── */
+  const inputCls =
+    "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition";
+
+  /* ── render ── */
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-end justify-center"
@@ -95,10 +209,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
       transition={{ duration: 0.2 }}
     >
       {/* Backdrop */}
-      <motion.div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <motion.div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
       {/* Sheet */}
       <motion.div
@@ -108,7 +219,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
         exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 380, damping: 38 }}
       >
-        {/* Coloured accent strip */}
+        {/* Accent strip */}
         <div
           className="h-1 w-full"
           style={{ background: isSpouse ? "linear-gradient(90deg,#fb7185,#f43f5e)" : "linear-gradient(90deg,#818cf8,#6366f1)" }}
@@ -120,70 +231,323 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
         </div>
 
         <div className="px-6 pt-3 pb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
+
+          {/* ═══════════════ SPOUSE: form ═══════════════ */}
+          {isSpouse && !spouseResult && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg,#fda4af,#fb7185)" }}
+                  >
+                    <Heart className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-slate-900">Add Spouse</p>
+                    <p className="text-xs text-slate-400">Link your partner's Mint account</p>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={spouseForm.first_name}
+                  onChange={(e) => setSpouseForm(f => ({ ...f, first_name: e.target.value }))}
+                  placeholder="First name"
+                  autoComplete="off"
+                  className={inputCls}
+                />
+                <input
+                  type="text"
+                  value={spouseForm.last_name}
+                  onChange={(e) => setSpouseForm(f => ({ ...f, last_name: e.target.value }))}
+                  placeholder="Last name"
+                  autoComplete="off"
+                  className={inputCls}
+                />
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                    Email address *
+                  </label>
+                  <input
+                    type="email"
+                    value={spouseForm.email}
+                    onChange={(e) => setSpouseForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="partner@example.com"
+                    autoComplete="off"
+                    className={inputCls}
+                  />
+                </div>
+
+                <p className="text-[11px] text-slate-400 leading-relaxed px-1">
+                  We'll check if your spouse is already on Mint. If not, we'll send them an invite to join.
+                </p>
+
+                {error && (
+                  <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                    <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-red-500">{error}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSpouseSubmit}
+                  disabled={saving}
+                  className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+                >
+                  {saving ? "Checking…" : "Link Spouse"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ═══════════════ SPOUSE: linked success ═══════════════ */}
+          {isSpouse && spouseResult?.linked && (
+            <motion.div
+              className="text-center py-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
               <div
-                className="h-10 w-10 rounded-xl flex items-center justify-center"
-                style={{ background: isSpouse ? "linear-gradient(135deg,#fda4af,#fb7185)" : "linear-gradient(135deg,#a5b4fc,#818cf8)" }}
+                className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg,#d1fae5,#a7f3d0)" }}
               >
-                {isSpouse ? <Heart className="h-5 w-5 text-white" /> : <Baby className="h-5 w-5 text-white" />}
+                <ShieldCheck className="h-8 w-8 text-emerald-600" />
               </div>
-              <div>
-                <p className="text-base font-bold text-slate-900">{isSpouse ? "Add Spouse" : "Add Child"}</p>
-                <p className="text-xs text-slate-400">{isSpouse ? "Link your partner's account" : "Add a child account"}</p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
+              <p className="text-lg font-bold text-slate-900">Spouse Linked!</p>
+              <p className="text-sm text-slate-500 mt-2">
+                {[spouseResult.member?.first_name, spouseResult.member?.last_name].filter(Boolean).join(" ")} has been linked to your family account.
+              </p>
+              {spouseResult.member?.mint_number && (
+                <p className="text-xs text-slate-400 mt-1">Mint # {spouseResult.member.mint_number}</p>
+              )}
+              <button
+                onClick={() => { onSave(spouseResult.member); }}
+                className="mt-6 w-full rounded-xl py-3.5 text-sm font-bold text-white active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+              >
+                Done
+              </button>
+            </motion.div>
+          )}
+
+          {/* ═══════════════ SPOUSE: invite sent ═══════════════ */}
+          {isSpouse && spouseResult?.invited && (
+            <motion.div
+              className="text-center py-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            <input
-              type="text"
-              value={form.first_name}
-              onChange={(e) => setForm(f => ({ ...f, first_name: e.target.value }))}
-              placeholder="First name *"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
-            />
-            <input
-              type="text"
-              value={form.last_name}
-              onChange={(e) => setForm(f => ({ ...f, last_name: e.target.value }))}
-              placeholder="Last name"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
-            />
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                Date of birth{type === "child" ? " *" : ""}
-              </label>
-              <input
-                type="date"
-                value={form.date_of_birth}
-                onChange={(e) => setForm(f => ({ ...f, date_of_birth: e.target.value }))}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
-                <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-red-500">{error}</p>
+              <div
+                className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)" }}
+              >
+                <Mail className="h-8 w-8 text-indigo-500" />
               </div>
-            )}
+              <p className="text-lg font-bold text-slate-900">Invitation Sent</p>
+              <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                {spouseResult.message}
+              </p>
+              <button
+                onClick={onClose}
+                className="mt-6 w-full rounded-xl py-3.5 text-sm font-bold text-white active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+              >
+                Got it
+              </button>
+            </motion.div>
+          )}
 
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
-            >
-              {saving ? "Saving…" : isSpouse ? "Add Spouse" : "Add Child"}
-            </button>
-          </div>
+          {/* ═══════════════ CHILD: two-step ═══════════════ */}
+          {!isSpouse && (
+            <>
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  {childStep === 1 && (
+                    <button
+                      onClick={handleChildBack}
+                      className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95 mr-1"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <div
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg,#a5b4fc,#818cf8)" }}
+                  >
+                    {childStep === 0
+                      ? <Baby className="h-5 w-5 text-white" />
+                      : <FileText className="h-5 w-5 text-white" />}
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-slate-900">
+                      {childStep === 0 ? "Add Child" : "Birth Certificate"}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {childStep === 0 ? "Step 1 of 2 — Child details" : "Step 2 of 2 — Upload document"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Animated step container */}
+              <div className="overflow-hidden">
+                <AnimatePresence mode="wait" custom={slideDir} initial={false}>
+                  {/* Step 0 — details */}
+                  {childStep === 0 && (
+                    <motion.div
+                      key="child-details"
+                      custom={slideDir}
+                      variants={slideVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={childForm.first_name}
+                          onChange={(e) => setChildForm(f => ({ ...f, first_name: e.target.value }))}
+                          placeholder="First name *"
+                          autoComplete="off"
+                          className={inputCls}
+                        />
+                        <input
+                          type="text"
+                          value={childForm.last_name}
+                          onChange={(e) => setChildForm(f => ({ ...f, last_name: e.target.value }))}
+                          placeholder="Last name"
+                          autoComplete="off"
+                          className={inputCls}
+                        />
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                            Date of birth *
+                          </label>
+                          <input
+                            type="date"
+                            value={childForm.date_of_birth}
+                            onChange={(e) => setChildForm(f => ({ ...f, date_of_birth: e.target.value }))}
+                            className={inputCls}
+                          />
+                        </div>
+
+                        {error && (
+                          <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                            <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-red-500">{error}</p>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={handleChildNext}
+                          className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98]"
+                          style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Step 1 — certificate upload */}
+                  {childStep === 1 && (
+                    <motion.div
+                      key="child-cert"
+                      custom={slideDir}
+                      variants={slideVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                      <div className="space-y-4">
+                        <p className="text-sm text-slate-500 leading-relaxed">
+                          Upload <strong>{childForm.first_name || "your child"}'s</strong> unabridged birth certificate to verify their identity.
+                        </p>
+
+                        {/* Upload drop-zone */}
+                        <label
+                          className={`block w-full cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition ${
+                            certFile
+                              ? "border-emerald-300 bg-emerald-50/50"
+                              : "border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/30"
+                          }`}
+                        >
+                          <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.heic"
+                            className="hidden"
+                            onChange={handleCertSelect}
+                          />
+                          {certFile ? (
+                            <div className="flex flex-col items-center gap-2">
+                              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                                <Check className="h-5 w-5 text-emerald-600" />
+                              </div>
+                              <span className="text-sm font-semibold text-emerald-700 truncate max-w-[240px]">
+                                {certFile.name}
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              <Upload className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                              <p className="text-sm font-semibold text-slate-600">Tap to upload</p>
+                              <p className="text-[11px] text-slate-400 mt-1">PDF, JPG or PNG · Max 10 MB</p>
+                            </>
+                          )}
+                        </label>
+
+                        {certFile && (
+                          <button
+                            onClick={() => setCertFile(null)}
+                            className="text-xs text-slate-400 hover:text-red-500 transition"
+                          >
+                            Remove file
+                          </button>
+                        )}
+
+                        {error && (
+                          <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                            <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-red-500">{error}</p>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={handleChildSubmit}
+                          disabled={saving || !certFile}
+                          className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                          style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+                        >
+                          {uploading ? "Uploading…" : saving ? "Adding…" : "Add Child"}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -237,7 +601,7 @@ function MemberRow({ gradient, name, role, roleIcon, roleColor, detail, value, b
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-export default function FamilyDashboardPage({ onBack, userId }) {
+export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboard }) {
   const { profile } = useProfile();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -497,20 +861,62 @@ export default function FamilyDashboardPage({ onBack, userId }) {
               <div className="space-y-3">
                 {children.map((child, i) => {
                   const age = getAge(child.date_of_birth);
+                  const childName = [child.first_name, child.last_name].filter(Boolean).join(" ");
+                  const parentMint = profile?.mintNumber;
                   return (
-                    <MemberRow
+                    <motion.button
                       key={child.id}
-                      gradient={childAvatarGradients[i % childAvatarGradients.length]}
-                      name={[child.first_name, child.last_name].filter(Boolean).join(" ")}
-                      role="Child"
-                      roleIcon={<Baby className="h-2.5 w-2.5" />}
-                      roleColor={{ bg: "#eff6ff", text: "#2563eb" }}
-                      detail={[age !== null ? `Age ${age}` : null, child.mint_number || null].filter(Boolean).join(" · ") || undefined}
-                      value={fmt(0)}
-                      barPct={childBarWidths[i % childBarWidths.length]}
-                      barGradient={childBarGradients[i % childBarGradients.length]}
-                      delay={i * 0.06}
-                    />
+                      variants={item}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => onOpenChildDashboard?.(child)}
+                      className="w-full text-left rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden"
+                    >
+                      <div className="flex">
+                        <div className="w-1 flex-shrink-0" style={{ background: childBarGradients[i % childBarGradients.length] }} />
+                        <div className="flex-1 p-4">
+                          <div className="flex items-center gap-3.5">
+                            <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-13 w-13" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[15px] font-bold text-slate-900 leading-tight truncate">{childName}</p>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide" style={{ background: "#eff6ff", color: "#2563eb" }}>
+                                  <Baby className="h-2.5 w-2.5" />
+                                  Child
+                                </span>
+                                {age !== null && (
+                                  <span className="text-[11px] font-semibold text-slate-500">{age} yr{age !== 1 ? "s" : ""} old</span>
+                                )}
+                              </div>
+                              {/* Managed by parent */}
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                <ShieldCheck className="h-3 w-3 text-indigo-400 flex-shrink-0" />
+                                <span className="text-[10px] text-slate-400 truncate">
+                                  Managed by {profile?.firstName || "Parent"}
+                                  {parentMint ? ` · #${parentMint}` : ""}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-[15px] font-bold text-slate-900 tabular-nums">{fmt(child.available_balance || 0)}</p>
+                              {child.mint_number && (
+                                <p className="text-[10px] text-slate-400 mt-0.5">{child.mint_number}</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className="mt-3.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            <motion.div
+                              className="h-full rounded-full"
+                              style={{ background: childBarGradients[i % childBarGradients.length] }}
+                              initial={{ width: 0 }}
+                              animate={{ width: `${childBarWidths[i % childBarWidths.length]}%` }}
+                              transition={{ delay: i * 0.06 + 0.3, duration: 0.8, ease: "easeOut" }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </motion.button>
                   );
                 })}
 
