@@ -297,11 +297,9 @@ class ChartErrorBoundary extends React.Component {
     }
     return this.props.children;
   }
-}
-
-const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
-  const [isOpen, setIsOpen] = useState(false);
+}  const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [viewMode, setViewMode] = useState("portfolio"); // 'portfolio', 'stocks', 'strategies', 'asset'
   const { lastUpdated } = useRealtimePrices();
   const [dbData, setDbData] = useState({ holdings: [], totalMarketValue: 0, totalInvested: 0, totalInvestedAmount: 0, holdingsCount: 0 });
   const [selectedAsset, setSelectedAsset] = useState(null);
@@ -373,7 +371,14 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
     loadD();
   }, [userId, lastUpdated]);
 
-  const { chartData, isLoading: chartLoading } = useChartData(userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading);
+  const effectiveHoldings = useMemo(() => {
+    if (viewMode === "stocks") return dbData.holdings.filter(h => !h.isStrategy);
+    if (viewMode === "strategies") return dbData.holdings.filter(h => h.isStrategy);
+    if (viewMode === "asset" && selectedAsset) return [selectedAsset];
+    return dbData.holdings;
+  }, [viewMode, selectedAsset, dbData.holdings]);
+
+  const { chartData, isLoading: chartLoading } = useChartData(userId, effectiveHoldings, activeTab, viewMode === 'asset' ? selectedAsset : null, lastUpdated, loading);
 
   const startTime = useMemo(() => getWindowStart(activeTab, dbData.holdings), [activeTab, dbData.holdings]);
   const now = Date.now();
@@ -396,11 +401,21 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
     return () => ro.disconnect();
   }, []);
 
-  const mV = selectedAsset ? Number(selectedAsset.market_value || 0) / 100 : dbData.totalMarketValue;
-  const iA = selectedAsset ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100 : dbData.totalInvestedAmount;
-  const iB = selectedAsset ? (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100 : dbData.totalInvested;
+  const currentHoldings = effectiveHoldings;
+  const mV = currentHoldings.reduce((a, h) => a + Number(h.market_value || 0) / 100, 0);
+  const iB = currentHoldings.reduce((a, h) => a + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100, 0);
+  const iA = currentHoldings.reduce((a, h) => a + Number(h.invested_amount || h.market_value || 0) / 100, 0);
+  
   const pnl = mV - iB;
   const isLoss = pnl < 0;
+
+  const headerTitle = useMemo(() => {
+    if (viewMode === "portfolio") return "portfolio value";
+    if (viewMode === "stocks") return "all investment";
+    if (viewMode === "strategies") return "strategy investment";
+    if (viewMode === "asset") return selectedAsset?.symbol || "asset";
+    return "portfolio value";
+  }, [viewMode, selectedAsset]);
 
   if (loading && userId) return <div className="w-full h-full rounded-[28px] bg-slate-50 p-4 animate-pulse" />;
 
@@ -415,7 +430,7 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
               className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 transition-colors group"
             >
               <p className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-white font-medium">
-                {selectedAsset ? selectedAsset.symbol : "portfolio value"}
+                {headerTitle}
               </p>
               <ChevronDown size={10} className={`text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -427,27 +442,27 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
                 </div>
                 
                 <button 
-                  onClick={() => { setSelectedAsset(null); setIsOpen(false); }}
+                  onClick={() => { setViewMode("portfolio"); setSelectedAsset(null); setIsOpen(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
                 >
                   <TrendingUp size={14} className="text-emerald-400" />
-                  <span className={`text-[12px] ${!selectedAsset ? 'text-white font-bold' : 'text-slate-300'}`}>Total Portfolio</span>
+                  <span className={`text-[12px] ${viewMode === 'portfolio' ? 'text-white font-bold' : 'text-slate-300'}`}>Total Portfolio</span>
                 </button>
 
                 <div className="mt-2 px-3 py-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">Segments</div>
                 <button 
-                  onClick={() => { /* Filter logic if needed, currently resets or highlights */ setSelectedAsset(null); setIsOpen(false); }}
+                  onClick={() => { setViewMode("stocks"); setSelectedAsset(null); setIsOpen(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
                 >
                   <LayoutGrid size={13} className="text-blue-400" />
-                  <span className="text-[12px] text-slate-300">All Individual Stocks</span>
+                  <span className={`text-[12px] ${viewMode === 'stocks' ? 'text-white font-bold' : 'text-slate-300'}`}>All Individual Stocks</span>
                 </button>
                 <button 
-                  onClick={() => { setSelectedAsset(null); setIsOpen(false); }}
+                  onClick={() => { setViewMode("strategies"); setSelectedAsset(null); setIsOpen(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
                 >
                   <LayoutGrid size={13} className="text-purple-400" />
-                  <span className="text-[12px] text-slate-300">All Strategy Investments</span>
+                  <span className={`text-[12px] ${viewMode === 'strategies' ? 'text-white font-bold' : 'text-slate-300'}`}>All Strategy Investments</span>
                 </button>
 
                 <div className="mt-2 px-3 py-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">Assets</div>
@@ -455,11 +470,11 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
                   {dbData.holdings.map((h, i) => (
                     <button 
                       key={h.security_id || h.strategy_id || i}
-                      onClick={() => { setSelectedAsset(h); setIsOpen(false); }}
+                      onClick={() => { setSelectedAsset(h); setViewMode("asset"); setIsOpen(false); }}
                       className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 text-left transition-colors"
                     >
                       <div className="flex flex-col">
-                        <span className={`text-[12px] ${selectedAsset?.symbol === h.symbol ? 'text-white font-bold' : 'text-slate-300'}`}>{h.symbol}</span>
+                        <span className={`text-[12px] ${(viewMode === 'asset' && selectedAsset?.symbol === h.symbol) ? 'text-white font-bold' : 'text-slate-300'}`}>{h.symbol}</span>
                         <span className="text-[9px] text-slate-500">{h.name}</span>
                       </div>
                       <span className="text-[10px] text-slate-400">{formatKMB(Number(h.market_value || 0) / 100)}</span>
@@ -492,7 +507,7 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
             {isLoss ? "▼" : "▲"} {formatKMB(Math.abs(pnl))}
           </span>
           <span className={`text-[12px] font-medium ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>
-            {iB > 0 ? ((pnl / iB) * 100).toFixed(1) : "0.0"}% {selectedAsset ? "since day invested" : "all time"}
+            {iB > 0 ? ((pnl / iB) * 100).toFixed(1) : "0.0"}% {viewMode === 'portfolio' ? "all time" : "since day invested"}
           </span>
         </div>
         <div ref={chartWrapRef} className="mb-3 w-full h-[170px] relative">
