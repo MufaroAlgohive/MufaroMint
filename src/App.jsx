@@ -986,7 +986,7 @@ const App = () => {
         return (
           <FamilyDashboardPage
             onBack={noOp}
-            userId={user?.id}
+            userId={profile?.id}
             onOpenChildDashboard={(child) => {
               setSelectedFamilyChild(child);
               navigateTo('childDashboard');
@@ -1842,7 +1842,7 @@ const App = () => {
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <FamilyDashboardPage
           onBack={goBack}
-          userId={user?.id}
+          userId={profile?.id}
           onOpenChildDashboard={(child) => {
             setSelectedFamilyChild(child);
             navigateTo("childDashboard");
