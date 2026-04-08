@@ -424,8 +424,10 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
   if (loading && userId) return <div className="w-full h-full rounded-[28px] bg-slate-50 p-4 animate-pulse" />;
 
   return (
-    <div className="relative w-full z-10 rounded-[26px] overflow-hidden">
-      <div className="absolute inset-0 rounded-[26px] bg-[radial-gradient(circle_at_78%_18%,rgba(88,62,186,0.45),rgba(8,8,48,0.95)_46%,rgba(5,5,33,0.98)_100%)]" />
+    <div className="relative w-full z-10 rounded-[26px] overflow-visible">
+      <div className="absolute inset-0 rounded-[26px] overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(88,62,186,0.45),rgba(8,8,48,0.95)_46%,rgba(5,5,33,0.98)_100%)]" />
+      </div>
       <div className="relative z-10 flex flex-col p-4 text-slate-100">
         <div className="mb-2 flex items-start justify-between">
           <div className="relative" ref={dropdownRef}>
