@@ -574,14 +574,21 @@ const SwipeableBalanceCard = ({
               close: Number(p.close_price) / 100,
             }));
 
-            let filteredPrices = allMapped.filter((p) => p.ts >= effectivePDateStr);
-            if (filteredPrices.length === 0) {
-              filteredPrices = [{ ts: effectivePDateStr, close: avgFillPrice }];
-            }
             const today = new Date().toISOString().split("T")[0];
-            const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
-            if (livePrice > 0 && lastDate && lastDate < today) {
-              filteredPrices.push({ ts: today, close: livePrice });
+            let filteredPrices = allMapped.filter((p) => p.ts >= effectivePDateStr);
+            
+            if (filteredPrices.length === 0) {
+              // ── FALLBACK: No DB data? Draw a line between start and now based on holding info ──
+              filteredPrices = [
+                { ts: effectivePDateStr, close: avgFillPrice },
+                { ts: today, close: livePrice || avgFillPrice }
+              ];
+              console.log(`📡 [Chart] ${h.symbol || h.security_id}: Synthetic trendline generated (Start: ${avgFillPrice}, Now: ${livePrice || avgFillPrice})`);
+            } else {
+              const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
+              if (livePrice > 0 && lastDate && lastDate < today) {
+                filteredPrices.push({ ts: today, close: livePrice });
+              }
             }
 
             console.log(`✅ [Chart] ${h.symbol || h.security_id}: ${filteredPrices.length} price points fetched.`);
@@ -654,12 +661,20 @@ const SwipeableBalanceCard = ({
           }
 
           if (hasData) {
-            const pointTime = new Date(dateKey).getTime();
+            // Use local date parts to avoid UTC/Local timezone mismatch on the boundary
+            const [y, m, d] = dateKey.split("-").map(Number);
+            const pointTime = new Date(y, m - 1, d).getTime();
+            
             // >= so boundary points are included (fixes off-by-one drop)
             if (pointTime >= startTime) {
               points.push({ d: pointTime, v: Number(totalPnl.toFixed(2)) });
             }
           }
+        }
+
+        if (points.length === 1) {
+          // If only 1 point exists, duplicate it at current time to draw a flat line
+          points.push({ d: now, v: points[0].v });
         }
 
         console.log(`✅ [Chart] Portfolio generated: ${points.length} points.`);
