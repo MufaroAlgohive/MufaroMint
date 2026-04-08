@@ -129,8 +129,8 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
   const [chartData, setChartData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const hasInitialLoadRef = useRef(false);
   const abortControllerRef = useRef(null);
+  const pendingFetchRef = useRef(false);
 
   // SMART FALLBACK DATA GENERATION
   const generateFallbackData = useCallback(() => {
@@ -161,30 +161,40 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
   }, [activeTab, holdings, selectedAsset]);
 
   useEffect(() => {
-    if (!userId || loading || holdings.length === 0) {
-      if (!loading && holdings.length === 0) setChartData([]);
+    // Clear data if no user or no holdings
+    if (!userId || holdings.length === 0) {
+      if (!loading) setChartData([]);
       return;
     }
 
-    // IMMEDIATELY set smart fallback if needed
-    if (!hasInitialLoadRef.current) {
-      const fbData = generateFallbackData();
-      if (fbData.length > 0) {
-        setChartData(fbData);
-        hasInitialLoadRef.current = true;
-      }
+    // Don't fetch if parent is still loading
+    if (loading) {
+      return;
     }
 
-    if (abortControllerRef.current) abortControllerRef.current.abort();
+    // Cancel any pending fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     const fetchChartPrices = async () => {
-      // Background loading indicator
+      // Prevent multiple simultaneous fetches
+      if (pendingFetchRef.current) return;
+      pendingFetchRef.current = true;
+
+      // Set fallback data immediately
+      const fbData = generateFallbackData();
+      if (fbData.length > 0) {
+        setChartData(fbData);
+      }
+
       setIsLoading(true);
 
       try {
-        console.log(`📡 [Chart] Background fetching real history for ${activeTab}...`);
+        console.log(`📡 [Chart] Fetching real history for ${activeTab}...`);
         const holdingsToChart = selectedAsset ? [selectedAsset] : holdings;
         const days = TIMEFRAME_DAYS[activeTab] || 30;
         const tabCutoff = new Date();
@@ -206,25 +216,28 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
           const latestNav = ph[ph.length - 1]?.nav;
           const currentMV = Number(selectedAsset.market_value || 0) / 100;
           const cost = (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 1)) / 100;
-          if (latestNav > 0) {
+          if (latestNav > 0 && ph.length > 0) {
             realPoints = ph.map(p => ({ d: new Date(p.ts).getTime(), v: Number((currentMV * (p.nav / latestNav) - cost).toFixed(2)) }));
           }
         } else {
           const stockHoldings = holdingsToChart.filter(h => h.security_id && !h.strategy_id);
           const strategyHoldings = holdingsToChart.filter(h => !!h.strategy_id);
           const stratPnl = {};
+
           for (const sh of strategyHoldings) {
             let history = await getStrategyPriceHistory(sh.strategy_id || sh.id, { d: "1D", w: "1W", m: "1M" }[activeTab] || "1M");
+            if (abortController.signal.aborted) return;
             const latest = history[history.length - 1]?.nav;
             const current = Number(sh.market_value || 0) / 100;
             const cost = (Number(sh.avg_fill || 0) * Number(sh.quantity || 1)) / 100;
-            if (latest > 0) {
+            if (latest > 0 && history.length > 0) {
               history.forEach(p => {
                 const k = p.ts.split("T")[0];
                 stratPnl[k] = (stratPnl[k] || 0) + (current * (p.nav / latest) - cost);
               });
             }
           }
+
           const priceRes = await Promise.all(stockHoldings.map(async (h) => {
             let { data } = await supabase.from("security_prices").select("ts, close_price").eq("security_id", h.security_id).gte("ts", startDateStr).order("ts", { ascending: true }).abortSignal(abortController.signal);
             if (!data || data.length < 2) {
@@ -233,11 +246,15 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
             }
             return data ? { h, prices: data.map(p => ({ ts: p.ts.split("T")[0], close: Number(p.close_price) / 100 })) } : null;
           }));
+
+          if (abortController.signal.aborted) return;
+
           const validStocks = priceRes.filter(Boolean);
           const dateSet = new Set();
           validStocks.forEach(s => s.prices.forEach(p => dateSet.add(p.ts)));
           Object.keys(stratPnl).forEach(d => dateSet.add(d));
           const sorted = Array.from(dateSet).sort();
+
           realPoints = sorted.map(dKey => {
             let total = 0;
             validStocks.forEach(({ h, prices }) => {
@@ -250,20 +267,38 @@ const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, l
           });
         }
 
-        if (realPoints.length > 0 && !abortController.signal.aborted) {
-          console.log(`✅ [Chart] History Hydrated: ${realPoints.length} granular points.`);
-          setChartData(realPoints);
-          hasInitialLoadRef.current = true;
-          setError(null);
+        // Only update if we got valid data and haven't been aborted
+        if (!abortController.signal.aborted) {
+          if (realPoints.length > 0) {
+            console.log(`✅ [Chart] History Hydrated: ${realPoints.length} points`);
+            setChartData(realPoints);
+            setError(null);
+          } else {
+            console.log(`⚠️ [Chart] No real data, keeping fallback`);
+            // Keep fallback data that was set earlier
+          }
         }
       } catch (err) {
         if (err.name === 'AbortError') return;
-        console.error("❌ [Chart] Fetch failed, keeping smart fallback:", err);
-      } finally { setIsLoading(false); }
+        console.error("❌ [Chart] Fetch failed, keeping fallback:", err);
+        setError(err);
+        // Don't clear chartData - keep the fallback
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+          pendingFetchRef.current = false;
+        }
+      }
     };
 
     fetchChartPrices();
-    return () => abortControllerRef.current?.abort();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      pendingFetchRef.current = false;
+    };
   }, [userId, holdings, activeTab, selectedAsset, lastUpdated, loading, generateFallbackData]);
 
   return { chartData, isLoading, error };
@@ -284,7 +319,6 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
   const chartWrapRef = useRef(null);
   const holdingsScrollRef = useRef(null);
   const [chartKey, setChartKey] = useState(0);
-  const hasChartDataRef = useRef(false);
 
   const scrollToHoldingIndex = useCallback((index) => {
     const container = holdingsScrollRef.current;
@@ -342,14 +376,14 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
   }, [userId, lastUpdated]);
 
   const { chartData, isLoading: chartLoading } = useChartData(userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading);
-  useEffect(() => { if (chartData.length > 0) hasChartDataRef.current = true; }, [chartData]);
 
   const startTime = getWindowStart(activeTab, dbData.holdings);
   const now = Date.now();
   const padded = useMemo(() => padChartSeriesPoints(chartData, startTime, now), [chartData, startTime, now]);
 
+  // Simplified chart display logic
   const shouldShowChart = chartData.length > 0;
-  const shouldShowSkeleton = chartLoading && !hasChartDataRef.current && chartData.length === 0;
+  const shouldShowSkeleton = loading && chartData.length === 0;
 
   const yDomain = useMemo(() => {
     if (!padded.length) return [0, "auto"];
@@ -410,7 +444,7 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">
-              <p className="text-[9px] text-slate-500">Loading chart...</p>
+              <p className="text-[9px] text-slate-400">No chart data available</p>
             </div>
           )}
         </div>
