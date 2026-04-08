@@ -288,13 +288,20 @@ class ChartErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false }; }
   static getDerivedStateFromError() { return { hasError: true }; }
   render() {
-    if (this.state.hasError) return <div className="h-[170px] flex items-center justify-center bg-rose-500/5 rounded-2xl border border-rose-500/20"><p className="text-[10px] text-rose-300">Chart rendering failed</p></div>;
+    if (this.state.hasError) {
+      return (
+        <div className="h-[170px] flex items-center justify-center bg-rose-500/5 rounded-2xl border border-rose-500/20">
+          <p className="text-[10px] text-rose-300">Chart rendering failed</p>
+        </div>
+      );
+    }
     return this.props.children;
   }
 }
 
 const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
-  const [activeTab, setActiveTab] = useState("m");
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const { lastUpdated } = useRealtimePrices();
   const [dbData, setDbData] = useState({ holdings: [], totalMarketValue: 0, totalInvested: 0, totalInvestedAmount: 0, holdingsCount: 0 });
   const [selectedAsset, setSelectedAsset] = useState(null);
@@ -303,6 +310,17 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
   const [mintNumber, setMintNumber] = useState(mintNumberProp || null);
   const chartWrapRef = useRef(null);
   const [chartKey, setChartKey] = useState(0);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (!userId) return;
@@ -391,9 +409,67 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
       <div className="absolute inset-0 rounded-[26px] bg-[radial-gradient(circle_at_78%_18%,rgba(88,62,186,0.45),rgba(8,8,48,0.95)_46%,rgba(5,5,33,0.98)_100%)]" />
       <div className="relative z-10 flex flex-col p-4 text-slate-100">
         <div className="mb-2 flex items-start justify-between">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium">
-            {selectedAsset ? selectedAsset.symbol : "portfolio value"}
-          </p>
+          <div className="relative" ref={dropdownRef}>
+            <button 
+              onClick={() => setIsOpen(!isOpen)}
+              className="flex items-center gap-1.5 px-2 py-1 -ml-2 rounded-lg hover:bg-white/10 transition-colors group"
+            >
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 group-hover:text-white font-medium">
+                {selectedAsset ? selectedAsset.symbol : "portfolio value"}
+              </p>
+              <ChevronDown size={10} className={`text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isOpen && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-[#0a0a2a] border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-3 py-1.5 mb-1 border-b border-white/5">
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Select View</p>
+                </div>
+                
+                <button 
+                  onClick={() => { setSelectedAsset(null); setIsOpen(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                >
+                  <TrendingUp size={14} className="text-emerald-400" />
+                  <span className={`text-[12px] ${!selectedAsset ? 'text-white font-bold' : 'text-slate-300'}`}>Total Portfolio</span>
+                </button>
+
+                <div className="mt-2 px-3 py-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">Segments</div>
+                <button 
+                  onClick={() => { /* Filter logic if needed, currently resets or highlights */ setSelectedAsset(null); setIsOpen(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                >
+                  <LayoutGrid size={13} className="text-blue-400" />
+                  <span className="text-[12px] text-slate-300">All Individual Stocks</span>
+                </button>
+                <button 
+                  onClick={() => { setSelectedAsset(null); setIsOpen(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                >
+                  <LayoutGrid size={13} className="text-purple-400" />
+                  <span className="text-[12px] text-slate-300">All Strategy Investments</span>
+                </button>
+
+                <div className="mt-2 px-3 py-1 text-[10px] text-slate-500 font-bold uppercase tracking-wider">Assets</div>
+                <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                  {dbData.holdings.map((h, i) => (
+                    <button 
+                      key={h.security_id || h.strategy_id || i}
+                      onClick={() => { setSelectedAsset(h); setIsOpen(false); }}
+                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 text-left transition-colors"
+                    >
+                      <div className="flex flex-col">
+                        <span className={`text-[12px] ${selectedAsset?.symbol === h.symbol ? 'text-white font-bold' : 'text-slate-300'}`}>{h.symbol}</span>
+                        <span className="text-[9px] text-slate-500">{h.name}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400">{formatKMB(Number(h.market_value || 0) / 100)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/11">
             {["d", "w", "m"].map(t => (
               <button
@@ -416,7 +492,7 @@ const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
             {isLoss ? "▼" : "▲"} {formatKMB(Math.abs(pnl))}
           </span>
           <span className={`text-[12px] font-medium ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>
-            {iB > 0 ? ((pnl / iB) * 100).toFixed(1) : "0.0"}% all time
+            {iB > 0 ? ((pnl / iB) * 100).toFixed(1) : "0.0"}% {selectedAsset ? "since day invested" : "all time"}
           </span>
         </div>
         <div ref={chartWrapRef} className="mb-3 w-full h-[170px] relative">
