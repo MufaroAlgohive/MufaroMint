@@ -513,6 +513,21 @@ export default function FamilyDashboardPage({ onBack, userId }) {
                     />
                   );
                 })}
+
+                {/* Add another child button */}
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setAddingType("child")}
+                  className="w-full flex items-center gap-4 rounded-2xl bg-white shadow-sm border-2 border-dashed border-slate-200 p-4 text-left hover:border-indigo-200 hover:bg-indigo-50/30 transition group"
+                >
+                  <div className="h-[52px] w-[52px] rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-indigo-300 flex items-center justify-center flex-shrink-0 transition">
+                    <Plus className="h-5 w-5 text-slate-300 group-hover:text-indigo-400 transition" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-600 group-hover:text-slate-800 transition">Add Child Account</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Add another child to your family</p>
+                  </div>
+                </motion.button>
               </div>
             </motion.div>
           )}
