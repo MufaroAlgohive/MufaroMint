@@ -297,7 +297,11 @@ class ChartErrorBoundary extends React.Component {
     }
     return this.props.children;
   }
-}  const [isOpen, setIsOpen] = useState(false);
+}
+
+const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
+  const [activeTab, setActiveTab] = useState("m");
+  const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [viewMode, setViewMode] = useState("portfolio"); // 'portfolio', 'stocks', 'strategies', 'asset'
   const { lastUpdated } = useRealtimePrices();
