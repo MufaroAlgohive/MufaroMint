@@ -687,18 +687,19 @@ const HomePage = ({
       </div>
 
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
-        <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
+        <section className="grid grid-cols-5 gap-2 text-[11px] font-medium">
           {[
             { label: "Invest", icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
             { label: "Deposit", icon: ArrowDownToLine, onClick: onOpenDeposit },
             { label: "News", icon: Newspaper, onClick: () => (onOpenNews ? onOpenNews("news") : (onOpenInvest && onOpenInvest("news"))) },
             { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
+            { label: "Family", icon: Users, onClick: onOpenFamily },
           ].map((item, index) => {
             const Icon = item.icon;
             return (
               <button
                 key={index}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md transition-all active:scale-95 active:shadow-sm"
+                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-1 py-3 text-slate-700 shadow-md transition-all active:scale-95 active:shadow-sm"
                 type="button"
                 onClick={item.onClick}
               >
