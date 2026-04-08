@@ -355,13 +355,24 @@ const SwipeableBalanceCard = ({
     const fetchChartPrices = async () => {
       if (!userId) return;
 
-      // ── FIX 3: Don't wipe chart while holdings are still loading ──────────
-      if (dbData.holdings.length === 0) {
-        if (!loading) setChartData([]);
+      // ── FIX: Wait for initial load to complete ──
+      if (loading) {
+        console.log("📈 [Chart] Waiting for initial holdings load...");
         return;
       }
 
+      // ── FIX: Don't wipe chart while holdings are still loading ──────────
+      if (dbData.holdings.length === 0) {
+        console.log("📈 [Chart] No holdings found, clearing chart data.");
+        setChartData([]);
+        setChartLoading(false);
+        return;
+      }
+
+      console.log(`📈 [Chart] Fetching data for ${activeTab} timeframe...`);
       setChartLoading(true);
+
+      try {
 
       const holdingsToChart = selectedAsset ? [selectedAsset] : dbData.holdings;
       const days = TIMEFRAME_DAYS[activeTab] || 30;
@@ -411,10 +422,13 @@ const SwipeableBalanceCard = ({
                 });
             });
             setChartData(points);
+            console.log(`✅ [Chart] Generated ${points.length} points for strategy: ${selectedAsset.symbol}`);
           } else {
+            console.warn(`⚠️ [Chart] Strategy ${selectedAsset.symbol} has 0 NAV.`);
             setChartData([]);
           }
         } else {
+          console.warn(`⚠️ [Chart] No price history found for strategy: ${selectedAsset.symbol}`);
           setChartData([]);
         }
         setChartLoading(false);
@@ -463,52 +477,60 @@ const SwipeableBalanceCard = ({
         } catch (e) { }
       }
 
-      const pricePromises = stockHoldings.map(async (h) => {
-        let { data, error } = await supabase
-          .from("security_prices")
-          .select("ts, close_price")
-          .eq("security_id", h.security_id)
-          .gte("ts", startDateStr)
-          .order("ts", { ascending: true });
-
-        if (error || !data || data.length < 2) {
-          const fallback = await supabase
+        try {
+          let { data, error } = await supabase
             .from("security_prices")
             .select("ts, close_price")
             .eq("security_id", h.security_id)
-            .order("ts", { ascending: false })
-            .limit(30);
-          if (!fallback.error && fallback.data && fallback.data.length >= 2) {
-            data = fallback.data.reverse();
-          } else if (!data || data.length === 0) {
-            return null;
-          }
-        }
+            .gte("ts", startDateStr)
+            .order("ts", { ascending: true });
 
-        const pDateStr = (h.created_at || h.as_of_date || "").split("T")[0];
-        const avgFillPrice = Number(h.avg_fill || 0) / 100;
-        const livePrice = Number(h.last_price || 0) / 100;
-        const allMapped = data.map((p) => ({
-          ts: p.ts.split("T")[0],
-          close: Number(p.close_price) / 100,
-        }));
-        let filteredPrices = allMapped.filter((p) => p.ts >= pDateStr);
-        if (filteredPrices.length === 0) {
-          filteredPrices = [{ ts: pDateStr, close: avgFillPrice }];
+          if (error || !data || data.length < 2) {
+            const fallback = await supabase
+              .from("security_prices")
+              .select("ts, close_price")
+              .eq("security_id", h.security_id)
+              .order("ts", { ascending: false })
+              .limit(30);
+            if (!fallback.error && fallback.data && fallback.data.length >= 2) {
+              data = fallback.data.reverse();
+            } else if (!data || data.length === 0) {
+              console.warn(`⚠️ [Chart] No price data for stock: ${h.symbol || h.security_id}`);
+              return null;
+            }
+          }
+
+          const pDateStr = (h.created_at || h.as_of_date || "").split("T")[0];
+          const avgFillPrice = Number(h.avg_fill || 0) / 100;
+          const livePrice = Number(h.last_price || 0) / 100;
+          const allMapped = data.map((p) => ({
+            ts: p.ts.split("T")[0],
+            close: Number(p.close_price) / 100,
+          }));
+          
+          let filteredPrices = allMapped.filter((p) => p.ts >= pDateStr);
+          if (filteredPrices.length === 0) {
+            filteredPrices = [{ ts: pDateStr, close: avgFillPrice }];
+          }
+          const today = new Date().toISOString().split("T")[0];
+          const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
+          if (livePrice > 0 && lastDate && lastDate < today) {
+            filteredPrices.push({ ts: today, close: livePrice });
+          }
+
+          console.log(`✅ [Chart] ${h.symbol || h.security_id}: ${filteredPrices.length} price points fetched.`);
+          
+          return {
+            securityId: h.security_id,
+            quantity: Number(h.quantity || 1),
+            avgFill: avgFillPrice,
+            fillDate: pDateStr,
+            prices: filteredPrices,
+          };
+        } catch (err) {
+          console.error(`❌ [Chart] Failed to fetch prices for ${h.symbol || h.security_id}:`, err);
+          return null;
         }
-        const today = new Date().toISOString().split("T")[0];
-        const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
-        if (livePrice > 0 && lastDate && lastDate < today) {
-          filteredPrices.push({ ts: today, close: livePrice });
-        }
-        return {
-          securityId: h.security_id,
-          quantity: Number(h.quantity || 1),
-          avgFill: avgFillPrice,
-          fillDate: pDateStr,
-          prices: filteredPrices,
-        };
-      });
 
       const allPriceData = (await Promise.all(pricePromises)).filter(Boolean);
       const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;
@@ -578,12 +600,17 @@ const SwipeableBalanceCard = ({
         }
       }
 
+      console.log(`✅ [Chart] Portfolio generated: ${points.length} points.`);
       setChartData(points);
+    } catch (err) {
+      console.error("❌ [Chart] Critical error in fetchChartPrices:", err);
+    } finally {
       setChartLoading(false);
-    };
+    }
+  };
 
-    fetchChartPrices();
-  }, [userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading]);
+  fetchChartPrices();
+}, [userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading]);
 
   useLayoutEffect(() => {
     const el = chartWrapRef.current;
@@ -593,6 +620,7 @@ const SwipeableBalanceCard = ({
     const measure = () => {
       const w = Math.round(el.getBoundingClientRect().width);
       if (w < 1) return;
+      console.log(`📏 [Chart] Width measured: ${w}px`);
       setChartWidth(w);
       if (Math.abs(w - lastMeasuredWidthRef.current) > 1) {
         lastMeasuredWidthRef.current = w;
@@ -880,104 +908,98 @@ const SwipeableBalanceCard = ({
           className="mb-3 w-full min-w-0 overflow-hidden"
           style={{ minHeight: 170, height: 170 }}
         >
-              {chartData.length > 0 ? (
-                chartWidth > 0 ? (
-                <ResponsiveContainer
-                  key={`chart-${chartKey}-${activeTab}`}
-                  width={chartWidth}
-                  height={170}
+            {chartData.length > 0 && chartWidth > 0 ? (
+              <ResponsiveContainer
+                key={`chart-${chartKey}-${activeTab}`}
+                width={chartWidth}
+                height={170}
+              >
+                <ComposedChart
+                  data={paddedChartData}
+                  margin={{ top: 8, right: 4, left: 0, bottom: 2 }}
                 >
-                  <ComposedChart
-                    data={paddedChartData}
-                    margin={{ top: 8, right: 4, left: 0, bottom: 2 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id={`colorValue-${chartKey}`}
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop offset="5%" stopColor={chartColor} stopOpacity={0.35} />
-                        <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <XAxis
-                      dataKey="d"
-                      type="number"
-                      domain={[startTime, now]}
-                      hide
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      yAxisId="pnl"
-                      orientation="right"
-                      domain={yAxisDomain}
-                      width={0}
-                      tick={false}
-                      axisLine={false}
-                      tickLine={false}
-                      hide
-                    />
-                    <Tooltip content={<BalanceChartTooltip />} />
-                    <ReferenceLine
-                      yAxisId="pnl"
-                      y={0}
-                      stroke="rgba(148,163,184,0.45)"
-                      strokeDasharray="3 3"
-                      strokeWidth={1}
-                    />
-                    <Area
-                      yAxisId="pnl"
-                      type="monotone"
-                      dataKey="v"
-                      stroke={chartColor}
-                      strokeWidth={2}
-                      fill={`url(#colorValue-${chartKey})`}
-                      fillOpacity={1}
-                      dot={false}
-                      isAnimationActive={false}
-                      activeDot={{
-                        r: 3,
-                        fill: "#fff",
-                        stroke: chartColor,
-                        strokeWidth: 2,
-                      }}
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-                ) : (
-                  <div className="flex h-full w-full items-end gap-1 py-2">
-                    {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-sm bg-white/10"
-                        style={{ height: `${h}%` }}
-                      />
-                    ))}
-                  </div>
-                )
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  {chartLoading ? (
-                    <div className="flex items-end gap-1 w-full h-full py-2">
-                      {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map(
-                        (h, i) => (
-                          <Skeleton
-                            key={i}
-                            className="flex-1 rounded-sm bg-white/10"
-                            style={{ height: `${h}%` }}
-                          />
-                        ),
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-[9px] text-slate-500">No chart data</p>
-                  )}
-                </div>
-              )}
+                  <defs>
+                    <linearGradient
+                      id={`colorValue-${chartKey}`}
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor={chartColor} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="d"
+                    type="number"
+                    domain={[startTime, now]}
+                    hide
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="pnl"
+                    orientation="right"
+                    domain={yAxisDomain}
+                    width={0}
+                    tick={false}
+                    axisLine={false}
+                    tickLine={false}
+                    hide
+                  />
+                  <Tooltip content={<BalanceChartTooltip />} />
+                  <ReferenceLine
+                    yAxisId="pnl"
+                    y={0}
+                    stroke="rgba(148,163,184,0.45)"
+                    strokeDasharray="3 3"
+                    strokeWidth={1}
+                  />
+                  <Area
+                    yAxisId="pnl"
+                    type="monotone"
+                    dataKey="v"
+                    stroke={chartColor}
+                    strokeWidth={2}
+                    fill={`url(#colorValue-${chartKey})`}
+                    fillOpacity={1}
+                    dot={false}
+                    isAnimationActive={false}
+                    activeDot={{
+                      r: 3,
+                      fill: "#fff",
+                      stroke: chartColor,
+                      strokeWidth: 2,
+                    }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : chartLoading ? (
+              <div className="flex items-end gap-1 w-full h-full py-2">
+                {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (
+                  <Skeleton
+                    key={i}
+                    className="flex-1 rounded-sm bg-white/10"
+                    style={{ height: `${h}%` }}
+                  />
+                ))}
+              </div>
+            ) : chartData.length > 0 && chartWidth === 0 ? (
+              <div className="flex h-full w-full items-end gap-1 py-2">
+                {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-sm bg-white/10"
+                    style={{ height: `${h}%` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-[9px] text-slate-500">No chart data</p>
+              </div>
+            )}
             </div>
         <div className="mt-auto pt-3 pb-5 border-t border-white/10 flex items-start">
           <div className="flex-1 min-w-0 pr-3">
