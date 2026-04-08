@@ -1,0 +1,27 @@
+index-CU4Z4hY_.js:64 [realtime-prices] Setting up singleton subscription
+index-CU4Z4hY_.js:64 [realtime-prices] Subscription status: SUBSCRIBED
+index-CU4Z4hY_.js:64 Setting up SINGLETON real-time subscription: required-actions-singleton
+index-CU4Z4hY_.js:64 Singleton subscription status: SUBSCRIBED
+index-CU4Z4hY_.js:64 KYC status check: stored="null" current="verified"
+index-CU4Z4hY_.js:64 [useOnboardingStatus] Total Onboarding Status: COMPLETE ✅ Object
+/api/family-members?user_id=3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+index-CU4Z4hY_.js:124 [family] fetch error SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+v @ index-CU4Z4hY_.js:124
+index-CU4Z4hY_.js:113 🔍 Computing price history from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (1M)...
+index-CU4Z4hY_.js:98 🔍 Fetching price history for security 7715c7a6-1a77-43f3-a073-c8fd425476ad, timeframe 1M...
+index-CU4Z4hY_.js:98 🔍 Fetching price history for security 35b7cce7-a9d3-4a1b-971c-8635bca7f4a0, timeframe 1M...
+index-CU4Z4hY_.js:98 🔍 Fetching price history for security acef61ef-6108-45d0-bbec-a32d347ee7c7, timeframe 1M...
+index-CU4Z4hY_.js:98 🔍 Fetching price history for security 573935c4-b9ac-4779-822a-d15e6bd853c2, timeframe 1M...
+index-CU4Z4hY_.js:98 🔍 Fetching price history for security 4b445d81-e2f4-4b22-b3f3-a6001d4d521f, timeframe 1M...
+index-CU4Z4hY_.js:98 ✅ Fetched 30 price points for 1M
+index-CU4Z4hY_.js:98 ✅ Fetched 30 price points for 1M
+index-CU4Z4hY_.js:98 ✅ Fetched 30 price points for 1M
+index-CU4Z4hY_.js:98 ✅ Fetched 30 price points for 1M
+index-CU4Z4hY_.js:98 ✅ Fetched 30 price points for 1M
+index-CU4Z4hY_.js:113 ✅ Computed 30 NAV points from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (1M)
+index-CU4Z4hY_.js:64 [realtime-prices] Tearing down subscription
+index-CU4Z4hY_.js:64 [realtime-prices] Subscription status: CLOSED
+/api/family-members?user_id=3401d428-4ed7-4ba1-ae64-4bd16d2485a4:1  Failed to load resource: the server responded with a status of 404 ()
+index-CU4Z4hY_.js:310 [family] SyntaxError: Unexpected token 'T', "The page c"... is not valid JSON
+S @ index-CU4Z4hY_.js:310
+/api/family-members:1  Failed to load resource: the server responded with a status of 404 ()
