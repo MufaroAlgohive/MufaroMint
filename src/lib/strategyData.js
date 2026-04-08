@@ -697,27 +697,43 @@ export const getMonthlyReturns = async (strategyId, startDate = null, actualPnlP
   }
 };
 
-export const getStockMonthlyReturns = async (securityId, startDate = null, actualPnlPct = null) => {
+export const getStockMonthlyReturns = async (securityId, startDate = null, actualPnlPct = null, livePrice = null) => {
   if (!supabase || !securityId) return {};
 
   const cacheKey = `monthly_returns_stock_${securityId}_${startDate || 'all'}`;
-  const cached = cache.priceHistory.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp) < 300000) {
-    const cachedResult = { ...cached.data };
-    if (typeof actualPnlPct === 'number' && startDate) {
-      const startYMKey = startDate.slice(0, 7);
-      const [sy, sm] = startYMKey.split("-");
-      if (!cachedResult[sy]?.[sm]) {
-        if (!cachedResult[sy]) cachedResult[sy] = {};
-        cachedResult[sy][sm] = actualPnlPct;
+
+  // Only use cache when we have no live price to inject (live price must always be fresh)
+  if (!livePrice) {
+    const cached = cache.priceHistory.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < 300000) {
+      const cachedResult = { ...cached.data };
+      if (typeof actualPnlPct === 'number' && startDate) {
+        const startYMKey = startDate.slice(0, 7);
+        const [sy, sm] = startYMKey.split("-");
+        if (!cachedResult[sy]?.[sm]) {
+          if (!cachedResult[sy]) cachedResult[sy] = {};
+          cachedResult[sy][sm] = actualPnlPct;
+        }
       }
+      return cachedResult;
     }
-    return cachedResult;
   }
 
   try {
     const priceSeries = await getSecurityPrices(securityId, "1Y");
     if (!priceSeries || priceSeries.length < 2) return {};
+
+    // Inject today's live price so the current month reflects the actual live value
+    // rather than stale security_prices data (which may lag by a day or more)
+    if (livePrice && livePrice > 0) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const lastEntry = priceSeries[priceSeries.length - 1];
+      if (lastEntry && lastEntry.ts && lastEntry.ts.slice(0, 10) === todayStr) {
+        lastEntry.close = livePrice;
+      } else {
+        priceSeries.push({ ts: todayStr, close: livePrice });
+      }
+    }
 
     const filterStart = startDate ? startDate.slice(0, 10) : null;
     const startYM = filterStart ? filterStart.slice(0, 7) : null;
@@ -788,7 +804,10 @@ export const getStockMonthlyReturns = async (securityId, startDate = null, actua
     }
 
     // Cache price-series result before injecting actual P&L
-    cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
+    // Skip cache when live price was injected so we don't store stale live data
+    if (!livePrice) {
+      cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
+    }
 
     // Inject actual P&L for start month if price series didn't cover post-purchase period
     if (typeof actualPnlPct === 'number' && startYM) {

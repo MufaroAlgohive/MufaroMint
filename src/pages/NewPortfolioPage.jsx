@@ -329,7 +329,9 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           const investedVal = matchedHolding ? (matchedHolding.avg_fill * matchedHolding.quantity) / 100 : 0;
           const currentVal = matchedHolding ? (matchedHolding.market_value || 0) / 100 : 0;
           const actualPnlPct = investedVal > 0 ? (currentVal - investedVal) / investedVal : null;
-          data = await getStockMonthlyReturns(calendarFilter, matchedHolding?.created_at || null, actualPnlPct);
+          const livePriceCents = matchedHolding?.last_price ? Number(matchedHolding.last_price) : null;
+          const livePriceRands = livePriceCents ? livePriceCents / 100 : null;
+          data = await getStockMonthlyReturns(calendarFilter, matchedHolding?.created_at || null, actualPnlPct, livePriceRands);
         }
       }
       if (!cancelled) {
