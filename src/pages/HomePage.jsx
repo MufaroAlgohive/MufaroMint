@@ -62,6 +62,7 @@ const HomePage = ({
   onOpenDeposit,
   onOpenNews,
   onOpenNewsArticle,
+  onOpenFamily,
 }) => {
   const { profile, loading } = useProfile();
   const { bankLinked, loading: actionsLoading, refetch: fetchRequiredActions } = useRequiredActions();
@@ -648,6 +649,7 @@ const HomePage = ({
               userId={userId}
               initials={initials}
               avatarUrl={profile.avatarUrl}
+              onOpenFamily={onOpenFamily}
             />
 
             <NavigationPill

@@ -50,6 +50,7 @@ import BankLinkPage from "./pages/BankLinkPage.jsx";
 import MintBankPage from "./pages/MintBankPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
 import ActiveSessionsPage from "./pages/ActiveSessionsPage.jsx";
+import FamilyDashboardPage from "./pages/FamilyDashboardPage.jsx";
 import PinSetupPage from "./pages/PinSetupPage.jsx";
 import { useInactivityTimeout } from "./lib/useInactivityTimeout.jsx";
 import PinLockScreen from "./components/PinLockScreen.jsx";
@@ -1107,10 +1108,19 @@ const App = () => {
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
           onOpenInstantLiquidity={() => navigateTo("instantLiquidity")}
+          onOpenFamily={() => navigateTo("family")}
         />
       </AppLayout>
     );
   }
+  if (currentPage === "family") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <FamilyDashboardPage onBack={goBack} userId={profile?.id} />
+      </SwipeBackWrapper>
+    );
+  }
+
   if (currentPage === "credit") {
     return (
       <AppLayout
