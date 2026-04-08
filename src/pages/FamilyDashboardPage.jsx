@@ -43,7 +43,7 @@ function Avatar({ name, gradient, size = "h-14 w-14", text = "text-xl" }) {
   return (
     <div
       className={`${size} rounded-2xl flex items-center justify-center font-bold text-white flex-shrink-0`}
-      style={{ background: gradient }}
+      style={{ background: gradient, aspectRatio: "1" }}
     >
       <span className={text}>{initial}</span>
     </div>
@@ -562,41 +562,39 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
 function MemberRow({ gradient, name, role, roleIcon, roleColor, detail, value, barPct, barGradient, delay = 0 }) {
   return (
-    <motion.div variants={item} className="rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-      {/* accent bar on left edge */}
-      <div className="flex">
-        <div className="w-1 flex-shrink-0" style={{ background: barGradient }} />
-        <div className="flex-1 p-4">
-          <div className="flex items-center gap-3.5">
-            <Avatar name={name} gradient={gradient} size="h-13 w-13" style={{ height: 52, width: 52 }} />
-            <div className="flex-1 min-w-0">
-              <p className="text-[15px] font-bold text-slate-900 leading-tight truncate">{name}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide"
-                  style={{ background: roleColor.bg, color: roleColor.text }}
-                >
-                  {roleIcon}
-                  {role}
-                </span>
-                {detail && <span className="text-[11px] text-slate-400 truncate">{detail}</span>}
-              </div>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-[15px] font-bold text-slate-900 tabular-nums">{value}</p>
+    <motion.div variants={item} className="rounded-2xl overflow-hidden shadow-lg border border-slate-800/20" style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}>
+      {/* Top accent strip */}
+      <div className="h-1" style={{ background: barGradient }} />
+      <div className="p-5">
+        <div className="flex items-center gap-4">
+          <Avatar name={name} gradient={gradient} size="h-14 w-14" text="text-xl" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[16px] font-bold text-white leading-tight truncate">{name}</p>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase"
+                style={{ background: roleColor.bg, color: roleColor.text }}
+              >
+                {roleIcon}
+                {role}
+              </span>
+              {detail && <span className="text-[11px] text-slate-400 truncate font-medium">{detail}</span>}
             </div>
           </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[17px] font-bold text-white tabular-nums">{value}</p>
+          </div>
+        </div>
 
-          {/* Progress bar */}
-          <div className="mt-3.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <motion.div
-              className="h-full rounded-full"
-              style={{ background: barGradient }}
-              initial={{ width: 0 }}
-              animate={{ width: `${barPct}%` }}
-              transition={{ delay: delay + 0.3, duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
+        {/* Progress bar */}
+        <div className="mt-4 h-2 rounded-full bg-slate-800/40 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full shadow-sm"
+            style={{ background: barGradient }}
+            initial={{ width: 0 }}
+            animate={{ width: `${barPct}%` }}
+            transition={{ delay: delay + 0.3, duration: 0.8, ease: "easeOut" }}
+          />
         </div>
       </div>
     </motion.div>
@@ -675,10 +673,8 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
     <div
       className="min-h-screen pb-[env(safe-area-inset-bottom)]"
       style={{
-        backgroundColor: '#f8f6fa',
-        backgroundImage: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)',
-        backgroundRepeat: 'no-repeat',
-        backgroundSize: '100% 100vh',
+        background: "linear-gradient(180deg, #0a0e1a 0%, #0f1419 10%, #141b26 20%, #1a2333 30%, #1e293b 50%, #1e2a3d 70%, #1c2942 85%, #192646 100%)",
+        backgroundAttachment: "fixed",
       }}
     >
       {/* ── Header ── */}
@@ -687,7 +683,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           <div className="flex items-center justify-between">
             <button
               onClick={onBack}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:bg-white/25 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800/60 backdrop-blur-md text-white border border-slate-700/50 transition hover:bg-slate-700/60 active:scale-95"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -695,11 +691,11 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
               <h1 className="text-xl font-bold text-white tracking-tight">
                 {familyLastName ? `${familyLastName} Family` : "My Family"}
               </h1>
-              <p className="text-xs text-white/50 mt-0.5">{totalMembers} member{totalMembers !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{totalMembers} member{totalMembers !== 1 ? "s" : ""}</p>
             </div>
             <button
               onClick={() => setAddingType(addingType ? null : (spouse ? "child" : "spouse"))}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm transition hover:bg-white/25 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800/60 backdrop-blur-md text-white border border-slate-700/50 transition hover:bg-slate-700/60 active:scale-95"
             >
               <AnimatePresence mode="wait" initial={false}>
                 <motion.span
@@ -725,51 +721,51 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           {/* ── Portfolio card ── */}
           <motion.div
             variants={item}
-            className="rounded-3xl p-5 relative overflow-hidden"
-            style={{ background: "linear-gradient(135deg,#1e1b4b 0%,#312e81 50%,#3730a3 100%)" }}
+            className="rounded-2xl p-6 relative overflow-hidden shadow-xl border border-slate-700/50"
+            style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%)" }}
           >
             {/* Decorative circles */}
-            <div className="absolute -top-8 -right-8 h-36 w-36 rounded-full opacity-10" style={{ background: "radial-gradient(circle,#fff,transparent)" }} />
-            <div className="absolute -bottom-10 -left-6 h-28 w-28 rounded-full opacity-10" style={{ background: "radial-gradient(circle,#818cf8,transparent)" }} />
+            <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full opacity-10" style={{ background: "radial-gradient(circle,#fff,transparent)" }} />
+            <div className="absolute -bottom-14 -left-8 h-36 w-36 rounded-full opacity-10" style={{ background: "radial-gradient(circle,#818cf8,transparent)" }} />
 
             <div className="relative">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="h-7 w-7 rounded-lg bg-white/15 flex items-center justify-center">
-                  <Sparkles className="h-3.5 w-3.5 text-white/80" />
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Sparkles className="h-4.5 w-4.5 text-white" />
                 </div>
-                <p className="text-[11px] font-bold tracking-widest text-white/50 uppercase">Family Portfolio</p>
+                <p className="text-[12px] font-bold tracking-widest text-white/70 uppercase">Family Portfolio</p>
               </div>
 
-              <p className="text-4xl font-bold text-white tracking-tight">{fmt(portfolioValue)}</p>
+              <p className="text-5xl font-bold text-white tracking-tight mb-4">{fmt(portfolioValue)}</p>
 
-              <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-2.5 mb-5">
                 <span
-                  className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold"
+                  className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold"
                   style={{
-                    background: isPositive ? "rgba(52,211,153,0.2)" : "rgba(248,113,113,0.2)",
+                    background: isPositive ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)",
                     color: isPositive ? "#6ee7b7" : "#fca5a5",
                   }}
                 >
                   {isPositive
-                    ? <TrendingUp className="h-3 w-3" />
-                    : <TrendingDown className="h-3 w-3" />}
+                    ? <TrendingUp className="h-3.5 w-3.5" />
+                    : <TrendingDown className="h-3.5 w-3.5" />}
                   {isPositive ? "+" : ""}{fmt(portfolioChange)}
                 </span>
-                <span className="text-xs text-white/40">
+                <span className="text-xs text-white/50 font-medium">
                   {changePct >= 0 ? "+" : ""}{changePct.toFixed(1)}% all time
                 </span>
               </div>
 
               {/* Member count row */}
-              <div className="mt-4 pt-4 border-t border-white/10 flex items-center gap-1.5">
+              <div className="pt-4 border-t border-white/20 flex items-center gap-2">
                 {[...Array(Math.min(totalMembers, 5))].map((_, i) => (
                   <div
                     key={i}
-                    className="h-6 w-6 rounded-full border-2 border-indigo-800 bg-indigo-500 flex items-center justify-center text-[9px] font-bold text-white"
-                    style={{ marginLeft: i > 0 ? -8 : 0 }}
+                    className="h-7 w-7 rounded-full border-2 border-blue-800 bg-blue-600 flex items-center justify-center text-[9px] font-bold text-white"
+                    style={{ marginLeft: i > 0 ? -10 : 0 }}
                   />
                 ))}
-                <p className="text-xs text-white/40 ml-2">{totalMembers} account{totalMembers !== 1 ? "s" : ""} linked</p>
+                <p className="text-xs text-white/50 ml-2 font-medium">{totalMembers} account{totalMembers !== 1 ? "s" : ""} linked</p>
               </div>
             </div>
           </motion.div>
@@ -778,25 +774,26 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           {spouse && (
             <motion.div
               variants={item}
-              className="rounded-3xl bg-white shadow-sm border border-slate-100 overflow-hidden"
+              className="rounded-2xl overflow-hidden shadow-xl border border-slate-700/50"
+              style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}
             >
-              <div className="h-1" style={{ background: "linear-gradient(90deg,#fb7185,#f43f5e,#e11d48)" }} />
-              <div className="p-5">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <div className="h-8 w-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#fda4af,#fb7185)" }}>
-                    <Heart className="h-4 w-4 text-white" />
+              <div className="h-1.5" style={{ background: "linear-gradient(90deg,#ec4899,#f43f5e,#e11d48)" }} />
+              <div className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#ec4899,#db2777)" }}>
+                    <Heart className="h-5 w-5 text-white" />
                   </div>
-                  <p className="text-[11px] font-bold tracking-widest text-slate-400 uppercase">Combined Spousal Pledge</p>
+                  <p className="text-[12px] font-bold tracking-widest text-slate-400 uppercase">Combined Spousal Pledge</p>
                 </div>
-                <p className="text-3xl font-bold text-slate-900 tracking-tight">{fmt(spousalPledge)}</p>
-                <div className="flex flex-wrap gap-2 mt-3">
+                <p className="text-4xl font-bold text-white tracking-tight mb-4">{fmt(spousalPledge)}</p>
+                <div className="flex flex-wrap gap-2 mb-4">
                   {[profile?.firstName || "You", spouse.first_name].map((name) => (
-                    <span key={name} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                      <ShieldCheck className="h-3 w-3" /> {name} consented
+                    <span key={name} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <ShieldCheck className="h-3.5 w-3.5" /> {name} consented
                     </span>
                   ))}
                 </div>
-                <p className="text-[11px] text-slate-400 mt-3 leading-relaxed">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
                   Both spouses have consented to a combined pledge per FICA requirements.
                 </p>
               </div>
@@ -806,7 +803,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           {/* ── Parents section ── */}
           <motion.div variants={item}>
             <div className="flex items-center gap-2 mb-3 px-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+              <div className="h-2 w-2 rounded-full bg-white/20" />
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Parents</p>
             </div>
             <div className="space-y-3">
@@ -827,27 +824,28 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
               {/* Spouse or placeholder */}
               {spouse ? (
                 <MemberRow
-                  gradient="linear-gradient(135deg,#fb7185,#e11d48)"
+                  gradient="linear-gradient(135deg,#ec4899,#db2777)"
                   name={[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")}
                   role="Spouse"
-                  roleIcon={<Heart className="h-2.5 w-2.5" />}
+                  roleIcon={<Heart className="h-3 w-3" />}
                   roleColor={{ bg: "#fff1f2", text: "#e11d48" }}
                   detail={spouse.mint_number || undefined}
                   value={fmt(0)}
                   barPct={40}
-                  barGradient="linear-gradient(90deg,#fb7185,#e11d48)"
+                  barGradient="linear-gradient(90deg,#ec4899,#db2777)"
                 />
               ) : !addingType && (
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setAddingType("spouse")}
-                  className="w-full flex items-center gap-4 rounded-2xl bg-white shadow-sm border-2 border-dashed border-slate-200 p-4 text-left hover:border-rose-200 hover:bg-rose-50/30 transition group"
+                  className="w-full flex items-center gap-4 rounded-2xl shadow-md border-2 border-dashed border-slate-700/40 p-5 text-left hover:border-rose-400/60 hover:bg-rose-950/20 transition-all group"
+                  style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}
                 >
-                  <div className="h-13 w-13 rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-rose-300 flex items-center justify-center flex-shrink-0 transition" style={{ height: 52, width: 52 }}>
-                    <UserPlus className="h-5 w-5 text-slate-300 group-hover:text-rose-400 transition" />
+                  <div className="h-14 w-14 rounded-2xl border-2 border-dashed border-slate-700/60 group-hover:border-rose-400/80 flex items-center justify-center flex-shrink-0 transition-all" style={{ aspectRatio: "1" }}>
+                    <UserPlus className="h-6 w-6 text-slate-500 group-hover:text-rose-400 transition" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-600 group-hover:text-slate-800 transition">Add Spouse Account</p>
+                    <p className="text-sm font-bold text-white group-hover:text-rose-100 transition">Add Spouse Account</p>
                     <p className="text-xs text-slate-400 mt-0.5">Link your partner's account</p>
                   </div>
                 </motion.button>
@@ -859,7 +857,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           {children.length > 0 && (
             <motion.div variants={item}>
               <div className="flex items-center gap-2 mb-3 px-1 mt-2">
-                <div className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+                <div className="h-2 w-2 rounded-full bg-white/20" />
                 <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Children</p>
               </div>
               <div className="space-y-3">
@@ -873,51 +871,50 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                       variants={item}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => onOpenChildDashboard?.(child)}
-                      className="w-full text-left rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden"
+                      className="w-full text-left rounded-2xl overflow-hidden shadow-lg border border-slate-800/20"
+                      style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}
                     >
-                      <div className="flex">
-                        <div className="w-1 flex-shrink-0" style={{ background: childBarGradients[i % childBarGradients.length] }} />
-                        <div className="flex-1 p-4">
-                          <div className="flex items-center gap-3.5">
-                            <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-13 w-13" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[15px] font-bold text-slate-900 leading-tight truncate">{childName}</p>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide" style={{ background: "#eff6ff", color: "#2563eb" }}>
-                                  <Baby className="h-2.5 w-2.5" />
-                                  Child
-                                </span>
-                                {age !== null && (
-                                  <span className="text-[11px] font-semibold text-slate-500">{age} yr{age !== 1 ? "s" : ""} old</span>
-                                )}
-                              </div>
-                              {/* Managed by parent */}
-                              <div className="flex items-center gap-1.5 mt-1.5">
-                                <ShieldCheck className="h-3 w-3 text-indigo-400 flex-shrink-0" />
-                                <span className="text-[10px] text-slate-400 truncate">
-                                  Managed by {profile?.firstName || "Parent"}
-                                  {parentMint ? ` · #${parentMint}` : ""}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-[15px] font-bold text-slate-900 tabular-nums">{fmt(child.available_balance || 0)}</p>
-                              {child.mint_number && (
-                                <p className="text-[10px] text-slate-400 mt-0.5">{child.mint_number}</p>
+                      <div className="h-1" style={{ background: childBarGradients[i % childBarGradients.length] }} />
+                      <div className="p-5">
+                        <div className="flex items-center gap-4">
+                          <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-14 w-14" text="text-xl" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[16px] font-bold text-white leading-tight truncate">{childName}</p>
+                            <div className="flex items-center gap-2 mt-1.5">
+                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#eff6ff", color: "#2563eb" }}>
+                                <Baby className="h-3 w-3" />
+                                Child
+                              </span>
+                              {age !== null && (
+                                <span className="text-[11px] font-semibold text-slate-400">{age} yr{age !== 1 ? "s" : ""} old</span>
                               )}
                             </div>
+                            {/* Managed by parent */}
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <ShieldCheck className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0" />
+                              <span className="text-[10px] text-slate-500 truncate font-medium">
+                                Managed by {profile?.firstName || "Parent"}
+                                {parentMint ? ` · #${parentMint}` : ""}
+                              </span>
+                            </div>
                           </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[17px] font-bold text-white tabular-nums">{fmt(child.available_balance || 0)}</p>
+                            {child.mint_number && (
+                              <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{child.mint_number}</p>
+                            )}
+                          </div>
+                        </div>
 
-                          {/* Progress bar */}
-                          <div className="mt-3.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                            <motion.div
-                              className="h-full rounded-full"
-                              style={{ background: childBarGradients[i % childBarGradients.length] }}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${childBarWidths[i % childBarWidths.length]}%` }}
-                              transition={{ delay: i * 0.06 + 0.3, duration: 0.8, ease: "easeOut" }}
-                            />
-                          </div>
+                        {/* Progress bar */}
+                        <div className="mt-4 h-2 rounded-full bg-slate-800/40 overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full shadow-sm"
+                            style={{ background: childBarGradients[i % childBarGradients.length] }}
+                            initial={{ width: 0 }}
+                            animate={{ width: `${childBarWidths[i % childBarWidths.length]}%` }}
+                            transition={{ delay: i * 0.06 + 0.3, duration: 0.8, ease: "easeOut" }}
+                          />
                         </div>
                       </div>
                     </motion.button>
@@ -928,13 +925,14 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setAddingType("child")}
-                  className="w-full flex items-center gap-4 rounded-2xl bg-white shadow-sm border-2 border-dashed border-slate-200 p-4 text-left hover:border-indigo-200 hover:bg-indigo-50/30 transition group"
+                  className="w-full flex items-center gap-4 rounded-2xl shadow-md border-2 border-dashed border-slate-700/40 p-5 text-left hover:border-indigo-400/60 hover:bg-indigo-950/20 transition-all group"
+                  style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}
                 >
-                  <div className="h-[52px] w-[52px] rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-indigo-300 flex items-center justify-center flex-shrink-0 transition">
-                    <Plus className="h-5 w-5 text-slate-300 group-hover:text-indigo-400 transition" />
+                  <div className="h-14 w-14 rounded-2xl border-2 border-dashed border-slate-700/60 group-hover:border-indigo-400/80 flex items-center justify-center flex-shrink-0 transition-all" style={{ aspectRatio: "1" }}>
+                    <Plus className="h-6 w-6 text-slate-500 group-hover:text-indigo-400 transition" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-600 group-hover:text-slate-800 transition">Add Child Account</p>
+                    <p className="text-sm font-bold text-white group-hover:text-indigo-100 transition">Add Child Account</p>
                     <p className="text-xs text-slate-400 mt-0.5">Add another child to your family</p>
                   </div>
                 </motion.button>
@@ -946,18 +944,19 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           {children.length === 0 && !loading && !addingType && (
             <motion.div
               variants={item}
-              className="rounded-3xl bg-white shadow-sm border border-slate-100 p-8 text-center"
+              className="rounded-2xl shadow-xl border border-slate-700/50 p-8 text-center"
+              style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}
             >
-              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)" }}>
-                <Users className="h-7 w-7 text-indigo-400" />
+              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#1e3a8a,#3b82f6)" }}>
+                <Users className="h-7 w-7 text-white" />
               </div>
-              <p className="text-sm font-bold text-slate-800">No children added yet</p>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">Add your children's accounts to manage the whole family from one place.</p>
+              <p className="text-sm font-bold text-white">No children added yet</p>
+              <p className="text-xs text-slate-400 mt-2 leading-relaxed">Add your children's accounts to manage the whole family from one place.</p>
               <button
                 onClick={() => setAddingType("child")}
-                className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-500 hover:text-indigo-600 transition"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition"
               >
-                <Plus className="h-3.5 w-3.5" /> Add a child account
+                <Plus className="h-4 w-4" /> Add a child account
               </button>
             </motion.div>
           )}
