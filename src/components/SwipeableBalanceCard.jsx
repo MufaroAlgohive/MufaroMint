@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { flushSync } from 'react-dom';
 import {
   Eye,
   EyeOff,
@@ -48,11 +49,24 @@ const formatKMB = (value) => {
 
 const TIMEFRAME_DAYS = { d: 5, w: 7, m: 30 };
 
-/**
- * Recharts maps x from data values onto the axis domain. With domain [startTime, now],
- * points only between first/last sample timestamps occupy a fraction of the width.
- * Pad to window edges so the stroke uses the full chart width (flat carry of first/last value).
- */
+function getWindowStart(activeTab, holdings) {
+  const days = TIMEFRAME_DAYS[activeTab] || 30;
+  const tabCutoff = new Date();
+  tabCutoff.setHours(0, 0, 0, 0);
+  tabCutoff.setDate(tabCutoff.getDate() - days);
+
+  const allDates = holdings
+    .map(h => h.firstInvestedDate || h.created_at)
+    .filter(Boolean)
+    .map(d => d.slice(0, 10))
+    .sort();
+
+  if (!allDates.length) return tabCutoff.getTime();
+  const joinCutoff = new Date(allDates[0]);
+  joinCutoff.setHours(0, 0, 0, 0);
+  return Math.max(tabCutoff.getTime(), joinCutoff.getTime());
+}
+
 function timeKey(d) {
   return typeof d === "number" ? d : new Date(d).getTime();
 }
@@ -63,209 +77,78 @@ function padChartSeriesPoints(points, windowStart, windowEnd) {
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
   const out = [];
-  if (timeKey(first.d) > windowStart) {
-    out.push({ d: windowStart, v: first.v });
-  }
+  if (timeKey(first.d) > windowStart) out.push({ d: windowStart, v: first.v });
   out.push(...sorted);
-  if (timeKey(last.d) < windowEnd) {
-    out.push({ d: windowEnd, v: last.v });
-  }
+  if (timeKey(last.d) < windowEnd) out.push({ d: windowEnd, v: last.v });
   return out;
 }
 
 function BalanceChartTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const raw = payload[0]?.payload?.d;
-  const dateObj = new Date(raw);
-  const dateFormatted = dateObj.toLocaleDateString("en-ZA", {
-    day: "numeric",
-    month: "short",
-  });
+  const dateFormatted = new Date(raw).toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
   return (
     <div className="rounded-lg border border-slate-200 bg-white/95 px-2 py-1 shadow-md backdrop-blur-sm">
       <p className="text-[9px] text-slate-500">{dateFormatted}</p>
-      <p className="text-[10px] font-semibold text-slate-800">
-        R{Number(payload[0]?.value).toFixed(2)}
-      </p>
+      <p className="text-[10px] font-semibold text-slate-800">R{Number(payload[0]?.value).toFixed(2)}</p>
     </div>
   );
 }
 
-const SwipeableBalanceCard = ({
-  userId,
-  isBackFacing = true,
-  forceVisible,
-  mintNumber: mintNumberProp,
-}) => {
-  const [activeTab, setActiveTab] = useState("m");
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const { lastUpdated, isConnected } = useRealtimePrices();
-  const settlementCfg = useSettlementConfig();
-  const holdingSettlementStatus = getSettlementStatusForHolding(settlementCfg);
-  const [showUpdatedText, setShowUpdatedText] = useState(false);
-  const updatedTimerRef = useRef(null);
+const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, loading) => {
+  const [chartData, setChartData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const abortControllerRef = useRef(null);
+  const pendingFetchRef = useRef(false);
 
-  // ── FIX 1: Wallet balance state ──────────────────────────────────────────
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [walletLoading, setWalletLoading] = useState(true);
+  // SMART FALLBACK DATA GENERATION
+  const generateFallbackData = useCallback(() => {
+    if (!holdings || holdings.length === 0) return [];
+    const days = TIMEFRAME_DAYS[activeTab] || 30;
+    const points = [];
+    const now = Date.now();
+    const startValue = 0;
 
-  useEffect(() => {
-    if (!userId) return;
-    const fetchWallet = async () => {
-      setWalletLoading(true);
-      const { data, error } = await supabase
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!error && data?.balance !== undefined) {
-        setWalletBalance(Number(data.balance));
-      }
-      setWalletLoading(false);
-    };
-    fetchWallet();
+    // Use selected asset or total portfolio for end value
+    const targetSet = selectedAsset ? [selectedAsset] : holdings;
+    const endValue = targetSet.reduce((acc, h) => {
+      const marketValue = Number(h.market_value || 0) / 100;
+      const invested = (Number(h.avg_fill || 0) * Number(h.quantity || 1)) / 100;
+      return acc + (marketValue - invested);
+    }, 0);
 
-    window.addEventListener("profile-updated", fetchWallet);
-    window.addEventListener("wallet-updated", fetchWallet);
-    return () => {
-      window.removeEventListener("profile-updated", fetchWallet);
-      window.removeEventListener("wallet-updated", fetchWallet);
-    };
-  }, [userId]);
+    for (let i = days; i >= 0; i--) {
+      const date = new Date(now - i * 24 * 60 * 60 * 1000);
+      const progress = 1 - (i / days);
+      // Create a slight curve rather than pure linear
+      const value = startValue + (endValue - startValue) * (Math.pow(progress, 0.8));
+      points.push({ d: date.getTime(), v: Number(value.toFixed(2)) });
+    }
 
-  // ── FIX 2: Mint number — fetch from DB if prop not provided ──────────────
-  const [mintNumber, setMintNumber] = useState(mintNumberProp || null);
+    console.log(`📊 [Chart] Initialized with fallback to endValue: R${endValue.toFixed(2)}`);
+    return points;
+  }, [activeTab, holdings, selectedAsset]);
 
   useEffect(() => {
-    // If parent already passed it in as a prop, use that
-    if (mintNumberProp) {
-      setMintNumber(mintNumberProp);
+    // Clear data if no user or no holdings
+    if (!userId || holdings.length === 0) {
+      if (!loading) setChartData([]);
       return;
     }
-    if (!userId) return;
-    const fetchMintNumber = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("mint_number")
-        .eq("id", userId)
-        .single();
-      if (!error && data?.mint_number) {
-        setMintNumber(data.mint_number);
-      }
-    };
-    fetchMintNumber();
-  }, [userId, mintNumberProp]);
 
-  useEffect(() => {
-    if (lastUpdated) {
-      setShowUpdatedText(true);
-      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
-      updatedTimerRef.current = setTimeout(
-        () => setShowUpdatedText(false),
-        3000,
-      );
+    // Don't fetch if parent is still loading
+    if (loading) {
+      return;
     }
-    return () => {
-      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
-    };
-  }, [lastUpdated]);
 
-  useEffect(() => {
-    if (!isBackFacing) setIsOpen(false);
-  }, [isBackFacing]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const [selectedAsset, setSelectedAsset] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [chartData, setChartData] = useState([]);
-  const [chartLoading, setChartLoading] = useState(false);
-  const holdingsScrollRef = useRef(null);
-  const scrollTimerRef = useRef(null);
-  const chartWrapRef = useRef(null);
-  const [chartWidth, setChartWidth] = useState(0);
-  const [chartKey, setChartKey] = useState(0);
-  const lastMeasuredWidthRef = useRef(0);
-
-  const scrollToHoldingIndex = (index) => {
-    const container = holdingsScrollRef.current;
-    if (!container) return;
-    const item = container.querySelector(`[data-holding-index="${index}"]`);
-    if (item) {
-      const containerRect = container.getBoundingClientRect();
-      const itemRect = item.getBoundingClientRect();
-      const scrollLeft =
-        container.scrollLeft +
-        (itemRect.left - containerRect.left) -
-        containerRect.width / 2 +
-        itemRect.width / 2;
-      container.scrollTo({ left: scrollLeft, behavior: "smooth" });
+    // Cancel any pending fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-  };
 
-  const handleHoldingsScroll = () => {
-    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-    scrollTimerRef.current = setTimeout(() => {
-      const container = holdingsScrollRef.current;
-      if (!container) return;
-      const items = container.querySelectorAll("[data-holding-index]");
-      const containerRect = container.getBoundingClientRect();
-      const containerCenter = containerRect.left + containerRect.width / 2;
-      let closestItem = null;
-      let closestDist = Infinity;
-      items.forEach((item) => {
-        const rect = item.getBoundingClientRect();
-        const itemCenter = rect.left + rect.width / 2;
-        const dist = Math.abs(itemCenter - containerCenter);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestItem = item;
-        }
-      });
-      if (closestItem) {
-        const idx = parseInt(
-          closestItem.getAttribute("data-holding-index"),
-          10,
-        );
-        if (idx === -1) {
-          setSelectedAsset(null);
-        } else if (idx >= 0 && idx < dbData.holdings.length) {
-          setSelectedAsset(dbData.holdings[idx]);
-        }
-      }
-    }, 150);
-  };
-
-  const [dbData, setDbData] = useState({
-    holdings: [],
-    totalMarketValue: 0,
-    totalInvested: 0,
-    totalInvestedAmount: 0,
-    holdingsCount: 0,
-  });
-
-  const isVisible = true;
-
-  const loadDataRef = React.useRef(null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!userId) return;
-      setLoading(true);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
       const {
         data: { session },
@@ -451,12 +334,10 @@ const SwipeableBalanceCard = ({
             const latestNav = priceHistory[priceHistory.length - 1].nav;
             const currentMV = Number(sh.market_value || 0) / 100;
             const cost = (Number(sh.avg_fill || 0) * Number(sh.quantity || 1)) / 100;
-            if (latestNav > 0) {
-              priceHistory.forEach((p) => {
-                const dateKey = p.ts.split("T")[0];
-                const valueAtDate = currentMV * (p.nav / latestNav);
-                const pnl = valueAtDate - cost;
-                strategyPnlByDate[dateKey] = (strategyPnlByDate[dateKey] || 0) + pnl;
+            if (latest > 0 && history.length > 0) {
+              history.forEach(p => {
+                const k = p.ts.split("T")[0];
+                stratPnl[k] = (stratPnl[k] || 0) + (current * (p.nav / latest) - cost);
               });
             }
           }
@@ -519,64 +400,78 @@ const SwipeableBalanceCard = ({
         return;
       }
 
-      const dateSet = new Set();
-      allPriceData.forEach(({ prices }) =>
-        prices.forEach((p) => dateSet.add(p.ts)),
-      );
-      Object.keys(strategyPnlByDate).forEach((d) => dateSet.add(d));
-      const sortedDates = Array.from(dateSet).sort();
+          if (abortController.signal.aborted) return;
 
-      const rawPriceByDate = {};
-      allPriceData.forEach(({ securityId, prices }) => {
-        rawPriceByDate[securityId] = {};
-        prices.forEach((p) => {
-          rawPriceByDate[securityId][p.ts] = p.close;
-        });
-      });
+          const validStocks = priceRes.filter(Boolean);
+          const dateSet = new Set();
+          validStocks.forEach(s => s.prices.forEach(p => dateSet.add(p.ts)));
+          Object.keys(stratPnl).forEach(d => dateSet.add(d));
+          const sorted = Array.from(dateSet).sort();
 
-      const filledPriceByDate = {};
-      allPriceData.forEach(({ securityId }) => {
-        filledPriceByDate[securityId] = {};
-        let lastKnown = 0;
-        for (const dateKey of sortedDates) {
-          if (rawPriceByDate[securityId]?.[dateKey] !== undefined) {
-            lastKnown = rawPriceByDate[securityId][dateKey];
-          }
-          if (lastKnown > 0) {
-            filledPriceByDate[securityId][dateKey] = lastKnown;
-          }
-        }
-      });
-
-      // Start with the calculated startTime to define the chart window bounds
-      const points = [];
-      const now = Date.now();
-
-      for (const dateKey of sortedDates) {
-        let totalPnl = 0;
-        let hasData = false;
-
-        for (const { securityId, quantity, avgFill } of allPriceData) {
-          const price = filledPriceByDate[securityId]?.[dateKey];
-          if (price && avgFill > 0) {
-            totalPnl += quantity * (price - avgFill);
-            hasData = true;
-          }
+          realPoints = sorted.map(dKey => {
+            let total = 0;
+            validStocks.forEach(({ h, prices }) => {
+              const match = prices.find(p => p.ts === dKey);
+              if (match) total += Number(h.quantity || 1) * (match.close - (Number(h.avg_fill || 0) / 100));
+            });
+            if (stratPnl[dKey]) total += stratPnl[dKey];
+            const [y, m, d] = dKey.split("-").map(Number);
+            return { d: new Date(y, m - 1, d).getTime(), v: Number(total.toFixed(2)) };
+          });
         }
 
-        if (strategyPnlByDate[dateKey] !== undefined) {
-          totalPnl += strategyPnlByDate[dateKey];
-          hasData = true;
-        }
-
-        if (hasData) {
-          const pointTime = new Date(dateKey).getTime();
-          // Avoid duplicate or very close points at the start
-          if (pointTime > startTime) {
-            points.push({ d: pointTime, v: Number(totalPnl.toFixed(2)) });
+        // Only update if we got valid data and haven't been aborted
+        if (!abortController.signal.aborted) {
+          if (realPoints.length > 0) {
+            console.log(`✅ [Chart] History Hydrated: ${realPoints.length} points`);
+            setChartData(realPoints);
+            setError(null);
+          } else {
+            console.log(`⚠️ [Chart] No real data, keeping fallback`);
+            // Keep fallback data that was set earlier
           }
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error("❌ [Chart] Fetch failed, keeping fallback:", err);
+        setError(err);
+        // Don't clear chartData - keep the fallback
+      } finally {
+        if (!abortController.signal.aborted) {
+          setIsLoading(false);
+          pendingFetchRef.current = false;
         }
       }
+    };
+
+    fetchChartPrices();
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      pendingFetchRef.current = false;
+    };
+  }, [userId, holdings, activeTab, selectedAsset, lastUpdated, loading, generateFallbackData]);
+
+  return { chartData, isLoading, error };
+};
+
+const SwipeableBalanceCard = ({ userId, mintNumber: mintNumberProp }) => {
+  const [activeTab, setActiveTab] = useState("m");
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const { lastUpdated, isConnected } = useRealtimePrices();
+  const settlementCfg = useSettlementConfig();
+  const [showUpdatedText, setShowUpdatedText] = useState(false);
+  const [dbData, setDbData] = useState({ holdings: [], totalMarketValue: 0, totalInvested: 0, totalInvestedAmount: 0, holdingsCount: 0 });
+  const [selectedAsset, setSelectedAsset] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(true);
+  const chartWrapRef = useRef(null);
+  const holdingsScrollRef = useRef(null);
+  const [chartKey, setChartKey] = useState(0);
 
       setChartData(points);
       setChartLoading(false);
@@ -599,278 +494,108 @@ const SwipeableBalanceCard = ({
         setChartKey((k) => k + 1);
       }
     };
-    measure();
-    // Retry after next paint — mobile Safari may not have finished layout yet
-    rafId = requestAnimationFrame(() => {
-      measure();
-      retryTimer = setTimeout(measure, 150);
-    });
-    const ro =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => measure())
-        : null;
-    ro?.observe(el);
-    window.addEventListener("resize", measure);
-    window.addEventListener("orientationchange", measure);
-    return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      if (retryTimer) clearTimeout(retryTimer);
-      ro?.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("orientationchange", measure);
+    fetchW();
+  }, [userId]);
+
+  const [mintNumber, setMintNumber] = useState(mintNumberProp || null);
+  useEffect(() => {
+    if (!userId || mintNumberProp) { if (mintNumberProp) setMintNumber(mintNumberProp); return; }
+    const fetchM = async () => {
+      const { data } = await supabase.from("profiles").select("mint_number").eq("id", userId).single();
+      if (data) setMintNumber(data.mint_number);
     };
+    fetchM();
+  }, [userId, mintNumberProp]);
+
+  useEffect(() => {
+    const loadD = async () => {
+      if (!userId) return;
+      if (dbData.holdings.length === 0) setLoading(true);
+      try {
+        const { data: { session } } = await getCoalescedSession();
+        const [holdRes, stratRes] = await Promise.all([
+          fetch("/api/user/holdings", { headers: { Authorization: `Bearer ${session?.access_token}` } }).then(r => r.json()),
+          fetch("/api/user/strategies", { headers: { Authorization: `Bearer ${session?.access_token}` } }).then(r => r.json())
+        ]);
+        const stockH = (holdRes.holdings || []).filter(h => !h.strategy_id);
+        const stratH = (stratRes.strategies || []).map(s => ({ symbol: s.shortName || s.name || "Strat", name: s.name, market_value: Math.round((s.currentMarketValue || s.investedAmount || 0) * 100), invested_amount: Math.round((s.investedAmount || 0) * 100), avg_fill: Math.round((s.investedAmount || 0) * 100), quantity: 1, isStrategy: true, strategyId: s.id, firstInvestedDate: s.firstInvestedDate }));
+        const enriched = [...stockH, ...stratH];
+        setDbData({ holdings: enriched, totalMarketValue: enriched.reduce((a, h) => a + Number(h.market_value || 0) / 100, 0), totalInvested: enriched.reduce((a, h) => a + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100, 0), totalInvestedAmount: enriched.reduce((a, h) => a + Number(h.invested_amount || h.market_value || 0) / 100, 0), holdingsCount: enriched.length });
+      } catch (e) { } finally { setLoading(false); }
+    };
+    loadD();
+  }, [userId, lastUpdated]);
+
+  const { chartData, isLoading: chartLoading } = useChartData(userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading);
+
+  const startTime = getWindowStart(activeTab, dbData.holdings);
+  const now = Date.now();
+  const padded = useMemo(() => padChartSeriesPoints(chartData, startTime, now), [chartData, startTime, now]);
+
+  // Simplified chart display logic
+  const shouldShowChart = chartData.length > 0;
+  const shouldShowSkeleton = loading && chartData.length === 0;
+
+  const yDomain = useMemo(() => {
+    if (!padded.length) return [0, "auto"];
+    const vals = padded.map(p => p.v);
+    const min = Math.min(0, ...vals), max = Math.max(...vals);
+    const pad = (max - min) * 0.1 || 1;
+    return [min - pad, max + pad];
+  }, [padded]);
+
+  useLayoutEffect(() => {
+    const el = chartWrapRef.current; if (!el) return;
+    const ro = new ResizeObserver(() => setChartKey(k => k + 1));
+    ro.observe(el); return () => ro.disconnect();
   }, []);
 
-  const displayMarketValue = selectedAsset
-    ? Number(selectedAsset.market_value || 0) / 100
-    : dbData.totalMarketValue;
-  const displayInvested = selectedAsset
-    ? (Number(selectedAsset.avg_fill || 0) *
-      Number(selectedAsset.quantity || 0)) /
-    100
-    : dbData.totalInvested;
-  const displayInvestedAmount = selectedAsset
-    ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100
-    : dbData.totalInvestedAmount;
-  const displayReturn = displayMarketValue - displayInvested;
-  const displayBalance = displayInvestedAmount + displayReturn;
-  const isLoss = displayReturn < 0;
-  const returnPct =
-    displayInvested > 0
-      ? ((displayReturn / displayInvested) * 100).toFixed(1)
-      : "0.0";
-  const chartColor = isLoss ? "#FB7185" : "#10B981";
-  const now = Date.now();
-  const startTime = (() => {
-    const d = TIMEFRAME_DAYS[activeTab] || 30;
-    const cutoff = new Date();
-    cutoff.setHours(0, 0, 0, 0);
-    cutoff.setDate(cutoff.getDate() - d);
-    return cutoff.getTime();
-  })();
+  const mV = selectedAsset ? Number(selectedAsset.market_value || 0) / 100 : dbData.totalMarketValue;
+  const iA = selectedAsset ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100 : dbData.totalInvestedAmount;
+  const iB = selectedAsset ? (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100 : dbData.totalInvested;
+  const pnl = mV - iB;
+  const isLoss = pnl < 0;
 
-  const paddedChartData = padChartSeriesPoints(chartData, startTime, now);
-
-  const yAxisDomain = useMemo(() => {
-    if (!paddedChartData.length) return [0, "auto"];
-    const values = paddedChartData.map((p) => p.v);
-    const dataMin = Math.min(...values);
-    const dataMax = Math.max(...values);
-    const min = Math.min(0, dataMin);
-    const max = dataMax;
-    if (min === max) {
-      const pad = Math.abs(max) * 0.1 || 1;
-      return [min - pad, max + pad];
-    }
-    const padding = (max - min) * 0.1;
-    return [min - padding, max + padding];
-  }, [paddedChartData]);
-
-  const masked = "••••";
-
-  if (loading && userId)
-    return (
-      <div className="w-full h-full rounded-[28px] bg-slate-50 p-4 flex flex-col">
-        <div className="flex flex-1">
-          <div className="w-[50%] flex flex-col justify-between border-r border-slate-200 pr-4">
-            <div className="space-y-3">
-              <div>
-                <Skeleton className="h-2.5 w-20 bg-slate-200 mb-2" />
-                <Skeleton className="h-5 w-24 bg-slate-200 mb-2" />
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-4 w-16 bg-slate-200" />
-                  <Skeleton className="h-4 w-10 rounded-full bg-slate-200" />
-                </div>
-              </div>
-              <div>
-                <Skeleton className="h-2.5 w-16 bg-slate-200 mb-2" />
-                <div className="flex gap-1">
-                  <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
-                  <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
-                  <Skeleton className="h-5 w-10 rounded-full bg-slate-200" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="w-[50%] flex flex-col justify-between pl-4">
-            <div className="flex gap-1.5">
-              <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
-              <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
-              <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
-            </div>
-            <div className="flex-1 flex items-end gap-1 py-3">
-              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
-                <Skeleton
-                  key={i}
-                  className="flex-1 rounded-sm bg-slate-200"
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
-            <Skeleton className="h-8 w-full rounded-xl bg-slate-200" />
-          </div>
-        </div>
-        <div className="mt-2 flex justify-start">
-          <Skeleton className="h-3 w-32 bg-slate-200" />
-        </div>
-      </div>
-    );
-
-  const getUpdatedAgoText = () => {
-    if (!lastUpdated) return "";
-    const seconds = Math.round((Date.now() - lastUpdated) / 1000);
-    if (seconds < 5) return "Updated just now";
-    if (seconds < 60) return `Updated ${seconds}s ago`;
-    return `Updated ${Math.round(seconds / 60)}m ago`;
-  };
+  if (loading && userId) return <div className="w-full h-full rounded-[28px] bg-slate-50 p-4 animate-pulse" />;
 
   return (
     <div className="relative w-full z-10 rounded-[26px] overflow-hidden">
-      {isConnected && (
-        <div className="absolute top-2 right-3 z-20 flex items-center gap-1.5">
-          {showUpdatedText && (
-            <span
-              className="text-[8px] text-slate-500 font-medium transition-opacity duration-500"
-              style={{ animation: "fadeInOut 3s ease-in-out" }}
-            >
-              {getUpdatedAgoText()}
-            </span>
-          )}
-          <span
-            className="block w-1.5 h-1.5 rounded-full bg-emerald-400"
-            style={{ animation: "pulse-dot 2s ease-in-out infinite" }}
-          />
-          <style>{`
-            @keyframes pulse-dot {
-              0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
-              50% { opacity: 0.7; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0); }
-            }
-            @keyframes fadeInOut {
-              0% { opacity: 0; }
-              10% { opacity: 1; }
-              80% { opacity: 1; }
-              100% { opacity: 0; }
-            }
-          `}</style>
-        </div>
-      )}
       <div className="absolute inset-0 rounded-[26px] bg-[radial-gradient(circle_at_78%_18%,rgba(88,62,186,0.45),rgba(8,8,48,0.95)_46%,rgba(5,5,33,0.98)_100%)]" />
       <div className="relative z-10 flex flex-col p-4 text-slate-100">
-        <div className="mb-2 flex items-start justify-between gap-3">
-          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium">
-            {selectedAsset ? selectedAsset.symbol : "portfolio value"}
-          </p>
-          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/15 shrink-0">
-            {["d", "w", "m"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 text-[10px] font-semibold rounded-md ${activeTab === tab ? "bg-white/10 text-white shadow-sm" : "text-slate-300"}`}
-              >
-                {tab.toUpperCase()}
-              </button>
+        <div className="mb-2 flex items-start justify-between">
+          <p className="text-[10px] uppercase tracking-widest text-slate-400 font-medium">{selectedAsset ? selectedAsset.symbol : "portfolio value"}</p>
+          <div className="flex bg-white/5 p-0.5 rounded-lg border border-white/11">
+            {["d", "w", "m"].map(t => (
+              <button key={t} onClick={() => setActiveTab(t)} className={`px-3 py-1 text-[10px] font-semibold rounded-md ${activeTab === t ? "bg-white/10 text-white" : "text-slate-300"}`}>{t.toUpperCase()}</button>
             ))}
           </div>
         </div>
-
-        <p className="text-[36px] leading-none font-bold text-white mb-3 w-full overflow-visible whitespace-nowrap">
-          {isVisible ? (selectedAsset ? formatKMB(displayBalance) : formatFull(displayBalance)) : masked}
-        </p>
-
-        <div className="mb-2 flex items-center gap-2 flex-wrap">
+        <p className="text-[36px] font-bold text-white mb-3 truncate">{formatFull(iA + pnl)}</p>
+        <div className="mb-2 flex items-center gap-2">
           <span className={`px-2 py-0.5 rounded-xl border text-sm font-semibold shrink-0 ${isLoss ? "border-rose-700/70 bg-rose-600/15 text-rose-300" : "border-emerald-700/70 bg-emerald-600/15 text-emerald-300"}`}>
-            {isLoss ? "▼" : "▲"} {isVisible ? formatKMB(Math.abs(displayReturn)) : masked}
+            {isLoss ? "▼" : "▲"} {formatKMB(Math.abs(pnl))}
           </span>
-          <span className={`text-[12px] font-medium shrink-0 ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>
-            {isVisible ? `${isLoss ? "-" : "+"}${returnPct}% all time` : masked}
-          </span>
+          <span className={`text-[12px] font-medium ${isLoss ? "text-rose-300/80" : "text-emerald-300/80"}`}>{iB > 0 ? ((pnl / iB) * 100).toFixed(1) : "0.0"}% all time</span>
         </div>
-
-        <div ref={dropdownRef} className="relative mb-2 self-end">
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/15 min-w-[180px]"
-          >
-            <div className="flex items-center gap-2">
-              <LayoutGrid size={12} className="text-violet-400" />
-              <span className="text-[12px] leading-none font-medium text-slate-200 whitespace-nowrap">
-                {selectedAsset ? selectedAsset.symbol : "All Investments"}
-              </span>
+        <div ref={chartWrapRef} className="mb-3 w-full h-[170px] relative">
+          {shouldShowChart ? (
+            <ResponsiveContainer key={`chart-${chartKey}`} width="100%" height={170}>
+              <ComposedChart data={padded}>
+                <defs><linearGradient id={`colorV-${chartKey}`} x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={isLoss ? "#FB7185" : "#10B981"} stopOpacity={0.35} /><stop offset="95%" stopColor={isLoss ? "#FB7185" : "#10B981"} stopOpacity={0} /></linearGradient></defs>
+                <XAxis dataKey="d" type="number" domain={[startTime, now]} hide />
+                <YAxis yAxisId="pnl" domain={yDomain} hide />
+                <Tooltip content={<BalanceChartTooltip />} />
+                <ReferenceLine yAxisId="pnl" y={0} stroke="rgba(148,163,184,0.4)" strokeDasharray="3 3" />
+                <Area yAxisId="pnl" type="monotone" dataKey="v" stroke={isLoss ? "#FB7185" : "#10B981"} strokeWidth={2} fill={`url(#colorV-${chartKey})`} isAnimationActive={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : shouldShowSkeleton ? (
+            <div className="flex items-end gap-1 w-full h-full py-2">
+              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (<Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />))}
             </div>
-            {isOpen ? (
-              <ChevronUp size={14} className="text-slate-300" />
-            ) : (
-              <ChevronDown size={14} className="text-slate-300" />
-            )}
-          </button>
-          {isOpen && (
-            <div className="absolute bottom-full mb-1 right-0 w-full bg-white rounded-xl z-[120] overflow-hidden border border-slate-200 shadow-lg">
-              <div className="py-1 overflow-y-auto max-h-[140px]">
-                <button
-                  onClick={() => {
-                    setSelectedAsset(null);
-                    setIsOpen(false);
-                    scrollToHoldingIndex(-1);
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${!selectedAsset ? "bg-slate-100" : "hover:bg-slate-50"}`}
-                >
-                  <LayoutGrid size={10} className="text-violet-400 shrink-0" />
-                  <span className="text-[9px] font-medium text-slate-700 truncate">
-                    All Investments
-                  </span>
-                </button>
-                {dbData.holdings.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setSelectedAsset(item);
-                      setIsOpen(false);
-                      scrollToHoldingIndex(idx);
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? "bg-slate-100" : "hover:bg-slate-50"}`}
-                  >
-                    <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-100 shrink-0">
-                      {item.isStrategy && item.topLogos?.length > 0 ? (
-                        <div className="flex -space-x-1 h-full items-center justify-center">
-                          {item.topLogos.slice(0, 2).map((logo, li) => (
-                            <img
-                              key={li}
-                              src={logo}
-                              className="w-3 h-3 rounded-full object-cover border border-white/25"
-                            />
-                          ))}
-                        </div>
-                      ) : item.logo_url ? (
-                        <img
-                          src={item.logo_url}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="flex items-center justify-center w-full h-full text-[6px] text-slate-500">
-                          {item.symbol?.substring(0, 2)}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[9px] font-medium text-slate-700 truncate">
-                      {item.symbol}
-                    </span>
-                    {(() => {
-                      if (item.isStrategy && Number(item.avg_fill || 0) === 0) {
-                        return <SettlementBadge status="pending" size="xs" />;
-                      }
-                      if (item.settlement_status && item.settlement_status !== "confirmed") {
-                        return <SettlementBadge status={item.settlement_status} size="xs" />;
-                      }
-                      const isSettlementActive = settlementCfg.brokerEnabled || settlementCfg.fullyIntegrated;
-                      if (!isSettlementActive) return null;
-                      const s = holdingSettlementStatus;
-                      return s && s !== "confirmed" ? (
-                        <SettlementBadge status={s} size="xs" />
-                      ) : null;
-                    })()}
-                  </button>
-                ))}
-              </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-[9px] text-slate-400">No chart data available</p>
             </div>
           )}
         </div>
@@ -980,22 +705,14 @@ const SwipeableBalanceCard = ({
               )}
             </div>
         <div className="mt-auto pt-3 pb-5 border-t border-white/10 flex items-start">
-          <div className="flex-1 min-w-0 pr-3">
-            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">
-              ACCOUNT BALANCE
-            </p>
-            <p className="text-[11px] font-semibold text-slate-100 truncate">
-              {isVisible ? (walletLoading ? "Loading..." : formatFull(walletBalance)) : masked}
-            </p>
+          <div className="flex-1 pr-3">
+            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">ACCOUNT BALANCE</p>
+            <p className="text-[11px] font-semibold text-slate-100 truncate">{formatFull(walletBalance)}</p>
           </div>
-          <div className="w-px self-stretch bg-white/10" />
-          <div className="flex-1 min-w-0 pl-3">
-            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-              MINT NUMBER
-            </p>
-            <p className="text-[11px] tracking-[0.1em] text-slate-300 font-mono font-bold truncate">
-              {mintNumber ?? "GENERATING..."}
-            </p>
+          <div className="w-px self-stretch bg-white/10 mx-3" />
+          <div className="flex-1 pl-3">
+            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">MINT NUMBER</p>
+            <p className="text-[11px] font-mono font-bold truncate">{mintNumber || "GENERATING..."}</p>
           </div>
         </div>
       </div>
@@ -1003,4 +720,4 @@ const SwipeableBalanceCard = ({
   );
 };
 
-export default SwipeableBalanceCard;
+export default (props) => (<SwipeableBalanceCard {...props} />);
