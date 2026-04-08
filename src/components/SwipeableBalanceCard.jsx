@@ -477,6 +477,7 @@ const SwipeableBalanceCard = ({
         } catch (e) { }
       }
 
+      const pricePromises = stockHoldings.map(async (h) => {
         try {
           let { data, error } = await supabase
             .from("security_prices")
@@ -531,6 +532,7 @@ const SwipeableBalanceCard = ({
           console.error(`❌ [Chart] Failed to fetch prices for ${h.symbol || h.security_id}:`, err);
           return null;
         }
+      });
 
       const allPriceData = (await Promise.all(pricePromises)).filter(Boolean);
       const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;
