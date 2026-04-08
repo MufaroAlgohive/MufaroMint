@@ -627,33 +627,6 @@ export const getMonthlyReturns = async (strategyId, startDate = null, actualPnlP
       }
     });
 
-    // CRITICAL FIX: Inject live prices for the current month so calendar isn't stale
-    const today = new Date();
-    const liveKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-    if (typeof actualPnlPct === 'number' && navByDate && Object.keys(navByDate).length > 0) {
-      const sortedDates = Object.keys(navByDate).sort();
-      const lastHistDate = sortedDates[sortedDates.length - 1];
-      const lastHistNav = navByDate[lastHistDate];
-      
-      // If we only have data from this month, we can trust actualPnlPct as the source of truth
-      // We set a pseudo-NAV for the current month that represents the live gain
-      const prevMonths = Object.keys(monthlyLastNav).filter(k => k < liveKey).sort();
-      if (prevMonths.length > 0) {
-        const lastMonthEndNav = monthlyLastNav[prevMonths[prevMonths.length - 1]];
-        // We don't have the explicit MTD return here, but we can compute it if we 
-        // approximate. If we want the *entire row* to be correct, it's best to 
-        // inject a NAV that reflects the live state.
-        // For now, let's just make the current month row match any 'live' movement we have.
-        monthlyLastNav[liveKey] = lastMonthEndNav * (1 + actualPnlPct);
-      } else {
-        // First month - just use the relative gain from 100
-        monthlyLastNav[liveKey] = 100 * (1 + actualPnlPct);
-        if (!monthlyFirstNavAfterPurchase[liveKey]) {
-          monthlyFirstNavAfterPurchase[liveKey] = 100;
-        }
-      }
-    }
-
     const sortedMonths = Object.keys(monthlyLastNav).sort();
     const result = {};
 
