@@ -68,7 +68,13 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
 
   function goToFamily() {
     setOpen(false);
-    if (onOpenFamily) onOpenFamily();
+    if (onOpenFamily) {
+      onOpenFamily();
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent("navigate-within-app", { detail: { page: "familyDashboard" } })
+    );
   }
 
   const spouse = members.find((m) => m.relationship === "spouse");
