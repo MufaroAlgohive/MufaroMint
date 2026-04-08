@@ -228,29 +228,37 @@ export default function FamilyDashboardPage({ onBack, userId }) {
   const barWidths = [100, 42, 65, 35, 50, 28];
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)]">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-4 pt-12 pb-4">
+    <div
+      className="min-h-screen pb-[env(safe-area-inset-bottom)]"
+      style={{
+        backgroundColor: '#f8f6fa',
+        backgroundImage: 'linear-gradient(180deg, #0d0d12 0%, #0e0a14 0.5%, #100b18 1%, #120c1c 1.5%, #150e22 2%, #181028 2.5%, #1c122f 3%, #201436 3.5%, #25173e 4%, #2a1a46 5%, #301d4f 6%, #362158 7%, #3d2561 8%, #44296b 9%, #4c2e75 10%, #54337f 11%, #5d3889 12%, #663e93 13%, #70449d 14%, #7a4aa7 15%, #8451b0 16%, #8e58b9 17%, #9860c1 18%, #a268c8 19%, #ac71ce 20%, #b57ad3 21%, #be84d8 22%, #c68edc 23%, #cd98e0 24%, #d4a2e3 25%, #daace6 26%, #dfb6e9 27%, #e4c0eb 28%, #e8c9ed 29%, #ecd2ef 30%, #efdaf1 31%, #f2e1f3 32%, #f4e7f5 33%, #f6ecf7 34%, #f8f0f9 35%, #f9f3fa 36%, #faf5fb 38%, #fbf7fc 40%, #fcf9fd 42%, #fdfafd 45%, #faf8fc 55%, #f8f6fa 100%)',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: '100% 100vh',
+      }}
+    >
+      {/* Header — sits over the dark gradient top */}
+      <div className="px-4 pt-12 pb-6">
         <div className="mx-auto w-full max-w-sm md:max-w-md">
           <div className="flex items-center justify-between">
             <button
               onClick={onBack}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95"
               aria-label="Back"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
 
             <div className="text-center">
-              <h1 className="text-lg font-semibold text-slate-900">
+              <h1 className="text-lg font-semibold text-white">
                 {familyLastName ? `${familyLastName} Family` : "My Family"}
               </h1>
-              <p className="text-xs text-slate-400">{totalMembers} member{totalMembers !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-white/50">{totalMembers} member{totalMembers !== 1 ? "s" : ""}</p>
             </div>
 
             <button
               onClick={() => setAddingType(addingType ? null : (spouse ? "child" : "spouse"))}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition hover:bg-slate-200 active:scale-95"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95"
               aria-label="Add member"
             >
               {addingType ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
@@ -260,7 +268,7 @@ export default function FamilyDashboardPage({ onBack, userId }) {
       </div>
 
       {/* Content */}
-      <div className="mx-auto w-full max-w-sm px-4 pt-5 pb-10 md:max-w-md">
+      <div className="mx-auto w-full max-w-sm px-4 pt-2 pb-10 md:max-w-md">
 
         {/* Add form */}
         <AnimatePresence>
