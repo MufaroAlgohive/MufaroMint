@@ -692,8 +692,8 @@ const HomePage = ({
             { label: "Invest", icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
             { label: "Deposit", icon: ArrowDownToLine, onClick: onOpenDeposit },
             { label: "News", icon: Newspaper, onClick: () => (onOpenNews ? onOpenNews("news") : (onOpenInvest && onOpenInvest("news"))) },
-            { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
             { label: "Family", icon: Users, onClick: onOpenFamily },
+            { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
           ].map((item, index) => {
             const Icon = item.icon;
             return (
