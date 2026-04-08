@@ -169,7 +169,7 @@ function TransferModal({ child, parentBalance, onTransfer, onClose }) {
                   <button
                     key={v}
                     onClick={() => setAmount(String(v))}
-                    className="flex-1 rounded-lg py-2 text-xs font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition active:scale-95"
+                    className="flex-1 rounded-lg py-2 text-xs font-bold text-purple-600 bg-purple-50 border border-purple-100 hover:bg-purple-100 transition active:scale-95"
                   >
                     R{v}
                   </button>
@@ -177,9 +177,9 @@ function TransferModal({ child, parentBalance, onTransfer, onClose }) {
               </div>
 
               {insufficient && (
-                <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 border border-amber-100 mb-3">
-                  <AlertCircle className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-600">Amount exceeds your wallet balance.</p>
+                <div className="flex items-start gap-2 rounded-xl bg-purple-50 px-4 py-3 border border-purple-100 mb-3">
+                  <AlertCircle className="h-3.5 w-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-purple-600">Amount exceeds your wallet balance.</p>
                 </div>
               )}
 
@@ -205,8 +205,8 @@ function TransferModal({ child, parentBalance, onTransfer, onClose }) {
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
-              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#d1fae5,#a7f3d0)" }}>
-                <Check className="h-8 w-8 text-emerald-600" />
+              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}>
+                <Check className="h-8 w-8 text-purple-600" />
               </div>
               <p className="text-lg font-bold text-slate-900">Transfer Complete!</p>
               <p className="text-sm text-slate-500 mt-2">
@@ -302,10 +302,10 @@ function InvestModal({ child, onInvest, onClose }) {
   );
 
   const riskColors = {
-    low: { bg: "#ecfdf5", text: "#059669" },
-    medium: { bg: "#fffbeb", text: "#d97706" },
-    high: { bg: "#fef2f2", text: "#dc2626" },
-    aggressive: { bg: "#fef2f2", text: "#dc2626" },
+    low: { bg: "#faf5ff", text: "#7c3aed" },
+    medium: { bg: "#f3e8ff", text: "#8b5cf6" },
+    high: { bg: "#ede9fe", text: "#6d28d9" },
+    aggressive: { bg: "#ede9fe", text: "#6d28d9" },
   };
 
   const inputCls =
@@ -340,7 +340,7 @@ function InvestModal({ child, onInvest, onClose }) {
                       <ArrowLeft className="h-3.5 w-3.5" />
                     </button>
                   )}
-                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#a5b4fc,#818cf8)" }}>
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
                     <BarChart3 className="h-5 w-5 text-white" />
                   </div>
                   <div>
@@ -361,10 +361,10 @@ function InvestModal({ child, onInvest, onClose }) {
               </div>
 
               {/* Available balance pill */}
-              <div className="flex items-center gap-2 rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-2.5 mb-4">
-                <Wallet className="h-3.5 w-3.5 text-indigo-500" />
-                <span className="text-xs font-semibold text-indigo-600">{child.first_name}'s balance:</span>
-                <span className="text-xs font-bold text-indigo-800 ml-auto tabular-nums">{fmt(childBalance)}</span>
+              <div className="flex items-center gap-2 rounded-xl bg-purple-50 border border-purple-100 px-4 py-2.5 mb-4">
+                <Wallet className="h-3.5 w-3.5 text-purple-500" />
+                <span className="text-xs font-semibold text-purple-600">{child.first_name}'s balance:</span>
+                <span className="text-xs font-bold text-purple-800 ml-auto tabular-nums">{fmt(childBalance)}</span>
               </div>
 
               {/* Strategy list */}
@@ -400,15 +400,15 @@ function InvestModal({ child, onInvest, onClose }) {
                           <button
                             key={s.id}
                             onClick={() => setSelected(s)}
-                            className="w-full flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-100 p-3.5 text-left hover:bg-indigo-50/40 hover:border-indigo-200 transition active:scale-[0.98]"
+                            className="w-full flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-100 p-3.5 text-left hover:bg-purple-50/50 hover:border-purple-200 transition active:scale-[0.98]"
                           >
                             <div
                               className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                              style={{ background: isUp ? "linear-gradient(135deg,#d1fae5,#a7f3d0)" : "linear-gradient(135deg,#fee2e2,#fecaca)" }}
+                              style={{ background: isUp ? "linear-gradient(135deg,#ede9fe,#ddd6fe)" : "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}
                             >
                               {isUp
-                                ? <TrendingUp className="h-4 w-4 text-emerald-600" />
-                                : <TrendingDown className="h-4 w-4 text-red-500" />}
+                                ? <TrendingUp className="h-4 w-4 text-purple-600" />
+                                : <TrendingDown className="h-4 w-4 text-purple-500" />}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-slate-900 truncate">{s.name}</p>
@@ -419,14 +419,14 @@ function InvestModal({ child, onInvest, onClose }) {
                                 >
                                   {s.risk_level || "Medium"}
                                 </span>
-                                {s.is_featured && <Star className="h-3 w-3 text-amber-400" />}
+                                {s.is_featured && <Star className="h-3 w-3 text-purple-400" />}
                                 {s.min_investment > 0 && (
                                   <span className="text-[10px] text-slate-400">Min {fmt(s.min_investment)}</span>
                                 )}
                               </div>
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <p className={`text-sm font-bold tabular-nums ${isUp ? "text-emerald-600" : "text-red-500"}`}>
+                              <p className="text-sm font-bold tabular-nums text-purple-600">
                                 {isUp ? "+" : ""}{changePct.toFixed(1)}%
                               </p>
                               <ChevronRight className="h-3.5 w-3.5 text-slate-300 ml-auto mt-0.5" />
@@ -464,7 +464,7 @@ function InvestModal({ child, onInvest, onClose }) {
                       <button
                         key={v}
                         onClick={() => setAmount(String(v))}
-                        className="flex-1 rounded-lg py-2 text-xs font-bold text-indigo-500 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition active:scale-95"
+                        className="flex-1 rounded-lg py-2 text-xs font-bold text-purple-600 bg-purple-50 border border-purple-100 hover:bg-purple-100 transition active:scale-95"
                       >
                         R{v}
                       </button>
@@ -489,9 +489,9 @@ function InvestModal({ child, onInvest, onClose }) {
                   </div>
 
                   {insufficient && (
-                    <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 border border-amber-100 mb-3">
-                      <AlertCircle className="h-3.5 w-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs text-amber-600">Insufficient balance. Transfer funds first.</p>
+                    <div className="flex items-start gap-2 rounded-xl bg-purple-50 px-4 py-3 border border-purple-100 mb-3">
+                      <AlertCircle className="h-3.5 w-3.5 text-purple-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-purple-600">Insufficient balance. Transfer funds first.</p>
                     </div>
                   )}
 
@@ -519,8 +519,8 @@ function InvestModal({ child, onInvest, onClose }) {
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               transition={{ type: "spring", stiffness: 300, damping: 25 }}
             >
-              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#d1fae5,#a7f3d0)" }}>
-                <Check className="h-8 w-8 text-emerald-600" />
+              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}>
+                <Check className="h-8 w-8 text-purple-600" />
               </div>
               <p className="text-lg font-bold text-slate-900">Investment Placed!</p>
               <p className="text-sm text-slate-500 mt-2">
@@ -551,11 +551,11 @@ function HoldingRow({ holding }) {
     <div className="flex items-center gap-3.5 rounded-xl shadow-lg border border-slate-200 p-4 bg-white">
       <div
         className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0"
-        style={{ background: isUp ? "linear-gradient(135deg,#d1fae5,#a7f3d0)" : "linear-gradient(135deg,#fee2e2,#fecaca)" }}
+        style={{ background: isUp ? "linear-gradient(135deg,#ede9fe,#ddd6fe)" : "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}
       >
         {isUp
-          ? <TrendingUp className="h-5 w-5 text-emerald-600" />
-          : <TrendingDown className="h-5 w-5 text-red-500" />}
+          ? <TrendingUp className="h-5 w-5 text-purple-600" />
+          : <TrendingDown className="h-5 w-5 text-purple-500" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-slate-900 truncate">{securitySymbol}</p>
@@ -563,7 +563,7 @@ function HoldingRow({ holding }) {
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-sm font-bold text-slate-900 tabular-nums">{fmtRands(holding.market_value || 0)}</p>
-        <p className={`text-[11px] font-semibold tabular-nums ${isUp ? "text-emerald-600" : "text-red-500"}`}>
+        <p className="text-[11px] font-semibold tabular-nums text-purple-600">
           {isUp ? "+" : ""}{fmtRands(holding.unrealized_pnl || 0)}
         </p>
       </div>
@@ -578,16 +578,16 @@ function TransactionRow({ tx }) {
   const date = tx.created_at ? new Date(tx.created_at).toLocaleDateString("en-ZA", { day: "numeric", month: "short" }) : "";
   return (
     <div className="flex items-center gap-3.5 py-3.5">
-      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${isCredit ? "bg-emerald-100" : "bg-indigo-100"}`}>
+      <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-purple-100">
         {isCredit
-          ? <ArrowDownLeft className="h-4.5 w-4.5 text-emerald-600" />
-          : <ArrowUpRight className="h-4.5 w-4.5 text-indigo-600" />}
+          ? <ArrowDownLeft className="h-4.5 w-4.5 text-purple-600" />
+          : <ArrowUpRight className="h-4.5 w-4.5 text-purple-600" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-slate-900 truncate">{tx.description || tx.type || "Transaction"}</p>
         <p className="text-[11px] text-slate-600 mt-0.5">{date}</p>
       </div>
-      <p className={`text-sm font-bold tabular-nums ${isCredit ? "text-emerald-600" : "text-slate-900"}`}>
+      <p className="text-sm font-bold tabular-nums text-purple-600">
         {isCredit ? "+" : "-"}{fmt(Math.abs(tx.amount || 0))}
       </p>
     </div>
@@ -702,11 +702,11 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
 
   // Avatar gradient based on first letter hash
   const gradients = [
-    "linear-gradient(135deg,#60a5fa,#3b82f6)",
+    "linear-gradient(135deg,#7c3aed,#5b21b6)",
+    "linear-gradient(135deg,#a855f7,#7c3aed)",
+    "linear-gradient(135deg,#8b5cf6,#6366f1)",
     "linear-gradient(135deg,#a78bfa,#7c3aed)",
-    "linear-gradient(135deg,#34d399,#059669)",
-    "linear-gradient(135deg,#f472b6,#db2777)",
-    "linear-gradient(135deg,#fb923c,#ea580c)",
+    "linear-gradient(135deg,#9333ea,#7c3aed)",
   ];
   const avatarGradient = gradients[(childName.charCodeAt(0) || 0) % gradients.length];
 
@@ -714,7 +714,10 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
     <div
       className="min-h-screen pb-[env(safe-area-inset-bottom)]"
       style={{
-        background: "linear-gradient(180deg, #f0f4f8 0%, #f8fafc 20%, #ffffff 50%, #f8fafc 80%, #f0f4f8 100%)",
+        backgroundColor: "#f8f6fa",
+        backgroundImage: "linear-gradient(180deg,#0d0d12 0%,#0e0a14 0.5%,#100b18 1%,#120c1c 1.5%,#150e22 2%,#181028 2.5%,#1c122f 3%,#201436 3.5%,#25173e 4%,#2a1a46 5%,#301d4f 6%,#362158 7%,#3d2561 8%,#44296b 9%,#4c2e75 10%,#54337f 11%,#5d3889 12%,#663e93 13%,#70449d 14%,#7a4aa7 15%,#8451b0 16%,#8e58b9 17%,#9860c1 18%,#a268c8 19%,#ac71ce 20%,#b57ad3 21%,#be84d8 22%,#c68edc 23%,#cd98e0 24%,#d4a2e3 25%,#daace6 26%,#dfb6e9 27%,#e4c0eb 28%,#e8c9ed 29%,#ecd2ef 30%,#efdaf1 31%,#f2e1f3 32%,#f4e7f5 33%,#f6ecf7 34%,#f8f0f9 35%,#f9f3fa 36%,#faf5fb 38%,#fbf7fc 40%,#fcf9fd 42%,#fdfafd 45%,#faf8fc 55%,#f8f6fa 100%)",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "100% 100vh",
         backgroundAttachment: "fixed",
       }}
     >
@@ -799,14 +802,14 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
 
           {/* ── Portfolio Card ── */}
           <motion.div variants={item} className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white">
-            <div className="h-1.5" style={{ background: isPortUp ? "linear-gradient(90deg,#10b981,#059669)" : "linear-gradient(90deg,#ef4444,#dc2626)" }} />
+            <div className="h-1.5" style={{ background: "linear-gradient(90deg,#a855f7,#7c3aed)" }} />
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div
                   className="h-10 w-10 rounded-xl flex items-center justify-center"
-                  style={{ background: isPortUp ? "linear-gradient(135deg,#d1fae5,#a7f3d0)" : "linear-gradient(135deg,#fee2e2,#fecaca)" }}
+                  style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}
                 >
-                  <PieChart className={`h-5 w-5 ${isPortUp ? "text-emerald-600" : "text-red-500"}`} />
+                  <PieChart className="h-5 w-5 text-purple-600" />
                 </div>
                 <p className="text-[12px] font-bold tracking-widest text-slate-500 uppercase">Portfolio Value</p>
               </div>
@@ -814,11 +817,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
               <p className="text-4xl font-bold text-slate-900 tracking-tight mb-3">{fmtRands(totalPortfolio)}</p>
 
               <div className="flex items-center gap-2.5">
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
-                    isPortUp ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
-                  }`}
-                >
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold bg-purple-50 text-purple-700">
                   {isPortUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                   {isPortUp ? "+" : ""}{fmtRands(totalPnl)}
                 </span>
@@ -845,8 +844,8 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
               </div>
             ) : (
               <div className="rounded-2xl border border-slate-200 p-8 text-center shadow-lg bg-white">
-                <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)" }}>
-                  <BarChart3 className="h-7 w-7 text-indigo-500" />
+                <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}>
+                  <BarChart3 className="h-7 w-7 text-purple-600" />
                 </div>
                 <p className="text-sm font-bold text-slate-900">No investments yet</p>
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
@@ -854,7 +853,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                 </p>
                 <button
                   onClick={() => setShowInvest(true)}
-                  className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition"
+                  className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-purple-600 hover:text-purple-700 transition"
                 >
                   <BarChart3 className="h-4 w-4" /> Browse Strategies
                 </button>

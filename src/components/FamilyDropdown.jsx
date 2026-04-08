@@ -77,6 +77,17 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
     );
   }
 
+  function goToChildDashboard(child) {
+    setOpen(false);
+    if (onSelectMember) {
+      onSelectMember(child);
+      return;
+    }
+    window.dispatchEvent(
+      new CustomEvent("navigate-within-app", { detail: { page: "childDashboard", child } })
+    );
+  }
+
   const spouse = members.find((m) => m.relationship === "spouse");
   const children = members.filter((m) => m.relationship === "child");
 
@@ -161,7 +172,7 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                   </p>
                   {spouse ? (
                     <button
-                      onClick={() => { setOpen(false); if (onSelectMember) onSelectMember(spouse); }}
+                      onClick={goToFamily}
                       className="flex items-center gap-3 px-4 py-2.5 w-full text-left hover:bg-white/5 transition-colors"
                     >
                       <MemberAvatar firstName={spouse.first_name} avatarUrl={spouse.avatar_url} isSpouse />
@@ -200,7 +211,7 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                     return (
                       <button
                         key={child.id}
-                        onClick={() => { setOpen(false); if (onSelectMember) onSelectMember(child); }}
+                        onClick={() => goToChildDashboard(child)}
                         className="flex items-center gap-3 px-4 py-2.5 w-full text-left hover:bg-white/5 transition-colors"
                       >
                         <MemberAvatar firstName={child.first_name} avatarUrl={child.avatar_url} isChild />

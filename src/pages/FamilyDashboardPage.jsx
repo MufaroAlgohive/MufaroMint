@@ -226,7 +226,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
         {/* Accent strip */}
         <div
           className="h-1 w-full"
-          style={{ background: isSpouse ? "linear-gradient(90deg,#fb7185,#f43f5e)" : "linear-gradient(90deg,#818cf8,#6366f1)" }}
+          style={{ background: isSpouse ? "linear-gradient(90deg,#a855f7,#7c3aed)" : "linear-gradient(90deg,#8b5cf6,#6366f1)" }}
         />
 
         {/* Drag handle */}
@@ -243,7 +243,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 <div className="flex items-center gap-3">
                   <div
                     className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg,#fda4af,#fb7185)" }}
+                    style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)" }}
                   >
                     <Heart className="h-5 w-5 text-white" />
                   </div>
@@ -324,9 +324,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
             >
               <div
                 className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg,#d1fae5,#a7f3d0)" }}
+                style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}
               >
-                <ShieldCheck className="h-8 w-8 text-emerald-600" />
+                <ShieldCheck className="h-8 w-8 text-purple-600" />
               </div>
               <p className="text-lg font-bold text-slate-900">Spouse Linked!</p>
               <p className="text-sm text-slate-500 mt-2">
@@ -355,9 +355,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
             >
               <div
                 className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)" }}
+                style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}
               >
-                <Mail className="h-8 w-8 text-indigo-500" />
+                <Mail className="h-8 w-8 text-purple-600" />
               </div>
               <p className="text-lg font-bold text-slate-900">Invitation Sent</p>
               <p className="text-sm text-slate-500 mt-2 leading-relaxed">
@@ -389,7 +389,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                   )}
                   <div
                     className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg,#a5b4fc,#818cf8)" }}
+                    style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}
                   >
                     {childStep === 0
                       ? <Baby className="h-5 w-5 text-white" />
@@ -493,8 +493,8 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                         <label
                           className={`block w-full cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition ${
                             certFile
-                              ? "border-emerald-300 bg-emerald-50/50"
-                              : "border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/30"
+                              ? "border-purple-300 bg-purple-50/60"
+                              : "border-slate-200 bg-slate-50 hover:border-purple-300 hover:bg-purple-50/40"
                           }`}
                         >
                           <input
@@ -505,10 +505,10 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                           />
                           {certFile ? (
                             <div className="flex flex-col items-center gap-2">
-                              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                                <Check className="h-5 w-5 text-emerald-600" />
+                              <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                <Check className="h-5 w-5 text-purple-600" />
                               </div>
-                              <span className="text-sm font-semibold text-emerald-700 truncate max-w-[240px]">
+                              <span className="text-sm font-semibold text-purple-700 truncate max-w-[240px]">
                                 {certFile.name}
                               </span>
                             </div>
@@ -654,18 +654,18 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
   const isPositive = portfolioChange >= 0;
 
   const childAvatarGradients = [
-    "linear-gradient(135deg,#60a5fa,#3b82f6)",
+    "linear-gradient(135deg,#7c3aed,#5b21b6)",
+    "linear-gradient(135deg,#a855f7,#7c3aed)",
+    "linear-gradient(135deg,#8b5cf6,#6366f1)",
     "linear-gradient(135deg,#a78bfa,#7c3aed)",
-    "linear-gradient(135deg,#34d399,#059669)",
-    "linear-gradient(135deg,#f472b6,#db2777)",
-    "linear-gradient(135deg,#fb923c,#ea580c)",
+    "linear-gradient(135deg,#9333ea,#7c3aed)",
   ];
   const childBarGradients = [
-    "linear-gradient(90deg,#60a5fa,#3b82f6)",
+    "linear-gradient(90deg,#7c3aed,#5b21b6)",
+    "linear-gradient(90deg,#a855f7,#7c3aed)",
+    "linear-gradient(90deg,#8b5cf6,#6366f1)",
     "linear-gradient(90deg,#a78bfa,#7c3aed)",
-    "linear-gradient(90deg,#34d399,#059669)",
-    "linear-gradient(90deg,#f472b6,#db2777)",
-    "linear-gradient(90deg,#fb923c,#ea580c)",
+    "linear-gradient(90deg,#9333ea,#7c3aed)",
   ];
   const childBarWidths = [62, 38, 70, 45, 55];
 
@@ -772,10 +772,10 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
               variants={item}
               className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white"
             >
-              <div className="h-1.5" style={{ background: "linear-gradient(90deg,#ec4899,#f43f5e,#e11d48)" }} />
+              <div className="h-1.5" style={{ background: "linear-gradient(90deg,#9333ea,#7c3aed,#6b21a8)" }} />
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#fda4af,#fb7185)" }}>
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#c084fc,#a855f7)" }}>
                     <Heart className="h-5 w-5 text-white" />
                   </div>
                   <p className="text-[12px] font-bold tracking-widest text-slate-500 uppercase">Combined Spousal Pledge</p>
@@ -783,7 +783,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 <p className="text-4xl font-bold text-slate-900 tracking-tight mb-4">{fmt(spousalPledge)}</p>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {[profile?.firstName || "You", spouse.first_name].map((name) => (
-                    <span key={name} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span key={name} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
                       <ShieldCheck className="h-3.5 w-3.5" /> {name} consented
                     </span>
                   ))}
@@ -809,34 +809,34 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 name={displayName}
                 role="Head"
                 roleIcon={<Crown className="h-2.5 w-2.5" />}
-                roleColor={{ bg: "#fef3c7", text: "#d97706" }}
+                roleColor={{ bg: "#faf5ff", text: "#7c3aed" }}
                 detail="Main Account"
                 value={fmt(portfolioValue)}
                 barPct={100}
-                barGradient="linear-gradient(90deg,#34d399,#059669)"
+                barGradient="linear-gradient(90deg,#a855f7,#7c3aed)"
               />
 
               {/* Spouse or placeholder */}
               {spouse ? (
                 <MemberRow
-                  gradient="linear-gradient(135deg,#ec4899,#db2777)"
+                  gradient="linear-gradient(135deg,#a855f7,#7c3aed)"
                   name={[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")}
                   role="Spouse"
                   roleIcon={<Heart className="h-3 w-3" />}
-                  roleColor={{ bg: "#fff1f2", text: "#e11d48" }}
+                  roleColor={{ bg: "#faf5ff", text: "#9333ea" }}
                   detail={spouse.mint_number || undefined}
                   value={fmt(0)}
                   barPct={40}
-                  barGradient="linear-gradient(90deg,#ec4899,#db2777)"
+                  barGradient="linear-gradient(90deg,#a855f7,#7c3aed)"
                 />
               ) : !addingType && (
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setAddingType("spouse")}
-                  className="w-full flex items-center gap-4 rounded-2xl shadow-sm border-2 border-dashed border-slate-200 p-5 text-left hover:border-rose-300 hover:bg-rose-50/50 transition-all group bg-white"
+                  className="w-full flex items-center gap-4 rounded-2xl shadow-sm border-2 border-dashed border-slate-200 p-5 text-left hover:border-purple-300 hover:bg-purple-50/50 transition-all group bg-white"
                 >
-                  <div className="h-14 w-14 rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-rose-300 flex items-center justify-center flex-shrink-0 transition-all" style={{ aspectRatio: "1" }}>
-                    <UserPlus className="h-6 w-6 text-slate-400 group-hover:text-rose-500 transition" />
+                  <div className="h-14 w-14 rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-purple-300 flex items-center justify-center flex-shrink-0 transition-all" style={{ aspectRatio: "1" }}>
+                    <UserPlus className="h-6 w-6 text-slate-400 group-hover:text-purple-500 transition" />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition">Add Spouse Account</p>
@@ -874,7 +874,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                           <div className="flex-1 min-w-0">
                             <p className="text-[16px] font-bold text-slate-900 leading-tight truncate">{childName}</p>
                             <div className="flex items-center gap-2 mt-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#eff6ff", color: "#2563eb" }}>
+                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
                                 <Baby className="h-3 w-3" />
                                 Child
                               </span>
@@ -884,7 +884,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                             </div>
                             {/* Managed by parent */}
                             <div className="flex items-center gap-1.5 mt-2">
-                              <ShieldCheck className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0" />
+                              <ShieldCheck className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
                               <span className="text-[10px] text-slate-600 truncate font-medium">
                                 Managed by {profile?.firstName || "Parent"}
                                 {parentMint ? ` · #${parentMint}` : ""}
@@ -918,10 +918,10 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setAddingType("child")}
-                  className="w-full flex items-center gap-4 rounded-2xl shadow-sm border-2 border-dashed border-slate-200 p-5 text-left hover:border-indigo-300 hover:bg-indigo-50/50 transition-all group bg-white"
+                  className="w-full flex items-center gap-4 rounded-2xl shadow-sm border-2 border-dashed border-slate-200 p-5 text-left hover:border-purple-300 hover:bg-purple-50/50 transition-all group bg-white"
                 >
-                  <div className="h-14 w-14 rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-indigo-300 flex items-center justify-center flex-shrink-0 transition-all" style={{ aspectRatio: "1" }}>
-                    <Plus className="h-6 w-6 text-slate-400 group-hover:text-indigo-500 transition" />
+                  <div className="h-14 w-14 rounded-2xl border-2 border-dashed border-slate-200 group-hover:border-purple-300 flex items-center justify-center flex-shrink-0 transition-all" style={{ aspectRatio: "1" }}>
+                    <Plus className="h-6 w-6 text-slate-400 group-hover:text-purple-500 transition" />
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition">Add Child Account</p>
@@ -938,14 +938,14 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
               variants={item}
               className="rounded-2xl shadow-lg border border-slate-200 p-8 text-center bg-white"
             >
-              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)" }}>
-                <Users className="h-7 w-7 text-indigo-500" />
+              <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}>
+                <Users className="h-7 w-7 text-purple-600" />
               </div>
               <p className="text-sm font-bold text-slate-900">No children added yet</p>
               <p className="text-xs text-slate-600 mt-2 leading-relaxed">Add your children's accounts to manage the whole family from one place.</p>
               <button
                 onClick={() => setAddingType("child")}
-                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-purple-600 hover:text-purple-700 transition"
               >
                 <Plus className="h-4 w-4" /> Add a child account
               </button>

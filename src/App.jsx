@@ -368,6 +368,9 @@ const App = () => {
       const { page, member } = e.detail || {};
       if (member) setSelectedMember(member);
       if (page) {
+        if (page === 'childDashboard' && e.detail?.child) {
+          setSelectedFamilyChild(e.detail.child);
+        }
         if (page === 'userOnboarding') {
           setNotificationReturnPage(currentPage);
         }
