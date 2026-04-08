@@ -6300,6 +6300,7 @@ app.get('/api/family-members', async (req, res) => {
   const userId = req.query.user_id;
   if (!userId) return res.status(400).json({ error: 'user_id required' });
   try {
+    const db = supabaseAdmin || supabase;
     const { data, error } = await db.from('family_members').select('*').eq('primary_user_id', userId).order('created_at', { ascending: true });
     if (error) throw error;
     return res.json({ members: data || [] });
@@ -6318,6 +6319,7 @@ app.post('/api/family-members', async (req, res) => {
     return res.status(400).json({ error: 'relationship must be spouse or child' });
   }
   try {
+    const db = supabaseAdmin || supabase;
     // Check spouse uniqueness
     if (relationship === 'spouse') {
       const { data: existing } = await db.from('family_members').select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
@@ -6350,6 +6352,7 @@ app.delete('/api/family-members/:id', async (req, res) => {
   const userId = req.query.user_id;
   if (!userId) return res.status(400).json({ error: 'user_id required' });
   try {
+    const db = supabaseAdmin || supabase;
     const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
     if (error) throw error;
     return res.json({ success: true });
