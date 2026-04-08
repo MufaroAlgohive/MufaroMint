@@ -6267,6 +6267,166 @@ app.post("/api/ozow/notify", async (req, res) => {
   }
 });
 
+// ─── Family Members ──────────────────────────────────────────────────────────
+
+async function ensureFamilyMembersTable() {
+  // Run migrations directly against Supabase via the service role key
+  if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    const sql = `
+      CREATE TABLE IF NOT EXISTS family_members (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        primary_user_id UUID,
+        relationship    TEXT,
+        first_name      TEXT,
+        last_name       TEXT DEFAULT '',
+        date_of_birth   DATE,
+        avatar_url      TEXT,
+        mint_number     TEXT DEFAULT '',
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS primary_user_id UUID;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS relationship TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS first_name TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT '';
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT '';
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id);
+    `;
+    try {
+      const resp = await globalThis.fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_SERVICE_ROLE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify({ sql_query: sql }),
+      });
+      if (resp.ok) {
+        console.log('[family] family_members table ready (Supabase migration applied)');
+      } else {
+        const text = await resp.text();
+        console.warn('[family] exec_sql RPC unavailable, falling back to pgPool:', text);
+        await ensureFamilyMembersTablePg();
+      }
+    } catch (e) {
+      console.warn('[family] exec_sql fetch failed, falling back to pgPool:', e.message);
+      await ensureFamilyMembersTablePg();
+    }
+  } else {
+    await ensureFamilyMembersTablePg();
+  }
+}
+
+async function ensureFamilyMembersTablePg() {
+  if (!pgPool) return;
+  const client = await pgPool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS family_members (
+        id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        primary_user_id UUID,
+        relationship    TEXT,
+        first_name      TEXT,
+        last_name       TEXT DEFAULT '',
+        date_of_birth   DATE,
+        avatar_url      TEXT,
+        mint_number     TEXT DEFAULT '',
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    const cols = [
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS primary_user_id UUID`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS relationship TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS first_name TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS last_name TEXT DEFAULT ''`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS date_of_birth DATE`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT ''`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
+    ];
+    for (const sql of cols) {
+      try { await client.query(sql); } catch (_) {}
+    }
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id)`);
+    console.log('[family] family_members table ready (pgPool migration applied)');
+  } catch (e) {
+    console.error('[family] pgPool migration failed:', e.message);
+  } finally {
+    client.release();
+  }
+}
+ensureFamilyMembersTable();
+
+app.get('/api/family-members', async (req, res) => {
+  const userId = req.query.user_id;
+  if (!userId) return res.status(400).json({ error: 'user_id required' });
+  try {
+    const db = supabaseAdmin || supabase;
+    const { data, error } = await db.from('family_members').select('*').eq('primary_user_id', userId).order('created_at', { ascending: true });
+    if (error) throw error;
+    return res.json({ members: data || [] });
+  } catch (e) {
+    console.error('[family] GET error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/family-members', async (req, res) => {
+  const { primary_user_id, relationship, first_name, last_name, date_of_birth } = req.body;
+  if (!primary_user_id || !relationship || !first_name) {
+    return res.status(400).json({ error: 'primary_user_id, relationship, first_name required' });
+  }
+  if (!['spouse', 'child'].includes(relationship)) {
+    return res.status(400).json({ error: 'relationship must be spouse or child' });
+  }
+  try {
+    const db = supabaseAdmin || supabase;
+    // Check spouse uniqueness
+    if (relationship === 'spouse') {
+      const { data: existing } = await db.from('family_members').select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
+      if (existing) return res.status(409).json({ error: 'A spouse is already linked to this account.' });
+    }
+
+    // Generate a simple mint-style number for the family member
+    const prefix = relationship === 'spouse' ? 'SPO' : 'CHD';
+    const rand = Math.floor(1000000 + Math.random() * 9000000);
+    const mint_number = `${prefix}${String(rand).padStart(10, '0')}`;
+
+    const { data, error } = await db.from('family_members').insert({
+      primary_user_id,
+      relationship,
+      first_name: first_name.trim(),
+      last_name: (last_name || '').trim(),
+      date_of_birth: date_of_birth || null,
+      mint_number,
+    }).select().single();
+    if (error) throw error;
+    return res.status(201).json({ member: data });
+  } catch (e) {
+    console.error('[family] POST error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/family-members/:id', async (req, res) => {
+  const { id } = req.params;
+  const userId = req.query.user_id;
+  if (!userId) return res.status(400).json({ error: 'user_id required' });
+  try {
+    const db = supabaseAdmin || supabase;
+    const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[family] DELETE error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // Catch-all 404 handler - MUST be after all route definitions
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", message: "This is the API server. The frontend is served separately." });
