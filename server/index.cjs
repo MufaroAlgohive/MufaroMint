@@ -6267,6 +6267,98 @@ app.post("/api/ozow/notify", async (req, res) => {
   }
 });
 
+// ─── Family Members ──────────────────────────────────────────────────────────
+
+async function ensureFamilyMembersTable() {
+  if (!pgPool) return;
+  const client = await pgPool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS family_members (
+        id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        primary_user_id UUID NOT NULL,
+        relationship TEXT NOT NULL CHECK (relationship IN ('spouse', 'child')),
+        first_name   TEXT NOT NULL,
+        last_name    TEXT DEFAULT '',
+        date_of_birth DATE,
+        avatar_url   TEXT,
+        mint_number  TEXT DEFAULT '',
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id)`);
+    console.log('[family] family_members table ready');
+  } catch (e) {
+    console.error('[family] Failed to create family_members table:', e.message);
+  } finally {
+    client.release();
+  }
+}
+ensureFamilyMembersTable();
+
+app.get('/api/family-members', async (req, res) => {
+  const userId = req.query.user_id;
+  if (!userId) return res.status(400).json({ error: 'user_id required' });
+  try {
+    const { data, error } = await db.from('family_members').select('*').eq('primary_user_id', userId).order('created_at', { ascending: true });
+    if (error) throw error;
+    return res.json({ members: data || [] });
+  } catch (e) {
+    console.error('[family] GET error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/family-members', async (req, res) => {
+  const { primary_user_id, relationship, first_name, last_name, date_of_birth } = req.body;
+  if (!primary_user_id || !relationship || !first_name) {
+    return res.status(400).json({ error: 'primary_user_id, relationship, first_name required' });
+  }
+  if (!['spouse', 'child'].includes(relationship)) {
+    return res.status(400).json({ error: 'relationship must be spouse or child' });
+  }
+  try {
+    // Check spouse uniqueness
+    if (relationship === 'spouse') {
+      const { data: existing } = await db.from('family_members').select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
+      if (existing) return res.status(409).json({ error: 'A spouse is already linked to this account.' });
+    }
+
+    // Generate a simple mint-style number for the family member
+    const prefix = relationship === 'spouse' ? 'SPO' : 'CHD';
+    const rand = Math.floor(1000000 + Math.random() * 9000000);
+    const mint_number = `${prefix}${String(rand).padStart(10, '0')}`;
+
+    const { data, error } = await db.from('family_members').insert({
+      primary_user_id,
+      relationship,
+      first_name: first_name.trim(),
+      last_name: (last_name || '').trim(),
+      date_of_birth: date_of_birth || null,
+      mint_number,
+    }).select().single();
+    if (error) throw error;
+    return res.status(201).json({ member: data });
+  } catch (e) {
+    console.error('[family] POST error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/family-members/:id', async (req, res) => {
+  const { id } = req.params;
+  const userId = req.query.user_id;
+  if (!userId) return res.status(400).json({ error: 'user_id required' });
+  try {
+    const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[family] DELETE error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 // Catch-all 404 handler - MUST be after all route definitions
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", message: "This is the API server. The frontend is served separately." });

@@ -39,6 +39,7 @@ import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
 import SettlementBadge from "../components/PendingBadge";
 import NotificationBell from "../components/NotificationBell";
+import FamilyDropdown from "../components/FamilyDropdown";
 
 const CARD_VISIBILITY_KEY = "mintBalanceVisible";
 
@@ -642,19 +643,12 @@ const HomePage = ({
       <div className="rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
           <header className="relative flex items-center justify-between text-white">
-            <div className="flex items-center gap-3">
-              {profile.avatarUrl ? (
-                <img
-                  src={profile.avatarUrl}
-                  alt={displayName || "Profile"}
-                  className="h-10 w-10 rounded-full border border-white/40 object-cover"
-                />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
-                  {initials || "—"}
-                </div>
-              )}
-            </div>
+            <FamilyDropdown
+              profile={profile}
+              userId={userId}
+              initials={initials}
+              avatarUrl={profile.avatarUrl}
+            />
 
             <NavigationPill
               activeTab="home"
