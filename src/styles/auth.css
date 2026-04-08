@@ -179,6 +179,67 @@ input:-webkit-autofill:active {
   color: hsla(var(--foreground), 0.48);
 }
 
+.animated-input-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.animated-label-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  color: inherit;
+  font-size: clamp(1rem, 2.6vw, 1.05rem);
+  padding: clamp(0.75rem, 2.6vw, 0.95rem) clamp(1rem, 4vw, 1.25rem);
+  transition: padding 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animated-label-input::placeholder {
+  color: transparent;
+}
+
+.glass-input:focus-within .animated-label-input,
+.glass-input.has-value .animated-label-input {
+  padding-top: clamp(1.2rem, 3.2vw, 1.45rem);
+  padding-bottom: clamp(0.3rem, 1vw, 0.4rem);
+}
+
+.animated-label {
+  position: absolute;
+  top: 50%;
+  left: clamp(1rem, 4vw, 1.25rem);
+  transform: translateY(-50%);
+  pointer-events: none;
+  line-height: 1;
+}
+
+.animated-label span {
+  display: inline-block;
+  font-size: clamp(1rem, 2.6vw, 1.05rem);
+  min-width: 4px;
+  color: hsla(var(--foreground), 0.45);
+  transition: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.glass-input:focus-within .animated-label span,
+.glass-input.has-value .animated-label span {
+  color: hsl(var(--primary));
+  transform: translateY(-22px);
+  font-size: 0.72rem;
+}
+
+.dark .animated-label span {
+  color: rgba(180, 160, 220, 0.55);
+}
+
+.dark .glass-input:focus-within .animated-label span,
+.dark .glass-input.has-value .animated-label span {
+  color: hsl(var(--primary));
+}
+
 .glass-btn {
   background: linear-gradient(90deg, #000000 0%, #5b21b6 100%);
   backdrop-filter: blur(12px);

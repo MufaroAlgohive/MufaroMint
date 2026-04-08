@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import TextInput from './TextInput.jsx';
+import AnimatedLabelInput from './AnimatedLabelInput.jsx';
+const TextInput = AnimatedLabelInput;
 import PasswordInput from './PasswordInput.jsx';
 import PrimaryButton from './PrimaryButton.jsx';
 import PasswordStrengthIndicator, { getPasswordStrength } from './PasswordStrengthIndicator.jsx';
@@ -834,7 +835,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                 <TextInput
                   type="email"
                   id="email"
-                  placeholder="Your email"
+                  label="Your email"
                   required
                   autoComplete="email"
                   value={email}
@@ -863,7 +864,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
               <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${firstName ? 'has-value' : ''}`}>
                 <TextInput
                   id="first-name"
-                  placeholder="First name"
+                  label="First name"
                   required
                   autoComplete="given-name"
                   value={firstName}
@@ -873,7 +874,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
               <div className={`glass glass-input shadow-xl animate-on-load delay-5 ${lastName ? 'has-value' : ''}`}>
                 <TextInput
                   id="last-name"
-                  placeholder="Last name"
+                  label="Last name"
                   required
                   autoComplete="family-name"
                   value={lastName}
@@ -929,7 +930,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                     <TextInput
                       type="email"
                       id="login-email"
-                      placeholder="Email"
+                      label="Email"
                       required
                       autoComplete="email"
                       value={loginEmail}
@@ -939,7 +940,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                   <div className={`glass glass-input shadow-xl animate-on-load delay-5 ${loginPassword ? 'has-value' : ''}`}>
                     <PasswordInput
                       id="login-password"
-                      placeholder="Password"
+                      label="Password"
                       required
                       minLength={6}
                       value={loginPassword}
@@ -1025,7 +1026,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                   <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${loginPassword ? 'has-value' : ''}`}>
                     <PasswordInput
                       id="login-password"
-                      placeholder="Password"
+                      label="Password"
                       required
                       minLength={6}
                       value={loginPassword}
@@ -1106,7 +1107,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                     <TextInput
                       type="email"
                       id="reset-email"
-                      placeholder="Your email"
+                      label="Your email"
                       required
                       autoComplete="email"
                       value={resetEmail}
@@ -1136,7 +1137,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
               <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${newPassword ? 'has-value' : ''}`}>
                 <PasswordInput
                   id="new-password"
-                  placeholder="New password"
+                  label="New password"
                   required
                   minLength={8}
                   value={newPassword}
@@ -1156,7 +1157,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
               <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${confirmNewPassword ? 'has-value' : ''}`}>
                 <PasswordInput
                   id="confirm-new-password"
-                  placeholder="Confirm new password"
+                  label="Confirm new password"
                   required
                   value={confirmNewPassword}
                   onChange={(event) => setConfirmNewPassword(event.target.value)}
@@ -1205,7 +1206,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                 >
                   <PasswordInput
                     id="password"
-                    placeholder="Create password"
+                    label="Create password"
                     required
                     minLength={6}
                     value={password}
@@ -1234,7 +1235,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete, on
                 >
                   <PasswordInput
                     id="confirm"
-                    placeholder="Confirm password"
+                    label="Confirm password"
                     required
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
