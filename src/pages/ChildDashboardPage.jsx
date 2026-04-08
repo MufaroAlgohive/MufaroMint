@@ -548,18 +548,18 @@ function HoldingRow({ holding }) {
   const securitySymbol = holding.securities?.symbol || `SEC-${String(holding.security_id || "").slice(0, 6)}`;
   const securityName = holding.securities?.name || "Security";
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-white border border-slate-100 p-3.5">
+    <div className="flex items-center gap-3.5 rounded-xl shadow-lg border border-slate-200 p-4 bg-white">
       <div
-        className="h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0"
+        className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0"
         style={{ background: isUp ? "linear-gradient(135deg,#d1fae5,#a7f3d0)" : "linear-gradient(135deg,#fee2e2,#fecaca)" }}
       >
         {isUp
-          ? <TrendingUp className="h-4 w-4 text-emerald-600" />
-          : <TrendingDown className="h-4 w-4 text-red-500" />}
+          ? <TrendingUp className="h-5 w-5 text-emerald-600" />
+          : <TrendingDown className="h-5 w-5 text-red-500" />}
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-slate-900 truncate">{securitySymbol}</p>
-        <p className="text-[11px] text-slate-400 truncate">{securityName}</p>
+        <p className="text-[11px] text-slate-600 truncate font-medium">{securityName}</p>
       </div>
       <div className="text-right flex-shrink-0">
         <p className="text-sm font-bold text-slate-900 tabular-nums">{fmtRands(holding.market_value || 0)}</p>
@@ -578,16 +578,16 @@ function TransactionRow({ tx }) {
   const date = tx.created_at ? new Date(tx.created_at).toLocaleDateString("en-ZA", { day: "numeric", month: "short" }) : "";
   return (
     <div className="flex items-center gap-3.5 py-3.5">
-      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${isCredit ? "bg-emerald-500/20" : "bg-blue-500/20"}`}>
+      <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${isCredit ? "bg-emerald-100" : "bg-indigo-100"}`}>
         {isCredit
-          ? <ArrowDownLeft className="h-4.5 w-4.5 text-emerald-400" />
-          : <ArrowUpRight className="h-4.5 w-4.5 text-blue-400" />}
+          ? <ArrowDownLeft className="h-4.5 w-4.5 text-emerald-600" />
+          : <ArrowUpRight className="h-4.5 w-4.5 text-indigo-600" />}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white truncate">{tx.description || tx.type || "Transaction"}</p>
-        <p className="text-[11px] text-slate-500 mt-0.5">{date}</p>
+        <p className="text-sm font-semibold text-slate-900 truncate">{tx.description || tx.type || "Transaction"}</p>
+        <p className="text-[11px] text-slate-600 mt-0.5">{date}</p>
       </div>
-      <p className={`text-sm font-bold tabular-nums ${isCredit ? "text-emerald-400" : "text-white"}`}>
+      <p className={`text-sm font-bold tabular-nums ${isCredit ? "text-emerald-600" : "text-slate-900"}`}>
         {isCredit ? "+" : "-"}{fmt(Math.abs(tx.amount || 0))}
       </p>
     </div>
@@ -714,7 +714,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
     <div
       className="min-h-screen pb-[env(safe-area-inset-bottom)]"
       style={{
-        background: "linear-gradient(180deg, #0a0e1a 0%, #0f1419 10%, #141b26 20%, #1a2333 30%, #1e293b 50%, #1e2a3d 70%, #1c2942 85%, #192646 100%)",
+        background: "linear-gradient(180deg, #f0f4f8 0%, #f8fafc 20%, #ffffff 50%, #f8fafc 80%, #f0f4f8 100%)",
         backgroundAttachment: "fixed",
       }}
     >
@@ -724,7 +724,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800/60 backdrop-blur-md text-white border border-slate-700/50 transition hover:bg-slate-700/60 active:scale-95"
+              className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/90 backdrop-blur-md text-slate-700 border border-slate-200 shadow-sm transition hover:bg-white active:scale-95"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -734,19 +734,19 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           {/* Child profile card */}
           <div className="flex flex-col items-center mt-6">
             <Avatar name={childName} gradient={avatarGradient} size="h-24 w-24" text="text-4xl" />
-            <h1 className="text-2xl font-bold text-white mt-4 tracking-tight">{childName}</h1>
+            <h1 className="text-2xl font-bold text-slate-800 mt-4 tracking-tight">{childName}</h1>
             <div className="flex items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-bold tracking-wide bg-slate-800/60 backdrop-blur-md text-slate-200 border border-slate-700/50">
+              <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-bold tracking-wide bg-white/90 backdrop-blur-md text-slate-700 border border-slate-200 shadow-sm">
                 <Baby className="h-3.5 w-3.5" />
                 {age !== null ? `${age} yr${age !== 1 ? "s" : ""} old` : "Child"}
               </span>
               {child?.mint_number && (
-                <span className="text-[11px] text-slate-500 font-mono">{child.mint_number}</span>
+                <span className="text-[11px] text-slate-600 font-mono">{child.mint_number}</span>
               )}
             </div>
             <div className="flex items-center gap-1.5 mt-2">
               <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
-              <span className="text-[11px] text-slate-500">
+              <span className="text-[11px] text-slate-600">
                 Managed by {parentName}
                 {parentMintNumber ? ` · #${parentMintNumber}` : ""}
               </span>
@@ -762,17 +762,17 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           {/* ── Wallet Card ── */}
           <motion.div
             variants={item}
-            className="rounded-2xl p-6 relative overflow-hidden shadow-xl border border-slate-700/50"
-            style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%)" }}
+            className="rounded-2xl p-6 relative overflow-hidden shadow-lg border border-slate-200"
+            style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}
           >
-            <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full opacity-10" style={{ background: "radial-gradient(circle, #fff, transparent)" }} />
+            <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full opacity-20" style={{ background: "radial-gradient(circle, #fff, transparent)" }} />
 
             <div className="relative">
               <div className="flex items-center gap-2.5 mb-4">
-                <div className="h-9 w-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                <div className="h-9 w-9 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center shadow-sm">
                   <Wallet className="h-4.5 w-4.5 text-white" />
                 </div>
-                <p className="text-[12px] font-bold tracking-widest text-white/70 uppercase">{child?.first_name}'s Wallet</p>
+                <p className="text-[12px] font-bold tracking-widest text-white/90 uppercase">{child?.first_name}'s Wallet</p>
               </div>
 
               <p className="text-5xl font-bold text-white tracking-tight mb-6">{fmt(childBalance)}</p>
@@ -781,14 +781,14 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowTransfer(true)}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-white/20 backdrop-blur-md border border-white/20 hover:bg-white/30 transition active:scale-[0.98]"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-white/25 backdrop-blur-md border border-white/20 shadow-sm hover:bg-white/35 transition active:scale-[0.98]"
                 >
                   <ArrowDownLeft className="h-4 w-4" />
                   Transfer
                 </button>
                 <button
                   onClick={() => setShowInvest(true)}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-white/20 backdrop-blur-md border border-white/20 hover:bg-white/30 transition active:scale-[0.98]"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-white/25 backdrop-blur-md border border-white/20 shadow-sm hover:bg-white/35 transition active:scale-[0.98]"
                 >
                   <BarChart3 className="h-4 w-4" />
                   Invest
@@ -798,7 +798,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           </motion.div>
 
           {/* ── Portfolio Card ── */}
-          <motion.div variants={item} className="rounded-2xl overflow-hidden shadow-xl border border-slate-700/50" style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}>
+          <motion.div variants={item} className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white">
             <div className="h-1.5" style={{ background: isPortUp ? "linear-gradient(90deg,#10b981,#059669)" : "linear-gradient(90deg,#ef4444,#dc2626)" }} />
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
@@ -808,21 +808,21 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                 >
                   <PieChart className={`h-5 w-5 ${isPortUp ? "text-emerald-600" : "text-red-500"}`} />
                 </div>
-                <p className="text-[12px] font-bold tracking-widest text-slate-400 uppercase">Portfolio Value</p>
+                <p className="text-[12px] font-bold tracking-widest text-slate-500 uppercase">Portfolio Value</p>
               </div>
 
-              <p className="text-4xl font-bold text-white tracking-tight mb-3">{fmtRands(totalPortfolio)}</p>
+              <p className="text-4xl font-bold text-slate-900 tracking-tight mb-3">{fmtRands(totalPortfolio)}</p>
 
               <div className="flex items-center gap-2.5">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${
-                    isPortUp ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"
+                    isPortUp ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"
                   }`}
                 >
                   {isPortUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                   {isPortUp ? "+" : ""}{fmtRands(totalPnl)}
                 </span>
-                <span className="text-xs text-slate-500 font-medium">
+                <span className="text-xs text-slate-600 font-medium">
                   {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}% all time
                 </span>
               </div>
@@ -832,9 +832,9 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           {/* ── Holdings ── */}
           <motion.div variants={item}>
             <div className="flex items-center gap-2 mb-3 px-1">
-              <div className="h-2 w-2 rounded-full bg-white/20" />
-              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Holdings</p>
-              <span className="text-[10px] text-slate-600 ml-auto">{holdings.length} investment{holdings.length !== 1 ? "s" : ""}</span>
+              <div className="h-2 w-2 rounded-full bg-slate-300" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Holdings</p>
+              <span className="text-[10px] text-slate-400 ml-auto">{holdings.length} investment{holdings.length !== 1 ? "s" : ""}</span>
             </div>
 
             {holdings.length > 0 ? (
@@ -844,17 +844,17 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-slate-700/50 p-8 text-center shadow-xl" style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}>
-                <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#1e3a8a,#3b82f6)" }}>
-                  <BarChart3 className="h-7 w-7 text-white" />
+              <div className="rounded-2xl border border-slate-200 p-8 text-center shadow-lg bg-white">
+                <div className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)" }}>
+                  <BarChart3 className="h-7 w-7 text-indigo-500" />
                 </div>
-                <p className="text-sm font-bold text-white">No investments yet</p>
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                <p className="text-sm font-bold text-slate-900">No investments yet</p>
+                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
                   Start investing on {child?.first_name}'s behalf to build their future portfolio.
                 </p>
                 <button
                   onClick={() => setShowInvest(true)}
-                  className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-blue-300 transition"
+                  className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 transition"
                 >
                   <BarChart3 className="h-4 w-4" /> Browse Strategies
                 </button>
@@ -865,21 +865,21 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           {/* ── Recent Activity ── */}
           <motion.div variants={item}>
             <div className="flex items-center gap-2 mb-3 px-1">
-              <div className="h-2 w-2 rounded-full bg-white/20" />
-              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Recent Activity</p>
+              <div className="h-2 w-2 rounded-full bg-slate-300" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Recent Activity</p>
             </div>
 
             {transactions.length > 0 ? (
-              <div className="rounded-2xl overflow-hidden shadow-xl border border-slate-700/50" style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}>
-                <div className="divide-y divide-slate-800/50 px-5">
+              <div className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white">
+                <div className="divide-y divide-slate-100 px-5">
                   {transactions.map((tx) => (
                     <TransactionRow key={tx.id} tx={tx} />
                   ))}
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-slate-700/50 p-6 text-center shadow-xl" style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}>
-                <p className="text-xs text-slate-500">No activity yet. Transfer or invest to get started.</p>
+              <div className="rounded-2xl border border-slate-200 p-6 text-center shadow-lg bg-white">
+                <p className="text-xs text-slate-600">No activity yet. Transfer or invest to get started.</p>
               </div>
             )}
           </motion.div>
@@ -887,43 +887,43 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           {/* ── Account Info ── */}
           <motion.div variants={item}>
             <div className="flex items-center gap-2 mb-3 px-1">
-              <div className="h-2 w-2 rounded-full bg-white/20" />
-              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Account Details</p>
+              <div className="h-2 w-2 rounded-full bg-slate-300" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Account Details</p>
             </div>
-            <div className="rounded-2xl shadow-xl border border-slate-700/50 p-5" style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)" }}>
+            <div className="rounded-2xl shadow-lg border border-slate-200 p-5 bg-white">
               <div className="space-y-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">Account Type</span>
-                  <span className="font-semibold text-white">Child (Minor)</span>
+                  <span className="text-slate-600">Account Type</span>
+                  <span className="font-semibold text-slate-900">Child (Minor)</span>
                 </div>
                 {child?.mint_number && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Mint Number</span>
-                    <span className="font-mono text-xs font-semibold text-white">{child.mint_number}</span>
+                    <span className="text-slate-600">Mint Number</span>
+                    <span className="font-mono text-xs font-semibold text-slate-900">{child.mint_number}</span>
                   </div>
                 )}
                 {age !== null && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Age</span>
-                    <span className="font-semibold text-white">{age} year{age !== 1 ? "s" : ""}</span>
+                    <span className="text-slate-600">Age</span>
+                    <span className="font-semibold text-slate-900">{age} year{age !== 1 ? "s" : ""}</span>
                   </div>
                 )}
                 {child?.date_of_birth && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Date of Birth</span>
-                    <span className="font-semibold text-white">
+                    <span className="text-slate-600">Date of Birth</span>
+                    <span className="font-semibold text-slate-900">
                       {new Date(child.date_of_birth).toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })}
                     </span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm border-t border-slate-700/50 pt-4">
-                  <span className="text-slate-400">Managed By</span>
-                  <span className="font-semibold text-white">{parentName}</span>
+                <div className="flex justify-between text-sm border-t border-slate-100 pt-4">
+                  <span className="text-slate-600">Managed By</span>
+                  <span className="font-semibold text-slate-900">{parentName}</span>
                 </div>
                 {parentMintNumber && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-400">Parent Mint #</span>
-                    <span className="font-mono text-xs font-semibold text-white">{parentMintNumber}</span>
+                    <span className="text-slate-600">Parent Mint #</span>
+                    <span className="font-mono text-xs font-semibold text-slate-900">{parentMintNumber}</span>
                   </div>
                 )}
               </div>
