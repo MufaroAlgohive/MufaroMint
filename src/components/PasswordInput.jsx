@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import TextInput from './TextInput.jsx';
+import AnimatedLabelInput from './AnimatedLabelInput.jsx';
 
-const PasswordInput = ({ className = '', ...props }) => {
+const PasswordInput = ({ className = '', label, ...props }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="relative flex items-center flex-1">
-      <TextInput
+      <AnimatedLabelInput
         type={showPassword ? 'text' : 'password'}
+        label={label}
         className={`pr-10 ${className}`}
         {...props}
       />

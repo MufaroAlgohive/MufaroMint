@@ -13,6 +13,7 @@ import {
   AlertCircle,
   User,
   FileText,
+  Users,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import ProfileSkeleton from "../components/ProfileSkeleton";
@@ -122,6 +123,7 @@ const MorePage = ({ onNavigate }) => {
   const menuSections = [
     [
       { id: "profile", label: "Profile Details", icon: User, onClick: () => onNavigate?.("profileDetails") },
+      { id: "family", label: "Family Dashboard", icon: Users, onClick: () => onNavigate?.("familyDashboard") },
       { id: "settings", label: "Settings", icon: Settings, onClick: () => onNavigate?.("settings") },
       { id: "statements", label: "Statements", icon: FileText, onClick: () => onNavigate?.("statements") },
     ],
