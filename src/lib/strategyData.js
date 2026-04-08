@@ -826,10 +826,14 @@ export const getStockMonthlyReturns = async (securityId, startDate = null, actua
 };
 
 export const getOverallPortfolioMonthlyReturns = async (strategyIds, stockSecurityIds, strategies, rawHoldings) => {
+  // Skip cache when there are stock holdings — live prices must always be fresh
+  const hasStockHoldings = stockSecurityIds && stockSecurityIds.length > 0;
   const cacheKey = `monthly_returns_overall_${strategyIds.sort().join("_")}_${stockSecurityIds.sort().join("_")}`;
-  const cached = cache.priceHistory.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp) < 300000) {
-    return cached.data;
+  if (!hasStockHoldings) {
+    const cached = cache.priceHistory.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < 300000) {
+      return cached.data;
+    }
   }
 
   try {
@@ -850,10 +854,11 @@ export const getOverallPortfolioMonthlyReturns = async (strategyIds, stockSecuri
     for (const secId of stockSecurityIds) {
       const holding = rawHoldings.find(h => h.security_id === secId);
       const investedVal = holding ? (holding.avg_fill * holding.quantity) / 100 : 0;
-      const currentVal = holding ? (holding.market_value || 0) / 100 : 0;
-      const actualPnlPct = investedVal > 0 ? (currentVal - investedVal) / investedVal : null;
-      const returns = await getStockMonthlyReturns(secId, holding?.created_at || null, actualPnlPct);
-      const value = currentVal || investedVal || 0;
+      const livePrice = holding?.last_price ? Number(holding.last_price) / 100 : null;
+      const liveMarketVal = livePrice && holding?.quantity ? livePrice * holding.quantity : holding ? (holding.market_value || 0) / 100 : 0;
+      const actualPnlPct = investedVal > 0 ? (liveMarketVal - investedVal) / investedVal : null;
+      const returns = await getStockMonthlyReturns(secId, holding?.created_at || null, actualPnlPct, livePrice);
+      const value = liveMarketVal || investedVal || 0;
       if (Object.keys(returns).length > 0) {
         allMonthlyData.push({ returns, value });
       }
