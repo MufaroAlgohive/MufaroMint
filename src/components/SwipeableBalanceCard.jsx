@@ -32,7 +32,6 @@ let sharedSessionPromise = null;
 const getCoalescedSession = async () => {
   if (sharedSessionPromise) return sharedSessionPromise;
   sharedSessionPromise = supabase.auth.getSession().finally(() => {
-    // Reset after a short delay to allow fresh tokens but prevent immediate contention
     setTimeout(() => { sharedSessionPromise = null; }, 5000);
   });
   return sharedSessionPromise;
@@ -58,6 +57,33 @@ const formatKMB = (value) => {
 };
 
 const TIMEFRAME_DAYS = { d: 5, w: 7, m: 30 };
+
+/**
+ * Compute the effective window start: the later of
+ *   (a) the tab-based cutoff (e.g. last 30 days), and
+ *   (b) the user's earliest holding purchase date.
+ * This means tabs zoom *in* but never go earlier than the join date.
+ */
+function getWindowStart(activeTab, holdings) {
+  const days = TIMEFRAME_DAYS[activeTab] || 30;
+  const tabCutoff = new Date();
+  tabCutoff.setHours(0, 0, 0, 0);
+  tabCutoff.setDate(tabCutoff.getDate() - days);
+
+  const allDates = holdings
+    .map(h => h.firstInvestedDate || h.created_at)
+    .filter(Boolean)
+    .map(d => d.slice(0, 10))
+    .sort();
+
+  if (!allDates.length) return tabCutoff.getTime();
+
+  const joinCutoff = new Date(allDates[0]);
+  joinCutoff.setHours(0, 0, 0, 0);
+
+  // The later date = the effective start (tab can only zoom in, not back past join)
+  return Math.max(tabCutoff.getTime(), joinCutoff.getTime());
+}
 
 /**
  * Recharts maps x from data values onto the axis domain. With domain [startTime, now],
@@ -117,7 +143,7 @@ const SwipeableBalanceCard = ({
   const [showUpdatedText, setShowUpdatedText] = useState(false);
   const updatedTimerRef = useRef(null);
 
-  // ── FIX 1: Wallet balance state ──────────────────────────────────────────
+  // Wallet balance state
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletLoading, setWalletLoading] = useState(true);
 
@@ -145,11 +171,10 @@ const SwipeableBalanceCard = ({
     };
   }, [userId]);
 
-  // ── FIX 2: Mint number — fetch from DB if prop not provided ──────────────
+  // Mint number — fetch from DB if prop not provided
   const [mintNumber, setMintNumber] = useState(mintNumberProp || null);
 
   useEffect(() => {
-    // If parent already passed it in as a prop, use that
     if (mintNumberProp) {
       setMintNumber(mintNumberProp);
       return;
@@ -364,13 +389,12 @@ const SwipeableBalanceCard = ({
     const fetchChartPrices = async () => {
       if (!userId) return;
 
-      // ── FIX: Wait for initial load to complete ──
+      // Wait for initial holdings load to complete
       if (loading) {
         console.log("📈 [Chart] Waiting for initial holdings load...");
         return;
       }
 
-      // ── FIX: Don't wipe chart while holdings are still loading ──────────
       if (dbData.holdings.length === 0) {
         console.log("📈 [Chart] No holdings found, clearing chart data.");
         setChartData([]);
@@ -382,248 +406,273 @@ const SwipeableBalanceCard = ({
       setChartLoading(true);
 
       try {
+        const holdingsToChart = selectedAsset ? [selectedAsset] : dbData.holdings;
 
-      const holdingsToChart = selectedAsset ? [selectedAsset] : dbData.holdings;
-      const days = TIMEFRAME_DAYS[activeTab] || 30;
-      const cutoff = new Date();
-      cutoff.setHours(0, 0, 0, 0); // Start of today
-      cutoff.setDate(cutoff.getDate() - days);
-      const startTime = cutoff.getTime();
-      const startDateStr = cutoff.toISOString().split("T")[0];
+        // ── Compute effective window start ────────────────────────────────
+        // Uses the later of (tab cutoff) and (earliest holding purchase date).
+        // Tabs zoom in but never go earlier than when the user first invested.
+        const days = TIMEFRAME_DAYS[activeTab] || 30;
+        const tabCutoff = new Date();
+        tabCutoff.setHours(0, 0, 0, 0);
+        tabCutoff.setDate(tabCutoff.getDate() - days);
 
-      if ((selectedAsset?.isStrategy || selectedAsset?.strategy_id) && (selectedAsset?.strategy_id || selectedAsset?.id)) {
-        const timeframeMap = { d: "1D", w: "1W", m: "1M" };
-        const tf = timeframeMap[activeTab] || "1M";
-        const sid = selectedAsset.strategy_id || selectedAsset.id;
-        let priceHistory = await getStrategyPriceHistory(
-          sid,
-          tf,
-        );
-        const purchaseDateStr = selectedAsset.firstInvestedDate ? selectedAsset.firstInvestedDate.slice(0, 10) : null;
-        if (purchaseDateStr && priceHistory && priceHistory.length > 0) {
-          const afterPurchase = priceHistory.filter(p => p.ts.split("T")[0] >= purchaseDateStr);
-          if (afterPurchase.length >= 1) {
-            priceHistory = afterPurchase;
-          } else {
-            const beforePurchase = priceHistory.filter(p => p.ts.split("T")[0] < purchaseDateStr);
-            if (beforePurchase.length > 0) {
-              const lastKnown = beforePurchase[beforePurchase.length - 1];
-              priceHistory = [lastKnown, { ...lastKnown, ts: purchaseDateStr + "T00:00:00Z" }];
-            }
-          }
-        }
-        if (priceHistory && priceHistory.length > 0) {
-          const latestNav = priceHistory[priceHistory.length - 1].nav;
-          const currentMarketValue = Number(selectedAsset.market_value || 0) / 100;
-          const costBasis = (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 1)) / 100;
-          if (latestNav > 0) {
-            const points = [];
-            const firstTs = priceHistory[0].ts.split("T")[0];
-            const anchorDate = new Date(firstTs);
-            anchorDate.setDate(anchorDate.getDate() - 1);
-            points.push({ d: anchorDate.toISOString().split("T")[0], v: 0 });
-            priceHistory.forEach((p) => {
-              const valueAtDate = currentMarketValue * (p.nav / latestNav);
-              const pnl = valueAtDate - costBasis;
-                const pTime = new Date(p.ts).getTime();
-                points.push({
-                  d: pTime,
-                  v: Number(pnl.toFixed(2)),
-                });
-            });
-            setChartData(points);
-            console.log(`✅ [Chart] Generated ${points.length} points for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
-          } else {
-            console.warn(`⚠️ [Chart] Strategy ${selectedAsset.name || selectedAsset.symbol} has 0 NAV.`);
-            setChartData([]);
-          }
-        } else {
-          console.warn(`⚠️ [Chart] No price history found for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
-          setChartData([]);
-        }
-        setChartLoading(false);
-        return;
-      }
+        const allPurchaseDates = holdingsToChart
+          .map(h => h.firstInvestedDate || h.created_at)
+          .filter(Boolean)
+          .map(d => d.slice(0, 10))
+          .sort();
 
-      const stockHoldings = holdingsToChart.filter(
-        (h) => h.security_id && !h.strategy_id,
-      );
-      const strategyHoldings = holdingsToChart.filter(
-        (h) => !!h.strategy_id,
-      );
+        const earliestDateStr = allPurchaseDates[0] || tabCutoff.toISOString().split("T")[0];
+        const joinCutoff = new Date(earliestDateStr);
+        joinCutoff.setHours(0, 0, 0, 0);
 
-      const strategyPnlByDate = {};
-      const timeframeMap = { d: "1D", w: "1W", m: "1M" };
-      const tf = timeframeMap[activeTab] || "1M";
-      for (const sh of strategyHoldings) {
-        try {
-          const sid = sh.strategy_id || sh.id;
+        // Most recent of the two = actual window start
+        const effectiveCutoff = tabCutoff > joinCutoff ? tabCutoff : joinCutoff;
+        const startTime = effectiveCutoff.getTime();
+        const startDateStr = effectiveCutoff.toISOString().split("T")[0];
+        // ─────────────────────────────────────────────────────────────────
+
+        // Single strategy selected
+        if ((selectedAsset?.isStrategy || selectedAsset?.strategy_id) && (selectedAsset?.strategy_id || selectedAsset?.id)) {
+          const timeframeMap = { d: "1D", w: "1W", m: "1M" };
+          const tf = timeframeMap[activeTab] || "1M";
+          const sid = selectedAsset.strategy_id || selectedAsset.id;
           let priceHistory = await getStrategyPriceHistory(sid, tf);
-          const pDateStr = (sh.firstInvestedDate || sh.created_at || "").slice(0, 10);
-          if (pDateStr && priceHistory && priceHistory.length > 0) {
-            const afterP = priceHistory.filter(p => p.ts.split("T")[0] >= pDateStr);
-            if (afterP.length >= 1) {
-              priceHistory = afterP;
+
+          const purchaseDateStr = selectedAsset.firstInvestedDate ? selectedAsset.firstInvestedDate.slice(0, 10) : null;
+          if (purchaseDateStr && priceHistory && priceHistory.length > 0) {
+            const afterPurchase = priceHistory.filter(p => p.ts.split("T")[0] >= purchaseDateStr);
+            if (afterPurchase.length >= 1) {
+              priceHistory = afterPurchase;
             } else {
-              const beforeP = priceHistory.filter(p => p.ts.split("T")[0] < pDateStr);
-              if (beforeP.length > 0) {
-                const lastKnown = beforeP[beforeP.length - 1];
-                priceHistory = [lastKnown, { ...lastKnown, ts: pDateStr + "T00:00:00Z" }];
+              const beforePurchase = priceHistory.filter(p => p.ts.split("T")[0] < purchaseDateStr);
+              if (beforePurchase.length > 0) {
+                const lastKnown = beforePurchase[beforePurchase.length - 1];
+                priceHistory = [lastKnown, { ...lastKnown, ts: purchaseDateStr + "T00:00:00Z" }];
               }
             }
           }
+
+          // Also filter to the effective window (respects tab zoom)
+          if (priceHistory && priceHistory.length > 0) {
+            const filtered = priceHistory.filter(p => p.ts.split("T")[0] >= startDateStr);
+            if (filtered.length >= 1) priceHistory = filtered;
+          }
+
           if (priceHistory && priceHistory.length > 0) {
             const latestNav = priceHistory[priceHistory.length - 1].nav;
-            const currentMV = Number(sh.market_value || 0) / 100;
-            const cost = (Number(sh.avg_fill || 0) * Number(sh.quantity || 1)) / 100;
+            const currentMarketValue = Number(selectedAsset.market_value || 0) / 100;
+            const costBasis = (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 1)) / 100;
             if (latestNav > 0) {
+              const points = [];
+              const firstTs = priceHistory[0].ts.split("T")[0];
+              const anchorDate = new Date(firstTs);
+              anchorDate.setDate(anchorDate.getDate() - 1);
+              // Use timestamp (number) not string for XAxis compatibility
+              points.push({ d: anchorDate.getTime(), v: 0 });
               priceHistory.forEach((p) => {
-                const dateKey = p.ts.split("T")[0];
-                const valueAtDate = currentMV * (p.nav / latestNav);
-                const pnl = valueAtDate - cost;
-                strategyPnlByDate[dateKey] = (strategyPnlByDate[dateKey] || 0) + pnl;
+                const valueAtDate = currentMarketValue * (p.nav / latestNav);
+                const pnl = valueAtDate - costBasis;
+                const pTime = new Date(p.ts).getTime();
+                points.push({ d: pTime, v: Number(pnl.toFixed(2)) });
               });
+              setChartData(points);
+              console.log(`✅ [Chart] Generated ${points.length} points for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
+            } else {
+              console.warn(`⚠️ [Chart] Strategy ${selectedAsset.name || selectedAsset.symbol} has 0 NAV.`);
+              setChartData([]);
             }
+          } else {
+            console.warn(`⚠️ [Chart] No price history found for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
+            setChartData([]);
           }
-        } catch (e) { }
-      }
+          setChartLoading(false);
+          return;
+        }
 
-      const pricePromises = stockHoldings.map(async (h) => {
-        try {
-          let { data, error } = await supabase
-            .from("security_prices")
-            .select("ts, close_price")
-            .eq("security_id", h.security_id)
-            .gte("ts", startDateStr)
-            .order("ts", { ascending: true });
+        // Mixed portfolio: stocks + strategies
+        const stockHoldings = holdingsToChart.filter(h => h.security_id && !h.strategy_id);
+        const strategyHoldings = holdingsToChart.filter(h => !!h.strategy_id);
 
-          if (error || !data || data.length < 2) {
-            const fallback = await supabase
+        const strategyPnlByDate = {};
+        const timeframeMap = { d: "1D", w: "1W", m: "1M" };
+        const tf = timeframeMap[activeTab] || "1M";
+
+        for (const sh of strategyHoldings) {
+          try {
+            const sid = sh.strategy_id || sh.id;
+            let priceHistory = await getStrategyPriceHistory(sid, tf);
+            const pDateStr = (sh.firstInvestedDate || sh.created_at || "").slice(0, 10);
+
+            if (pDateStr && priceHistory && priceHistory.length > 0) {
+              const afterP = priceHistory.filter(p => p.ts.split("T")[0] >= pDateStr);
+              if (afterP.length >= 1) {
+                priceHistory = afterP;
+              } else {
+                const beforeP = priceHistory.filter(p => p.ts.split("T")[0] < pDateStr);
+                if (beforeP.length > 0) {
+                  const lastKnown = beforeP[beforeP.length - 1];
+                  priceHistory = [lastKnown, { ...lastKnown, ts: pDateStr + "T00:00:00Z" }];
+                }
+              }
+            }
+
+            // Filter to effective window
+            if (priceHistory && priceHistory.length > 0) {
+              const filtered = priceHistory.filter(p => p.ts.split("T")[0] >= startDateStr);
+              if (filtered.length >= 1) priceHistory = filtered;
+            }
+
+            if (priceHistory && priceHistory.length > 0) {
+              const latestNav = priceHistory[priceHistory.length - 1].nav;
+              const currentMV = Number(sh.market_value || 0) / 100;
+              const cost = (Number(sh.avg_fill || 0) * Number(sh.quantity || 1)) / 100;
+              if (latestNav > 0) {
+                priceHistory.forEach((p) => {
+                  const dateKey = p.ts.split("T")[0];
+                  if (dateKey < startDateStr) return; // skip outside window
+                  const valueAtDate = currentMV * (p.nav / latestNav);
+                  const pnl = valueAtDate - cost;
+                  strategyPnlByDate[dateKey] = (strategyPnlByDate[dateKey] || 0) + pnl;
+                });
+              }
+            }
+          } catch (e) { }
+        }
+
+        const pricePromises = stockHoldings.map(async (h) => {
+          try {
+            let { data, error } = await supabase
               .from("security_prices")
               .select("ts, close_price")
               .eq("security_id", h.security_id)
-              .order("ts", { ascending: false })
-              .limit(30);
-            if (!fallback.error && fallback.data && fallback.data.length >= 2) {
-              data = fallback.data.reverse();
-            } else if (!data || data.length === 0) {
-              console.warn(`⚠️ [Chart] No price data for stock: ${h.symbol || h.security_id}`);
-              return null;
+              .gte("ts", startDateStr)
+              .order("ts", { ascending: true });
+
+            if (error || !data || data.length < 2) {
+              const fallback = await supabase
+                .from("security_prices")
+                .select("ts, close_price")
+                .eq("security_id", h.security_id)
+                .order("ts", { ascending: false })
+                .limit(30);
+              if (!fallback.error && fallback.data && fallback.data.length >= 2) {
+                data = fallback.data.reverse();
+              } else if (!data || data.length === 0) {
+                console.warn(`⚠️ [Chart] No price data for stock: ${h.symbol || h.security_id}`);
+                return null;
+              }
+            }
+
+            const pDateStr = (h.created_at || h.as_of_date || "").split("T")[0];
+            // Effective start is the later of the holding's purchase date and the window start
+            const effectivePDateStr = pDateStr > startDateStr ? pDateStr : startDateStr;
+            const avgFillPrice = Number(h.avg_fill || 0) / 100;
+            const livePrice = Number(h.last_price || 0) / 100;
+            const allMapped = data.map((p) => ({
+              ts: p.ts.split("T")[0],
+              close: Number(p.close_price) / 100,
+            }));
+
+            let filteredPrices = allMapped.filter((p) => p.ts >= effectivePDateStr);
+            if (filteredPrices.length === 0) {
+              filteredPrices = [{ ts: effectivePDateStr, close: avgFillPrice }];
+            }
+            const today = new Date().toISOString().split("T")[0];
+            const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
+            if (livePrice > 0 && lastDate && lastDate < today) {
+              filteredPrices.push({ ts: today, close: livePrice });
+            }
+
+            console.log(`✅ [Chart] ${h.symbol || h.security_id}: ${filteredPrices.length} price points fetched.`);
+
+            return {
+              securityId: h.security_id,
+              quantity: Number(h.quantity || 1),
+              avgFill: avgFillPrice,
+              fillDate: effectivePDateStr,
+              prices: filteredPrices,
+            };
+          } catch (err) {
+            console.error(`❌ [Chart] Failed to fetch prices for ${h.symbol || h.security_id}:`, err);
+            return null;
+          }
+        });
+
+        const allPriceData = (await Promise.all(pricePromises)).filter(Boolean);
+        const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;
+
+        if (allPriceData.length === 0 && !hasStrategyData) {
+          setChartData([]);
+          setChartLoading(false);
+          return;
+        }
+
+        const dateSet = new Set();
+        allPriceData.forEach(({ prices }) => prices.forEach((p) => dateSet.add(p.ts)));
+        Object.keys(strategyPnlByDate).forEach((d) => dateSet.add(d));
+        const sortedDates = Array.from(dateSet).sort();
+
+        const rawPriceByDate = {};
+        allPriceData.forEach(({ securityId, prices }) => {
+          rawPriceByDate[securityId] = {};
+          prices.forEach((p) => { rawPriceByDate[securityId][p.ts] = p.close; });
+        });
+
+        const filledPriceByDate = {};
+        allPriceData.forEach(({ securityId }) => {
+          filledPriceByDate[securityId] = {};
+          let lastKnown = 0;
+          for (const dateKey of sortedDates) {
+            if (rawPriceByDate[securityId]?.[dateKey] !== undefined) {
+              lastKnown = rawPriceByDate[securityId][dateKey];
+            }
+            if (lastKnown > 0) {
+              filledPriceByDate[securityId][dateKey] = lastKnown;
+            }
+          }
+        });
+
+        const points = [];
+        const now = Date.now();
+
+        for (const dateKey of sortedDates) {
+          let totalPnl = 0;
+          let hasData = false;
+
+          for (const { securityId, quantity, avgFill } of allPriceData) {
+            const price = filledPriceByDate[securityId]?.[dateKey];
+            if (price && avgFill > 0) {
+              totalPnl += quantity * (price - avgFill);
+              hasData = true;
             }
           }
 
-          const pDateStr = (h.created_at || h.as_of_date || "").split("T")[0];
-          const avgFillPrice = Number(h.avg_fill || 0) / 100;
-          const livePrice = Number(h.last_price || 0) / 100;
-          const allMapped = data.map((p) => ({
-            ts: p.ts.split("T")[0],
-            close: Number(p.close_price) / 100,
-          }));
-          
-          let filteredPrices = allMapped.filter((p) => p.ts >= pDateStr);
-          if (filteredPrices.length === 0) {
-            filteredPrices = [{ ts: pDateStr, close: avgFillPrice }];
-          }
-          const today = new Date().toISOString().split("T")[0];
-          const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
-          if (livePrice > 0 && lastDate && lastDate < today) {
-            filteredPrices.push({ ts: today, close: livePrice });
-          }
-
-          console.log(`✅ [Chart] ${h.symbol || h.security_id}: ${filteredPrices.length} price points fetched.`);
-          
-          return {
-            securityId: h.security_id,
-            quantity: Number(h.quantity || 1),
-            avgFill: avgFillPrice,
-            fillDate: pDateStr,
-            prices: filteredPrices,
-          };
-        } catch (err) {
-          console.error(`❌ [Chart] Failed to fetch prices for ${h.symbol || h.security_id}:`, err);
-          return null;
-        }
-      });
-
-      const allPriceData = (await Promise.all(pricePromises)).filter(Boolean);
-      const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;
-
-      if (allPriceData.length === 0 && !hasStrategyData) {
-        setChartData([]);
-        setChartLoading(false);
-        return;
-      }
-
-      const dateSet = new Set();
-      allPriceData.forEach(({ prices }) =>
-        prices.forEach((p) => dateSet.add(p.ts)),
-      );
-      Object.keys(strategyPnlByDate).forEach((d) => dateSet.add(d));
-      const sortedDates = Array.from(dateSet).sort();
-
-      const rawPriceByDate = {};
-      allPriceData.forEach(({ securityId, prices }) => {
-        rawPriceByDate[securityId] = {};
-        prices.forEach((p) => {
-          rawPriceByDate[securityId][p.ts] = p.close;
-        });
-      });
-
-      const filledPriceByDate = {};
-      allPriceData.forEach(({ securityId }) => {
-        filledPriceByDate[securityId] = {};
-        let lastKnown = 0;
-        for (const dateKey of sortedDates) {
-          if (rawPriceByDate[securityId]?.[dateKey] !== undefined) {
-            lastKnown = rawPriceByDate[securityId][dateKey];
-          }
-          if (lastKnown > 0) {
-            filledPriceByDate[securityId][dateKey] = lastKnown;
-          }
-        }
-      });
-
-      // Start with the calculated startTime to define the chart window bounds
-      const points = [];
-      const now = Date.now();
-
-      for (const dateKey of sortedDates) {
-        let totalPnl = 0;
-        let hasData = false;
-
-        for (const { securityId, quantity, avgFill } of allPriceData) {
-          const price = filledPriceByDate[securityId]?.[dateKey];
-          if (price && avgFill > 0) {
-            totalPnl += quantity * (price - avgFill);
+          if (strategyPnlByDate[dateKey] !== undefined) {
+            totalPnl += strategyPnlByDate[dateKey];
             hasData = true;
           }
-        }
 
-        if (strategyPnlByDate[dateKey] !== undefined) {
-          totalPnl += strategyPnlByDate[dateKey];
-          hasData = true;
-        }
-
-        if (hasData) {
-          const pointTime = new Date(dateKey).getTime();
-          // Avoid duplicate or very close points at the start
-          if (pointTime > startTime) {
-            points.push({ d: pointTime, v: Number(totalPnl.toFixed(2)) });
+          if (hasData) {
+            const pointTime = new Date(dateKey).getTime();
+            // >= so boundary points are included (fixes off-by-one drop)
+            if (pointTime >= startTime) {
+              points.push({ d: pointTime, v: Number(totalPnl.toFixed(2)) });
+            }
           }
         }
+
+        console.log(`✅ [Chart] Portfolio generated: ${points.length} points.`);
+        setChartData(points);
+      } catch (err) {
+        console.error("❌ [Chart] Critical error in fetchChartPrices:", err);
+      } finally {
+        setChartLoading(false);
       }
+    };
 
-      console.log(`✅ [Chart] Portfolio generated: ${points.length} points.`);
-      setChartData(points);
-    } catch (err) {
-      console.error("❌ [Chart] Critical error in fetchChartPrices:", err);
-    } finally {
-      setChartLoading(false);
-    }
-  };
-
-  fetchChartPrices();
-}, [userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading]);
+    fetchChartPrices();
+  }, [userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading]);
 
   useLayoutEffect(() => {
     const el = chartWrapRef.current;
@@ -641,10 +690,10 @@ const SwipeableBalanceCard = ({
       }
     };
     measure();
-    // Retry after next paint — mobile Safari may not have finished layout yet
     rafId = requestAnimationFrame(() => {
       measure();
-      retryTimer = setTimeout(measure, 150);
+      // Longer retry for mobile Safari layout timing
+      retryTimer = setTimeout(measure, 500);
     });
     const ro =
       typeof ResizeObserver !== "undefined"
@@ -666,9 +715,7 @@ const SwipeableBalanceCard = ({
     ? Number(selectedAsset.market_value || 0) / 100
     : dbData.totalMarketValue;
   const displayInvested = selectedAsset
-    ? (Number(selectedAsset.avg_fill || 0) *
-      Number(selectedAsset.quantity || 0)) /
-    100
+    ? (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100
     : dbData.totalInvested;
   const displayInvestedAmount = selectedAsset
     ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100
@@ -681,14 +728,11 @@ const SwipeableBalanceCard = ({
       ? ((displayReturn / displayInvested) * 100).toFixed(1)
       : "0.0";
   const chartColor = isLoss ? "#FB7185" : "#10B981";
+
   const now = Date.now();
-  const startTime = (() => {
-    const d = TIMEFRAME_DAYS[activeTab] || 30;
-    const cutoff = new Date();
-    cutoff.setHours(0, 0, 0, 0);
-    cutoff.setDate(cutoff.getDate() - d);
-    return cutoff.getTime();
-  })();
+
+  // Compute the effective window start for the render (XAxis domain + padding)
+  const startTime = getWindowStart(activeTab, dbData.holdings);
 
   const paddedChartData = padChartSeriesPoints(chartData, startTime, now);
 
@@ -921,99 +965,100 @@ const SwipeableBalanceCard = ({
           className="mb-3 w-full min-w-0 overflow-hidden"
           style={{ minHeight: 170, height: 170 }}
         >
-            {chartData.length > 0 && chartWidth > 0 ? (
-              <ResponsiveContainer
-                key={`chart-${chartKey}-${activeTab}`}
-                width={chartWidth}
-                height={170}
+          {chartData.length > 0 && chartWidth > 0 ? (
+            <ResponsiveContainer
+              key={`chart-${chartKey}-${activeTab}`}
+              width={chartWidth}
+              height={170}
+            >
+              <ComposedChart
+                data={paddedChartData}
+                margin={{ top: 8, right: 4, left: 0, bottom: 2 }}
               >
-                <ComposedChart
-                  data={paddedChartData}
-                  margin={{ top: 8, right: 4, left: 0, bottom: 2 }}
-                >
-                  <defs>
-                    <linearGradient
-                      id={`colorValue-${chartKey}`}
-                      x1="0"
-                      y1="0"
-                      x2="0"
-                      y2="1"
-                    >
-                      <stop offset="5%" stopColor={chartColor} stopOpacity={0.35} />
-                      <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="d"
-                    type="number"
-                    domain={[startTime, now]}
-                    hide
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    yAxisId="pnl"
-                    orientation="right"
-                    domain={yAxisDomain}
-                    width={0}
-                    tick={false}
-                    axisLine={false}
-                    tickLine={false}
-                    hide
-                  />
-                  <Tooltip content={<BalanceChartTooltip />} />
-                  <ReferenceLine
-                    yAxisId="pnl"
-                    y={0}
-                    stroke="rgba(148,163,184,0.45)"
-                    strokeDasharray="3 3"
-                    strokeWidth={1}
-                  />
-                  <Area
-                    yAxisId="pnl"
-                    type="monotone"
-                    dataKey="v"
-                    stroke={chartColor}
-                    strokeWidth={2}
-                    fill={`url(#colorValue-${chartKey})`}
-                    fillOpacity={1}
-                    dot={false}
-                    isAnimationActive={false}
-                    activeDot={{
-                      r: 3,
-                      fill: "#fff",
-                      stroke: chartColor,
-                      strokeWidth: 2,
-                    }}
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            ) : chartLoading ? (
-              <div className="flex items-end gap-1 w-full h-full py-2">
-                {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (
-                  <Skeleton
-                    key={i}
-                    className="flex-1 rounded-sm bg-white/10"
-                    style={{ height: `${h}%` }}
-                  />
-                ))}
-              </div>
-            ) : chartData.length > 0 && chartWidth === 0 ? (
-              <div className="flex h-full w-full items-end gap-1 py-2">
-                {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-sm bg-white/10"
-                    style={{ height: `${h}%` }}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-[9px] text-slate-500">No chart data</p>
-              </div>
-            )}
+                <defs>
+                  <linearGradient
+                    id={`colorValue-${chartKey}`}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop offset="5%" stopColor={chartColor} stopOpacity={0.35} />
+                    <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="d"
+                  type="number"
+                  domain={[startTime, now]}
+                  hide
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  yAxisId="pnl"
+                  orientation="right"
+                  domain={yAxisDomain}
+                  width={0}
+                  tick={false}
+                  axisLine={false}
+                  tickLine={false}
+                  hide
+                />
+                <Tooltip content={<BalanceChartTooltip />} />
+                <ReferenceLine
+                  yAxisId="pnl"
+                  y={0}
+                  stroke="rgba(148,163,184,0.45)"
+                  strokeDasharray="3 3"
+                  strokeWidth={1}
+                />
+                <Area
+                  yAxisId="pnl"
+                  type="monotone"
+                  dataKey="v"
+                  stroke={chartColor}
+                  strokeWidth={2}
+                  fill={`url(#colorValue-${chartKey})`}
+                  fillOpacity={1}
+                  dot={false}
+                  isAnimationActive={false}
+                  activeDot={{
+                    r: 3,
+                    fill: "#fff",
+                    stroke: chartColor,
+                    strokeWidth: 2,
+                  }}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : chartLoading ? (
+            <div className="flex items-end gap-1 w-full h-full py-2">
+              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (
+                <Skeleton
+                  key={i}
+                  className="flex-1 rounded-sm bg-white/10"
+                  style={{ height: `${h}%` }}
+                />
+              ))}
             </div>
+          ) : chartData.length > 0 && chartWidth === 0 ? (
+            <div className="flex h-full w-full items-end gap-1 py-2">
+              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-sm bg-white/10"
+                  style={{ height: `${h}%` }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-[9px] text-slate-500">No chart data</p>
+            </div>
+          )}
+        </div>
+
         <div className="mt-auto pt-3 pb-5 border-t border-white/10 flex items-start">
           <div className="flex-1 min-w-0 pr-3">
             <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">
