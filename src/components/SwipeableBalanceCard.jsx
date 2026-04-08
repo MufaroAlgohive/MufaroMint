@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { flushSync } from 'react-dom';
 import {
   Eye,
   EyeOff,
@@ -26,6 +27,17 @@ import {
   useSettlementConfig,
   getSettlementStatusForHolding,
 } from "../lib/useSettlementStatus";
+
+// Simple debounce implementation
+const debounce = (func, wait) => {
+  let timeout;
+  const debounced = (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+  debounced.cancel = () => clearTimeout(timeout);
+  return debounced;
+};
 
 // Shared promise to avoid lock contention when multiple cards mount at once
 let sharedSessionPromise = null;
@@ -62,7 +74,6 @@ const TIMEFRAME_DAYS = { d: 5, w: 7, m: 30 };
  * Compute the effective window start: the later of
  *   (a) the tab-based cutoff (e.g. last 30 days), and
  *   (b) the user's earliest holding purchase date.
- * This means tabs zoom *in* but never go earlier than the join date.
  */
 function getWindowStart(activeTab, holdings) {
   const days = TIMEFRAME_DAYS[activeTab] || 30;
@@ -81,14 +92,11 @@ function getWindowStart(activeTab, holdings) {
   const joinCutoff = new Date(allDates[0]);
   joinCutoff.setHours(0, 0, 0, 0);
 
-  // The later date = the effective start (tab can only zoom in, not back past join)
   return Math.max(tabCutoff.getTime(), joinCutoff.getTime());
 }
 
 /**
- * Recharts maps x from data values onto the axis domain. With domain [startTime, now],
- * points only between first/last sample timestamps occupy a fraction of the width.
- * Pad to window edges so the stroke uses the full chart width (flat carry of first/last value).
+ * Recharts maps x from data values onto the axis domain.
  */
 function timeKey(d) {
   return typeof d === "number" ? d : new Date(d).getTime();
@@ -128,289 +136,43 @@ function BalanceChartTooltip({ active, payload }) {
   );
 }
 
-const SwipeableBalanceCard = ({
-  userId,
-  isBackFacing = true,
-  forceVisible,
-  mintNumber: mintNumberProp,
-}) => {
-  const [activeTab, setActiveTab] = useState("m");
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
-  const { lastUpdated, isConnected } = useRealtimePrices();
-  const settlementCfg = useSettlementConfig();
-  const holdingSettlementStatus = getSettlementStatusForHolding(settlementCfg);
-  const [showUpdatedText, setShowUpdatedText] = useState(false);
-  const updatedTimerRef = useRef(null);
-
-  // Wallet balance state
-  const [walletBalance, setWalletBalance] = useState(0);
-  const [walletLoading, setWalletLoading] = useState(true);
+// Custom hook for chart data management
+const useChartData = (userId, holdings, activeTab, selectedAsset, lastUpdated, loading) => {
+  const [chartData, setChartData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const hasInitialLoadRef = useRef(false);
+  const abortControllerRef = useRef(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
 
   useEffect(() => {
-    if (!userId) return;
-    const fetchWallet = async () => {
-      setWalletLoading(true);
-      const { data, error } = await supabase
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!error && data?.balance !== undefined) {
-        setWalletBalance(Number(data.balance));
+    if (!userId || loading || holdings.length === 0) {
+      if (!loading && holdings.length === 0) {
+        setChartData([]);
       }
-      setWalletLoading(false);
-    };
-    fetchWallet();
-
-    window.addEventListener("profile-updated", fetchWallet);
-    window.addEventListener("wallet-updated", fetchWallet);
-    return () => {
-      window.removeEventListener("profile-updated", fetchWallet);
-      window.removeEventListener("wallet-updated", fetchWallet);
-    };
-  }, [userId]);
-
-  // Mint number — fetch from DB if prop not provided
-  const [mintNumber, setMintNumber] = useState(mintNumberProp || null);
-
-  useEffect(() => {
-    if (mintNumberProp) {
-      setMintNumber(mintNumberProp);
       return;
     }
-    if (!userId) return;
-    const fetchMintNumber = async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("mint_number")
-        .eq("id", userId)
-        .single();
-      if (!error && data?.mint_number) {
-        setMintNumber(data.mint_number);
-      }
-    };
-    fetchMintNumber();
-  }, [userId, mintNumberProp]);
 
-  useEffect(() => {
-    if (lastUpdated) {
-      setShowUpdatedText(true);
-      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
-      updatedTimerRef.current = setTimeout(
-        () => setShowUpdatedText(false),
-        3000,
-      );
+    // Cancel any in-flight requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
-    return () => {
-      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
-    };
-  }, [lastUpdated]);
 
-  useEffect(() => {
-    if (!isBackFacing) setIsOpen(false);
-  }, [isBackFacing]);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isOpen]);
-
-  const [selectedAsset, setSelectedAsset] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [chartData, setChartData] = useState([]);
-  const [chartLoading, setChartLoading] = useState(false);
-  const holdingsScrollRef = useRef(null);
-  const scrollTimerRef = useRef(null);
-  const chartWrapRef = useRef(null);
-  const [chartWidth, setChartWidth] = useState(0);
-  const [chartKey, setChartKey] = useState(0);
-  const lastMeasuredWidthRef = useRef(0);
-
-  const scrollToHoldingIndex = (index) => {
-    const container = holdingsScrollRef.current;
-    if (!container) return;
-    const item = container.querySelector(`[data-holding-index="${index}"]`);
-    if (item) {
-      const containerRect = container.getBoundingClientRect();
-      const itemRect = item.getBoundingClientRect();
-      const scrollLeft =
-        container.scrollLeft +
-        (itemRect.left - containerRect.left) -
-        containerRect.width / 2 +
-        itemRect.width / 2;
-      container.scrollTo({ left: scrollLeft, behavior: "smooth" });
-    }
-  };
-
-  const handleHoldingsScroll = () => {
-    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-    scrollTimerRef.current = setTimeout(() => {
-      const container = holdingsScrollRef.current;
-      if (!container) return;
-      const items = container.querySelectorAll("[data-holding-index]");
-      const containerRect = container.getBoundingClientRect();
-      const containerCenter = containerRect.left + containerRect.width / 2;
-      let closestItem = null;
-      let closestDist = Infinity;
-      items.forEach((item) => {
-        const rect = item.getBoundingClientRect();
-        const itemCenter = rect.left + rect.width / 2;
-        const dist = Math.abs(itemCenter - containerCenter);
-        if (dist < closestDist) {
-          closestDist = dist;
-          closestItem = item;
-        }
-      });
-      if (closestItem) {
-        const idx = parseInt(
-          closestItem.getAttribute("data-holding-index"),
-          10,
-        );
-        if (idx === -1) {
-          setSelectedAsset(null);
-        } else if (idx >= 0 && idx < dbData.holdings.length) {
-          setSelectedAsset(dbData.holdings[idx]);
-        }
-      }
-    }, 150);
-  };
-
-  const [dbData, setDbData] = useState({
-    holdings: [],
-    totalMarketValue: 0,
-    totalInvested: 0,
-    totalInvestedAmount: 0,
-    holdingsCount: 0,
-  });
-
-  const isVisible = true;
-
-  const loadDataRef = React.useRef(null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      if (!userId) return;
-      setLoading(true);
-
-      const { data: { session } } = await getCoalescedSession();
-      const token = session?.access_token;
-
-      const [holdingsRes, strategiesRes] = token
-        ? await Promise.all([
-          fetch("/api/user/holdings", {
-            headers: { Authorization: `Bearer ${token}` },
-          }).then((r) => (r.ok ? r.json() : { holdings: [] })),
-          fetch("/api/user/strategies", {
-            headers: { Authorization: `Bearer ${token}` },
-          }).then((r) => (r.ok ? r.json() : { strategies: [] })),
-        ])
-        : [{ holdings: [] }, { strategies: [] }];
-
-      const stockHoldings = (holdingsRes.holdings || []).filter(h => !h.strategy_id);
-      const strategyItems = await Promise.all((strategiesRes.strategies || []).map(async (s) => {
-        const holdingsArr = s.holdings || [];
-        const topLogos = holdingsArr
-          .sort((a, b) => (b.weight || 0) - (a.weight || 0))
-          .slice(0, 3)
-          .map((h) => h.logo_url || null)
-          .filter(Boolean);
-        const investedRands = s.investedAmount || 0;
-        const liveRands = s.currentMarketValue != null ? s.currentMarketValue : investedRands;
-        const purchaseDate = s.firstInvestedDate;
-        let changePct = investedRands > 0 ? ((liveRands - investedRands) / investedRands) * 100 : 0;
-
-        const investedCents = Math.round(investedRands * 100);
-        const currentCents = Math.round(liveRands * 100);
-        return {
-          symbol: s.shortName || s.name || "Strategy",
-          name: s.name || "Strategy",
-          market_value: currentCents,
-          invested_amount: investedCents,
-          avg_fill: investedCents,
-          quantity: 1,
-          logo_url: null,
-          security_id: null,
-          isStrategy: true,
-          strategyId: s.id,
-          topLogos: topLogos,
-          changePct: changePct,
-          holdings: holdingsArr,
-          firstInvestedDate: purchaseDate,
-        };
-      }));
-      const enrichedHoldings = [...stockHoldings, ...strategyItems];
-
-      const mValue = enrichedHoldings.reduce(
-        (acc, h) => acc + Number(h.market_value || 0) / 100,
-        0,
-      );
-      const invested = enrichedHoldings.reduce(
-        (acc, h) =>
-          acc + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100,
-        0,
-      );
-      const investedAmount = enrichedHoldings.reduce(
-        (acc, h) => acc + Number(h.invested_amount || h.market_value || 0) / 100,
-        0,
-      );
-
-      setDbData({
-        holdings: enrichedHoldings,
-        totalMarketValue: mValue,
-        totalInvested: invested,
-        totalInvestedAmount: investedAmount,
-        holdingsCount: enrichedHoldings.length,
-      });
-      setLoading(false);
-    };
-
-    loadDataRef.current = loadData;
-    loadData();
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") loadDataRef.current?.();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [userId, lastUpdated]);
-
-  useEffect(() => {
     const fetchChartPrices = async () => {
-      if (!userId) return;
-
-      // Wait for initial holdings load to complete
-      if (loading) {
-        console.log("📈 [Chart] Waiting for initial holdings load...");
-        return;
+      if (!hasInitialLoadRef.current || error) {
+        setIsLoading(true);
       }
-
-      if (dbData.holdings.length === 0) {
-        console.log("📈 [Chart] No holdings found, clearing chart data.");
-        setChartData([]);
-        setChartLoading(false);
-        return;
-      }
-
-      console.log(`📈 [Chart] Fetching data for ${activeTab} timeframe...`);
-      setChartLoading(true);
 
       try {
-        const holdingsToChart = selectedAsset ? [selectedAsset] : dbData.holdings;
+        console.log(`📈 [Chart] Fetching data for ${activeTab} timeframe...`);
 
-        // ── Compute effective window start ────────────────────────────────
-        // Uses the later of (tab cutoff) and (earliest holding purchase date).
-        // Tabs zoom in but never go earlier than when the user first invested.
+        const holdingsToChart = selectedAsset ? [selectedAsset] : holdings;
+
+        // Compute effective window start
         const days = TIMEFRAME_DAYS[activeTab] || 30;
         const tabCutoff = new Date();
         tabCutoff.setHours(0, 0, 0, 0);
@@ -426,11 +188,11 @@ const SwipeableBalanceCard = ({
         const joinCutoff = new Date(earliestDateStr);
         joinCutoff.setHours(0, 0, 0, 0);
 
-        // Most recent of the two = actual window start
         const effectiveCutoff = tabCutoff > joinCutoff ? tabCutoff : joinCutoff;
         const startTime = effectiveCutoff.getTime();
         const startDateStr = effectiveCutoff.toISOString().split("T")[0];
-        // ─────────────────────────────────────────────────────────────────
+
+        if (abortController.signal.aborted) return;
 
         // Single strategy selected
         if ((selectedAsset?.isStrategy || selectedAsset?.strategy_id) && (selectedAsset?.strategy_id || selectedAsset?.id)) {
@@ -438,6 +200,8 @@ const SwipeableBalanceCard = ({
           const tf = timeframeMap[activeTab] || "1M";
           const sid = selectedAsset.strategy_id || selectedAsset.id;
           let priceHistory = await getStrategyPriceHistory(sid, tf);
+
+          if (abortController.signal.aborted) return;
 
           const purchaseDateStr = selectedAsset.firstInvestedDate ? selectedAsset.firstInvestedDate.slice(0, 10) : null;
           if (purchaseDateStr && priceHistory && priceHistory.length > 0) {
@@ -453,7 +217,6 @@ const SwipeableBalanceCard = ({
             }
           }
 
-          // Also filter to the effective window (respects tab zoom)
           if (priceHistory && priceHistory.length > 0) {
             const filtered = priceHistory.filter(p => p.ts.split("T")[0] >= startDateStr);
             if (filtered.length >= 1) priceHistory = filtered;
@@ -468,7 +231,6 @@ const SwipeableBalanceCard = ({
               const firstTs = priceHistory[0].ts.split("T")[0];
               const anchorDate = new Date(firstTs);
               anchorDate.setDate(anchorDate.getDate() - 1);
-              // Use timestamp (number) not string for XAxis compatibility
               points.push({ d: anchorDate.getTime(), v: 0 });
               priceHistory.forEach((p) => {
                 const valueAtDate = currentMarketValue * (p.nav / latestNav);
@@ -479,14 +241,15 @@ const SwipeableBalanceCard = ({
               setChartData(points);
               console.log(`✅ [Chart] Generated ${points.length} points for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
             } else {
-              console.warn(`⚠️ [Chart] Strategy ${selectedAsset.name || selectedAsset.symbol} has 0 NAV.`);
               setChartData([]);
             }
           } else {
-            console.warn(`⚠️ [Chart] No price history found for strategy: ${selectedAsset.name || selectedAsset.symbol}`);
             setChartData([]);
           }
-          setChartLoading(false);
+          
+          hasInitialLoadRef.current = true;
+          retryCountRef.current = 0;
+          setError(null);
           return;
         }
 
@@ -499,6 +262,8 @@ const SwipeableBalanceCard = ({
         const tf = timeframeMap[activeTab] || "1M";
 
         for (const sh of strategyHoldings) {
+          if (abortController.signal.aborted) return;
+          
           try {
             const sid = sh.strategy_id || sh.id;
             let priceHistory = await getStrategyPriceHistory(sid, tf);
@@ -517,7 +282,6 @@ const SwipeableBalanceCard = ({
               }
             }
 
-            // Filter to effective window
             if (priceHistory && priceHistory.length > 0) {
               const filtered = priceHistory.filter(p => p.ts.split("T")[0] >= startDateStr);
               if (filtered.length >= 1) priceHistory = filtered;
@@ -530,24 +294,29 @@ const SwipeableBalanceCard = ({
               if (latestNav > 0) {
                 priceHistory.forEach((p) => {
                   const dateKey = p.ts.split("T")[0];
-                  if (dateKey < startDateStr) return; // skip outside window
+                  if (dateKey < startDateStr) return;
                   const valueAtDate = currentMV * (p.nav / latestNav);
                   const pnl = valueAtDate - cost;
                   strategyPnlByDate[dateKey] = (strategyPnlByDate[dateKey] || 0) + pnl;
                 });
               }
             }
-          } catch (e) { }
+          } catch (e) {
+            console.warn(`Failed to fetch strategy ${sh.symbol}:`, e);
+          }
         }
 
         const pricePromises = stockHoldings.map(async (h) => {
+          if (abortController.signal.aborted) return null;
+          
           try {
             let { data, error } = await supabase
               .from("security_prices")
               .select("ts, close_price")
               .eq("security_id", h.security_id)
               .gte("ts", startDateStr)
-              .order("ts", { ascending: true });
+              .order("ts", { ascending: true })
+              .abortSignal(abortController.signal);
 
             if (error || !data || data.length < 2) {
               const fallback = await supabase
@@ -555,17 +324,17 @@ const SwipeableBalanceCard = ({
                 .select("ts, close_price")
                 .eq("security_id", h.security_id)
                 .order("ts", { ascending: false })
-                .limit(30);
+                .limit(30)
+                .abortSignal(abortController.signal);
+                
               if (!fallback.error && fallback.data && fallback.data.length >= 2) {
                 data = fallback.data.reverse();
               } else if (!data || data.length === 0) {
-                console.warn(`⚠️ [Chart] No price data for stock: ${h.symbol || h.security_id}`);
                 return null;
               }
             }
 
             const pDateStr = (h.created_at || h.as_of_date || "").split("T")[0];
-            // Effective start is the later of the holding's purchase date and the window start
             const effectivePDateStr = pDateStr > startDateStr ? pDateStr : startDateStr;
             const avgFillPrice = Number(h.avg_fill || 0) / 100;
             const livePrice = Number(h.last_price || 0) / 100;
@@ -578,20 +347,17 @@ const SwipeableBalanceCard = ({
             let filteredPrices = allMapped.filter((p) => p.ts >= effectivePDateStr);
             
             if (filteredPrices.length === 0) {
-              // ── FALLBACK: No DB data? Draw a line between start and now based on holding info ──
               filteredPrices = [
                 { ts: effectivePDateStr, close: avgFillPrice },
                 { ts: today, close: livePrice || avgFillPrice }
               ];
-              console.log(`📡 [Chart] ${h.symbol || h.security_id}: Synthetic trendline generated (Start: ${avgFillPrice}, Now: ${livePrice || avgFillPrice})`);
+              console.log(`📡 [Chart] ${h.symbol}: Synthetic trendline generated`);
             } else {
               const lastDate = filteredPrices[filteredPrices.length - 1]?.ts;
               if (livePrice > 0 && lastDate && lastDate < today) {
                 filteredPrices.push({ ts: today, close: livePrice });
               }
             }
-
-            console.log(`✅ [Chart] ${h.symbol || h.security_id}: ${filteredPrices.length} price points fetched.`);
 
             return {
               securityId: h.security_id,
@@ -601,17 +367,22 @@ const SwipeableBalanceCard = ({
               prices: filteredPrices,
             };
           } catch (err) {
-            console.error(`❌ [Chart] Failed to fetch prices for ${h.symbol || h.security_id}:`, err);
+            if (err.name === 'AbortError') return null;
             return null;
           }
         });
 
         const allPriceData = (await Promise.all(pricePromises)).filter(Boolean);
+        
+        if (abortController.signal.aborted) return;
+        
         const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;
 
         if (allPriceData.length === 0 && !hasStrategyData) {
           setChartData([]);
-          setChartLoading(false);
+          hasInitialLoadRef.current = true;
+          retryCountRef.current = 0;
+          setError(null);
           return;
         }
 
@@ -661,11 +432,9 @@ const SwipeableBalanceCard = ({
           }
 
           if (hasData) {
-            // Use local date parts to avoid UTC/Local timezone mismatch on the boundary
             const [y, m, d] = dateKey.split("-").map(Number);
             const pointTime = new Date(y, m - 1, d).getTime();
             
-            // >= so boundary points are included (fixes off-by-one drop)
             if (pointTime >= startTime) {
               points.push({ d: pointTime, v: Number(totalPnl.toFixed(2)) });
             }
@@ -673,82 +442,384 @@ const SwipeableBalanceCard = ({
         }
 
         if (points.length === 1) {
-          // If only 1 point exists, duplicate it at current time to draw a flat line
           points.push({ d: now, v: points[0].v });
         }
 
         console.log(`✅ [Chart] Portfolio generated: ${points.length} points.`);
         setChartData(points);
+        hasInitialLoadRef.current = true;
+        retryCountRef.current = 0;
+        setError(null);
+        
       } catch (err) {
+        if (err.name === 'AbortError') return;
         console.error("❌ [Chart] Critical error in fetchChartPrices:", err);
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current++;
+          setTimeout(() => fetchChartPrices(), 1000 * retryCountRef.current);
+        } else {
+          setError(err.message);
+        }
       } finally {
-        setChartLoading(false);
+        setIsLoading(false);
       }
     };
 
     fetchChartPrices();
-  }, [userId, dbData.holdings, activeTab, selectedAsset, lastUpdated, loading]);
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [userId, holdings, activeTab, selectedAsset, lastUpdated, loading]);
+
+  return { chartData, isLoading, error };
+};
+
+const SwipeableBalanceCard = ({
+  userId,
+  isBackFacing = true,
+  forceVisible,
+  mintNumber: mintNumberProp,
+}) => {
+  const [activeTab, setActiveTab] = useState("m");
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const { lastUpdated, isConnected } = useRealtimePrices();
+  const settlementCfg = useSettlementConfig();
+  const holdingSettlementStatus = getSettlementStatusForHolding(settlementCfg);
+  const [showUpdatedText, setShowUpdatedText] = useState(false);
+  const updatedTimerRef = useRef(null);
+
+  // Wallet balance state
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletLoading, setWalletLoading] = useState(true);
+
+  // IMPORTANT: Declare dbData BEFORE any functions that use it
+  const [dbData, setDbData] = useState({
+    holdings: [],
+    totalMarketValue: 0,
+    totalInvested: 0,
+    totalInvestedAmount: 0,
+    holdingsCount: 0,
+  });
+
+  const [selectedAsset, setSelectedAsset] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const holdingsScrollRef = useRef(null);
+  const scrollTimerRef = useRef(null);
+  const chartWrapRef = useRef(null);
+  const [chartWidth, setChartWidth] = useState(0);
+  const [chartKey, setChartKey] = useState(0);
+  const lastMeasuredWidthRef = useRef(0);
+  const hasChartDataRef = useRef(false);
+
+  const scrollToHoldingIndex = useCallback((index) => {
+    const container = holdingsScrollRef.current;
+    if (!container) return;
+    
+    const item = container.querySelector(`[data-holding-index="${index}"]`);
+    if (item) {
+      const containerRect = container.getBoundingClientRect();
+      const itemRect = item.getBoundingClientRect();
+      const scrollLeft =
+        container.scrollLeft +
+        (itemRect.left - containerRect.left) -
+        containerRect.width / 2 +
+        itemRect.width / 2;
+      container.scrollTo({ left: scrollLeft, behavior: "smooth" });
+    }
+  }, []);
+
+  const handleAssetSelect = useCallback((asset) => {
+    flushSync(() => {
+      setSelectedAsset(asset);
+      setIsOpen(false);
+    });
+    
+    requestAnimationFrame(() => {
+      if (asset) {
+        const index = dbData.holdings.findIndex(h => h.symbol === asset.symbol);
+        scrollToHoldingIndex(index);
+      } else {
+        scrollToHoldingIndex(-1);
+      }
+    });
+  }, [dbData.holdings, scrollToHoldingIndex]);
+
+  const handleHoldingsScroll = useCallback(() => {
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    
+    scrollTimerRef.current = setTimeout(() => {
+      const container = holdingsScrollRef.current;
+      if (!container) return;
+      
+      const items = container.querySelectorAll("[data-holding-index]");
+      const containerRect = container.getBoundingClientRect();
+      const containerCenter = containerRect.left + containerRect.width / 2;
+      let closestItem = null;
+      let closestDist = Infinity;
+      
+      items.forEach((item) => {
+        const rect = item.getBoundingClientRect();
+        const itemCenter = rect.left + rect.width / 2;
+        const dist = Math.abs(itemCenter - containerCenter);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestItem = item;
+        }
+      });
+      
+      if (closestItem) {
+        const idx = parseInt(closestItem.getAttribute("data-holding-index"), 10);
+        if (idx === -1) {
+          setSelectedAsset(null);
+        } else if (idx >= 0 && idx < dbData.holdings.length) {
+          setSelectedAsset(dbData.holdings[idx]);
+        }
+      }
+    }, 150);
+  }, [dbData.holdings]);
+
+  useEffect(() => {
+    if (!userId) return;
+    
+    const fetchWallet = async () => {
+      setWalletLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("wallets")
+          .select("balance")
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (!error && data?.balance !== undefined) {
+          setWalletBalance(Number(data.balance));
+        }
+      } catch (err) {
+        console.error('Wallet fetch failed:', err);
+      } finally {
+        setWalletLoading(false);
+      }
+    };
+    
+    fetchWallet();
+
+    const handlers = new Map([
+      ['profile-updated', fetchWallet],
+      ['wallet-updated', fetchWallet]
+    ]);
+
+    handlers.forEach((handler, event) => {
+      window.addEventListener(event, handler);
+    });
+
+    return () => {
+      handlers.forEach((handler, event) => {
+        window.removeEventListener(event, handler);
+      });
+    };
+  }, [userId]);
+
+  const [mintNumber, setMintNumber] = useState(mintNumberProp || null);
+
+  useEffect(() => {
+    if (mintNumberProp) {
+      setMintNumber(mintNumberProp);
+      return;
+    }
+    if (!userId) return;
+    
+    const fetchMintNumber = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("mint_number")
+          .eq("id", userId)
+          .single();
+        if (!error && data?.mint_number) {
+          setMintNumber(data.mint_number);
+        }
+      } catch (err) {
+        console.error('Failed to fetch mint number:', err);
+      }
+    };
+    
+    fetchMintNumber();
+  }, [userId, mintNumberProp]);
+
+  useEffect(() => {
+    if (lastUpdated) {
+      setShowUpdatedText(true);
+      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
+      updatedTimerRef.current = setTimeout(() => setShowUpdatedText(false), 3000);
+    }
+    return () => {
+      if (updatedTimerRef.current) clearTimeout(updatedTimerRef.current);
+    };
+  }, [lastUpdated]);
+
+  useEffect(() => {
+    if (!isBackFacing) setIsOpen(false);
+  }, [isBackFacing]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const isVisible = true;
+
+  const loadDataRef = useRef(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!userId) return;
+      
+      // OPTIMISTIC LOADING FIX: Only skeleton on first fetch
+      if (dbData.holdings.length === 0) {
+        setLoading(true);
+      }
+
+      try {
+        const { data: { session } } = await getCoalescedSession();
+        const token = session?.access_token;
+
+        const [holdingsRes, strategiesRes] = token
+          ? await Promise.all([
+            fetch("/api/user/holdings", {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then((r) => (r.ok ? r.json() : { holdings: [] })),
+            fetch("/api/user/strategies", {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then((r) => (r.ok ? r.json() : { strategies: [] })),
+          ])
+          : [{ holdings: [] }, { strategies: [] }];
+
+        const stockHoldings = (holdingsRes.holdings || []).filter(h => !h.strategy_id);
+        const strategyItems = await Promise.all((strategiesRes.strategies || []).map(async (s) => {
+          const holdingsArr = s.holdings || [];
+          const topLogos = holdingsArr
+            .sort((a, b) => (b.weight || 0) - (a.weight || 0))
+            .slice(0, 3)
+            .map((h) => h.logo_url || null)
+            .filter(Boolean);
+          const investedRands = s.investedAmount || 0;
+          const liveRands = s.currentMarketValue != null ? s.currentMarketValue : investedRands;
+          const purchaseDate = s.firstInvestedDate;
+          let changePct = investedRands > 0 ? ((liveRands - investedRands) / investedRands) * 100 : 0;
+          const investedCents = Math.round(investedRands * 100);
+          const currentCents = Math.round(liveRands * 100);
+          return {
+            symbol: s.shortName || s.name || "Strategy",
+            name: s.name || "Strategy",
+            market_value: currentCents,
+            invested_amount: investedCents,
+            avg_fill: investedCents,
+            quantity: 1,
+            logo_url: null,
+            security_id: null,
+            isStrategy: true,
+            strategyId: s.id,
+            topLogos: topLogos,
+            changePct: changePct,
+            holdings: holdingsArr,
+            firstInvestedDate: purchaseDate,
+          };
+        }));
+        
+        const enrichedHoldings = [...stockHoldings, ...strategyItems];
+        const mValue = enrichedHoldings.reduce((acc, h) => acc + Number(h.market_value || 0) / 100, 0);
+        const investedBase = enrichedHoldings.reduce((acc, h) => acc + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100, 0);
+        const investedAmountTotal = enrichedHoldings.reduce((acc, h) => acc + Number(h.invested_amount || h.market_value || 0) / 100, 0);
+
+        setDbData({
+          holdings: enrichedHoldings,
+          totalMarketValue: mValue,
+          totalInvested: investedBase,
+          totalInvestedAmount: investedAmountTotal,
+          holdingsCount: enrichedHoldings.length,
+        });
+      } catch (err) {
+        console.error('Failed to load portfolio data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDataRef.current = loadData;
+    loadData();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") loadDataRef.current?.();
+    };
+    
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [userId, lastUpdated]);
+
+  const { chartData, isLoading: chartLoading, error: chartError } = useChartData(
+    userId,
+    dbData.holdings,
+    activeTab,
+    selectedAsset,
+    lastUpdated,
+    loading
+  );
+
+  useEffect(() => {
+    if (chartData.length > 0) hasChartDataRef.current = true;
+  }, [chartData]);
+
+  const debouncedMeasure = useMemo(() => debounce(() => {
+    const el = chartWrapRef.current;
+    if (!el) return;
+    const w = el.getBoundingClientRect().width;
+    if (w > 0 && Math.abs(w - lastMeasuredWidthRef.current) > 1) {
+      lastMeasuredWidthRef.current = w;
+      setChartWidth(w);
+      setChartKey(k => k + 1);
+    }
+  }, 150), []);
 
   useLayoutEffect(() => {
     const el = chartWrapRef.current;
     if (!el) return;
-    let rafId = null;
-    let retryTimer = null;
-    const measure = () => {
-      const w = Math.round(el.getBoundingClientRect().width);
-      if (w < 1) return;
-      console.log(`📏 [Chart] Width measured: ${w}px`);
-      setChartWidth(w);
-      if (Math.abs(w - lastMeasuredWidthRef.current) > 1) {
-        lastMeasuredWidthRef.current = w;
-        setChartKey((k) => k + 1);
-      }
-    };
-    measure();
-    rafId = requestAnimationFrame(() => {
-      measure();
-      // Longer retry for mobile Safari layout timing
-      retryTimer = setTimeout(measure, 500);
-    });
-    const ro =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => measure())
-        : null;
-    ro?.observe(el);
-    window.addEventListener("resize", measure);
-    window.addEventListener("orientationchange", measure);
+    debouncedMeasure();
+    const ro = new ResizeObserver(() => debouncedMeasure());
+    ro.observe(el);
+    window.addEventListener("resize", debouncedMeasure);
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      if (retryTimer) clearTimeout(retryTimer);
-      ro?.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("orientationchange", measure);
+      ro.disconnect();
+      debouncedMeasure.cancel?.();
+      window.removeEventListener("resize", debouncedMeasure);
     };
-  }, []);
+  }, [debouncedMeasure]);
 
-  const displayMarketValue = selectedAsset
-    ? Number(selectedAsset.market_value || 0) / 100
-    : dbData.totalMarketValue;
-  const displayInvested = selectedAsset
-    ? (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100
-    : dbData.totalInvested;
-  const displayInvestedAmount = selectedAsset
-    ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100
-    : dbData.totalInvestedAmount;
+  const displayMarketValue = selectedAsset ? Number(selectedAsset.market_value || 0) / 100 : dbData.totalMarketValue;
+  const displayInvested = selectedAsset ? (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100 : dbData.totalInvested;
+  const displayInvestedAmount = selectedAsset ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100 : dbData.totalInvestedAmount;
   const displayReturn = displayMarketValue - displayInvested;
   const displayBalance = displayInvestedAmount + displayReturn;
   const isLoss = displayReturn < 0;
-  const returnPct =
-    displayInvested > 0
-      ? ((displayReturn / displayInvested) * 100).toFixed(1)
-      : "0.0";
+  const returnPct = displayInvested > 0 ? ((displayReturn / displayInvested) * 100).toFixed(1) : "0.0";
   const chartColor = isLoss ? "#FB7185" : "#10B981";
 
   const now = Date.now();
-
-  // Compute the effective window start for the render (XAxis domain + padding)
   const startTime = getWindowStart(activeTab, dbData.holdings);
-
   const paddedChartData = padChartSeriesPoints(chartData, startTime, now);
 
   const yAxisDomain = useMemo(() => {
@@ -782,29 +853,20 @@ const SwipeableBalanceCard = ({
                   <Skeleton className="h-4 w-10 rounded-full bg-slate-200" />
                 </div>
               </div>
-              <div>
-                <Skeleton className="h-2.5 w-16 bg-slate-200 mb-2" />
-                <div className="flex gap-1">
-                  <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
-                  <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
-                  <Skeleton className="h-5 w-10 rounded-full bg-slate-200" />
-                </div>
+              <div className="flex gap-1">
+                <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
+                <Skeleton className="h-5 w-14 rounded-full bg-slate-200" />
               </div>
             </div>
           </div>
           <div className="w-[50%] flex flex-col justify-between pl-4">
-            <div className="flex gap-1.5">
-              <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
+            <div className="flex gap-1.5 justify-end">
               <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
               <Skeleton className="h-5 w-8 rounded-full bg-slate-200" />
             </div>
-            <div className="flex-1 flex items-end gap-1 py-3">
+            <div className="flex-1 flex items-end gap-1 py-3 justify-end items-end h-[100px]">
               {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
-                <Skeleton
-                  key={i}
-                  className="flex-1 rounded-sm bg-slate-200"
-                  style={{ height: `${h}%` }}
-                />
+                <Skeleton key={i} className="flex-1 rounded-sm bg-slate-200" style={{ height: `${h}%` }} />
               ))}
             </div>
             <Skeleton className="h-8 w-full rounded-xl bg-slate-200" />
@@ -829,28 +891,11 @@ const SwipeableBalanceCard = ({
       {isConnected && (
         <div className="absolute top-2 right-3 z-20 flex items-center gap-1.5">
           {showUpdatedText && (
-            <span
-              className="text-[8px] text-slate-500 font-medium transition-opacity duration-500"
-              style={{ animation: "fadeInOut 3s ease-in-out" }}
-            >
-              {getUpdatedAgoText()}
-            </span>
+            <span className="text-[8px] text-slate-500 font-medium transition-opacity duration-500">{getUpdatedAgoText()}</span>
           )}
-          <span
-            className="block w-1.5 h-1.5 rounded-full bg-emerald-400"
-            style={{ animation: "pulse-dot 2s ease-in-out infinite" }}
-          />
+          <span className="block w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ animation: "pulse-dot 2s infinite" }} />
           <style>{`
-            @keyframes pulse-dot {
-              0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
-              50% { opacity: 0.7; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0); }
-            }
-            @keyframes fadeInOut {
-              0% { opacity: 0; }
-              10% { opacity: 1; }
-              80% { opacity: 1; }
-              100% { opacity: 0; }
-            }
+            @keyframes pulse-dot { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.4); } 50% { opacity: 0.7; box-shadow: 0 0 0 3px rgba(52,211,153,0); } }
           `}</style>
         </div>
       )}
@@ -873,7 +918,7 @@ const SwipeableBalanceCard = ({
           </div>
         </div>
 
-        <p className="text-[36px] leading-none font-bold text-white mb-3 w-full overflow-visible whitespace-nowrap">
+        <p className="text-[36px] leading-none font-bold text-white mb-3 truncate">
           {isVisible ? (selectedAsset ? formatKMB(displayBalance) : formatFull(displayBalance)) : masked}
         </p>
 
@@ -893,81 +938,33 @@ const SwipeableBalanceCard = ({
           >
             <div className="flex items-center gap-2">
               <LayoutGrid size={12} className="text-violet-400" />
-              <span className="text-[12px] leading-none font-medium text-slate-200 whitespace-nowrap">
+              <span className="text-[12px] leading-none font-medium text-slate-200 truncate max-w-[120px]">
                 {selectedAsset ? selectedAsset.symbol : "All Investments"}
               </span>
             </div>
-            {isOpen ? (
-              <ChevronUp size={14} className="text-slate-300" />
-            ) : (
-              <ChevronDown size={14} className="text-slate-300" />
-            )}
+            {isOpen ? <ChevronUp size={14} className="text-slate-300" /> : <ChevronDown size={14} className="text-slate-300" />}
           </button>
           {isOpen && (
-            <div className="absolute bottom-full mb-1 right-0 w-full bg-white rounded-xl z-[120] overflow-hidden border border-slate-200 shadow-lg">
+            <div className="absolute bottom-full mb-1 right-0 w-full bg-white rounded-xl z-[120] border border-slate-200 shadow-lg">
               <div className="py-1 overflow-y-auto max-h-[140px]">
-                <button
-                  onClick={() => {
-                    setSelectedAsset(null);
-                    setIsOpen(false);
-                    scrollToHoldingIndex(-1);
-                  }}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${!selectedAsset ? "bg-slate-100" : "hover:bg-slate-50"}`}
-                >
-                  <LayoutGrid size={10} className="text-violet-400 shrink-0" />
-                  <span className="text-[9px] font-medium text-slate-700 truncate">
-                    All Investments
-                  </span>
+                <button onClick={() => { setSelectedAsset(null); setIsOpen(false); }} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${!selectedAsset ? "bg-slate-100" : "hover:bg-slate-50"}`}>
+                  <LayoutGrid size={10} className="text-violet-400" />
+                  <span className="text-[9px] font-medium text-slate-700">All Investments</span>
                 </button>
                 {dbData.holdings.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setSelectedAsset(item);
-                      setIsOpen(false);
-                      scrollToHoldingIndex(idx);
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? "bg-slate-100" : "hover:bg-slate-50"}`}
-                  >
+                  <button key={idx} onClick={() => handleAssetSelect(item)} className={`w-full flex items-center gap-2 px-3 py-1.5 text-left ${selectedAsset?.symbol === item.symbol ? "bg-slate-100" : "hover:bg-slate-50"}`}>
                     <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-100 shrink-0">
                       {item.isStrategy && item.topLogos?.length > 0 ? (
                         <div className="flex -space-x-1 h-full items-center justify-center">
                           {item.topLogos.slice(0, 2).map((logo, li) => (
-                            <img
-                              key={li}
-                              src={logo}
-                              className="w-3 h-3 rounded-full object-cover border border-white/25"
-                            />
+                            <img key={li} src={logo} className="w-3 h-3 rounded-full object-cover border border-white/25" alt="" />
                           ))}
                         </div>
-                      ) : item.logo_url ? (
-                        <img
-                          src={item.logo_url}
-                          className="w-full h-full object-cover"
-                        />
                       ) : (
-                        <span className="flex items-center justify-center w-full h-full text-[6px] text-slate-500">
-                          {item.symbol?.substring(0, 2)}
-                        </span>
+                        <img src={item.logo_url} className="w-full h-full object-cover" alt="" />
                       )}
                     </div>
-                    <span className="text-[9px] font-medium text-slate-700 truncate">
-                      {item.symbol}
-                    </span>
-                    {(() => {
-                      if (item.isStrategy && Number(item.avg_fill || 0) === 0) {
-                        return <SettlementBadge status="pending" size="xs" />;
-                      }
-                      if (item.settlement_status && item.settlement_status !== "confirmed") {
-                        return <SettlementBadge status={item.settlement_status} size="xs" />;
-                      }
-                      const isSettlementActive = settlementCfg.brokerEnabled || settlementCfg.fullyIntegrated;
-                      if (!isSettlementActive) return null;
-                      const s = holdingSettlementStatus;
-                      return s && s !== "confirmed" ? (
-                        <SettlementBadge status={s} size="xs" />
-                      ) : null;
-                    })()}
+                    <span className="text-[9px] font-medium text-slate-700 truncate">{item.symbol}</span>
                   </button>
                 ))}
               </div>
@@ -975,119 +972,42 @@ const SwipeableBalanceCard = ({
           )}
         </div>
 
-        <div
-          ref={chartWrapRef}
-          className="mb-3 w-full min-w-0 overflow-hidden"
-          style={{ minHeight: 170, height: 170 }}
-        >
-          {chartData.length > 0 && chartWidth > 0 ? (
-            <ResponsiveContainer
-              key={`chart-${chartKey}-${activeTab}`}
-              width={chartWidth}
-              height={170}
-            >
-              <ComposedChart
-                data={paddedChartData}
-                margin={{ top: 8, right: 4, left: 0, bottom: 2 }}
-              >
+        <div ref={chartWrapRef} className="mb-3 w-full h-[170px]">
+          {chartData.length > 0 ? (
+            <ResponsiveContainer key={`chart-${chartKey}`} width="100%" height={170}>
+              <ComposedChart data={paddedChartData}>
                 <defs>
-                  <linearGradient
-                    id={`colorValue-${chartKey}`}
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                  >
+                  <linearGradient id={`colorValue-${chartKey}`} x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={chartColor} stopOpacity={0.35} />
                     <stop offset="95%" stopColor={chartColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis
-                  dataKey="d"
-                  type="number"
-                  domain={[startTime, now]}
-                  hide
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  yAxisId="pnl"
-                  orientation="right"
-                  domain={yAxisDomain}
-                  width={0}
-                  tick={false}
-                  axisLine={false}
-                  tickLine={false}
-                  hide
-                />
+                <XAxis dataKey="d" type="number" domain={[startTime, now]} hide />
+                <YAxis yAxisId="pnl" domain={yAxisDomain} hide />
                 <Tooltip content={<BalanceChartTooltip />} />
-                <ReferenceLine
-                  yAxisId="pnl"
-                  y={0}
-                  stroke="rgba(148,163,184,0.45)"
-                  strokeDasharray="3 3"
-                  strokeWidth={1}
-                />
-                <Area
-                  yAxisId="pnl"
-                  type="monotone"
-                  dataKey="v"
-                  stroke={chartColor}
-                  strokeWidth={2}
-                  fill={`url(#colorValue-${chartKey})`}
-                  fillOpacity={1}
-                  dot={false}
-                  isAnimationActive={false}
-                  activeDot={{
-                    r: 3,
-                    fill: "#fff",
-                    stroke: chartColor,
-                    strokeWidth: 2,
-                  }}
-                />
+                <ReferenceLine yAxisId="pnl" y={0} stroke="rgba(148,163,184,0.45)" strokeDasharray="3 3" />
+                <Area yAxisId="pnl" type="monotone" dataKey="v" stroke={chartColor} strokeWidth={2} fill={`url(#colorValue-${chartKey})`} isAnimationActive={false} />
               </ComposedChart>
             </ResponsiveContainer>
-          ) : chartLoading ? (
+          ) : (
             <div className="flex items-end gap-1 w-full h-full py-2">
               {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55, 65, 50].map((h, i) => (
-                <Skeleton
-                  key={i}
-                  className="flex-1 rounded-sm bg-white/10"
-                  style={{ height: `${h}%` }}
-                />
+                <Skeleton key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />
               ))}
-            </div>
-          ) : chartData.length > 0 && chartWidth === 0 ? (
-            <div className="flex h-full w-full items-end gap-1 py-2">
-              {[40, 55, 35, 65, 50, 70, 45, 60, 75, 55].map((h, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-sm bg-white/10"
-                  style={{ height: `${h}%` }}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-[9px] text-slate-500">No chart data</p>
             </div>
           )}
         </div>
 
         <div className="mt-auto pt-3 pb-5 border-t border-white/10 flex items-start">
           <div className="flex-1 min-w-0 pr-3">
-            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">
-              ACCOUNT BALANCE
-            </p>
+            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">ACCOUNT BALANCE</p>
             <p className="text-[11px] font-semibold text-slate-100 truncate">
               {isVisible ? (walletLoading ? "Loading..." : formatFull(walletBalance)) : masked}
             </p>
           </div>
           <div className="w-px self-stretch bg-white/10" />
           <div className="flex-1 min-w-0 pl-3">
-            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5" style={{ fontFamily: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif" }}>
-              MINT NUMBER
-            </p>
+            <p className="text-[8px] uppercase tracking-[0.2em] text-slate-400 font-medium mb-0.5">MINT NUMBER</p>
             <p className="text-[11px] tracking-[0.1em] text-slate-300 font-mono font-bold truncate">
               {mintNumber ?? "GENERATING..."}
             </p>
@@ -1098,4 +1018,19 @@ const SwipeableBalanceCard = ({
   );
 };
 
-export default SwipeableBalanceCard;
+// Error Boundary Wrapper
+class ChartErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError(error) { return { hasError: true }; }
+  componentDidCatch(error, errorInfo) { console.error('Chart error:', error, errorInfo); }
+  render() {
+    if (this.state.hasError) return <div className="w-full h-full rounded-[26px] bg-slate-50 p-4 flex items-center justify-center"><p className="text-sm text-slate-500">Chart temporarily unavailable</p></div>;
+    return this.props.children;
+  }
+}
+
+export default (props) => (
+  <ChartErrorBoundary>
+    <SwipeableBalanceCard {...props} />
+  </ChartErrorBoundary>
+);
