@@ -49,8 +49,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Only action "transfer" is supported.' });
     }
     if (!family_member_id) return res.status(400).json({ error: "family_member_id is required." });
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      return res.status(400).json({ error: "Amount must be a positive number (in cents)." });
+
+    const amountCents = Number(amount);
+    if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      return res.status(400).json({ error: "Amount must be a positive integer (in cents)." });
     }
 
     // Authenticate parent
@@ -74,92 +76,47 @@ export default async function handler(req, res) {
     if (!parentUserId) return res.status(401).json({ error: "Could not identify parent." });
 
     try {
-      // 1. Verify child belongs to this parent
-      const { data: child, error: childErr } = await db
-        .from("family_members")
-        .select("id, primary_user_id, available_balance, first_name, relationship")
-        .eq("id", family_member_id)
-        .maybeSingle();
+      const transferRef = `CHILD-TRF-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-      if (childErr) throw childErr;
-      if (!child) return res.status(404).json({ error: "Child account not found." });
-      if (child.relationship !== "child") return res.status(400).json({ error: "Transfers are only supported for child accounts." });
-      if (child.primary_user_id !== parentUserId) {
-        return res.status(403).json({ error: "You can only transfer to your own children." });
+      const { data, error } = await db.rpc("transfer_parent_to_child_wallet", {
+        p_parent_user_id: parentUserId,
+        p_family_member_id: family_member_id,
+        p_amount_cents: amountCents,
+        p_reference: transferRef,
+      });
+
+      if (error) {
+        const message = error.message || "Transfer failed.";
+        if (message.includes("Insufficient wallet balance")) {
+          return res.status(400).json({ error: "Insufficient wallet balance." });
+        }
+        if (message.includes("Child account not found") || message.includes("Parent wallet not found")) {
+          return res.status(404).json({ error: message });
+        }
+        if (message.includes("only transfer to your own children")) {
+          return res.status(403).json({ error: "You can only transfer to your own children." });
+        }
+        if (message.includes("only supported for child accounts")) {
+          return res.status(400).json({ error: "Transfers are only supported for child accounts." });
+        }
+        if (error.code === "42883") {
+          return res.status(500).json({
+            error: "Transfer function not found. Run scripts/sql/family-and-child-dashboard.sql in Supabase first.",
+          });
+        }
+        throw error;
       }
 
-      // 2. Check parent wallet
-      const { data: wallet, error: walletErr } = await db
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", parentUserId)
-        .maybeSingle();
-
-      if (walletErr) throw walletErr;
-      const parentBalance = wallet?.balance || 0;
-      if (parentBalance < amount) {
-        return res.status(400).json({ error: "Insufficient wallet balance." });
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) {
+        return res.status(500).json({ error: "Transfer failed. No transfer result returned." });
       }
-
-      // 3. Deduct from parent
-      const newParentBalance = parentBalance - amount;
-      const { error: deductErr } = await db
-        .from("wallets")
-        .update({ balance: newParentBalance })
-        .eq("user_id", parentUserId);
-
-      if (deductErr) throw deductErr;
-
-      // 4. Credit child
-      const childCurrentBalance = child.available_balance || 0;
-      const newChildBalance = childCurrentBalance + amount;
-      const { error: creditErr } = await db
-        .from("family_members")
-        .update({ available_balance: newChildBalance })
-        .eq("id", family_member_id);
-
-      if (creditErr) {
-        // Rollback parent deduction
-        await db.from("wallets").update({ balance: parentBalance }).eq("user_id", parentUserId);
-        throw creditErr;
-      }
-
-      // 5. Record transactions
-      const ref = `CHILD-TRF-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-      // Parent side (debit)
-      try {
-        await db.from("transactions").insert({
-          user_id: parentUserId,
-          family_member_id: family_member_id,
-          type: "transfer_out",
-          direction: "debit",
-          amount: amount,
-          description: `Transfer to ${child.first_name}'s account`,
-          store_reference: ref,
-          status: "completed",
-        });
-      } catch (e) { console.warn("[child-wallet] parent tx insert:", e.message); }
-
-      // Child side (credit)
-      try {
-        await db.from("transactions").insert({
-          user_id: parentUserId,
-          family_member_id: family_member_id,
-          type: "transfer_in",
-          direction: "credit",
-          amount: amount,
-          description: `Received from parent`,
-          store_reference: ref,
-          status: "completed",
-        });
-      } catch (e) { console.warn("[child-wallet] child tx insert:", e.message); }
 
       return res.json({
         success: true,
-        child_balance: newChildBalance,
-        parent_balance: newParentBalance,
-        transaction_ref: ref,
+        child_balance: Number(row.child_balance_cents || 0),
+        parent_balance: Number(row.parent_balance_cents || 0),
+        transaction_ref: row.transfer_reference || transferRef,
       });
     } catch (e) {
       console.error("[child-wallet] POST error:", e.message);
