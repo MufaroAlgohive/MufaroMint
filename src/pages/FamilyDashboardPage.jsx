@@ -963,6 +963,9 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                             {age !== null && (
                               <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>
                             )}
+                            {child.mint_number && (
+                               <span className="text-[11px] text-slate-400">· #{child.mint_number}</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-1.5 mt-1.5">
                             <ShieldCheck className="h-3 w-3 text-purple-400 flex-shrink-0" />

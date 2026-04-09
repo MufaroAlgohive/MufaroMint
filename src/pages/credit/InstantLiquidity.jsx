@@ -361,7 +361,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
 
       <div className="px-5 pt-12 pb-8">
         {/* Header - Combined Layout and Features */}
-        <header className="relative flex items-center justify-between mb-8 text-white">
+        <header className="relative z-50 flex items-center justify-between mb-8 text-white">
           <div className="flex items-center gap-4">
             <FamilyDropdown
               profile={profile}

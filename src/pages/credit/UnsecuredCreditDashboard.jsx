@@ -9,6 +9,7 @@ import { formatZar } from "../../lib/formatCurrency";
 import NavigationPill from "../../components/NavigationPill";
 import NotificationBell from "../../components/NotificationBell";
 import { supabase } from "../../lib/supabase";
+import FamilyDropdown from "../../components/FamilyDropdown";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -587,11 +588,19 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         style={{ background: "linear-gradient(170deg, #0d0d12 0%, #25173e 20%, #7a4aa7 60%, #c68edc 85%, #f4e7f5 100%)" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-12 mb-6">
-          <div className="h-[38px] w-[38px] rounded-full bg-white/20 border border-white/30 flex items-center justify-center text-[11px] font-semibold text-white uppercase">
-            {initials}
-          </div>
-          <div className="w-[38px]" />
+        <div className="flex items-center justify-between px-5 pt-12 mb-6 relative z-50">
+          <FamilyDropdown
+            profile={profile}
+            userId={profile?.id}
+            initials={initials}
+            avatarUrl={profile?.avatarUrl}
+            onOpenFamily={() =>
+              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
+            }
+            onSelectMember={(member) =>
+              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
+            }
+          />
           <NotificationBell onClick={onOpenNotifications} />
         </div>
 
