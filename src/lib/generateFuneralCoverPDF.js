@@ -203,9 +203,14 @@ export async function generateFuneralCoverPDF({
   dependents = [],
 }) {
   // Load assets (non-blocking — fails gracefully)
-  const [logoB64, sigB64] = await Promise.all([
+  const [logoB64, sigB64, familyB64, childrenB64, handsB64, sunsetB64, forestB64] = await Promise.all([
     imgToBase64("/assets/mint-logo.png"),
     imgToBase64("/assets/ceo-signature.png"),
+    imgToBase64("/assets/images/family-hero.jpeg"),    // portrait 2:3
+    imgToBase64("/assets/images/children-hero.jpeg"),  // landscape 3:2
+    imgToBase64("/assets/images/hands-hero.jpeg"),     // landscape 3:2
+    imgToBase64("/assets/images/sunset-family.jpeg"),  // landscape 3:2
+    imgToBase64("/assets/images/forest-family.jpeg"),  // portrait 2:3
   ]);
 
   const doc       = new jsPDF({ unit: "mm", format: "a4" });
@@ -327,6 +332,23 @@ export async function generateFuneralCoverPDF({
   y += 4.5;
   doc.text("Mint Financial Services (Pty) Ltd", L, y);
 
+  // ── Hands strip (landscape 3:2 → 54×36 at right, purple fill left) ─────────
+  {
+    const sY = 213, sH = 36, imgW = 54;
+    fillRect(doc, sY, sH, PURPLE_DARK);
+    fillRect(doc, sY, 1.2, PURPLE_MID);
+    if (handsB64) {
+      try { doc.addImage(handsB64, "JPEG", PW - imgW, sY, imgW, sH); } catch { /* skip */ }
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...WHITE);
+    doc.text("Protecting what matters most.", L, sY + 15);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(180, 160, 220);
+    doc.text("Mint Funeral Plan — underwritten by GuardRisk Life Ltd", L, sY + 22);
+  }
 
   // ── "underwritten by GuardRisk" box (bottom-right, like Capital Legacy) ────
   const boxW = 60, boxH = 22;
@@ -456,11 +478,14 @@ export async function generateFuneralCoverPDF({
   );
   doc.text(waitLines, L, y);
 
-  // ── Purple tagline band — text only ────────────────────────────────────────
+  // ── Family strip — portrait 2:3 (31×46) right, purple tagline left ─────────
   {
-    const stripY = 231, stripH = 46;
+    const stripY = 231, stripH = 46, imgW = 31;
     fillRect(doc, stripY, stripH, PURPLE_DARK);
     fillRect(doc, stripY, 1.5, PURPLE_MID);
+    if (familyB64) {
+      try { doc.addImage(familyB64, "JPEG", PW - imgW, stripY, imgW, stripH); } catch { /* skip */ }
+    }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(...WHITE);
@@ -651,6 +676,24 @@ export async function generateFuneralCoverPDF({
     ],
   ], y);
 
+  // ── Children strip — landscape 3:2 (69×46) right, purple left ───────────
+  {
+    const stripY = 231, stripH = 46, imgW = 69;
+    fillRect(doc, stripY, stripH, PURPLE_DARK);
+    fillRect(doc, stripY, 1.5, PURPLE_MID);
+    if (childrenB64) {
+      try { doc.addImage(childrenB64, "JPEG", PW - imgW, stripY, imgW, stripH); } catch { /* skip */ }
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...WHITE);
+    doc.text("Your benefits.", L, stripY + 16);
+    doc.text("Clear and simple.", L, stripY + 26);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(180, 160, 220);
+    doc.text("Mint Financial Services (Pty) Ltd  —  FSP No. 55118", L, stripY + 36);
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGE 4 — TERMS & REMUNERATION
@@ -773,6 +816,25 @@ export async function generateFuneralCoverPDF({
     y += rowH + 2;
   });
 
+  // ── Sunset strip — landscape 3:2 (69×46) right, purple left ─────────────
+  {
+    const stripY = 231, stripH = 46, imgW = 69;
+    fillRect(doc, stripY, stripH, PURPLE_DARK);
+    fillRect(doc, stripY, 1.5, PURPLE_MID);
+    if (sunsetB64) {
+      try { doc.addImage(sunsetB64, "JPEG", PW - imgW, stripY, imgW, stripH); } catch { /* skip */ }
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...WHITE);
+    doc.text("Your plan.", L, stripY + 16);
+    doc.text("Your peace of mind.", L, stripY + 26);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(180, 160, 220);
+    doc.text("Mint Financial Services (Pty) Ltd  —  FSP No. 55118", L, stripY + 36);
+  }
+
   // ── FAIS Disclosure ────────────────────────────────────────────────────────
   doc.addPage();
   fillRect(doc, 0, 14, WHITE);
@@ -851,6 +913,25 @@ export async function generateFuneralCoverPDF({
     doc.text(lines, L, y);
     y += lines.length * 5 + 4;
   });
+
+  // ── Forest strip — portrait 2:3 (31×46) right, purple tagline left ────────
+  if (y < 230) {
+    const stripY = 231, stripH = 46, imgW = 31;
+    fillRect(doc, stripY, stripH, PURPLE_DARK);
+    fillRect(doc, stripY, 1.5, PURPLE_MID);
+    if (forestB64) {
+      try { doc.addImage(forestB64, "JPEG", PW - imgW, stripY, imgW, stripH); } catch { /* skip */ }
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(...WHITE);
+    doc.text("Your family.", L, stripY + 16);
+    doc.text("Our promise.", L, stripY + 26);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(180, 160, 220);
+    doc.text("support@mymint.co.za  |  www.mymint.co.za", L, stripY + 36);
+  }
 
   // ── Footers on all pages ───────────────────────────────────────────────────
   addFooters(doc, fullName, policyNo, dateStr, logoB64);
