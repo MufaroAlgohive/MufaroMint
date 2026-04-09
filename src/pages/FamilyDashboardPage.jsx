@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, TrendingUp, TrendingDown, Heart, Users,
-  ShieldCheck, Crown, Baby, Sparkles, UserPlus, Mail, Upload, Check, FileText
+  ShieldCheck, Crown, Baby, UserPlus, Mail, Upload, Check, FileText,
+  ChevronDown, Clock, AlertCircle
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
@@ -61,11 +62,13 @@ const slideVariants = {
 
 function AddMemberModal({ type, userId, onSave, onClose }) {
   /* ── Spouse state ── */
-  const [spouseForm, setSpouseForm] = useState({ first_name: "", last_name: "", email: "" });
-  const [spouseResult, setSpouseResult] = useState(null); // null | { linked, member } | { invited, … }
+  const [spouseIdNumber, setSpouseIdNumber] = useState("");
+  const [spouseEmail, setSpouseEmail] = useState("");
+  const [spouseStep, setSpouseStep] = useState(0); // 0 = id number, 1 = email (not found)
+  const [spouseResult, setSpouseResult] = useState(null); // null | { linked, kyc_pending, member } | { invited, … }
 
   /* ── Child state ── */
-  const [childForm, setChildForm] = useState({ first_name: "", last_name: "", date_of_birth: "" });
+  const [childForm, setChildForm] = useState({ first_name: "", last_name: "", date_of_birth: "", id_number: "" });
   const [childStep, setChildStep] = useState(0); // 0 = details, 1 = certificate
   const [slideDir, setSlideDir] = useState(1);
   const [certFile, setCertFile] = useState(null);
@@ -78,14 +81,11 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
   const isSpouse = type === "spouse";
 
-  /* ── Spouse submit ── */
-  async function handleSpouseSubmit() {
-    if (!spouseForm.first_name?.trim() || !spouseForm.last_name?.trim()) {
-      setError("First name and last name are required.");
-      return;
-    }
-    if (spouseForm.email?.trim() && !spouseForm.email.includes("@")) {
-      setError("If provided, email must be valid.");
+  /* ── Spouse: check ID number ── */
+  async function handleSpouseCheckId() {
+    const clean = spouseIdNumber.replace(/\D/g, "");
+    if (clean.length !== 13) {
+      setError("Please enter a valid 13-digit South African ID number.");
       return;
     }
     setSaving(true);
@@ -97,12 +97,15 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
         body: JSON.stringify({
           primary_user_id: userId,
           relationship: "spouse",
-          first_name: spouseForm.first_name,
-          last_name: spouseForm.last_name,
-          email: spouseForm.email,
+          id_number: clean,
         }),
       });
       const json = await res.json();
+      if (json.not_found) {
+        // Person not on Mint — move to email invite step
+        setSpouseStep(1);
+        return;
+      }
       if (!res.ok && !json.invited) {
         setError(json.error || "Could not link spouse.");
         return;
@@ -110,8 +113,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
       if (json.invited) {
         setSpouseResult({ invited: true, ...json });
       } else {
-        // Show success screen first — onSave fires when user taps "Done"
-        setSpouseResult({ linked: true, member: json.member });
+        setSpouseResult({ linked: true, kyc_pending: json.kyc_pending, member: json.member });
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -120,10 +122,71 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
     }
   }
 
+  /* ── Spouse: send invite email ── */
+  async function handleSpouseSendInvite() {
+    if (!spouseEmail.trim() || !spouseEmail.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const clean = spouseIdNumber.replace(/\D/g, "");
+      const res = await fetch("/api/family-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          primary_user_id: userId,
+          relationship: "spouse",
+          id_number: clean,
+          email: spouseEmail.trim(),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok && !json.invited) {
+        setError(json.error || "Could not send invite.");
+        return;
+      }
+      setSpouseResult({ invited: true, ...json });
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* ── SA ID DOB cross-check ── */
+  function verifyIdVsDob(idNumber, dob) {
+    const clean = String(idNumber || "").replace(/\D/g, "");
+    if (clean.length !== 13 || !dob) return { checked: false };
+    const yy = clean.substring(0, 2);
+    const mm = clean.substring(2, 4);
+    const dd = clean.substring(4, 6);
+    const yearNum = parseInt(yy, 10);
+    const fullYear = yearNum <= new Date().getFullYear() % 100 ? `20${yy}` : `19${yy}`;
+    const idDob = `${fullYear}-${mm}-${dd}`;
+    const match = idDob === dob;
+    return { checked: true, match, idDob };
+  }
+
   /* ── Child: advance to cert step ── */
   function handleChildNext() {
     if (!childForm.first_name.trim()) { setError("First name is required."); return; }
     if (!childForm.date_of_birth) { setError("Date of birth is required."); return; }
+
+    const idClean = childForm.id_number.replace(/\D/g, "");
+    if (idClean && idClean.length !== 13) {
+      setError("If provided, the ID number must be exactly 13 digits.");
+      return;
+    }
+    if (idClean.length === 13) {
+      const { checked, match } = verifyIdVsDob(idClean, childForm.date_of_birth);
+      if (checked && !match) {
+        setError("The date of birth extracted from the ID number does not match the date of birth entered. Please check both fields.");
+        return;
+      }
+    }
+
     setError("");
     setSlideDir(1);
     setChildStep(1);
@@ -146,6 +209,16 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
       setError("");
       setCertFile(file);
     }
+  }
+
+  /* ── Determine certificate verification status ── */
+  function getCertVerificationStatus() {
+    const idClean = childForm.id_number.replace(/\D/g, "");
+    if (idClean.length === 13) {
+      const { checked, match } = verifyIdVsDob(idClean, childForm.date_of_birth);
+      if (checked && match) return "id_matched_pending_review";
+    }
+    return "pending_review";
   }
 
   /* ── Child: upload cert + save ── */
@@ -177,6 +250,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
       setUploading(false);
 
+      const idClean = childForm.id_number.replace(/\D/g, "");
+      const certVerificationStatus = getCertVerificationStatus();
+
       // POST to API
       const res = await fetch("/api/family-members", {
         method: "POST",
@@ -187,7 +263,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
           first_name: childForm.first_name,
           last_name: childForm.last_name,
           date_of_birth: childForm.date_of_birth,
+          id_number: idClean || undefined,
           certificate_url: certificateUrl,
+          certificate_verification_status: certVerificationStatus,
         }),
       });
       const json = await res.json();
@@ -303,8 +381,8 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
         <div className="px-6 pt-3 pb-8">
 
-          {/* ═══════════════ SPOUSE: form ═══════════════ */}
-          {isSpouse && !spouseResult && (
+          {/* ═══════════════ SPOUSE: step 0 — ID number ═══════════════ */}
+          {isSpouse && !spouseResult && spouseStep === 0 && (
             <>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -316,7 +394,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                   </div>
                   <div>
                     <p className="text-base font-bold text-slate-900">Add Spouse</p>
-                    <p className="text-xs text-slate-400">Link your partner's Mint account</p>
+                    <p className="text-xs text-slate-400">Enter your partner's ID number</p>
                   </div>
                 </div>
                 <button
@@ -328,38 +406,24 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
               </div>
 
               <div className="space-y-3">
-                <input
-                  type="text"
-                  value={spouseForm.first_name}
-                  onChange={(e) => setSpouseForm(f => ({ ...f, first_name: e.target.value }))}
-                  placeholder="First name"
-                  autoComplete="off"
-                  className={inputCls}
-                />
-                <input
-                  type="text"
-                  value={spouseForm.last_name}
-                  onChange={(e) => setSpouseForm(f => ({ ...f, last_name: e.target.value }))}
-                  placeholder="Last name"
-                  autoComplete="off"
-                  className={inputCls}
-                />
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                    Email address (optional)
+                    South African ID Number
                   </label>
                   <input
-                    type="email"
-                    value={spouseForm.email}
-                    onChange={(e) => setSpouseForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder="partner@example.com"
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={13}
+                    value={spouseIdNumber}
+                    onChange={(e) => { setSpouseIdNumber(e.target.value.replace(/\D/g, "")); setError(""); }}
+                    placeholder="13-digit ID number"
                     autoComplete="off"
                     className={inputCls}
                   />
                 </div>
 
                 <p className="text-[11px] text-slate-400 leading-relaxed px-1">
-                  We'll detect your spouse using first name + surname (case-insensitive). Add email only if you want us to send an invite when no match is found.
+                  We'll search for your spouse's Mint account using their South African ID number.
                 </p>
 
                 {error && (
@@ -370,19 +434,90 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 )}
 
                 <button
-                  onClick={handleSpouseSubmit}
+                  onClick={handleSpouseCheckId}
+                  disabled={saving || spouseIdNumber.replace(/\D/g, "").length !== 13}
+                  className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+                >
+                  {saving ? "Searching…" : "Find Spouse"}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ═══════════════ SPOUSE: step 1 — not found, send email invite ═══════════════ */}
+          {isSpouse && !spouseResult && spouseStep === 1 && (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => { setSpouseStep(0); setError(""); }}
+                    className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95 mr-1"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </button>
+                  <div
+                    className="h-10 w-10 rounded-xl flex items-center justify-center"
+                    style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)" }}
+                  >
+                    <Mail className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-base font-bold text-slate-900">Invite Spouse</p>
+                    <p className="text-xs text-slate-400">No Mint account found</p>
+                  </div>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
+                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    No Mint account was found for that ID number. Enter their email address and we'll send them an invite to sign up.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                    Spouse's Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={spouseEmail}
+                    onChange={(e) => { setSpouseEmail(e.target.value); setError(""); }}
+                    placeholder="partner@example.com"
+                    autoComplete="off"
+                    className={inputCls}
+                  />
+                </div>
+
+                {error && (
+                  <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                    <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-red-500">{error}</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleSpouseSendInvite}
                   disabled={saving}
                   className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
                 >
-                  {saving ? "Checking…" : "Link Spouse"}
+                  {saving ? "Sending…" : "Send Invite"}
                 </button>
               </div>
             </>
           )}
 
           {/* ═══════════════ SPOUSE: linked success ═══════════════ */}
-          {isSpouse && spouseResult?.linked && (
+          {isSpouse && spouseResult?.linked && !spouseResult?.kyc_pending && (
             <motion.div
               className="text-center py-4"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -400,7 +535,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 {[spouseResult.member?.first_name, spouseResult.member?.last_name].filter(Boolean).join(" ")} has been linked to your family account.
               </p>
               {spouseResult.member?.mint_number && (
-                <p className="text-xs text-slate-400 mt-1">Linked Mint # {spouseResult.member.mint_number}</p>
+                <p className="text-xs text-slate-400 mt-1">Mint # {spouseResult.member.mint_number}</p>
               )}
               <button
                 onClick={() => { onSave(spouseResult.member); }}
@@ -408,6 +543,39 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
               >
                 Done
+              </button>
+            </motion.div>
+          )}
+
+          {/* ═══════════════ SPOUSE: linked but KYC pending ═══════════════ */}
+          {isSpouse && spouseResult?.linked && spouseResult?.kyc_pending && (
+            <motion.div
+              className="text-center py-4"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              <div
+                className="h-16 w-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)" }}
+              >
+                <Clock className="h-8 w-8 text-amber-500" />
+              </div>
+              <p className="text-lg font-bold text-slate-900">Spouse Added — KYC Pending</p>
+              <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                {[spouseResult.member?.first_name, spouseResult.member?.last_name].filter(Boolean).join(" ") || "Your spouse"} has been linked, but their identity verification (KYC) is not yet complete.
+              </p>
+              <div className="mt-4 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3 text-left">
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Their account will show a <strong>Pending KYC</strong> badge until they complete verification on the Mint app.
+                </p>
+              </div>
+              <button
+                onClick={() => { onSave({ ...spouseResult.member, kyc_pending: true }); }}
+                className="mt-6 w-full rounded-xl py-3.5 text-sm font-bold text-white active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+              >
+                Got it
               </button>
             </motion.div>
           )}
@@ -522,6 +690,38 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                             onChange={(e) => setChildForm(f => ({ ...f, date_of_birth: e.target.value }))}
                             className={inputCls}
                           />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                            SA ID Number <span className="normal-case tracking-normal font-normal text-slate-400">(optional — used to verify birth certificate)</span>
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={13}
+                            value={childForm.id_number}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              setChildForm(f => ({ ...f, id_number: val }));
+                              setError("");
+                            }}
+                            placeholder="13-digit ID number"
+                            autoComplete="off"
+                            className={inputCls}
+                          />
+                          {childForm.id_number.replace(/\D/g,"").length === 13 && childForm.date_of_birth && (() => {
+                            const { checked, match } = verifyIdVsDob(childForm.id_number, childForm.date_of_birth);
+                            if (!checked) return null;
+                            return match ? (
+                              <p className="text-[10px] text-emerald-600 mt-1 ml-0.5 flex items-center gap-1">
+                                <Check className="h-3 w-3" /> ID number matches date of birth
+                              </p>
+                            ) : (
+                              <p className="text-[10px] text-amber-600 mt-1 ml-0.5 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" /> Date of birth does not match ID number
+                              </p>
+                            );
+                          })()}
                         </div>
 
                         {error && (
@@ -650,42 +850,25 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
 // ─── MemberRow ───────────────────────────────────────────────────────────────
 
-function MemberRow({ gradient, name, role, roleIcon, roleColor, detail, value, barPct, barGradient, delay = 0 }) {
+function MemberRow({ gradient, name, role, roleIcon, roleColor, detail, value }) {
   return (
-    <motion.div variants={item} className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white">
-      {/* Top accent strip */}
-      <div className="h-1" style={{ background: barGradient }} />
-      <div className="p-5">
-        <div className="flex items-center gap-4">
-          <Avatar name={name} gradient={gradient} size="h-14 w-14" text="text-xl" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[16px] font-bold text-slate-900 leading-tight truncate">{name}</p>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase"
-                style={{ background: roleColor.bg, color: roleColor.text }}
-              >
-                {roleIcon}
-                {role}
-              </span>
-              {detail && <span className="text-[11px] text-slate-500 truncate font-medium">{detail}</span>}
-            </div>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-[17px] font-bold text-slate-900 tabular-nums">{value}</p>
+    <motion.div variants={item} className="rounded-2xl bg-white border border-slate-200 p-5" style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
+      <div className="flex items-center gap-4">
+        <Avatar name={name} gradient={gradient} size="h-12 w-12" text="text-lg" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{name}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase"
+              style={{ background: roleColor.bg, color: roleColor.text }}
+            >
+              {roleIcon}
+              {role}
+            </span>
+            {detail && <span className="text-[11px] text-slate-400 truncate">{detail}</span>}
           </div>
         </div>
-
-        {/* Progress bar */}
-        <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
-          <motion.div
-            className="h-full rounded-full shadow-sm"
-            style={{ background: barGradient }}
-            initial={{ width: 0 }}
-            animate={{ width: `${barPct}%` }}
-            transition={{ delay: delay + 0.3, duration: 0.8, ease: "easeOut" }}
-          />
-        </div>
+        <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{value}</p>
       </div>
     </motion.div>
   );
@@ -700,6 +883,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
   const [portfolioValue, setPortfolioValue] = useState(0);
   const [portfolioChange, setPortfolioChange] = useState(0);
   const [addingType, setAddingType] = useState(null);
+  const [pledgeExpanded, setPledgeExpanded] = useState(false);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "My Account";
   const familyLastName = profile?.lastName || "";
@@ -750,22 +934,11 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
     "linear-gradient(135deg,#a78bfa,#7c3aed)",
     "linear-gradient(135deg,#9333ea,#7c3aed)",
   ];
-  const childBarGradients = [
-    "linear-gradient(90deg,#7c3aed,#5b21b6)",
-    "linear-gradient(90deg,#a855f7,#7c3aed)",
-    "linear-gradient(90deg,#8b5cf6,#6366f1)",
-    "linear-gradient(90deg,#a78bfa,#7c3aed)",
-    "linear-gradient(90deg,#9333ea,#7c3aed)",
-  ];
-  const childBarWidths = [62, 38, 70, 45, 55];
 
   return (
     <div
       className="min-h-screen pb-[env(safe-area-inset-bottom)]"
-      style={{
-        background: "linear-gradient(180deg, #f0f4f8 0%, #f8fafc 20%, #ffffff 50%, #f8fafc 80%, #f0f4f8 100%)",
-        backgroundAttachment: "fixed",
-      }}
+      style={{ background: "#f5f5f7" }}
     >
       {/* ── Header ── */}
       <div className="px-4 pt-12 pb-5">
@@ -811,77 +984,100 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           {/* ── Portfolio card ── */}
           <motion.div
             variants={item}
-            className="rounded-2xl p-6 relative overflow-hidden shadow-lg border border-slate-200"
-            style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}
+            className="rounded-3xl relative overflow-hidden"
+            style={{
+              background: "linear-gradient(160deg, #1e1b4b 0%, #312e81 45%, #4c1d95 100%)",
+              boxShadow: "0 24px 48px -12px rgba(79,70,229,0.4)",
+            }}
           >
-            {/* Decorative circles */}
-            <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#fff,transparent)" }} />
-            <div className="absolute -bottom-14 -left-8 h-36 w-36 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#fbbf24,transparent)" }} />
+            <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.06), transparent 70%)" }} />
+            <div className="pointer-events-none absolute -bottom-10 -left-10 h-44 w-44 rounded-full" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.15), transparent 70%)" }} />
 
-            <div className="relative">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="h-9 w-9 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center shadow-sm">
-                  <Sparkles className="h-4.5 w-4.5 text-white" />
-                </div>
-                <p className="text-[12px] font-bold tracking-widest text-white/90 uppercase">Family Portfolio</p>
-              </div>
+            <div className="relative px-6 pt-7 pb-6">
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase mb-1">Family Portfolio</p>
+              <p className="text-[2.85rem] font-bold text-white tracking-tight leading-none mb-3">{fmt(portfolioValue)}</p>
 
-              <p className="text-5xl font-bold text-white tracking-tight mb-4">{fmt(portfolioValue)}</p>
-
-              <div className="flex items-center gap-2.5 mb-5">
+              <div className="flex items-center gap-2.5 mb-6">
                 <span
-                  className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold bg-white/25 text-white shadow-sm"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold"
+                  style={{ color: isPositive ? "#86efac" : "#fca5a5" }}
                 >
-                  {isPositive
-                    ? <TrendingUp className="h-3.5 w-3.5" />
-                    : <TrendingDown className="h-3.5 w-3.5" />}
+                  {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                   {isPositive ? "+" : ""}{fmt(portfolioChange)}
                 </span>
-                <span className="text-xs text-white/80 font-medium">
+                <span className="text-xs text-white/40 font-medium">
                   {changePct >= 0 ? "+" : ""}{changePct.toFixed(1)}% all time
                 </span>
               </div>
 
-              {/* Member count row */}
-              <div className="pt-4 border-t border-white/25 flex items-center gap-2">
+              <div className="h-px w-full mb-4" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent)" }} />
+
+              <div className="flex items-center">
                 {[...Array(Math.min(totalMembers, 5))].map((_, i) => (
                   <div
                     key={i}
-                    className="h-7 w-7 rounded-full border-2 border-white/30 bg-white/20 backdrop-blur-sm flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
-                    style={{ marginLeft: i > 0 ? -10 : 0 }}
+                    className="h-7 w-7 rounded-full border-2 flex items-center justify-center"
+                    style={{ borderColor: "rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.10)", marginLeft: i > 0 ? -10 : 0 }}
                   />
                 ))}
-                <p className="text-xs text-white/80 ml-2 font-medium">{totalMembers} account{totalMembers !== 1 ? "s" : ""} linked</p>
+                <p className="text-xs text-white/40 ml-3 font-medium">{totalMembers} member{totalMembers !== 1 ? "s" : ""}</p>
               </div>
             </div>
           </motion.div>
 
-          {/* ── Spousal Pledge card ── */}
+          {/* ── Spousal Pledge ── collapsible badge ── */}
           {spouse && (
-            <motion.div
-              variants={item}
-              className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white"
-            >
-              <div className="h-1.5" style={{ background: "linear-gradient(90deg,#9333ea,#7c3aed,#6b21a8)" }} />
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#c084fc,#a855f7)" }}>
-                    <Heart className="h-5 w-5 text-white" />
-                  </div>
-                  <p className="text-[12px] font-bold tracking-widest text-slate-500 uppercase">Combined Spousal Pledge</p>
+            <motion.div variants={item}>
+              {/* Badge row */}
+              <button
+                onClick={() => setPledgeExpanded(e => !e)}
+                className="w-full flex items-center gap-3 rounded-2xl bg-white border border-slate-200 px-5 py-3.5 shadow-sm transition active:scale-[0.99]"
+                style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}
+              >
+                <div
+                  className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg,#c084fc,#a855f7)" }}
+                >
+                  <Heart className="h-3.5 w-3.5 text-white" />
                 </div>
-                <p className="text-4xl font-bold text-slate-900 tracking-tight mb-4">{fmt(spousalPledge)}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {[profile?.firstName || "You", spouse.first_name].map((name) => (
-                    <span key={name} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                      <ShieldCheck className="h-3.5 w-3.5" /> {name} consented
-                    </span>
-                  ))}
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Both spouses have consented to a combined pledge per FICA requirements.
-                </p>
-              </div>
+                <span className="flex-1 text-[13px] font-semibold text-slate-700 text-left">Spousal Pledge</span>
+                <span className="text-[13px] font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-3 py-1">
+                  {fmt(spousalPledge)}
+                </span>
+                <motion.div animate={{ rotate: pledgeExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                </motion.div>
+              </button>
+
+              {/* Expanded body */}
+              <AnimatePresence initial={false}>
+                {pledgeExpanded && (
+                  <motion.div
+                    key="pledge-body"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded-b-2xl bg-white border-x border-b border-slate-200 -mt-2 pt-5 pb-5 px-5">
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {[profile?.firstName || "You", spouse.first_name].map((name) => (
+                          <span
+                            key={name}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" /> {name} consented
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Both spouses have consented to a combined pledge per FICA requirements.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 
@@ -902,23 +1098,32 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 roleColor={{ bg: "#faf5ff", text: "#7c3aed" }}
                 detail="Main Account"
                 value={fmt(portfolioValue)}
-                barPct={100}
-                barGradient="linear-gradient(90deg,#a855f7,#7c3aed)"
               />
 
               {/* Spouse or placeholder */}
               {spouse ? (
-                <MemberRow
-                  gradient="linear-gradient(135deg,#a855f7,#7c3aed)"
-                  name={[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")}
-                  role="Spouse"
-                  roleIcon={<Heart className="h-3 w-3" />}
-                  roleColor={{ bg: "#faf5ff", text: "#9333ea" }}
-                  detail={spouse.mint_number || undefined}
-                  value={fmt(0)}
-                  barPct={40}
-                  barGradient="linear-gradient(90deg,#a855f7,#7c3aed)"
-                />
+                <motion.div variants={item} className="rounded-2xl bg-white border border-slate-200 p-5" style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
+                  <div className="flex items-center gap-4">
+                    <Avatar name={[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")} gradient="linear-gradient(135deg,#a855f7,#7c3aed)" size="h-12 w-12" text="text-lg" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#9333ea" }}>
+                          <Heart className="h-2.5 w-2.5" />Spouse
+                        </span>
+                        {(spouse.kyc_pending) && (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase bg-amber-50 text-amber-600 border border-amber-200">
+                            <Clock className="h-2.5 w-2.5" />KYC Pending
+                          </span>
+                        )}
+                        {spouse.mint_number && !spouse.kyc_pending && (
+                          <span className="text-[11px] text-slate-400 truncate">{spouse.mint_number}</span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{fmt(0)}</p>
+                  </div>
+                </motion.div>
               ) : !addingType && (
                 <motion.button
                   whileTap={{ scale: 0.98 }}
@@ -948,54 +1153,56 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 {children.map((child, i) => {
                   const age = getAge(child.date_of_birth);
                   const childName = [child.first_name, child.last_name].filter(Boolean).join(" ");
-                  const parentMint = profile?.mintNumber;
+                  const parentMint = profile?.mintNumber || profile?.mint_number;
+                  const certStatus = child.certificate_verification_status;
+                  const certVerified = certStatus === "verified";
+                  const certIdMatched = certStatus === "id_matched_pending_review";
+                  const certPending = !certVerified && !!child.certificate_url;
                   return (
                     <motion.button
                       key={child.id}
                       variants={item}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => onOpenChildDashboard?.(child)}
-                      className="w-full text-left rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white"
+                      className="w-full text-left rounded-2xl bg-white border border-slate-200 p-5 transition"
+                      style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}
                     >
-                      <div className="h-1" style={{ background: childBarGradients[i % childBarGradients.length] }} />
-                      <div className="p-5">
-                        <div className="flex items-center gap-4">
-                          <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-14 w-14" text="text-xl" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[16px] font-bold text-slate-900 leading-tight truncate">{childName}</p>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
-                                <Baby className="h-3 w-3" />
-                                Child
+                      <div className="flex items-center gap-4">
+                        <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-12 w-12" text="text-lg" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{childName}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
+                              <Baby className="h-3 w-3" />Child
+                            </span>
+                            {age !== null && (
+                              <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>
+                            )}
+                            {certVerified && (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <ShieldCheck className="h-2.5 w-2.5" />Verified
                               </span>
-                              {age !== null && (
-                                <span className="text-[11px] font-semibold text-slate-600">{age} yr{age !== 1 ? "s" : ""} old</span>
-                              )}
-                            </div>
-                            {/* Managed by parent */}
-                            <div className="flex items-center gap-1.5 mt-2">
-                              <ShieldCheck className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
-                              <span className="text-[10px] text-slate-600 truncate font-medium">
-                                Managed by {profile?.firstName || "Parent"}
-                                {parentMint ? ` · #${parentMint}` : ""}
+                            )}
+                            {certIdMatched && !certVerified && (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
+                                <Clock className="h-2.5 w-2.5" />ID Matched · Under Review
                               </span>
-                            </div>
+                            )}
+                            {certPending && !certIdMatched && !certVerified && (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                                <Clock className="h-2.5 w-2.5" />Cert Pending Review
+                              </span>
+                            )}
                           </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-[17px] font-bold text-slate-900 tabular-nums">{fmt(child.available_balance || 0)}</p>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <ShieldCheck className="h-3 w-3 text-purple-400 flex-shrink-0" />
+                            <span className="text-[10px] text-slate-400 truncate">
+                              Managed by {profile?.firstName || "Parent"}
+                              {parentMint ? ` · #${parentMint}` : ""}
+                            </span>
                           </div>
                         </div>
-
-                        {/* Progress bar */}
-                        <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <motion.div
-                            className="h-full rounded-full shadow-sm"
-                            style={{ background: childBarGradients[i % childBarGradients.length] }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${childBarWidths[i % childBarWidths.length]}%` }}
-                            transition={{ delay: i * 0.06 + 0.3, duration: 0.8, ease: "easeOut" }}
-                          />
-                        </div>
+                        <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{fmt(child.available_balance || 0)}</p>
                       </div>
                     </motion.button>
                   );
