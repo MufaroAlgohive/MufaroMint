@@ -202,12 +202,13 @@ export async function generateFuneralCoverPDF({
   dependents = [],
 }) {
   // Load assets (non-blocking — fails gracefully)
-  const [logoB64, sigB64, heroB64, coinB64, splashB64] = await Promise.all([
+  const [logoB64, sigB64, heroB64, coinB64, splashB64, familyB64] = await Promise.all([
     imgToBase64("/assets/mint-logo.png"),
     imgToBase64("/assets/ceo-signature.png"),
     imgToBase64("/assets/images/onboarding-hero.png"),
     imgToBase64("/assets/images/coinAlgoMoney.png"),
     imgToBase64("/assets/splash.png"),
+    imgToBase64("/assets/images/family-hero.jpeg"),
   ]);
 
   const doc       = new jsPDF({ unit: "mm", format: "a4" });
@@ -457,19 +458,33 @@ export async function generateFuneralCoverPDF({
   );
   doc.text(waitLines, L, y);
 
-  // ── Full-width hero photo strip (like Capital Legacy's family photo) ────────
-  if (heroB64) {
-    try {
-      // Landscape handshake photo — placed at a fixed y above the footer
-      doc.addImage(heroB64, "PNG", 0, 231, PW, 46);
-    } catch { /* skip if load failed */ }
-  } else {
-    // Fallback branded strip
-    fillRect(doc, 231, 46, PURPLE_MID);
+  // ── Family photo strip — portrait image right, purple tagline left ─────────
+  {
+    const stripY = 231, stripH = 46;
+    // Purple background spans full width
+    fillRect(doc, stripY, stripH, PURPLE_DARK);
+    // Thin accent line at top
+    fillRect(doc, stripY, 1.5, PURPLE_MID);
+
+    // Portrait photo on right (35mm wide × 46mm tall — fills the strip naturally)
+    const photoW = 35, photoX = PW - photoW;
+    if (familyB64) {
+      try { doc.addImage(familyB64, "JPEG", photoX, stripY, photoW, stripH); } catch { /* skip */ }
+    } else if (heroB64) {
+      try { doc.addImage(heroB64, "PNG", photoX, stripY, photoW, stripH); } catch { /* skip */ }
+    }
+
+    // Tagline text on the left
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setTextColor(...WHITE);
-    doc.text("Your future, protected.", PW / 2, 257, { align: "center" });
+    doc.text("Protecting", L, stripY + 14);
+    doc.text("what matters", L, stripY + 23);
+    doc.text("most.", L, stripY + 32);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(180, 160, 220);
+    doc.text("Mint Funeral Plan — underwritten by GuardRisk Life Ltd", L, stripY + 40);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -650,28 +665,22 @@ export async function generateFuneralCoverPDF({
     ],
   ], y);
 
-  // ── Mint brand panel at bottom of page 3 (Mint "Money in Transit" logo) ───
-  const brandPanelY = 231;
-  fillRect(doc, brandPanelY, 46, PURPLE_DARK);
-  // Thin lighter strip at top of panel
-  fillRect(doc, brandPanelY, 1.5, PURPLE_MID);
-  if (splashB64) {
-    try {
-      // splash.png is square — centre it vertically in the panel
-      doc.addImage(splashB64, "PNG", PW / 2 - 22, brandPanelY + 3, 44, 44);
-    } catch { /* skip */ }
+  // ── Full-width landscape hero strip at bottom of page 3 ───────────────────
+  {
+    const stripY = 231, stripH = 46;
+    if (heroB64) {
+      try {
+        doc.addImage(heroB64, "PNG", 0, stripY, PW, stripH);
+      } catch { /* skip */ }
+    } else {
+      // Fallback: purple strip with tagline
+      fillRect(doc, stripY, stripH, PURPLE_MID);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(...WHITE);
+      doc.text("Your family. Our promise.", PW / 2, stripY + 26, { align: "center" });
+    }
   }
-  // Tagline left side
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(...WHITE);
-  doc.text("Your future,", L, brandPanelY + 16);
-  doc.text("protected.", L, brandPanelY + 24);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(180, 160, 220);
-  doc.text("Mint Financial Services (Pty) Ltd", L, brandPanelY + 32);
-  doc.text(`FSP No. ${FSP_NUMBER}`, L, brandPanelY + 38);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGE 4 — TERMS & REMUNERATION
