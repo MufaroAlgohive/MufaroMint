@@ -56,7 +56,7 @@ function Avatar({ name, gradient, size = "h-14 w-14", text = "text-xl" }) {
 
 // ─── Transfer Modal (bottom-sheet) ───────────────────────────────────────────
 
-function TransferModal({ child, parentBalance, onTransfer, onClose }) {
+function TransferModal({ child, parentBalance, balancesLoading, onTransfer, onClose }) {
   const [amount, setAmount] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -64,7 +64,7 @@ function TransferModal({ child, parentBalance, onTransfer, onClose }) {
 
   const numAmount = parseFloat(amount) || 0;
   const amountCents = Math.round(numAmount * 100);
-  const insufficient = amountCents > (parentBalance || 0);
+  const insufficient = !balancesLoading && amountCents > (parentBalance || 0);
 
   async function handleSubmit() {
     if (numAmount <= 0) { setError("Enter a valid amount."); return; }
@@ -137,12 +137,16 @@ function TransferModal({ child, parentBalance, onTransfer, onClose }) {
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 mb-4 border border-slate-100">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Your Wallet</p>
-                  <p className="text-sm font-bold text-slate-900 tabular-nums mt-0.5">{fmt(parentBalance)}</p>
+                  <p className="text-sm font-bold text-slate-900 tabular-nums mt-0.5">
+                    {balancesLoading ? "Loading…" : fmt(parentBalance)}
+                  </p>
                 </div>
                 <ArrowUpRight className="h-4 w-4 text-slate-300" />
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{child.first_name}'s Wallet</p>
-                  <p className="text-sm font-bold text-slate-900 tabular-nums mt-0.5">{fmt(child.available_balance || 0)}</p>
+                  <p className="text-sm font-bold text-slate-900 tabular-nums mt-0.5">
+                    {balancesLoading ? "Loading…" : fmt(child.available_balance || 0)}
+                  </p>
                 </div>
               </div>
 
@@ -169,6 +173,7 @@ function TransferModal({ child, parentBalance, onTransfer, onClose }) {
                   <button
                     key={v}
                     onClick={() => setAmount(String(v))}
+                    disabled={balancesLoading}
                     className="flex-1 rounded-lg py-2 text-xs font-bold text-purple-600 bg-purple-50 border border-purple-100 hover:bg-purple-100 transition active:scale-95"
                   >
                     R{v}
@@ -192,7 +197,7 @@ function TransferModal({ child, parentBalance, onTransfer, onClose }) {
 
               <button
                 onClick={handleSubmit}
-                disabled={saving || numAmount <= 0 || insufficient}
+                disabled={balancesLoading || saving || numAmount <= 0 || insufficient}
                 className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
               >
@@ -604,9 +609,11 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   const [child, setChild] = useState(initialChild);
   const [holdings, setHoldings] = useState([]);
   const [transactions, setTransactions] = useState([]);
-  const [parentBalance, setParentBalance] = useState(0);
+  const [parentBalance, setParentBalance] = useState(null);
+  const [parentBalanceLoading, setParentBalanceLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [showTransfer, setShowTransfer] = useState(false);
+  const [openingTransfer, setOpeningTransfer] = useState(false);
   const [showInvest, setShowInvest] = useState(false);
 
   const childName = [child?.first_name, child?.last_name].filter(Boolean).join(" ") || "Child";
@@ -650,6 +657,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   }
 
   async function fetchParentWallet() {
+    setParentBalanceLoading(true);
     try {
       if (!supabase) return;
       const userId = (await supabase.auth.getUser())?.data?.user?.id;
@@ -659,8 +667,23 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
         .select("balance")
         .eq("user_id", userId)
         .maybeSingle();
-      if (isMounted.current) setParentBalance(data?.balance || 0);
-    } catch (e) { console.error("[child-dash] parent wallet", e); }
+      const balanceRands = Number(data?.balance || 0);
+      const balanceCents = Math.round(balanceRands * 100);
+      if (isMounted.current) setParentBalance(balanceCents);
+    } catch (e) {
+      console.error("[child-dash] parent wallet", e);
+    } finally {
+      if (isMounted.current) setParentBalanceLoading(false);
+    }
+  }
+
+  async function openTransferModal() {
+    setOpeningTransfer(true);
+    await Promise.all([fetchParentWallet(), fetchChildBalance()]);
+    if (isMounted.current) {
+      setShowTransfer(true);
+      setOpeningTransfer(false);
+    }
   }
 
   async function fetchTransactions() {
@@ -783,11 +806,12 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
               {/* Quick actions */}
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowTransfer(true)}
+                  onClick={openTransferModal}
+                  disabled={openingTransfer}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-white/25 backdrop-blur-md border border-white/20 shadow-sm hover:bg-white/35 transition active:scale-[0.98]"
                 >
                   <ArrowDownLeft className="h-4 w-4" />
-                  Transfer
+                  {openingTransfer ? "Loading…" : "Transfer"}
                 </button>
                 <button
                   onClick={() => setShowInvest(true)}
@@ -938,6 +962,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
           <TransferModal
             child={child}
             parentBalance={parentBalance}
+            balancesLoading={parentBalanceLoading}
             onTransfer={handleTransferDone}
             onClose={() => setShowTransfer(false)}
           />

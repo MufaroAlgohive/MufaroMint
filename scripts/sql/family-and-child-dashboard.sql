@@ -206,6 +206,138 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- ─── 11. Atomic parent → child transfer function ───────────────────────────
+
+CREATE OR REPLACE FUNCTION public.transfer_parent_to_child_wallet(
+  p_parent_user_id uuid,
+  p_family_member_id uuid,
+  p_amount_cents bigint,
+  p_reference text DEFAULT NULL
+)
+RETURNS TABLE (
+  parent_balance_cents bigint,
+  child_balance_cents bigint,
+  transfer_reference text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_child_primary_user_id uuid;
+  v_child_relationship text;
+  v_child_first_name text;
+  v_child_current_balance_cents bigint;
+  v_parent_current_balance_cents bigint;
+  v_parent_new_balance_cents bigint;
+  v_child_new_balance_cents bigint;
+  v_ref text;
+BEGIN
+  IF p_parent_user_id IS NULL THEN
+    RAISE EXCEPTION 'Parent user id is required.';
+  END IF;
+
+  IF p_family_member_id IS NULL THEN
+    RAISE EXCEPTION 'family_member_id is required.';
+  END IF;
+
+  IF p_amount_cents IS NULL OR p_amount_cents <= 0 THEN
+    RAISE EXCEPTION 'Amount must be a positive integer in cents.';
+  END IF;
+
+  SELECT
+    fm.primary_user_id,
+    fm.relationship,
+    fm.first_name,
+    COALESCE(fm.available_balance, 0)
+  INTO
+    v_child_primary_user_id,
+    v_child_relationship,
+    v_child_first_name,
+    v_child_current_balance_cents
+  FROM family_members fm
+  WHERE fm.id = p_family_member_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Child account not found.';
+  END IF;
+
+  IF v_child_relationship <> 'child' THEN
+    RAISE EXCEPTION 'Transfers are only supported for child accounts.';
+  END IF;
+
+  IF v_child_primary_user_id <> p_parent_user_id THEN
+    RAISE EXCEPTION 'You can only transfer to your own children.';
+  END IF;
+
+  SELECT ROUND(COALESCE(w.balance, 0)::numeric * 100)::bigint
+  INTO v_parent_current_balance_cents
+  FROM wallets w
+  WHERE w.user_id = p_parent_user_id
+  FOR UPDATE;
+
+  IF v_parent_current_balance_cents IS NULL THEN
+    RAISE EXCEPTION 'Parent wallet not found.';
+  END IF;
+
+  IF v_parent_current_balance_cents < p_amount_cents THEN
+    RAISE EXCEPTION 'Insufficient wallet balance.';
+  END IF;
+
+  v_parent_new_balance_cents := v_parent_current_balance_cents - p_amount_cents;
+  v_child_new_balance_cents := v_child_current_balance_cents + p_amount_cents;
+
+  UPDATE wallets
+  SET
+    balance = (v_parent_new_balance_cents::numeric / 100),
+    updated_at = now()
+  WHERE user_id = p_parent_user_id;
+
+  UPDATE family_members
+  SET available_balance = v_child_new_balance_cents
+  WHERE id = p_family_member_id;
+
+  v_ref := COALESCE(NULLIF(p_reference, ''), 'CHILD-TRF-' || extract(epoch from now())::bigint || '-' || substr(md5(random()::text), 1, 6));
+
+  INSERT INTO transactions (
+    user_id,
+    family_member_id,
+    type,
+    direction,
+    amount,
+    description,
+    store_reference,
+    status
+  ) VALUES
+  (
+    p_parent_user_id,
+    p_family_member_id,
+    'transfer_out',
+    'debit',
+    p_amount_cents,
+    'Transfer to ' || COALESCE(v_child_first_name, 'child') || '''s account',
+    v_ref,
+    'completed'
+  ),
+  (
+    p_parent_user_id,
+    p_family_member_id,
+    'transfer_in',
+    'credit',
+    p_amount_cents,
+    'Received from parent',
+    v_ref,
+    'completed'
+  );
+
+  RETURN QUERY
+  SELECT v_parent_new_balance_cents, v_child_new_balance_cents, v_ref;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.transfer_parent_to_child_wallet(uuid, uuid, bigint, text) TO authenticated, service_role;
+
 COMMIT;
 
 -- ===========================================================================
