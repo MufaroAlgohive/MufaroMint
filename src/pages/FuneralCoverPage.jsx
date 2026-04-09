@@ -109,9 +109,10 @@ export default function FuneralCoverPage({ onBack, profile }) {
   // Step 2
   const [firstName, setFirstName] = useState(profile?.firstName || "");
   const [lastName, setLastName]   = useState(profile?.lastName  || "");
-  const [dob, setDob]             = useState(profile?.dateOfBirth || "");
+  const profileDob = profile?.dateOfBirth || "";
+  const [dob, setDob]             = useState(profileDob);
   const [manualAge, setManualAge] = useState(35);
-  const [useManualAge, setUseManualAge] = useState(false);
+  const [useManualAge, setUseManualAge] = useState(!profileDob);
 
   // Step 3
   const [societySize, setSocietySize] = useState("1+5");
@@ -283,47 +284,64 @@ export default function FuneralCoverPage({ onBack, profile }) {
               />
             </div>
 
-            {!useManualAge && (
-              <div>
-                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Date of Birth</label>
-                <input
-                  type="date"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-400"
-                  value={dob}
-                  onChange={e => setDob(e.target.value)}
-                />
-              </div>
-            )}
-
-            <div>
-              <button
-                onClick={() => setUseManualAge(p => !p)}
-                className="text-xs text-violet-600 font-medium underline"
-              >
-                {useManualAge ? "Enter date of birth instead" : "Or set age manually"}
-              </button>
-            </div>
-
-            {useManualAge && (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-slate-500">Age</label>
-                  <span className="text-2xl font-bold text-slate-900">{manualAge}</span>
+            {profileDob ? (
+              <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-slate-400 mb-0.5">Date of Birth</p>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {new Date(profileDob).toLocaleDateString("en-ZA", { day:"2-digit", month:"long", year:"numeric" })}
+                  </p>
                 </div>
-                <input
-                  type="range"
-                  min={18} max={90}
-                  value={manualAge}
-                  onChange={e => setManualAge(Number(e.target.value))}
-                  className="w-full accent-violet-600"
-                />
-                <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                  <span>18</span><span>90</span>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400">Age</p>
+                  <p className="text-xl font-bold text-violet-600">{calcAge(profileDob)}</p>
                 </div>
               </div>
+            ) : (
+              <>
+                {!useManualAge && (
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 mb-1.5 block">Date of Birth</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      value={dob}
+                      onChange={e => setDob(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <button
+                    onClick={() => setUseManualAge(p => !p)}
+                    className="text-xs text-violet-600 font-medium underline"
+                  >
+                    {useManualAge ? "Enter date of birth instead" : "Or set age manually"}
+                  </button>
+                </div>
+
+                {useManualAge && (
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-medium text-slate-500">Age</label>
+                      <span className="text-2xl font-bold text-slate-900">{manualAge}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={18} max={90}
+                      value={manualAge}
+                      onChange={e => setManualAge(Number(e.target.value))}
+                      className="w-full accent-violet-600"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                      <span>18</span><span>90</span>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
-            {age && ageBand && (
+            {!profileDob && age && ageBand && (
               <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 flex items-center gap-2">
                 <Check className="h-4 w-4 text-violet-600 flex-shrink-0" />
                 <p className="text-xs text-violet-700 font-medium">Age {age} — {ageBand} age band confirmed</p>
