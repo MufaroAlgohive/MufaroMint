@@ -22,6 +22,9 @@ import {
   Plus,
   Calendar,
   ChevronRight,
+  Handshake,
+  Gift,
+  Umbrella,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import NavigationPill from "../components/NavigationPill";
@@ -689,12 +692,11 @@ const HomePage = ({
       </div>
 
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
-        <section className="grid grid-cols-5 gap-2 text-[11px] font-medium">
+        <section className="grid grid-cols-4 gap-2 text-[11px] font-medium">
           {[
             { label: "Invest", icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
             { label: "Deposit", icon: ArrowDownToLine, onClick: onOpenDeposit },
             { label: "News", icon: Newspaper, onClick: () => (onOpenNews ? onOpenNews("news") : (onOpenInvest && onOpenInvest("news"))) },
-            { label: "Family", icon: Users, onClick: onOpenFamily },
             { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
           ].map((item, index) => {
             const Icon = item.icon;
@@ -714,6 +716,50 @@ const HomePage = ({
           })}
         </section>
 
+        {/* New Service Hub Section */}
+        <section className="grid grid-cols-4 gap-3">
+          {[
+            { label: "Family", icon: Users, onClick: onOpenFamily, comingSoon: false },
+            { label: "Stokvel", icon: Handshake, onClick: null, comingSoon: true },
+            { label: "Insure", icon: Umbrella, onClick: null, comingSoon: true },
+            { label: "Rewards", icon: Gift, onClick: null, comingSoon: true },
+          ].map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={index}
+                disabled={item.comingSoon}
+                onClick={item.onClick}
+                className={`relative flex flex-col items-center justify-center gap-3 rounded-[24px] aspect-square transition-all ${item.comingSoon
+                    ? "bg-slate-100/50 opacity-60 cursor-not-allowed border border-slate-200/50"
+                    : "bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-100 active:scale-95"
+                  }`}
+              >
+                <div className={`p-2.5 rounded-2xl ${item.comingSoon ? "bg-slate-200 text-slate-400" : "bg-violet-50 text-violet-600"}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className={`text-[11px] font-bold ${item.comingSoon ? "text-slate-400" : "text-slate-700"}`}>
+                  {item.label}
+                </span>
+
+                {item.comingSoon && (
+                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-max">
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[7px] font-bold uppercase tracking-wider text-white shadow-lg"
+                      style={{
+                        background: "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 50%, #6d28d9 100%)",
+                        boxShadow: "0 2px 8px rgba(109,40,217,0.25)",
+                      }}
+                    >
+                      Soon
+                    </span>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </section>
+
         {onboardingChecked && outstandingActions.length > 0 ? (
           <OutstandingActionsSection
             actions={outstandingActions}
@@ -723,15 +769,15 @@ const HomePage = ({
         ) : null}
 
         {/* Market Insights */}
-        <section>
-          <div className="flex items-end justify-between px-5 mb-3">
+        <section className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden">
+          <div className="flex items-end justify-between px-5 py-4 border-b border-slate-100">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-900">
                 Market Insights
               </p>
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <Newspaper className="h-3 w-3" />
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 bg-slate-50">
+                  <Newspaper className="h-2.5 w-2.5" />
                 </span>
                 <span>Latest updates for your portfolio</span>
               </div>
@@ -744,13 +790,13 @@ const HomePage = ({
             </button>
           </div>
 
-          <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100">
             {news.length > 0 ? (
               news.slice(0, 4).map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onOpenNewsArticle && onOpenNewsArticle(item.id)}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-slate-50"
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors active:bg-slate-50"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -792,17 +838,17 @@ const HomePage = ({
         </section>
 
         {/* Investment Goals */}
-        <section>
-          <div className="flex items-end justify-between px-5 mb-3">
+        <section className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden">
+          <div className="flex items-end justify-between px-5 py-4 border-b border-slate-100">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-900">
                 Investment Goals
               </p>
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <Target className="h-3 w-3" />
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 bg-slate-50">
+                  <Target className="h-2.5 w-2.5" />
                 </span>
-                <span>Track progress towards your goals</span>
+                <span>Track your long-term wealth</span>
               </div>
             </div>
             <button
@@ -813,22 +859,21 @@ const HomePage = ({
             </button>
           </div>
 
-          {loadingGoals ? (
-            <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
-              {[0, 1].map((i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3.5">
-                  <Skeleton className="h-10 w-10 rounded-2xl" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-1.5 w-full rounded-full" />
-                    <Skeleton className="h-3 w-24" />
+          <div className="divide-y divide-slate-100">
+            {loadingGoals ? (
+              <div className="divide-y divide-slate-100">
+                {[0, 1].map((i) => (
+                  <div key={i} className="flex items-center gap-3 px-5 py-4">
+                    <Skeleton className="h-10 w-10 rounded-2xl" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-1.5 w-full rounded-full" />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : goals.length > 0 ? (
-            <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
-              {goals.map((goal) => {
+                ))}
+              </div>
+            ) : goals.length > 0 ? (
+              goals.map((goal) => {
                 const invested = goal.current_amount || 0;
                 const target = goal.target_amount || 0;
                 const progress = target > 0 ? Math.min(100, (invested / target) * 100) : 0;
@@ -837,7 +882,7 @@ const HomePage = ({
                     key={goal.id}
                     type="button"
                     onClick={() => handleEditClick(goal)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-slate-50"
+                    className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors active:bg-slate-50"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 flex-shrink-0">
                       <Target className="h-5 w-5" />
@@ -876,24 +921,24 @@ const HomePage = ({
                     <ChevronRight className="h-4 w-4 text-slate-300 flex-shrink-0" />
                   </button>
                 );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
-                <Target className="h-8 w-8" />
+              })
+            ) : (
+              <div className="p-10 text-center">
+                <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
+                  <Target className="h-8 w-8" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900 mb-1">No goals yet</p>
+                <p className="text-xs text-slate-500 mb-6">Set investment goals to track your progress</p>
+                <button
+                  type="button"
+                  onClick={() => setShowGoalsModal(true)}
+                  className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
+                >
+                  Create Goal
+                </button>
               </div>
-              <p className="text-sm font-semibold text-slate-900 mb-1">No goals yet</p>
-              <p className="text-xs text-slate-500 mb-4">Set investment goals to track your progress</p>
-              <button
-                type="button"
-                onClick={() => setShowGoalsModal(true)}
-                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
-              >
-                Create your first goal
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </section>
 
         {/* Best Performing Assets */}

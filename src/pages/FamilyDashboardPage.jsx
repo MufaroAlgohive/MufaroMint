@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, TrendingUp, TrendingDown, Heart, Users,
-  ShieldCheck, Crown, Baby, Sparkles, UserPlus, Mail, Upload, Check, FileText
+  ShieldCheck, Crown, Baby, UserPlus, Mail, Upload, Check, FileText,
+  ChevronDown
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
+import ChildResponsibilityAgreement from "../components/ChildResponsibilityAgreement";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -69,6 +71,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
   const [slideDir, setSlideDir] = useState(1);
   const [certFile, setCertFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [newChildMember, setNewChildMember] = useState(null);
 
   /* ── Shared ── */
   const [saving, setSaving] = useState(false);
@@ -190,12 +193,77 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error || "Could not add child."); return; }
-      onSave(json.member);
+      
+      // Instead of onSave immediately, we move to the Agreement step
+      setNewChildMember(json.member);
+      setSlideDir(1);
+      setChildStep(2);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
       setUploading(false);
+    }
+  }
+
+  async function handleAgreementComplete({ pdfBuffer, signedAt }) {
+    if (!newChildMember) return;
+    setSaving(true);
+    setError("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Session expired.");
+
+      // 1. Upload PDF
+      const uint8 = new Uint8Array(pdfBuffer);
+      let binary = "";
+      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+      const pdfBase64 = btoa(binary);
+
+      const uploadRes = await fetch("/api/onboarding/upload-agreement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pdfBase64 }),
+      });
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok || !uploadJson.publicUrl) {
+        throw new Error(uploadJson.error || "Failed to upload agreement.");
+      }
+
+      // 2. Patch family member record
+      const updateRes = await fetch(`/api/family-members/${newChildMember.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signed_agreement_url: uploadJson.publicUrl,
+          signed_at: signedAt,
+        }),
+      });
+      
+      if (!updateRes.ok) {
+        // Fallback for older API versions or missing endpoint
+        console.warn("[family] PATCH failed, trying metadata update via Supabase directly");
+        await supabase
+          .from("family_members")
+          .update({
+            signed_agreement_url: uploadJson.publicUrl,
+            signed_at: signedAt,
+          })
+          .eq("id", newChildMember.id);
+      }
+
+      const finalMember = { 
+        ...newChildMember, 
+        signed_agreement_url: uploadJson.publicUrl, 
+        signed_at: signedAt 
+      };
+      onSave(finalMember);
+    } catch (err) {
+      setError(err.message || "Finalization failed.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -400,7 +468,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                       {childStep === 0 ? "Add Child" : "Birth Certificate"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {childStep === 0 ? "Step 1 of 2 — Child details" : "Step 2 of 2 — Upload document"}
+                      {childStep === 0 ? "Step 1 of 3 — Child details" : 
+                       childStep === 1 ? "Step 2 of 3 — Upload document" :
+                       "Step 3 of 3 — Sign agreement"}
                     </p>
                   </div>
                 </div>
@@ -548,6 +618,27 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                       </div>
                     </motion.div>
                   )}
+
+                  {/* Step 2 — Agreement */}
+                  {childStep === 2 && (
+                    <motion.div
+                      key="child-agreement"
+                      custom={slideDir}
+                      variants={slideVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                      <ChildResponsibilityAgreement
+                        parentProfile={profile}
+                        childData={newChildMember}
+                        saving={saving}
+                        onBack={handleChildBack}
+                        onComplete={handleAgreementComplete}
+                      />
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             </>
@@ -560,42 +651,25 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
 // ─── MemberRow ───────────────────────────────────────────────────────────────
 
-function MemberRow({ gradient, name, role, roleIcon, roleColor, detail, value, barPct, barGradient, delay = 0 }) {
+function MemberRow({ gradient, name, role, roleIcon, roleColor, detail, value }) {
   return (
-    <motion.div variants={item} className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white">
-      {/* Top accent strip */}
-      <div className="h-1" style={{ background: barGradient }} />
-      <div className="p-5">
-        <div className="flex items-center gap-4">
-          <Avatar name={name} gradient={gradient} size="h-14 w-14" text="text-xl" />
-          <div className="flex-1 min-w-0">
-            <p className="text-[16px] font-bold text-slate-900 leading-tight truncate">{name}</p>
-            <div className="flex items-center gap-2 mt-1.5">
-              <span
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase"
-                style={{ background: roleColor.bg, color: roleColor.text }}
-              >
-                {roleIcon}
-                {role}
-              </span>
-              {detail && <span className="text-[11px] text-slate-500 truncate font-medium">{detail}</span>}
-            </div>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-[17px] font-bold text-slate-900 tabular-nums">{value}</p>
+    <motion.div variants={item} className="rounded-2xl bg-white border border-slate-200 p-5" style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
+      <div className="flex items-center gap-4">
+        <Avatar name={name} gradient={gradient} size="h-12 w-12" text="text-lg" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{name}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase"
+              style={{ background: roleColor.bg, color: roleColor.text }}
+            >
+              {roleIcon}
+              {role}
+            </span>
+            {detail && <span className="text-[11px] text-slate-400 truncate">{detail}</span>}
           </div>
         </div>
-
-        {/* Progress bar */}
-        <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
-          <motion.div
-            className="h-full rounded-full shadow-sm"
-            style={{ background: barGradient }}
-            initial={{ width: 0 }}
-            animate={{ width: `${barPct}%` }}
-            transition={{ delay: delay + 0.3, duration: 0.8, ease: "easeOut" }}
-          />
-        </div>
+        <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{value}</p>
       </div>
     </motion.div>
   );
@@ -610,6 +684,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
   const [portfolioValue, setPortfolioValue] = useState(0);
   const [portfolioChange, setPortfolioChange] = useState(0);
   const [addingType, setAddingType] = useState(null);
+  const [pledgeExpanded, setPledgeExpanded] = useState(false);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "My Account";
   const familyLastName = profile?.lastName || "";
@@ -660,22 +735,11 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
     "linear-gradient(135deg,#a78bfa,#7c3aed)",
     "linear-gradient(135deg,#9333ea,#7c3aed)",
   ];
-  const childBarGradients = [
-    "linear-gradient(90deg,#7c3aed,#5b21b6)",
-    "linear-gradient(90deg,#a855f7,#7c3aed)",
-    "linear-gradient(90deg,#8b5cf6,#6366f1)",
-    "linear-gradient(90deg,#a78bfa,#7c3aed)",
-    "linear-gradient(90deg,#9333ea,#7c3aed)",
-  ];
-  const childBarWidths = [62, 38, 70, 45, 55];
 
   return (
     <div
       className="min-h-screen pb-[env(safe-area-inset-bottom)]"
-      style={{
-        background: "linear-gradient(180deg, #f0f4f8 0%, #f8fafc 20%, #ffffff 50%, #f8fafc 80%, #f0f4f8 100%)",
-        backgroundAttachment: "fixed",
-      }}
+      style={{ background: "#f5f5f7" }}
     >
       {/* ── Header ── */}
       <div className="px-4 pt-12 pb-5">
@@ -721,77 +785,100 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           {/* ── Portfolio card ── */}
           <motion.div
             variants={item}
-            className="rounded-2xl p-6 relative overflow-hidden shadow-lg border border-slate-200"
-            style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}
+            className="rounded-3xl relative overflow-hidden"
+            style={{
+              background: "linear-gradient(160deg, #1e1b4b 0%, #312e81 45%, #4c1d95 100%)",
+              boxShadow: "0 24px 48px -12px rgba(79,70,229,0.4)",
+            }}
           >
-            {/* Decorative circles */}
-            <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#fff,transparent)" }} />
-            <div className="absolute -bottom-14 -left-8 h-36 w-36 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#fbbf24,transparent)" }} />
+            <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.06), transparent 70%)" }} />
+            <div className="pointer-events-none absolute -bottom-10 -left-10 h-44 w-44 rounded-full" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.15), transparent 70%)" }} />
 
-            <div className="relative">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="h-9 w-9 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center shadow-sm">
-                  <Sparkles className="h-4.5 w-4.5 text-white" />
-                </div>
-                <p className="text-[12px] font-bold tracking-widest text-white/90 uppercase">Family Portfolio</p>
-              </div>
+            <div className="relative px-6 pt-7 pb-6">
+              <p className="text-[11px] font-semibold tracking-[0.18em] text-white/45 uppercase mb-1">Family Portfolio</p>
+              <p className="text-[2.85rem] font-bold text-white tracking-tight leading-none mb-3">{fmt(portfolioValue)}</p>
 
-              <p className="text-5xl font-bold text-white tracking-tight mb-4">{fmt(portfolioValue)}</p>
-
-              <div className="flex items-center gap-2.5 mb-5">
+              <div className="flex items-center gap-2.5 mb-6">
                 <span
-                  className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold bg-white/25 text-white shadow-sm"
+                  className="inline-flex items-center gap-1.5 text-sm font-bold"
+                  style={{ color: isPositive ? "#86efac" : "#fca5a5" }}
                 >
-                  {isPositive
-                    ? <TrendingUp className="h-3.5 w-3.5" />
-                    : <TrendingDown className="h-3.5 w-3.5" />}
+                  {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
                   {isPositive ? "+" : ""}{fmt(portfolioChange)}
                 </span>
-                <span className="text-xs text-white/80 font-medium">
+                <span className="text-xs text-white/40 font-medium">
                   {changePct >= 0 ? "+" : ""}{changePct.toFixed(1)}% all time
                 </span>
               </div>
 
-              {/* Member count row */}
-              <div className="pt-4 border-t border-white/25 flex items-center gap-2">
+              <div className="h-px w-full mb-4" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent)" }} />
+
+              <div className="flex items-center">
                 {[...Array(Math.min(totalMembers, 5))].map((_, i) => (
                   <div
                     key={i}
-                    className="h-7 w-7 rounded-full border-2 border-white/30 bg-white/20 backdrop-blur-sm flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
-                    style={{ marginLeft: i > 0 ? -10 : 0 }}
+                    className="h-7 w-7 rounded-full border-2 flex items-center justify-center"
+                    style={{ borderColor: "rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.10)", marginLeft: i > 0 ? -10 : 0 }}
                   />
                 ))}
-                <p className="text-xs text-white/80 ml-2 font-medium">{totalMembers} account{totalMembers !== 1 ? "s" : ""} linked</p>
+                <p className="text-xs text-white/40 ml-3 font-medium">{totalMembers} member{totalMembers !== 1 ? "s" : ""}</p>
               </div>
             </div>
           </motion.div>
 
-          {/* ── Spousal Pledge card ── */}
+          {/* ── Spousal Pledge ── collapsible badge ── */}
           {spouse && (
-            <motion.div
-              variants={item}
-              className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white"
-            >
-              <div className="h-1.5" style={{ background: "linear-gradient(90deg,#9333ea,#7c3aed,#6b21a8)" }} />
-              <div className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#c084fc,#a855f7)" }}>
-                    <Heart className="h-5 w-5 text-white" />
-                  </div>
-                  <p className="text-[12px] font-bold tracking-widest text-slate-500 uppercase">Combined Spousal Pledge</p>
+            <motion.div variants={item}>
+              {/* Badge row */}
+              <button
+                onClick={() => setPledgeExpanded(e => !e)}
+                className="w-full flex items-center gap-3 rounded-2xl bg-white border border-slate-200 px-5 py-3.5 shadow-sm transition active:scale-[0.99]"
+                style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}
+              >
+                <div
+                  className="h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "linear-gradient(135deg,#c084fc,#a855f7)" }}
+                >
+                  <Heart className="h-3.5 w-3.5 text-white" />
                 </div>
-                <p className="text-4xl font-bold text-slate-900 tracking-tight mb-4">{fmt(spousalPledge)}</p>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {[profile?.firstName || "You", spouse.first_name].map((name) => (
-                    <span key={name} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                      <ShieldCheck className="h-3.5 w-3.5" /> {name} consented
-                    </span>
-                  ))}
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Both spouses have consented to a combined pledge per FICA requirements.
-                </p>
-              </div>
+                <span className="flex-1 text-[13px] font-semibold text-slate-700 text-left">Spousal Pledge</span>
+                <span className="text-[13px] font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-full px-3 py-1">
+                  {fmt(spousalPledge)}
+                </span>
+                <motion.div animate={{ rotate: pledgeExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                  <ChevronDown className="h-4 w-4 text-slate-400" />
+                </motion.div>
+              </button>
+
+              {/* Expanded body */}
+              <AnimatePresence initial={false}>
+                {pledgeExpanded && (
+                  <motion.div
+                    key="pledge-body"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded-b-2xl bg-white border-x border-b border-slate-200 -mt-2 pt-5 pb-5 px-5">
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {[profile?.firstName || "You", spouse.first_name].map((name) => (
+                          <span
+                            key={name}
+                            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200"
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" /> {name} consented
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        Both spouses have consented to a combined pledge per FICA requirements.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           )}
 
@@ -812,8 +899,6 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 roleColor={{ bg: "#faf5ff", text: "#7c3aed" }}
                 detail="Main Account"
                 value={fmt(portfolioValue)}
-                barPct={100}
-                barGradient="linear-gradient(90deg,#a855f7,#7c3aed)"
               />
 
               {/* Spouse or placeholder */}
@@ -826,8 +911,6 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                   roleColor={{ bg: "#faf5ff", text: "#9333ea" }}
                   detail={spouse.mint_number || undefined}
                   value={fmt(0)}
-                  barPct={40}
-                  barGradient="linear-gradient(90deg,#a855f7,#7c3aed)"
                 />
               ) : !addingType && (
                 <motion.button
@@ -858,57 +941,38 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 {children.map((child, i) => {
                   const age = getAge(child.date_of_birth);
                   const childName = [child.first_name, child.last_name].filter(Boolean).join(" ");
-                  const parentMint = profile?.mintNumber;
+                  const parentMint = profile?.mintNumber || profile?.mint_number;
                   return (
                     <motion.button
                       key={child.id}
                       variants={item}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => onOpenChildDashboard?.(child)}
-                      className="w-full text-left rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white"
+                      className="w-full text-left rounded-2xl bg-white border border-slate-200 p-5 transition"
+                      style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}
                     >
-                      <div className="h-1" style={{ background: childBarGradients[i % childBarGradients.length] }} />
-                      <div className="p-5">
-                        <div className="flex items-center gap-4">
-                          <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-14 w-14" text="text-xl" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[16px] font-bold text-slate-900 leading-tight truncate">{childName}</p>
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
-                                <Baby className="h-3 w-3" />
-                                Child
-                              </span>
-                              {age !== null && (
-                                <span className="text-[11px] font-semibold text-slate-600">{age} yr{age !== 1 ? "s" : ""} old</span>
-                              )}
-                              {child.mint_number && (
-                                <span className="text-[11px] text-slate-500 font-medium truncate">#{child.mint_number}</span>
-                              )}
-                            </div>
-                            {/* Managed by parent */}
-                            <div className="flex items-center gap-1.5 mt-2">
-                              <ShieldCheck className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
-                              <span className="text-[10px] text-slate-600 truncate font-medium">
-                                Managed by {profile?.firstName || "Parent"}
-                                {parentMint ? ` · #${parentMint}` : ""}
-                              </span>
-                            </div>
+                      <div className="flex items-center gap-4">
+                        <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-12 w-12" text="text-lg" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{childName}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
+                              <Baby className="h-3 w-3" />
+                              Child
+                            </span>
+                            {age !== null && (
+                              <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>
+                            )}
                           </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-[17px] font-bold text-slate-900 tabular-nums">{fmt(child.available_balance || 0)}</p>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <ShieldCheck className="h-3 w-3 text-purple-400 flex-shrink-0" />
+                            <span className="text-[10px] text-slate-400 truncate">
+                              Managed by {profile?.firstName || "Parent"}
+                              {parentMint ? ` · #${parentMint}` : ""}
+                            </span>
                           </div>
                         </div>
-
-                        {/* Progress bar */}
-                        <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <motion.div
-                            className="h-full rounded-full shadow-sm"
-                            style={{ background: childBarGradients[i % childBarGradients.length] }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${childBarWidths[i % childBarWidths.length]}%` }}
-                            transition={{ delay: i * 0.06 + 0.3, duration: 0.8, ease: "easeOut" }}
-                          />
-                        </div>
+                        <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{fmt(child.available_balance || 0)}</p>
                       </div>
                     </motion.button>
                   );

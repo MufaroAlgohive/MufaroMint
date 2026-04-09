@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowUpRight, ArrowDownLeft, X, TrendingUp, TrendingDown,
   ShieldCheck, Baby, Wallet, BarChart3, ChevronRight,
-  RefreshCw, PieChart, Search, Star, AlertCircle, Check,
+  RefreshCw, Search, Star, AlertCircle, Check,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
@@ -107,7 +107,6 @@ function TransferModal({ child, parentBalance, balancesLoading, onTransfer, onCl
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 380, damping: 38 }}
       >
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#34d399,#059669)" }} />
         <div className="flex justify-center pt-3 pb-1"><div className="h-1 w-10 rounded-full bg-slate-200" /></div>
 
         <div className="px-6 pt-3 pb-8">
@@ -329,7 +328,6 @@ function InvestModal({ child, onInvest, onClose }) {
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 380, damping: 38 }}
       >
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#818cf8,#6366f1)" }} />
         <div className="flex justify-center pt-3 pb-1"><div className="h-1 w-10 rounded-full bg-slate-200" /></div>
 
         <div className="px-6 pt-3 pb-8 overflow-y-auto" style={{ maxHeight: "calc(85vh - 24px)" }}>
@@ -766,9 +764,6 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                 <Baby className="h-3.5 w-3.5" />
                 {age !== null ? `${age} yr${age !== 1 ? "s" : ""} old` : "Child"}
               </span>
-              {child?.mint_number && (
-                <span className="text-[11px] text-slate-600 font-mono">{child.mint_number}</span>
-              )}
             </div>
             <div className="flex items-center gap-1.5 mt-2">
               <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
@@ -785,69 +780,71 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
       <div className="mx-auto w-full max-w-sm px-4 pb-12 md:max-w-md">
         <motion.div variants={container} initial="hidden" animate="show" className="space-y-4">
 
-          {/* ── Wallet Card ── */}
+          {/* ── Unified Wallet + Portfolio Card ── */}
           <motion.div
             variants={item}
-            className="rounded-2xl p-6 relative overflow-hidden shadow-lg border border-slate-200"
-            style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}
+            className="rounded-3xl relative overflow-hidden"
+            style={{
+              background: "linear-gradient(160deg, #1e1b4b 0%, #312e81 45%, #4c1d95 100%)",
+              boxShadow: "0 24px 48px -12px rgba(79,70,229,0.45)",
+            }}
           >
-            <div className="absolute -top-12 -right-12 h-48 w-48 rounded-full opacity-20" style={{ background: "radial-gradient(circle, #fff, transparent)" }} />
+            {/* Subtle glare orbs */}
+            <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full" style={{ background: "radial-gradient(circle, rgba(255,255,255,0.07), transparent 70%)" }} />
+            <div className="pointer-events-none absolute -bottom-12 -left-12 h-48 w-48 rounded-full" style={{ background: "radial-gradient(circle, rgba(168,85,247,0.18), transparent 70%)" }} />
 
-            <div className="relative">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="h-9 w-9 rounded-xl bg-white/25 backdrop-blur-sm flex items-center justify-center shadow-sm">
-                  <Wallet className="h-4.5 w-4.5 text-white" />
-                </div>
-                <p className="text-[12px] font-bold tracking-widest text-white/90 uppercase">{child?.first_name}'s Wallet</p>
+            <div className="relative px-6 pt-7 pb-6">
+
+              {/* Label row */}
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[11px] font-semibold tracking-[0.18em] text-white/50 uppercase">Available Balance</p>
+                <span className="text-[10px] font-semibold tracking-wider text-white/35 uppercase">{child?.first_name}'s Wallet</span>
               </div>
 
-              <p className="text-5xl font-bold text-white tracking-tight mb-6">{fmt(childBalance)}</p>
+              {/* Wallet balance */}
+              <p className="text-[2.85rem] font-bold text-white tracking-tight leading-none mb-6">{fmt(childBalance)}</p>
 
-              {/* Quick actions */}
+              {/* Hairline divider */}
+              <div className="h-px w-full mb-5" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)" }} />
+
+              {/* Portfolio row */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <p className="text-[10px] font-semibold tracking-[0.16em] text-white/45 uppercase mb-1">Portfolio Value</p>
+                  <p className="text-2xl font-bold text-white tracking-tight">{fmtRands(totalPortfolio)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold tracking-[0.16em] text-white/45 uppercase mb-1">All-time return</p>
+                  <span
+                    className="inline-flex items-center gap-1 text-sm font-bold"
+                    style={{ color: isPortUp ? "#86efac" : "#fca5a5" }}
+                  >
+                    {isPortUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                    {isPortUp ? "+" : ""}{fmtRands(totalPnl)}&nbsp;
+                    <span className="font-semibold opacity-80">({pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%)</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Action buttons */}
               <div className="flex gap-3">
                 <button
                   onClick={openTransferModal}
                   disabled={openingTransfer}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-white/25 backdrop-blur-md border border-white/20 shadow-sm hover:bg-white/35 transition active:scale-[0.98]"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-white transition active:scale-[0.97]"
+                  style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(12px)" }}
                 >
                   <ArrowDownLeft className="h-4 w-4" />
                   {openingTransfer ? "Loading…" : "Transfer"}
                 </button>
                 <button
                   onClick={() => setShowInvest(true)}
-                  className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold text-white bg-white/25 backdrop-blur-md border border-white/20 shadow-sm hover:bg-white/35 transition active:scale-[0.98]"
+                  className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-semibold text-white transition active:scale-[0.97]"
+                  style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(255,255,255,0.14)", backdropFilter: "blur(12px)" }}
                 >
                   <BarChart3 className="h-4 w-4" />
                   Invest
                 </button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* ── Portfolio Card ── */}
-          <motion.div variants={item} className="rounded-2xl overflow-hidden shadow-lg border border-slate-200 bg-white">
-            <div className="h-1.5" style={{ background: "linear-gradient(90deg,#a855f7,#7c3aed)" }} />
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div
-                  className="h-10 w-10 rounded-xl flex items-center justify-center"
-                  style={{ background: "linear-gradient(135deg,#e9d5ff,#d8b4fe)" }}
-                >
-                  <PieChart className="h-5 w-5 text-purple-600" />
-                </div>
-                <p className="text-[12px] font-bold tracking-widest text-slate-500 uppercase">Portfolio Value</p>
-              </div>
-
-              <p className="text-4xl font-bold text-slate-900 tracking-tight mb-3">{fmtRands(totalPortfolio)}</p>
-
-              <div className="flex items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold bg-purple-50 text-purple-700">
-                  {isPortUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                  {isPortUp ? "+" : ""}{fmtRands(totalPnl)}
-                </span>
-                <span className="text-xs text-slate-600 font-medium">
-                  {pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}% all time
-                </span>
               </div>
             </div>
           </motion.div>
@@ -919,12 +916,6 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                   <span className="text-slate-600">Account Type</span>
                   <span className="font-semibold text-slate-900">Child (Minor)</span>
                 </div>
-                {child?.mint_number && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Mint Number</span>
-                    <span className="font-mono text-xs font-semibold text-slate-900">{child.mint_number}</span>
-                  </div>
-                )}
                 {age !== null && (
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Age</span>
