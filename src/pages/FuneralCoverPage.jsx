@@ -195,8 +195,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
   async function handleGeneratePDF() {
     setGenerating(true);
     try {
-      await new Promise(r => setTimeout(r, 50));
-      generateFuneralCoverPDF({
+      await generateFuneralCoverPDF({
         firstName,
         lastName,
         age,
