@@ -277,31 +277,34 @@ export default function FuneralCoverPage({ onBack, profile }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-4 pt-4 pb-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors">
-            <ArrowLeft className="h-5 w-5 text-slate-600" />
-          </button>
-          <div className="text-center">
-            <div className="flex items-center gap-1.5 justify-center">
-              <Shield className="h-4 w-4 text-violet-600" />
-              <span className="text-base font-bold text-slate-900">Funeral Cover</span>
+      <div className="bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 pt-12 pb-5 flex-shrink-0">
+        <div className="mx-auto w-full max-w-sm md:max-w-md">
+          <div className="flex items-center justify-between mb-4">
+            <button onClick={handleBack} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20 active:scale-95">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="text-center">
+              <div className="flex items-center gap-1.5 justify-center">
+                <Shield className="h-4 w-4 text-violet-300" />
+                <span className="text-base font-bold text-white">Funeral Cover</span>
+              </div>
+              <p className="text-[11px] text-white/50 mt-px">{stepTitles[step-1]}</p>
             </div>
-            <p className="text-[11px] text-slate-400 mt-px">{stepTitles[step-1]}</p>
+            <div className="w-10" />
           </div>
-          <div className="w-9" />
-        </div>
 
-        {/* Progress bar */}
-        <div className="flex gap-1">
-          {Array.from({length: TOTAL_STEPS}).map((_,i) => (
-            <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i < step ? "bg-violet-600" : "bg-slate-200"}`} />
-          ))}
+          {/* Progress bar */}
+          <div className="flex gap-1.5">
+            {Array.from({length: TOTAL_STEPS}).map((_,i) => (
+              <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300 ${i < step ? "bg-violet-300" : "bg-white/20"}`} />
+            ))}
+          </div>
+          <p className="mt-2 text-right text-[10px] text-white/40">Step {step} of {TOTAL_STEPS}</p>
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4">
+      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4 mx-auto w-full max-w-sm md:max-w-md">
 
         {/* ── Step 1: Choose Plan ── */}
         {step === 1 && (
@@ -738,21 +741,26 @@ export default function FuneralCoverPage({ onBack, profile }) {
       </div>
 
       {/* Footer button */}
-      <div className="flex-shrink-0 px-4 py-4 bg-white border-t border-slate-100">
-        <button
-          onClick={step === TOTAL_STEPS ? handleGeneratePDF : handleContinue}
-          disabled={!canProceed() || generating}
-          className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          style={{ background: (canProceed() && !generating) ? "linear-gradient(135deg,#7c3aed,#6d28d9)" : "#cbd5e1" }}
-        >
-          {step === TOTAL_STEPS ? (
-            generating ? (
-              <><Loader2 className="h-4 w-4 animate-spin" />Generating document…</>
-            ) : (
-              <><FileText className="h-4 w-4" />Generate Policy Document</>
-            )
-          ) : "Continue"}
-        </button>
+      <div className="flex-shrink-0 px-4 py-4 bg-white border-t border-slate-100 safe-area-inset-bottom">
+        <div className="mx-auto w-full max-w-sm md:max-w-md">
+          <button
+            onClick={step === TOTAL_STEPS ? handleGeneratePDF : handleContinue}
+            disabled={!canProceed() || generating}
+            className={`w-full py-4 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+              canProceed() && !generating
+                ? "bg-gradient-to-r from-violet-700 to-purple-600 shadow-lg shadow-violet-900/30"
+                : "bg-slate-300"
+            }`}
+          >
+            {step === TOTAL_STEPS ? (
+              generating ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />Generating document…</>
+              ) : (
+                <><FileText className="h-4 w-4" />Generate Policy Document</>
+              )
+            ) : "Continue →"}
+          </button>
+        </div>
       </div>
     </div>
   );

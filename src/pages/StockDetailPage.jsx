@@ -261,23 +261,24 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
             </div>
           </div>
 
-        {/* Price Section */}
-        <div className="mt-6">
-          <div className="flex items-baseline gap-2">
-            <p className="text-4xl font-bold text-slate-900">{currentPrice}</p>
-            <span className="text-sm text-slate-500">{security.currency || "ZAR"}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <span className={`text-lg font-semibold ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
-              {priceChange}
-            </span>
-            <span className={`text-lg font-semibold ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
-              {percentChange}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-slate-400">
+          {/* Price Section */}
+          <div className="mt-6">
+            <div className="flex items-baseline gap-2">
+              <p className="text-4xl font-bold text-white">{currentPrice}</p>
+              <span className="text-sm text-white/50">{security.currency || "ZAR"}</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className={`text-lg font-semibold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
+                {priceChange}
+              </span>
+              <span className={`text-lg font-semibold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
+                {percentChange}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-white/40">
               As of today at {formatTimestamp()} GMT+2
-          </p>
+            </p>
+          </div>
         </div>
       </div>
 
