@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
-  Zap, Info, Search, SlidersHorizontal, Plus, FileSignature,
-  HandCoins, History, Check, ChevronLeft, X, FileText, Lock,
-  ChevronRight, Star, ShieldCheck, PieChart, HelpCircle, ArrowRight, Percent
+  Zap, Info, Search, SlidersHorizontal, FileSignature,
+  HandCoins, History, Check, ChevronLeft, X,
+  ChevronRight, PieChart, HelpCircle, ArrowRight, ShieldCheck
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -62,19 +62,14 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
   // --- PORTFOLIO & SELECTION STATE ---
   const [portfolioItems, setPortfolioItems] = useState([]);
   const [selectedAssets, setSelectedAssets] = useState([]);
-  const [generatedPin, setGeneratedPin] = useState("");
 
   // --- WORKFLOW STATE ---
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [workflowStep, setWorkflowStep] = useState("idle"); // idle, contract, auth, success, setup_pin
+  const [workflowStep, setWorkflowStep] = useState("idle");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // --- USER INPUT STATE ---
   const [pledgeAmount, setPledgeAmount] = useState(0);
-  const [pinInput, setPinInput] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [repaymentDate, setRepaymentDate] = useState("");
-  const [disclaimerChecked, setDisclaimerChecked] = useState(false);
   const [activeLoanId, setActiveLoanId] = useState(null);
   const [nextSalaryDate, setNextSalaryDate] = useState(new Date().toISOString().split('T')[0]);
   const [termMonths, setTermMonths] = useState(1);
@@ -86,26 +81,16 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
     text: "'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif"
   };
 
-  // 14 days min, 6 months max for the repayment date picker
-  const dateConstraints = useMemo(() => {
-    const min = new Date(); min.setDate(min.getDate() + 14);
-    const max = new Date(); max.setMonth(max.getMonth() + 6);
-    return { min: min.toISOString().split('T')[0], max: max.toISOString().split('T')[0] };
-  }, []);
-
-  // --- NEW DATA FETCHING ---
-  // --- NEW DATA FETCHING (FIXED) ---
+  // --- DATA FETCHING ---
   useEffect(() => {
     async function initData() {
       if (!profile?.id) {
         setLoading(false);
         return;
       }
-
       setLoading(true);
-
       try {
-
+        // 1. Fetch Eligible Collateral
         const { data, error } = await supabase
           .from('stock_holdings')
           .select(`
@@ -126,7 +111,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
         if (data) {
           const formatted = await Promise.all(data.map(async item => {
             const sec = item.securities;
-
             const { data: prices } = await supabase
               .from('security_prices')
               .select('close_price')
@@ -138,7 +122,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               ? prices.map(p => parseFloat(p.close_price)).reverse()
               : [0, 0, 0, 0, 0, 0, 0];
 
-            // Dividing by 10 shifts the decimal one place to the right compared to the standard /100
             const balance = (item.quantity * (sec.last_price || 0)) / 100;
 
             return {
@@ -147,17 +130,37 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               code: sec.symbol,
               logo: sec.logo_url,
               sector: sec.sector,
+              marketCap: sec.market_cap,
               quantity: item.quantity,
               balance: balance,
               isEligible: !sec.disqualified,
               score: sec.collateral_score || 0,
               ltv: sec.ltv_pct || 0,
               available: !sec.disqualified ? (balance * (sec.ltv_pct || 0)) : 0,
-              spark
+              spark,
+              marginCall: sec.margin_call_pct || 0.65,
+              autoLiq: sec.auto_liq_pct || 0.70
             };
           }));
           setPortfolioItems(formatted);
         }
+
+        // 2. Fetch Verified TruID Salary Date
+        const { data: snapshotData } = await supabase
+          .from('truid_bank_snapshots')
+          .select('salary_payment_date')
+          .eq('user_id', profile.id)
+          .order('captured_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (snapshotData?.salary_payment_date) {
+          const fetchedDate = new Date(snapshotData.salary_payment_date);
+          if (!isNaN(fetchedDate)) {
+            setNextSalaryDate(fetchedDate.toISOString().split('T')[0]);
+          }
+        }
+
       } catch (err) {
         console.error("Initialization error:", err.message);
       } finally {
@@ -167,10 +170,10 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
     initData();
   }, [profile?.id]);
 
-  // --- NEW LOGIC CALCULATIONS (Simplified) ---
-  const totalPortfolioValue = portfolioItems.reduce((acc, item) => acc + item.balance, 0);
-  const totalAvailable = portfolioItems.reduce((acc, item) => acc + item.available, 0);
-  const qualifyingCount = portfolioItems.filter(i => i.isEligible).length;
+  // --- CALCULATIONS & FILTER LOGIC ---
+  const totalPortfolioValue = useMemo(() => portfolioItems.reduce((acc, item) => acc + item.balance, 0), [portfolioItems]);
+  const totalAvailable = useMemo(() => portfolioItems.reduce((acc, item) => acc + item.available, 0), [portfolioItems]);
+  const qualifyingCount = useMemo(() => portfolioItems.filter(i => i.isEligible).length, [portfolioItems]);
 
   const filteredItems = useMemo(() => {
     let results = portfolioItems.filter(item => {
@@ -190,8 +193,9 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
   const totalSelectedAvailable = selectedAssets.reduce((sum, item) => sum + item.available, 0);
   const totalSelectedBalance = selectedAssets.reduce((sum, item) => sum + item.balance, 0);
 
+  const isAllSelected = qualifyingCount > 0 && selectedAssets.length === qualifyingCount;
 
-  // --- EVENT HANDLERS ---
+  // --- HANDLERS ---
   const toggleAsset = (asset) => {
     if (!asset.isEligible) return;
     setSelectedAssets(prev => {
@@ -201,6 +205,15 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
     });
   };
 
+  const handlePledgeAll = () => {
+    const eligible = portfolioItems.filter(i => i.isEligible);
+    if (isAllSelected) {
+      setSelectedAssets([]); // Deselect if already full
+    } else {
+      setSelectedAssets(eligible); // Select all otherwise
+    }
+  };
+
   const handleOpenPledgeModal = () => {
     if (selectedAssets.length === 0) return;
     setWorkflowStep("idle");
@@ -208,22 +221,11 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
     setIsDetailOpen(true);
   };
 
-  const handlePledgeAll = () => {
-    const eligible = portfolioItems.filter(i => i.isEligible);
-    if (eligible.length > 0) {
-      setSelectedAssets(eligible);
-      setWorkflowStep("idle");
-      setPledgeAmount(eligible.reduce((sum, i) => sum + i.available, 0));
-      setIsDetailOpen(true);
-    }
-  };
-
   const closeDetail = () => {
     setIsDetailOpen(false);
     setWorkflowStep("idle");
     setTimeout(() => {
       setSelectedAssets([]);
-      setPinInput("");
       setPledgeAmount(0);
     }, 300);
   };
@@ -234,29 +236,17 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
     setter(next);
   };
 
-  // --- SUPABASE TRANSACTION ---
-  const initiateSessionAuth = () => {
-    setWorkflowStep("liquidity_flow");
-  };
-
   const handleConfirmPledge = async () => {
-    if (pinInput !== generatedPin) {
-      alert("Verification code mismatch. Please type the 6-digit code shown above.");
-      setPinInput("");
-      return;
-    }
     setIsProcessing(true);
     try {
       const principal = parseFloat(pledgeAmount);
-      
       const engine = new LendingEngine({
-        loanType: 'securitised', // Portfolio backed
+        loanType: 'securitised',
         principal: principal,
         originationDate: new Date(),
         nextSalaryDate: nextSalaryDate,
         termMonths: termMonths
       });
-
       const calculation = engine.calculateLoan();
 
       const { data: loan, error: loanErr } = await supabase.from('loan_application').insert({
@@ -272,8 +262,28 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       }).select().single();
 
       if (loanErr) throw loanErr;
-      setActiveLoanId(loan.id);
 
+      // Insert actual pledges so details work correctly
+      if (selectedAssets?.length > 0) {
+        const totalSelectedBalance = selectedAssets.reduce((sum, item) => sum + item.balance, 0);
+        const pledgesToInsert = selectedAssets.map(asset => {
+          const weight = asset.balance / (totalSelectedBalance || 1);
+          return {
+            user_id: profile.id,
+            loan_application_id: loan.id,
+            security_id: asset.id,
+            symbol: asset.code,
+            pledged_quantity: asset.quantity,
+            pledged_value: asset.balance,
+            loan_value: principal * weight,
+            recognised_value: asset.available
+          };
+        });
+        const { error: pledgeErr } = await supabase.from('pbc_collateral_pledges').insert(pledgesToInsert);
+        if (pledgeErr) console.error("Failed to insert pledges", pledgeErr);
+      }
+
+      setActiveLoanId(loan.id);
       const { error: historyErr } = await supabase
         .from('credit_transactions_history')
         .insert({
@@ -332,16 +342,14 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       setWorkflowStep("liquidity_flow");
     } catch (err) {
       console.error("Pledge failed:", err);
-      alert("Transaction failed. Check console for details.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // --- SUB-PAGE ROUTING ---
   if (view === "history") return <LiquidityHistory onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
   if (view === "active") return <ActiveLiquidity onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
-  if (view === "repay") return <RepayLiquidity onBack={() => setView("main")} fonts={fonts} totalDebt={256450} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} onLinkBank={onLinkBank} />;
+  if (view === "repay") return <RepayLiquidity onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} onLinkBank={onLinkBank} />;
   if (view === "portfolio") return <NewPortfolio onBack={() => setView("main")} fonts={fonts} profile={profile} onTabChange={onTabChange} onOpenNotifications={onOpenNotifications} />;
 
   return (
@@ -352,200 +360,265 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       </div>
 
       <div className="px-5 pt-12 pb-8">
-        {/* Exact Header Styling */}
-        <header className="relative flex items-center justify-between mb-10 text-white">
-          <FamilyDropdown
-            profile={profile}
-            userId={profile?.id}
-            initials={`${profile?.firstName?.[0] || ""}${profile?.lastName?.[0] || ""}`.toUpperCase()}
-            avatarUrl={profile?.avatarUrl}
-            onOpenFamily={() =>
-              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
-            }
-            onSelectMember={(member) =>
-              window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
-            }
-          />
-          <NavigationPill activeTab="credit" onTabChange={onTabChange} />
-          <NotificationBell onClick={onOpenNotifications} />
+        {/* Header - Combined Layout and Features */}
+        <header className="relative z-50 flex items-center justify-between mb-8 text-white">
+          <div className="flex items-center gap-4">
+            <FamilyDropdown
+              profile={profile}
+              userId={profile?.id}
+              initials={`${profile?.firstName?.[0] || ""}${profile?.lastName?.[0] || ""}`.toUpperCase()}
+              avatarUrl={profile?.avatarUrl}
+              onOpenFamily={() =>
+                window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "family" } }))
+              }
+              onSelectMember={(member) =>
+                window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
+              }
+            />
+
+          </div>
+          <div className="flex items-center gap-3">
+            <NavigationPill activeTab="credit" onTabChange={onTabChange} />
+            <NotificationBell onClick={onOpenNotifications} />
+          </div>
         </header>
 
-        {/* Hero Card Styling */}
-        <div className="bg-white/40 backdrop-blur-3xl rounded-[36px] p-6 shadow-xl border border-white/80 mb-8 overflow-hidden relative">
-          <div className="flex justify-between items-start mb-6">
-            <p className="text-slate-600 text-[12px] leading-tight font-medium max-w-[200px]">Unlock <span className="text-slate-900 font-bold">instant liquidity</span> using your portfolio as collateral.</p>
-            <div className="text-6xl font-black text-slate-900/5" style={{ fontFamily: fonts.display }}>{qualifyingCount}</div>
-          </div>
-          <div className="bg-gradient-to-br from-violet-600 to-purple-900 rounded-[32px] p-6 shadow-xl relative min-h-[160px] flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <p className="text-white/70 text-[9px] font-black uppercase tracking-[0.2em]">Max Recognized Liquidity</p>
-                <button onClick={() => setInfoModal('collateral')}><Info size={11} className="text-white/30" /></button>
+        {/* Title sitting underneath profile icon */}
+        <div className="mb-8">
+          <p className="text-[10px] text-white/60 font-black uppercase tracking-[0.2em] mb-1">Welcome back, Mufaro</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight" style={{ fontFamily: fonts.display }}>Instant Liquidity</h1>
+        </div>
+
+        {/* --- REDESIGNED PREMIUM HERO CARD --- */}
+        <div className="bg-white/60 backdrop-blur-3xl rounded-[40px] p-2 shadow-xl border border-white mb-8 relative overflow-hidden">
+          {/* Inner Dark Gradient Card */}
+          <div className="bg-gradient-to-br from-[#0d0d12] via-[#25173e] to-[#5b21b6] rounded-[32px] p-6 text-white shadow-inner relative overflow-hidden">
+            {/* Decorative background glow */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-fuchsia-500/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/4 pointer-events-none"></div>
+
+            <div className="relative z-10 flex justify-between items-start mb-8">
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-white/60">Borrowing Power</p>
+                  <button onClick={() => setInfoModal('collateral')}><Info size={12} className="text-white/40" /></button>
+                </div>
+                <p className="text-4xl font-light tracking-tight drop-shadow-md" style={{ fontFamily: fonts.display }}>
+                  {loading ? "..." : formatZar(totalAvailable)}
+                </p>
               </div>
-              <div className="flex items-baseline text-white tracking-tight" style={{ fontFamily: fonts.display }}>
-                {loading ? (
-                  <div className="h-9 w-32 bg-white/20 animate-pulse rounded-lg mt-1" />
-                ) : (
-                  <>
-                    <span className="text-3xl font-light">R{Math.floor(totalAvailable).toLocaleString()}</span>
-                    <span className="text-xl font-medium opacity-60">.00</span>
-                  </>
-                )}
+              <div className="h-12 w-12 rounded-[18px] bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-lg">
+                <Zap size={20} className="text-violet-300" />
               </div>
             </div>
-            <button
-              onClick={handlePledgeAll}
-              disabled={qualifyingCount === 0}
-              className={`w-full text-slate-900 text-[10px] uppercase tracking-[0.2em] font-black py-4 rounded-xl transition-all mt-5 shadow-xl ${qualifyingCount > 0 ? 'bg-white active:scale-[0.97]' : 'bg-white/40 opacity-50 cursor-not-allowed'}`}
-            >
-              {loading ? "Calculating..." : (qualifyingCount > 0 ? "Pledge All Available" : "No Available Liquidity")}
-            </button>
+
+            <div className="relative z-10 grid grid-cols-2 gap-4 border-t border-white/10 pt-5">
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-[0.15em] text-white/50 mb-1">Total Portfolio</p>
+                <p className="text-sm font-bold text-white">{formatZar(totalPortfolioValue)}</p>
+              </div>
+              <div>
+                <p className="text-[8px] font-black uppercase tracking-[0.15em] text-white/50 mb-1">Eligible Assets</p>
+                <p className="text-sm font-bold text-white">{qualifyingCount} <span className="text-white/40 font-normal">/ {portfolioItems.length}</span></p>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Quick Actions Grid */}
-        <div className="grid grid-cols-4 gap-3 mb-10 text-[11px] font-medium">
-          {[
-            { label: "Portfolio", icon: PieChart, onClick: () => setView("portfolio") },
-            { label: "Active", icon: FileSignature, onClick: () => setView("active") },
-            { label: "Pay", icon: HandCoins, onClick: () => setView("repay") },
-            { label: "History", icon: History, onClick: () => setView("history") }
-          ].map((action, i) => (
-            <button key={i} onClick={action.onClick} className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md active:scale-95 border border-slate-100/50">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full text-violet-700 bg-violet-50"><action.icon className="h-4 w-4" /></span>
-              <span>{action.label}</span>
-            </button>
-          ))}
-        </div>
+        {/* Quick Actions - 4 Cards Grid */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          <button onClick={() => setView("portfolio")} className="bg-white/40 backdrop-blur-md p-5 rounded-[28px] flex flex-col gap-4 border border-white/60 shadow-sm active:scale-95 transition-all text-left">
+            <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600">
+              <PieChart size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">Portfolio</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">View Holdings</p>
+            </div>
+          </button>
 
-        {/* Search & Mega Filter Trigger */}
-        <div className="flex gap-2 mb-8 px-1">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Search assets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-11 text-sm focus:outline-none shadow-sm"
-            />
-          </div>
-          <button
-            onClick={() => setIsFilterOpen(true)}
-            className="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-95"
-          >
-            <SlidersHorizontal size={18} />
+          <button onClick={() => setView("active")} className="bg-white/40 backdrop-blur-md p-5 rounded-[28px] flex flex-col gap-4 border border-white/60 shadow-sm active:scale-95 transition-all text-left">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+              <FileSignature size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">Active</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Manage Loans</p>
+            </div>
+          </button>
+
+          <button onClick={() => setView("repay")} className="bg-white/40 backdrop-blur-md p-5 rounded-[28px] flex flex-col gap-4 border border-white/60 shadow-sm active:scale-95 transition-all text-left">
+            <div className="w-10 h-10 rounded-2xl bg-violet-500/10 flex items-center justify-center text-violet-600">
+              <HandCoins size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">Pay</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Repay Capital</p>
+            </div>
+          </button>
+
+          <button onClick={() => setView("history")} className="bg-white/40 backdrop-blur-md p-5 rounded-[28px] flex flex-col gap-4 border border-white/60 shadow-sm active:scale-95 transition-all text-left">
+            <div className="w-10 h-10 rounded-2xl bg-slate-500/10 flex items-center justify-center text-slate-600">
+              <History size={20} />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">History</p>
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-tighter">Past Actions</p>
+            </div>
           </button>
         </div>
 
-        {/* Eligible Collateral Section */}
-        <div className="space-y-4">
-          <div className="px-5 mb-2 flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-900">Eligible Collateral</p>
-            <button onClick={() => setInfoModal('score')}><Info className="h-4 w-4 text-slate-300" /></button>
-          </div>
-          <p className="px-5 text-[11px] font-medium text-slate-500 -mt-2 mb-4 leading-relaxed">
-            Select an asset below to use it as collateral for your instant liquidity application.
-          </p>
-
-          {loading && (
-            <div className="text-center py-10 opacity-40 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">
-              Analyzing Chain Data...
+        {/* Active Liquidity Card */}
+        {activeLoanId && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3 px-1">
+              <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Active Liquidity</h2>
+              <button onClick={() => setView("active")} className="text-[10px] font-bold text-violet-600 flex items-center gap-1">
+                View all <ArrowRight size={12} />
+              </button>
             </div>
-          )}
-
-          {!loading && filteredItems.length === 0 && (
-            <div className="bg-white/50 backdrop-blur-sm rounded-[36px] p-10 border border-slate-100 text-center">
-              <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-6 text-slate-300">
-                <PieChart size={32} />
+            <div className="bg-slate-900 rounded-[32px] p-5 text-white shadow-xl relative overflow-hidden">
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-[10px] font-mono text-white/40">#{activeLoanId.slice(0, 8)}</span>
+                <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Active</span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">No Matching Assets</h3>
-              <button onClick={() => setView("portfolio")} className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg">
-                <Plus size={14} className="mr-1 inline" /> Buy Qualifying Shares
-              </button>
+              <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                <div>
+                  <p className="text-[8px] text-white/40 uppercase font-black">Outstanding</p>
+                  <p className="text-sm font-bold">{formatZar(pledgeAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-[8px] text-white/40 uppercase font-black">Installment</p>
+                  <p className="text-sm font-bold">Calculated Monthly</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- ELIGIBLE COLLATERAL SECTION --- */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4 px-1">
+            <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-400">Select Collateral</h2>
+            <button onClick={() => setInfoModal('score')} className="text-slate-300"><Info size={14} /></button>
+          </div>
+
+          {/* Search & Mega Filter Trigger */}
+          <div className="flex gap-2 mb-4 px-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input
+                type="text"
+                placeholder="Search assets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white border border-slate-100 rounded-2xl py-3 pl-11 pr-4 text-xs focus:outline-none shadow-sm"
+              />
+            </div>
+            <button
+              onClick={() => setIsFilterOpen(true)}
+              className="h-10 w-10 shrink-0 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+            >
+              <SlidersHorizontal size={16} />
+            </button>
+          </div>
+
+          {/* Optional Display of Active Filters */}
+          {(selectedSectors.size > 0 || selectedSort !== "Balance (High)") && (
+            <div className="flex flex-wrap gap-2 mb-4 px-1">
+              {selectedSort !== "Balance (High)" && (
+                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[9px] font-bold uppercase">{selectedSort}</span>
+              )}
+              {Array.from(selectedSectors).map(sector => (
+                <span key={sector} className="bg-violet-100 text-violet-700 px-3 py-1 rounded-full text-[9px] font-bold uppercase">{sector}</span>
+              ))}
             </div>
           )}
 
-          {!loading && filteredItems.map((item) => {
-            const isSelected = selectedAssets.some(a => a.id === item.id);
-            return (
-              <button
-                key={item.id}
-                onClick={() => toggleAsset(item)}
-                disabled={!item.isEligible}
-                className={`relative w-full overflow-hidden bg-white rounded-[28px] p-5 shadow-sm border text-left transition-all ${!item.isEligible ? 'opacity-40 grayscale pointer-events-none' : 'active:scale-[0.98]'} ${isSelected ? 'border-violet-500 bg-violet-50/30' : 'border-slate-100'}`}
-              >
-                {/* Selection Badge */}
-                {isSelected && (
-                  <div className="absolute top-4 right-4 h-6 w-6 rounded-full bg-violet-600 flex items-center justify-center text-white border-4 border-white shadow-md animate-in zoom-in">
-                    <Check size={12} strokeWidth={4} />
-                  </div>
-                )}
+          {/* Pledge All Eligible Inline Toggle Button */}
+          <div className="mb-4 px-1">
+            <button
+              onClick={handlePledgeAll}
+              disabled={qualifyingCount === 0}
+              className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest active:scale-95 transition-all ${qualifyingCount === 0 ? 'text-slate-300 pointer-events-none' :
+                isAllSelected ? 'text-slate-500' : 'text-violet-600'
+                }`}
+            >
+              <div className={`h-4 w-4 rounded-full flex items-center justify-center transition-colors ${isAllSelected ? 'bg-slate-100 text-slate-400' : 'bg-violet-100 text-violet-600'
+                }`}>
+                {isAllSelected ? <X size={10} strokeWidth={3} /> : <Check size={10} strokeWidth={4} />}
+              </div>
+              {isAllSelected ? "Deselect All" : "Pledge All Eligible"}
+            </button>
+          </div>
 
-                <div className="flex justify-between items-start mb-4 pr-8">
-                  <div className="flex items-center gap-3">
-                    <div className="h-11 w-11 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
-                      {item.logo ? (
-                        <img
-                          src={item.logo}
-                          alt={item.code}
-                          className="h-full w-full object-contain p-1.5"
-                          onError={(e) => { e.target.style.display = 'none'; }}
-                        />
-                      ) : (
-                        <span className="font-black text-slate-400 text-[10px] uppercase">
-                          {item.code}
-                        </span>
-                      )}
+          {/* List of Collateral Cards */}
+          <div className="space-y-3">
+            {loading ? (
+              <div className="text-center py-10 opacity-40 text-[10px] font-black uppercase tracking-[0.3em] animate-pulse">Analyzing...</div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-xs italic">No matching assets found</div>
+            ) : filteredItems.map((item) => {
+              const isSelected = selectedAssets.some(a => a.id === item.id);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => toggleAsset(item)}
+                  disabled={!item.isEligible}
+                  className={`relative w-full overflow-hidden bg-white rounded-[28px] p-5 shadow-sm border text-left transition-all ${!item.isEligible ? 'opacity-40 grayscale pointer-events-none' : 'active:scale-[0.98]'} ${isSelected ? 'border-violet-500 bg-violet-50/30' : 'border-slate-100'}`}
+                >
+                  {/* Selection Badge */}
+                  {isSelected && (
+                    <div className="absolute top-4 right-4 h-6 w-6 rounded-full bg-violet-600 flex items-center justify-center text-white border-4 border-white shadow-md animate-in zoom-in">
+                      <Check size={12} strokeWidth={4} />
                     </div>
+                  )}
+
+                  <div className="flex justify-between items-start mb-4 pr-8">
+                    <div className="flex items-center gap-3">
+                      <div className="h-11 w-11 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
+                        {item.logo ? (
+                          <img src={item.logo} alt={item.code} className="h-full w-full object-contain p-1.5" onError={(e) => { e.target.style.display = 'none'; }} />
+                        ) : (
+                          <span className="font-black text-slate-400 text-[10px] uppercase">{item.code}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Recognized</p>
+                        <p className="text-xl font-bold text-slate-900" style={{ fontFamily: fonts.display }}>{formatZar(item.available)}</p>
+                      </div>
+                    </div>
+                    <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full uppercase">Score: {item.score.toFixed(2)}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-4 border-t border-slate-50">
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Recognized</p>
-                      <p className="text-xl font-bold text-slate-900" style={{ fontFamily: fonts.display }}>{formatZar(item.available)}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{item.name}</p>
+                      <p className="text-xs font-bold text-slate-900">{formatZar(item.balance)}</p>
+                    </div>
+                    <AssetMiniChart data={item.spark} />
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black text-slate-600 uppercase">LTV {(item.ltv * 100).toFixed(0)}%</span>
+                      <ChevronRight className="h-4 w-4 text-slate-300" />
                     </div>
                   </div>
-                  <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full uppercase">Score: {item.score.toFixed(2)}</span>
-                </div>
-
-                <div className="flex justify-between items-center pt-4 border-t border-slate-50">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{item.name}</p>
-                    <p className="text-xs font-bold text-slate-900">{formatZar(item.balance)}</p>
-                  </div>
-                  <AssetMiniChart data={item.spark} />
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black text-slate-600 uppercase">LTV {(item.ltv * 100).toFixed(0)}%</span>
-                    <ChevronRight className="h-4 w-4 text-slate-300" />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      {/* Floating Action Bar (Multi-Select Control) */}
+      {/* --- FLOATING ACTION BAR --- */}
       <AnimatePresence>
         {selectedAssets.length > 0 && !isDetailOpen && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-24 left-0 right-0 z-40 px-6"
-          >
-            <div className="bg-slate-900 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border border-white/10 backdrop-blur-md">
-              <div className="pl-2">
-                <p className="font-bold text-sm">{selectedAssets.length} Assets Selected</p>
-                <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
-                  Limit: <span className="text-white">{formatZar(totalSelectedAvailable)}</span>
-                </p>
-              </div>
-              <button
-                onClick={handleOpenPledgeModal}
-                className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-violet-600/30"
-              >
-                Configure Loan
-              </button>
-            </div>
+          <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-24 left-0 right-0 z-40 px-5">
+            <button
+              onClick={handleOpenPledgeModal}
+              className="w-full py-4 rounded-[20px] bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-2xl shadow-slate-900/30 flex items-center justify-center gap-2"
+            >
+              Continue with {selectedAssets.length} assets • {formatZar(totalSelectedAvailable)}
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -565,7 +638,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
         </div>
         , portalTarget)}
 
-      {/* --- MEGA FILTER SHEET --- */}
+      {/* --- MEGA FILTER MODAL --- */}
       {isFilterOpen && portalTarget && createPortal(
         <div className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm px-4 pb-28">
           <button className="absolute inset-0" onClick={() => setIsFilterOpen(false)} />
@@ -600,7 +673,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
         </div>
         , portalTarget)}
 
-      {/* --- PLEDGE MODAL (BATCH CONFIGURATION) --- */}
+      {/* --- CONFIGURE LOAN MODAL --- */}
       {isDetailOpen && portalTarget && createPortal(
         <div className="fixed inset-0 z-[150] bg-white flex flex-col animate-in slide-in-from-right duration-300">
           <div className="px-6 pt-12 pb-6 flex items-center justify-between border-b border-slate-100 sticky top-0 bg-white z-10">
@@ -612,7 +685,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
           </div>
 
           <div className="flex-1 overflow-y-auto p-8 pb-32">
-            {/* Asset Header with Dynamic Logo */}
             <div className="mb-8 flex justify-between items-start">
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-2xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-sm">
@@ -633,7 +705,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                   </p>
                 </div>
               </div>
-              {/* Quality Score Badge */}
               <div className="h-14 w-14 rounded-full border-4 border-violet-600 flex flex-col items-center justify-center bg-white shadow-lg">
                 <span className="text-[8px] font-black text-slate-400 uppercase leading-none mb-0.5">Score</span>
                 <span className="font-black text-xs text-violet-600">
@@ -642,17 +713,15 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               </div>
             </div>
 
-            {/* Data-Driven Liquidation Safety Bar [cite: 18, 33] */}
+            {/* Liquidation Safety Bar */}
             <div className="bg-slate-50 rounded-[32px] p-6 border border-slate-100 mb-10 shadow-inner">
               <div className="flex justify-between items-center mb-4">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Liquidation Safety Bar</p>
-                <span className={`text-[10px] font-bold uppercase ${(pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65)
-                  ? 'text-emerald-600' : 'text-rose-500'
-                  }`}>
+                <span className={`text-[10px] font-bold uppercase ${(pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) ? 'text-emerald-600' : 'text-rose-500'}`}>
                   {(pledgeAmount / totalSelectedBalance) < (selectedAssets[0]?.marginCall || 0.65) ? 'Secure Range' : 'Critical Risk'}
                 </span>
               </div>
-              <div 
+              <div
                 className="relative h-4 w-full bg-slate-200 rounded-full overflow-hidden flex cursor-pointer"
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
@@ -661,28 +730,10 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                   setPledgeAmount(Math.min(Math.max(1000, newAmount), totalSelectedAvailable));
                 }}
               >
-                {/* Emerald Zone: Safe up to Margin Call  */}
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{ width: `${(selectedAssets[0]?.marginCall || 0.65) * 100}%` }}
-                />
-                {/* Amber Zone: Warning up to Auto-Liquidation  */}
-                <div
-                  className="h-full bg-amber-400"
-                  style={{ width: `${((selectedAssets[0]?.autoLiq || 0.70) - (selectedAssets[0]?.marginCall || 0.65)) * 100}%` }}
-                />
-                {/* Rose Zone: Liquidation Threshold  */}
+                <div className="h-full bg-emerald-500" style={{ width: `${(selectedAssets[0]?.marginCall || 0.65) * 100}%` }} />
+                <div className="h-full bg-amber-400" style={{ width: `${((selectedAssets[0]?.autoLiq || 0.70) - (selectedAssets[0]?.marginCall || 0.65)) * 100}%` }} />
                 <div className="h-full bg-rose-500 flex-1" />
-
-                {/* User's Current Needle */}
-                <div
-                  className="absolute top-0 bottom-0 w-1 bg-white shadow-2xl transition-all duration-300 ring-2 ring-black/5"
-                  style={{ left: `${totalSelectedBalance > 0 ? (pledgeAmount / totalSelectedBalance) * 100 : 0}%` }}
-                />
-              </div>
-              <div className="flex justify-between mt-3 px-1">
-                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Safe Zone</span>
-                <span className="text-[8px] font-bold text-rose-400 uppercase tracking-tighter text-right">Liquidation</span>
+                <div className="absolute top-0 bottom-0 w-1 bg-white shadow-2xl transition-all duration-300 ring-2 ring-black/5" style={{ left: `${totalSelectedBalance > 0 ? (pledgeAmount / totalSelectedBalance) * 100 : 0}%` }} />
               </div>
             </div>
 
@@ -693,6 +744,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               </p>
             </div>
 
+            {/* Requested Capital Input */}
             <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-lg mb-8">
               <div className="flex justify-between items-center mb-6">
                 <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Requested Capital</span>
@@ -701,7 +753,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                     type="number"
                     value={pledgeAmount}
                     onChange={(e) => setPledgeAmount(e.target.value)}
-                    placeholder="0.00"
                     className="w-32 bg-slate-50 px-4 py-2 rounded-xl text-right font-bold text-slate-900 outline-none mb-1"
                   />
                   <p className="text-[9px] font-bold text-violet-600 uppercase">Usage: {totalSelectedBalance > 0 ? ((parseFloat(pledgeAmount) / totalSelectedBalance) * 100).toFixed(1) : 0}% of selection</p>
@@ -718,45 +769,36 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               />
             </div>
 
-            {/* NCR Schedule Configuration */}
+            {/* Repayment Strategy Logic */}
             <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-lg mb-8">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Repayment Strategy</p>
-              
               <div className="flex gap-4 mb-6">
                 <div className="flex-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Next Salary Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={nextSalaryDate}
                     onChange={(e) => setNextSalaryDate(e.target.value)}
                     className="w-full bg-slate-50 p-3 rounded-xl font-bold text-xs text-slate-900 border border-slate-100"
                   />
+                  <div className="mt-1.5 flex items-center gap-1 text-[8px] font-black uppercase text-violet-600">
+                    <ShieldCheck size={10} />
+                    <span>Salary date will be verified on TruID</span>
+                  </div>
                 </div>
                 <div className="flex-1">
                   <label className="text-[9px] font-bold text-slate-400 uppercase mb-2 block">Term (Months)</label>
                   <div className="flex bg-slate-50 rounded-xl p-1 border border-slate-100">
                     {[1, 2, 3, 4, 5, 6].map(m => (
-                      <button 
-                        key={m}
-                        onClick={() => setTermMonths(m)}
-                        className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${termMonths === m ? "bg-slate-900 text-white shadow-md" : "text-slate-400"}`}
-                      >
-                        {m}
-                      </button>
+                      <button key={m} onClick={() => setTermMonths(m)} className={`flex-1 py-2 text-xs font-black rounded-lg transition-all ${termMonths === m ? "bg-slate-900 text-white shadow-md" : "text-slate-400"}`}>{m}</button>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* NCR Quote Summary */}
+              {/* Quote Logic Summary */}
               {(() => {
-                const engine = new LendingEngine({
-                  loanType: 'securitised',
-                  principal: pledgeAmount || 0,
-                  originationDate: new Date(),
-                  nextSalaryDate: nextSalaryDate,
-                  termMonths: termMonths
-                });
+                const engine = new LendingEngine({ loanType: 'securitised', principal: pledgeAmount || 0, originationDate: new Date(), nextSalaryDate: nextSalaryDate, termMonths: termMonths });
                 const calc = engine.calculateLoan();
                 return (
                   <div className="bg-slate-900 rounded-2xl p-5 text-white">
@@ -765,7 +807,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                       <span className="text-xl font-black">{formatZar(calc.installmentAmount)}</span>
                     </div>
                     <div className="space-y-2">
-                       <div className="flex justify-between text-[10px]">
+                      <div className="flex justify-between text-[10px]">
                         <span className="text-white/40">Initiation Fee (NCR Cap)</span>
                         <span className="font-bold">{formatZar(calc.initiationFee)}</span>
                       </div>
@@ -787,6 +829,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               })()}
             </div>
 
+            {/* Debt Ratio Breakdown */}
             <div className="bg-slate-50 p-6 rounded-[28px] border border-slate-100">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Debt Ratio Per Counter</p>
               <div className="space-y-4">
@@ -813,39 +856,21 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
           </div>
 
           <div className="p-6 bg-white border-t border-slate-100 pb-28">
-            <button
-              disabled={!pledgeAmount || pledgeAmount <= 0}
-              onClick={handleConfirmPledge}
-              className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all disabled:opacity-30"
-            >
+            <button disabled={!pledgeAmount || pledgeAmount <= 0} onClick={handleConfirmPledge} className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all disabled:opacity-30">
               Review & Sign Agreement
             </button>
           </div>
         </div>
         , portalTarget)}
 
-      {/* --- DRAWDOWN FLOW MODALS --- */}
+      {/* --- DRAWDOWN FLOW --- */}
       {workflowStep !== "idle" && portalTarget && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-md px-6 pb-20">
-
           {workflowStep === "liquidity_flow" && (
             <div className="w-full max-w-4xl max-h-screen overflow-y-auto no-scrollbar animate-in zoom-in-95">
-              <LiquidityFlow 
-                principal={pledgeAmount}
-                profile={profile}
-                loanId={activeLoanId}
-                termMonths={termMonths}
-                salaryDate={nextSalaryDate}
-                selectedAssets={selectedAssets}
-                onComplete={() => {
-                  setWorkflowStep("success");
-                }}
-                onCancel={() => setWorkflowStep("idle")}
-              />
+              <LiquidityFlow principal={pledgeAmount} profile={profile} loanId={activeLoanId} termMonths={termMonths} salaryDate={nextSalaryDate} selectedAssets={selectedAssets} onComplete={() => setWorkflowStep("success")} onCancel={() => setWorkflowStep("idle")} />
             </div>
           )}
-
-
           {workflowStep === "success" && (
             <div className="bg-white w-full max-w-sm rounded-[36px] p-8 text-center shadow-2xl animate-in zoom-in-95">
               <div className="h-20 w-20 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mx-auto mb-6 shadow-inner"><Check size={40} strokeWidth={3} /></div>

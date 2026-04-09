@@ -1223,6 +1223,28 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                       className="rounded-2xl bg-white border border-slate-200 overflow-hidden"
                       style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}
                     >
+                      <div className="flex items-center gap-4">
+                        <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-12 w-12" text="text-lg" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{childName}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
+                              <Baby className="h-3 w-3" />
+                              Child
+                            </span>
+                            {age !== null && (
+                              <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>
+                            )}
+                            {child.mint_number && (
+                               <span className="text-[11px] text-slate-400">· #{child.mint_number}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <ShieldCheck className="h-3 w-3 text-purple-400 flex-shrink-0" />
+                            <span className="text-[10px] text-slate-400 truncate">
+                              Managed by {profile?.firstName || "Parent"}
+                              {parentMint ? ` · #${parentMint}` : ""}
+                            </span>
                       <div className="flex items-center gap-4 p-5">
                         <button
                           className="flex items-center gap-4 flex-1 min-w-0 text-left"
