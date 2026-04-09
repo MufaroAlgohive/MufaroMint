@@ -6514,6 +6514,9 @@ app.post('/api/family-members', async (req, res) => {
       const rand = Math.floor(1000000 + Math.random() * 9000000);
       const mint_number = `CHD${String(rand).padStart(10, '0')}`;
 
+      const childIdClean = id_number ? String(id_number).replace(/\D/g, '') : null;
+      const verificationStatus = certificate_verification_status || 'pending_review';
+
       const basePayload = {
         primary_user_id,
         relationship: 'child',
@@ -6524,12 +6527,23 @@ app.post('/api/family-members', async (req, res) => {
         mint_number,
       };
 
-      const { data: d1, error: e1 } = await db.from('family_members').insert({ ...basePayload, certificate_url }).select().single();
-      if (e1 && e1.message?.includes('certificate_url')) {
-        const { data: d2, error: e2 } = await db.from('family_members').insert(basePayload).select().single();
-        if (e2) throw e2;
+      const fullPayload = {
+        ...basePayload,
+        certificate_url,
+        certificate_verification_status: verificationStatus,
+        ...(childIdClean ? { id_number: childIdClean } : {}),
+      };
+
+      const { data: d1, error: e1 } = await db.from('family_members').insert(fullPayload).select().single();
+      if (e1) {
+        const { data: d2, error: e2 } = await db.from('family_members').insert({ ...basePayload, certificate_url }).select().single();
+        if (e2 && e2.message?.includes('certificate_url')) {
+          const { data: d3, error: e3 } = await db.from('family_members').insert(basePayload).select().single();
+          if (e3) throw e3;
+          return res.status(201).json({ member: d3 });
+        } else if (e2) { throw e2; }
         return res.status(201).json({ member: d2 });
-      } else if (e1) { throw e1; }
+      }
       return res.status(201).json({ member: d1 });
     }
   } catch (e) {

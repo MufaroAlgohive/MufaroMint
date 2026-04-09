@@ -164,10 +164,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "relationship must be spouse or child" });
     }
 
+    const { id_number, email, certificate_url, certificate_verification_status } = req.body || {};
+
     try {
       /* ──────────────── SPOUSE ──────────────── */
       if (relationship === "spouse") {
-        const { id_number, email } = req.body || {};
 
         if (!id_number?.trim()) {
           return res.status(400).json({ error: "A 13-digit South African ID number is required." });
@@ -326,6 +327,9 @@ export default async function handler(req, res) {
         const rand = Math.floor(1000000 + Math.random() * 9000000);
         const mint_number = `CHD${String(rand).padStart(10, "0")}`;
 
+        const cleanChildId = id_number ? String(id_number).replace(/\D/g, "") : null;
+        const verificationStatus = certificate_verification_status || "pending_review";
+
         const basePayload = {
           primary_user_id,
           relationship: "child",
@@ -336,23 +340,37 @@ export default async function handler(req, res) {
           mint_number,
         };
 
-        // Try with certificate_url column (may not exist yet)
+        // Try to insert with all optional columns, fall back gracefully
+        const fullPayload = {
+          ...basePayload,
+          certificate_url,
+          certificate_verification_status: verificationStatus,
+          ...(cleanChildId ? { id_number: cleanChildId } : {}),
+        };
+
         const { data: d1, error: e1 } = await db
           .from("family_members")
-          .insert({ ...basePayload, certificate_url })
+          .insert(fullPayload)
           .select()
           .single();
 
-        if (e1 && e1.message?.includes("certificate_url")) {
+        if (e1) {
+          // Graceful fallback: strip unknown columns one by one
           const { data: d2, error: e2 } = await db
             .from("family_members")
-            .insert(basePayload)
+            .insert({ ...basePayload, certificate_url })
             .select()
             .single();
-          if (e2) throw e2;
+          if (e2 && e2.message?.includes("certificate_url")) {
+            const { data: d3, error: e3 } = await db
+              .from("family_members")
+              .insert(basePayload)
+              .select()
+              .single();
+            if (e3) throw e3;
+            return res.status(201).json({ member: d3 });
+          } else if (e2) { throw e2; }
           return res.status(201).json({ member: d2 });
-        } else if (e1) {
-          throw e1;
         }
 
         return res.status(201).json({ member: d1 });

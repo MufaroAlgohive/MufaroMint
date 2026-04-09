@@ -68,7 +68,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
   const [spouseResult, setSpouseResult] = useState(null); // null | { linked, kyc_pending, member } | { invited, … }
 
   /* ── Child state ── */
-  const [childForm, setChildForm] = useState({ first_name: "", last_name: "", date_of_birth: "" });
+  const [childForm, setChildForm] = useState({ first_name: "", last_name: "", date_of_birth: "", id_number: "" });
   const [childStep, setChildStep] = useState(0); // 0 = details, 1 = certificate
   const [slideDir, setSlideDir] = useState(1);
   const [certFile, setCertFile] = useState(null);
@@ -155,10 +155,38 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
     }
   }
 
+  /* ── SA ID DOB cross-check ── */
+  function verifyIdVsDob(idNumber, dob) {
+    const clean = String(idNumber || "").replace(/\D/g, "");
+    if (clean.length !== 13 || !dob) return { checked: false };
+    const yy = clean.substring(0, 2);
+    const mm = clean.substring(2, 4);
+    const dd = clean.substring(4, 6);
+    const yearNum = parseInt(yy, 10);
+    const fullYear = yearNum <= new Date().getFullYear() % 100 ? `20${yy}` : `19${yy}`;
+    const idDob = `${fullYear}-${mm}-${dd}`;
+    const match = idDob === dob;
+    return { checked: true, match, idDob };
+  }
+
   /* ── Child: advance to cert step ── */
   function handleChildNext() {
     if (!childForm.first_name.trim()) { setError("First name is required."); return; }
     if (!childForm.date_of_birth) { setError("Date of birth is required."); return; }
+
+    const idClean = childForm.id_number.replace(/\D/g, "");
+    if (idClean && idClean.length !== 13) {
+      setError("If provided, the ID number must be exactly 13 digits.");
+      return;
+    }
+    if (idClean.length === 13) {
+      const { checked, match } = verifyIdVsDob(idClean, childForm.date_of_birth);
+      if (checked && !match) {
+        setError("The date of birth extracted from the ID number does not match the date of birth entered. Please check both fields.");
+        return;
+      }
+    }
+
     setError("");
     setSlideDir(1);
     setChildStep(1);
@@ -181,6 +209,16 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
       setError("");
       setCertFile(file);
     }
+  }
+
+  /* ── Determine certificate verification status ── */
+  function getCertVerificationStatus() {
+    const idClean = childForm.id_number.replace(/\D/g, "");
+    if (idClean.length === 13) {
+      const { checked, match } = verifyIdVsDob(idClean, childForm.date_of_birth);
+      if (checked && match) return "id_matched_pending_review";
+    }
+    return "pending_review";
   }
 
   /* ── Child: upload cert + save ── */
@@ -212,6 +250,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
 
       setUploading(false);
 
+      const idClean = childForm.id_number.replace(/\D/g, "");
+      const certVerificationStatus = getCertVerificationStatus();
+
       // POST to API
       const res = await fetch("/api/family-members", {
         method: "POST",
@@ -222,7 +263,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
           first_name: childForm.first_name,
           last_name: childForm.last_name,
           date_of_birth: childForm.date_of_birth,
+          id_number: idClean || undefined,
           certificate_url: certificateUrl,
+          certificate_verification_status: certVerificationStatus,
         }),
       });
       const json = await res.json();
@@ -647,6 +690,38 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                             onChange={(e) => setChildForm(f => ({ ...f, date_of_birth: e.target.value }))}
                             className={inputCls}
                           />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                            SA ID Number <span className="normal-case tracking-normal font-normal text-slate-400">(optional — used to verify birth certificate)</span>
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={13}
+                            value={childForm.id_number}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, "");
+                              setChildForm(f => ({ ...f, id_number: val }));
+                              setError("");
+                            }}
+                            placeholder="13-digit ID number"
+                            autoComplete="off"
+                            className={inputCls}
+                          />
+                          {childForm.id_number.replace(/\D/g,"").length === 13 && childForm.date_of_birth && (() => {
+                            const { checked, match } = verifyIdVsDob(childForm.id_number, childForm.date_of_birth);
+                            if (!checked) return null;
+                            return match ? (
+                              <p className="text-[10px] text-emerald-600 mt-1 ml-0.5 flex items-center gap-1">
+                                <Check className="h-3 w-3" /> ID number matches date of birth
+                              </p>
+                            ) : (
+                              <p className="text-[10px] text-amber-600 mt-1 ml-0.5 flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" /> Date of birth does not match ID number
+                              </p>
+                            );
+                          })()}
                         </div>
 
                         {error && (
@@ -1079,6 +1154,10 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                   const age = getAge(child.date_of_birth);
                   const childName = [child.first_name, child.last_name].filter(Boolean).join(" ");
                   const parentMint = profile?.mintNumber || profile?.mint_number;
+                  const certStatus = child.certificate_verification_status;
+                  const certVerified = certStatus === "verified";
+                  const certIdMatched = certStatus === "id_matched_pending_review";
+                  const certPending = !certVerified && !!child.certificate_url;
                   return (
                     <motion.button
                       key={child.id}
@@ -1092,13 +1171,27 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                         <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-12 w-12" text="text-lg" />
                         <div className="flex-1 min-w-0">
                           <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{childName}</p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
-                              <Baby className="h-3 w-3" />
-                              Child
+                              <Baby className="h-3 w-3" />Child
                             </span>
                             {age !== null && (
                               <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>
+                            )}
+                            {certVerified && (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <ShieldCheck className="h-2.5 w-2.5" />Verified
+                              </span>
+                            )}
+                            {certIdMatched && !certVerified && (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
+                                <Clock className="h-2.5 w-2.5" />ID Matched · Under Review
+                              </span>
+                            )}
+                            {certPending && !certIdMatched && !certVerified && (
+                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                                <Clock className="h-2.5 w-2.5" />Cert Pending Review
+                              </span>
                             )}
                           </div>
                           <div className="flex items-center gap-1.5 mt-1.5">
