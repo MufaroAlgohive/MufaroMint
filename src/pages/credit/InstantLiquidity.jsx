@@ -375,10 +375,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                 window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "memberPortfolio", member } }))
               }
             />
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Welcome back, {profile?.firstName}</p>
-              <h1 className="text-2xl font-bold tracking-tight" style={{ fontFamily: fonts.display }}>Liquidity Hub</h1>
-            </div>
+
           </div>
           <div className="flex items-center gap-3">
             <NavigationPill activeTab="credit" onTabChange={onTabChange} />

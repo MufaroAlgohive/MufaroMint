@@ -881,6 +881,9 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                               {age !== null && (
                                 <span className="text-[11px] font-semibold text-slate-600">{age} yr{age !== 1 ? "s" : ""} old</span>
                               )}
+                              {child.mint_number && (
+                                <span className="text-[11px] text-slate-500 font-medium truncate">#{child.mint_number}</span>
+                              )}
                             </div>
                             {/* Managed by parent */}
                             <div className="flex items-center gap-1.5 mt-2">

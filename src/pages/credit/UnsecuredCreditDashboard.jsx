@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDown, Plus, FileText, Layers, ChevronRight,
-  Check, AlertTriangle, Circle, Bell, Lock
+  Check, AlertTriangle, Circle, Bell, Lock,
+  X, Landmark, UploadCloud
 } from "lucide-react";
 import { formatZar } from "../../lib/formatCurrency";
 import NavigationPill from "../../components/NavigationPill";
@@ -102,6 +104,17 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
   const [showLoanBreakdown, setShowLoanBreakdown] = useState(false);
   const [expandedTxnId, setExpandedTxnId] = useState(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  const [showEftModal, setShowEftModal] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [popFile, setPopFile] = useState(null);
+  const [portalTarget, setPortalTarget] = useState(null);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -481,6 +494,90 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
   }, [loan, profile, displayName, principal, totalRepay, monthlyPay, months, totalPaid,
       loanBalance, schedule, historyRows, statusLabel, nextDueDate, fmtDate, generatingPdf]);
 
+  const handleProcessPayment = async () => {
+    const amount = parseFloat(paymentAmount);
+    if (!amount || isNaN(amount) || amount <= 0) {
+      alert("Please enter a valid payment amount.");
+      return;
+    }
+    if (!popFile) {
+      alert("Please upload your Proof of Payment document.");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const fileExt = popFile.name.split('.').pop();
+      const fileName = `pop-${loan?.id || 'unsecured'}-${Date.now()}.${fileExt}`;
+      const filePath = `${profile.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, popFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      const { error: docError } = await supabase.from('loan_documents').insert({
+        user_id: profile.id,
+        loan_application_id: loan.id,
+        document_name: popFile.name,
+        document_url: publicUrlData.publicUrl,
+        document_type: 'proof_of_payment'
+      });
+
+      if (docError) throw docError;
+
+      const newPrincipal = Math.max(0, loan.principal_amount - amount);
+      const newStatus = newPrincipal === 0 ? 'repaid' : loan.status;
+
+      const { error: loanError } = await supabase
+        .from('loan_application')
+        .update({ principal_amount: newPrincipal, status: newStatus })
+        .eq('id', loan.id);
+
+      if (loanError) throw loanError;
+
+      setShowEftModal(false);
+      setPopFile(null);
+      setPaymentAmount("");
+      setIsSuccess(true);
+      
+      const { data: updatedLoan } = await supabase.from('loan_application').select('*').eq('id', loan.id).single();
+      if(updatedLoan) setLoan({ ...loan, ...updatedLoan });
+    } catch (err) {
+      console.error("Payment processing failed", err);
+      alert("Payment failed. Please ensure storage buckets are correctly configured.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center animate-in slide-in-from-bottom-4 duration-500">
+        <div className="h-24 w-24 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-8 shadow-inner border border-emerald-100">
+          <Check size={48} strokeWidth={3} />
+        </div>
+        <h2 className="text-3xl font-bold mb-3 text-slate-900 tracking-tight">
+          Payment Submitted
+        </h2>
+        <p className="text-xs text-slate-500 mb-10 leading-relaxed max-w-[260px] font-medium">
+          Your settlement is being processed. Our team will verify your Proof of Payment and update your ledger.
+        </p>
+        <button
+          onClick={() => setIsSuccess(false)}
+          className="w-full max-w-xs py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white text-slate-900">
 
@@ -678,7 +775,15 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
         <p className="text-[14px] font-medium text-slate-900 mb-3">Quick actions</p>
         <div className="grid grid-cols-3 gap-2.5 mb-7">
           {[
-            { label: "Repay", icon: ArrowDown,   onClick: () => onTabChange?.("creditRepay") },
+            { label: "Repay", icon: ArrowDown,   onClick: () => {
+              if (!loan || loanBalance <= 0) {
+                alert("No active facility to settle.");
+                return;
+              }
+              setPaymentAmount(monthlyPay.toFixed(2));
+              setPopFile(null);
+              setShowEftModal(true);
+            }},
             {
               label: "New loan",
               icon: Plus,
@@ -844,6 +949,100 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
           onClick={() => onTabChange?.("instantLiquidity")}
         />
       </div>
+
+      {/* --- MINT EFT PAYMENT MODAL --- */}
+      {showEftModal && loan && portalTarget && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
+          <button className="absolute inset-0" onClick={() => !isProcessing && setShowEftModal(false)} />
+
+          <div className="relative w-full max-w-sm bg-white rounded-[36px] p-8 shadow-2xl animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto no-scrollbar">
+            <button
+              disabled={isProcessing}
+              onClick={() => setShowEftModal(false)}
+              className="absolute top-6 right-6 h-8 w-8 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="h-14 w-14 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-6 border border-violet-100">
+              <Landmark size={24} />
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 mb-1">EFT Repayment</h3>
+            <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+              Transfer funds to the MINT account and upload your POP to settle.
+            </p>
+
+            {/* Bank Details from Account Confirmation PDF */}
+            <div className="bg-slate-50 rounded-[24px] p-5 mb-6 border border-slate-100 space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bank</span>
+                <span className="text-xs font-bold text-slate-900">Capitec Business</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account Name</span>
+                <span className="text-xs font-bold text-slate-900">ALGOHIVE PTY LTD</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Account No.</span>
+                <span className="text-xs font-bold text-slate-900 font-mono">1053045883</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Branch Code</span>
+                <span className="text-xs font-bold text-slate-900 font-mono">450105</span>
+              </div>
+              <div className="pt-4 border-t border-slate-200/60 flex justify-between items-center">
+                <span className="text-[10px] font-black uppercase tracking-widest text-violet-600">Reference</span>
+                <span className="text-xs font-black text-slate-900 font-mono bg-violet-100 px-2.5 py-1 rounded-lg">
+                  MINT-{loan.id.slice(0, 6).toUpperCase()}
+                </span>
+              </div>
+            </div>
+
+            {/* Custom Payment Amount */}
+            <div className="mb-4">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 pl-2">Payment Amount</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">R</span>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-10 pr-4 font-bold text-slate-900 outline-none focus:border-violet-500 transition-colors shadow-sm"
+                />
+              </div>
+            </div>
+
+            {/* Proof of Payment Upload */}
+            <div className="mb-8">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-2 pl-2">Proof of Payment</label>
+              <div className="relative overflow-hidden w-full bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center p-4 shadow-sm hover:bg-slate-100 transition-colors cursor-pointer group">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => setPopFile(e.target.files[0])}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                />
+                <div className="flex items-center gap-3 text-slate-500 group-hover:text-violet-600 transition-colors">
+                  <UploadCloud size={20} />
+                  <span className="text-xs font-bold truncate max-w-[200px]">
+                    {popFile ? popFile.name : "Tap to Upload File"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleProcessPayment}
+              disabled={isProcessing || !paymentAmount || !popFile}
+              className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest shadow-xl shadow-slate-900/20 active:scale-95 transition-all disabled:opacity-40"
+            >
+              {isProcessing ? "Uploading & Processing..." : "Submit Payment"}
+            </button>
+          </div>
+        </div>
+        , portalTarget)}
     </div>
   );
 };
