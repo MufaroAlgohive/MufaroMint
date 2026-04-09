@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
+import ChildResponsibilityAgreement from "../components/ChildResponsibilityAgreement";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
   const [slideDir, setSlideDir] = useState(1);
   const [certFile, setCertFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [newChildMember, setNewChildMember] = useState(null);
 
   /* ── Shared ── */
   const [saving, setSaving] = useState(false);
@@ -191,12 +193,77 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error || "Could not add child."); return; }
-      onSave(json.member);
+      
+      // Instead of onSave immediately, we move to the Agreement step
+      setNewChildMember(json.member);
+      setSlideDir(1);
+      setChildStep(2);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
       setUploading(false);
+    }
+  }
+
+  async function handleAgreementComplete({ pdfBuffer, signedAt }) {
+    if (!newChildMember) return;
+    setSaving(true);
+    setError("");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Session expired.");
+
+      // 1. Upload PDF
+      const uint8 = new Uint8Array(pdfBuffer);
+      let binary = "";
+      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+      const pdfBase64 = btoa(binary);
+
+      const uploadRes = await fetch("/api/onboarding/upload-agreement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pdfBase64 }),
+      });
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok || !uploadJson.publicUrl) {
+        throw new Error(uploadJson.error || "Failed to upload agreement.");
+      }
+
+      // 2. Patch family member record
+      const updateRes = await fetch(`/api/family-members/${newChildMember.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signed_agreement_url: uploadJson.publicUrl,
+          signed_at: signedAt,
+        }),
+      });
+      
+      if (!updateRes.ok) {
+        // Fallback for older API versions or missing endpoint
+        console.warn("[family] PATCH failed, trying metadata update via Supabase directly");
+        await supabase
+          .from("family_members")
+          .update({
+            signed_agreement_url: uploadJson.publicUrl,
+            signed_at: signedAt,
+          })
+          .eq("id", newChildMember.id);
+      }
+
+      const finalMember = { 
+        ...newChildMember, 
+        signed_agreement_url: uploadJson.publicUrl, 
+        signed_at: signedAt 
+      };
+      onSave(finalMember);
+    } catch (err) {
+      setError(err.message || "Finalization failed.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -401,7 +468,9 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                       {childStep === 0 ? "Add Child" : "Birth Certificate"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {childStep === 0 ? "Step 1 of 2 — Child details" : "Step 2 of 2 — Upload document"}
+                      {childStep === 0 ? "Step 1 of 3 — Child details" : 
+                       childStep === 1 ? "Step 2 of 3 — Upload document" :
+                       "Step 3 of 3 — Sign agreement"}
                     </p>
                   </div>
                 </div>
@@ -547,6 +616,27 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                           {uploading ? "Uploading…" : saving ? "Adding…" : "Add Child"}
                         </button>
                       </div>
+                    </motion.div>
+                  )}
+
+                  {/* Step 2 — Agreement */}
+                  {childStep === 2 && (
+                    <motion.div
+                      key="child-agreement"
+                      custom={slideDir}
+                      variants={slideVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                      <ChildResponsibilityAgreement
+                        parentProfile={profile}
+                        childData={newChildMember}
+                        saving={saving}
+                        onBack={handleChildBack}
+                        onComplete={handleAgreementComplete}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>

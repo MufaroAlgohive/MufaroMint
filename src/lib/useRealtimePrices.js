@@ -91,8 +91,16 @@ export function setupRealtimePrices() {
         notifyListeners();
       }
     )
-    .subscribe((status) => {
+    .subscribe((status, err) => {
       console.log("[realtime-prices] Subscription status:", status);
+      if (err) {
+        console.error("[realtime-prices] Subscription error:", err);
+      }
+
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(`[realtime-prices] Connection issue: ${status}. Realtime updates may be delayed.`);
+      }
+
       const wasConnected = globalState.isConnected;
       globalState.isConnected = status === "SUBSCRIBED";
       globalState.isSettingUp = false;
