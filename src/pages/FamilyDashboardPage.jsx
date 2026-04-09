@@ -60,7 +60,7 @@ const slideVariants = {
   exit: (dir) => ({ x: dir * -200, opacity: 0 }),
 };
 
-function AddMemberModal({ type, userId, onSave, onClose }) {
+function AddMemberModal({ type, userId, profile, onSave, onClose }) {
   /* ── Spouse state ── */
   const [spouseIdNumber, setSpouseIdNumber] = useState("");
   const [spouseEmail, setSpouseEmail] = useState("");
@@ -1346,6 +1346,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           <AddMemberModal
             type={addingType}
             userId={userId}
+            profile={profile}
             onSave={handleMemberSaved}
             onClose={() => setAddingType(null)}
           />
