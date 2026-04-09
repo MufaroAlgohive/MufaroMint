@@ -608,6 +608,30 @@ async function ensureUserSessionsTable() {
 }
 ensureUserSessionsTable();
 
+function generateChildMintNumber(firstName, idNumber, dateOfBirth) {
+  const normalized = (firstName || 'CHD').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X').substring(0, 3);
+
+  let idPart = '0000';
+  if (idNumber && String(idNumber).length >= 10) {
+    idPart = String(idNumber).substring(6, 10);
+  } else if (dateOfBirth) {
+    const dob = new Date(dateOfBirth);
+    if (!isNaN(dob.getTime())) {
+      const mm = String(dob.getMonth() + 1).padStart(2, '0');
+      const yy = String(dob.getFullYear()).slice(-2);
+      idPart = mm + yy;
+    }
+  }
+
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+
+  return namePart + idPart + dd + mm + yy;
+}
+
 function generateMintNumber(firstName, idNumber, createdAt) {
   const normalized = (firstName || 'MNT').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X').substring(0, 3);
@@ -6511,10 +6535,8 @@ app.post('/api/family-members', async (req, res) => {
       if (!first_name?.trim()) return res.status(400).json({ error: 'First name is required.' });
       if (!date_of_birth) return res.status(400).json({ error: 'Date of birth is required.' });
 
-      const rand = Math.floor(1000000 + Math.random() * 9000000);
-      const mint_number = `CHD${String(rand).padStart(10, '0')}`;
-
       const childIdClean = id_number ? String(id_number).replace(/\D/g, '') : null;
+      const mint_number = generateChildMintNumber(first_name.trim(), childIdClean, date_of_birth);
       const verificationStatus = certificate_verification_status || 'pending_review';
 
       const basePayload = {
