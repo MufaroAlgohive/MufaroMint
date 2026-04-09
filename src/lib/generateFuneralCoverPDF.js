@@ -250,7 +250,7 @@ export async function generateFuneralCoverPDF({
 
   // ── Pre-crop all photos to strip dimensions (210mm × 52mm ≈ 2480×614 px)
   // cropToFit gives CSS object-fit:cover — no squashing, no distortion.
-  const STRIP_PX_W = 2480, STRIP_PX_H = 614;
+  const STRIP_PX_W = 2480, STRIP_PX_H = 567;
   const [handsStrip, familyStrip, childrenStrip, sunsetStrip, forestStrip] = await Promise.all([
     cropToFit(rawHands,    STRIP_PX_W, STRIP_PX_H),
     cropToFit(rawFamily,   STRIP_PX_W, STRIP_PX_H),
@@ -346,7 +346,7 @@ export async function generateFuneralCoverPDF({
   doc.setTextColor(30, 20, 50);
 
   paras.forEach(p => {
-    if (y > 215) return; // safety — don't overflow page 1
+    if (y > 178) return; // safety — leave room for sign-off + photo strip
     const lines = doc.splitTextToSize(p, TW);
     doc.text(lines, L, y);
     y += lines.length * 5.2 + 3.5;
@@ -361,7 +361,7 @@ export async function generateFuneralCoverPDF({
 
   // Signature image
   if (sigB64) {
-    try { doc.addImage(sigB64, "PNG", L, y, 28, 28); y += 31; } catch { y += 6; }
+    try { doc.addImage(sigB64, "PNG", L, y, 22, 22); y += 24; } catch { y += 6; }
   } else {
     y += 6;
   }
@@ -378,9 +378,9 @@ export async function generateFuneralCoverPDF({
   y += 4.5;
   doc.text("Mint Financial Services (Pty) Ltd", L, y);
 
-  // ── Full-width hands photo strip — GuardRisk box overlaid on top ─────────
+  // ── Full-width hands photo strip (y=222 → footer at 279, h=57mm) ────────
   {
-    const sY = 222, sH = 52;
+    const sY = 222, sH = 57;
     if (handsStrip) {
       try { doc.addImage(handsStrip, "JPEG", 0, sY, PW, sH); } catch { /* skip */ }
     } else {
@@ -420,14 +420,15 @@ export async function generateFuneralCoverPDF({
   // ═══════════════════════════════════════════════════════════════════════════
   doc.addPage();
 
-  // Logo zone (white)
-  fillRect(doc, 0, 14, WHITE);
-  doc.setFillColor(...PURPLE_MID);
-  doc.rect(0, 0, PW, 1.2, "F");
-  pageLogoLeft(doc, logoB64, 4);
+  // Purple header strip with white logo
+  fillRect(doc, 0, 16, PURPLE_DARK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...WHITE);
+  doc.text("mint", L, 11);
 
   // Section title
-  y = 16;
+  y = 19;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BLACK);
@@ -516,22 +517,23 @@ export async function generateFuneralCoverPDF({
   );
   doc.text(waitLines, L, y);
 
-  // ── Full-width family photo strip ────────────────────────────────────────
+  // ── Full-width family photo strip (231→279, fills to footer) ───────────
   if (familyStrip) {
-    try { doc.addImage(familyStrip, "JPEG", 0, 231, PW, 46); } catch { /* skip */ }
-  } else { fillRect(doc, 231, 46, PURPLE_DARK); }
+    try { doc.addImage(familyStrip, "JPEG", 0, 231, PW, 48); } catch { /* skip */ }
+  } else { fillRect(doc, 231, 48, PURPLE_DARK); }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGE 3 — BENEFIT DETAILS
   // ═══════════════════════════════════════════════════════════════════════════
   doc.addPage();
 
-  fillRect(doc, 0, 14, WHITE);
-  doc.setFillColor(...PURPLE_MID);
-  doc.rect(0, 0, PW, 1.2, "F");
-  pageLogoLeft(doc, logoB64, 4);
+  fillRect(doc, 0, 16, PURPLE_DARK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...WHITE);
+  doc.text("mint", L, 11);
 
-  y = 16;
+  y = 19;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BLACK);
@@ -583,10 +585,11 @@ export async function generateFuneralCoverPDF({
   addonDetails.forEach(addon => {
     if (y > 225) {
       doc.addPage();
-      fillRect(doc, 0, 14, WHITE);
-      doc.setFillColor(...PURPLE_MID);
-      doc.rect(0, 0, PW, 1.2, "F");
-      pageLogoLeft(doc, logoB64, 4);
+      fillRect(doc, 0, 16, PURPLE_DARK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(...WHITE);
+      doc.text("mint", L, 11);
       y = 22;
     }
 
@@ -609,10 +612,11 @@ export async function generateFuneralCoverPDF({
   if (dependents.length > 0) {
     if (y > 200) {
       doc.addPage();
-      fillRect(doc, 0, 14, WHITE);
-      doc.setFillColor(...PURPLE_MID);
-      doc.rect(0, 0, PW, 1.2, "F");
-      pageLogoLeft(doc, logoB64, 4);
+      fillRect(doc, 0, 16, PURPLE_DARK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(...WHITE);
+      doc.text("mint", L, 11);
       y = 22;
     }
 
@@ -629,8 +633,11 @@ export async function generateFuneralCoverPDF({
     dependents.forEach((dep, i) => {
       if (y > 255) {
         doc.addPage();
-        fillRect(doc, 0, 14, WHITE);
-        pageLogoLeft(doc, logoB64, 4);
+        fillRect(doc, 0, 16, PURPLE_DARK);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(...WHITE);
+        doc.text("mint", L, 11);
         y = 22;
       }
 
@@ -676,10 +683,11 @@ export async function generateFuneralCoverPDF({
   // ── Policyholder Details ───────────────────────────────────────────────────
   if (y > 210) {
     doc.addPage();
-    fillRect(doc, 0, 14, WHITE);
-    doc.setFillColor(...PURPLE_MID);
-    doc.rect(0, 0, PW, 1.2, "F");
-    pageLogoLeft(doc, logoB64, 4);
+    fillRect(doc, 0, 16, PURPLE_DARK);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...WHITE);
+    doc.text("mint", L, 11);
     y = 22;
   }
 
@@ -699,22 +707,23 @@ export async function generateFuneralCoverPDF({
     ],
   ], y);
 
-  // ── Full-width children photo strip ─────────────────────────────────────
+  // ── Full-width children photo strip (231→279, fills to footer) ──────────
   if (childrenStrip) {
-    try { doc.addImage(childrenStrip, "JPEG", 0, 231, PW, 46); } catch { /* skip */ }
-  } else { fillRect(doc, 231, 46, PURPLE_DARK); }
+    try { doc.addImage(childrenStrip, "JPEG", 0, 231, PW, 48); } catch { /* skip */ }
+  } else { fillRect(doc, 231, 48, PURPLE_DARK); }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGE 4 — TERMS & REMUNERATION
   // ═══════════════════════════════════════════════════════════════════════════
   doc.addPage();
 
-  fillRect(doc, 0, 14, WHITE);
-  doc.setFillColor(...PURPLE_MID);
-  doc.rect(0, 0, PW, 1.2, "F");
-  pageLogoLeft(doc, logoB64, 4);
+  fillRect(doc, 0, 16, PURPLE_DARK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...WHITE);
+  doc.text("mint", L, 11);
 
-  y = 16;
+  y = 19;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BLACK);
@@ -755,10 +764,11 @@ export async function generateFuneralCoverPDF({
   terms.forEach(({ head, body }) => {
     if (y > 245) {
       doc.addPage();
-      fillRect(doc, 0, 14, WHITE);
-      doc.setFillColor(...PURPLE_MID);
-      doc.rect(0, 0, PW, 1.2, "F");
-      pageLogoLeft(doc, logoB64, 4);
+      fillRect(doc, 0, 16, PURPLE_DARK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(...WHITE);
+      doc.text("mint", L, 11);
       y = 22;
     }
 
@@ -776,10 +786,11 @@ export async function generateFuneralCoverPDF({
   // ── Remuneration Structure (like Capital Legacy p.4) ───────────────────────
   if (y > 220) {
     doc.addPage();
-    fillRect(doc, 0, 14, WHITE);
-    doc.setFillColor(...PURPLE_MID);
-    doc.rect(0, 0, PW, 1.2, "F");
-    pageLogoLeft(doc, logoB64, 4);
+    fillRect(doc, 0, 16, PURPLE_DARK);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(...WHITE);
+    doc.text("mint", L, 11);
     y = 22;
   }
 
@@ -825,19 +836,20 @@ export async function generateFuneralCoverPDF({
     y += rowH + 2;
   });
 
-  // ── Full-width sunset photo strip ────────────────────────────────────────
+  // ── Full-width sunset photo strip (231→279, fills to footer) ────────────
   if (sunsetStrip) {
-    try { doc.addImage(sunsetStrip, "JPEG", 0, 231, PW, 46); } catch { /* skip */ }
-  } else { fillRect(doc, 231, 46, PURPLE_DARK); }
+    try { doc.addImage(sunsetStrip, "JPEG", 0, 231, PW, 48); } catch { /* skip */ }
+  } else { fillRect(doc, 231, 48, PURPLE_DARK); }
 
   // ── FAIS Disclosure ────────────────────────────────────────────────────────
   doc.addPage();
-  fillRect(doc, 0, 14, WHITE);
-  doc.setFillColor(...PURPLE_MID);
-  doc.rect(0, 0, PW, 1.2, "F");
-  pageLogoLeft(doc, logoB64, 4);
+  fillRect(doc, 0, 16, PURPLE_DARK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.setTextColor(...WHITE);
+  doc.text("mint", L, 11);
 
-  y = 16;
+  y = 19;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...BLACK);
@@ -894,10 +906,11 @@ export async function generateFuneralCoverPDF({
   faisBlocks.forEach(({ head, body }) => {
     if (y > 250) {
       doc.addPage();
-      fillRect(doc, 0, 14, WHITE);
-      doc.setFillColor(...PURPLE_MID);
-      doc.rect(0, 0, PW, 1.2, "F");
-      pageLogoLeft(doc, logoB64, 4);
+      fillRect(doc, 0, 16, PURPLE_DARK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(...WHITE);
+      doc.text("mint", L, 11);
       y = 22;
     }
     y = sectionBar(doc, head, y, PURPLE_MID);
@@ -909,11 +922,11 @@ export async function generateFuneralCoverPDF({
     y += lines.length * 5 + 4;
   });
 
-  // ── Full-width forest photo strip (last FAIS page, if space) ────────────
+  // ── Full-width forest photo strip (231→279, fills to footer) ────────────
   if (y < 230 && forestStrip) {
-    try { doc.addImage(forestStrip, "JPEG", 0, 231, PW, 46); } catch { /* skip */ }
+    try { doc.addImage(forestStrip, "JPEG", 0, 231, PW, 48); } catch { /* skip */ }
   } else if (y < 230) {
-    fillRect(doc, 231, 46, PURPLE_DARK);
+    fillRect(doc, 231, 48, PURPLE_DARK);
   }
 
   // ── Footers on all pages ───────────────────────────────────────────────────
