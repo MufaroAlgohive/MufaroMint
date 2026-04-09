@@ -319,3 +319,83 @@ export function buildWithdrawalConfirmationHtml({ amountCents, reference, bankAc
       "Withdrawals typically reflect within 1–2 business days depending on your bank. If you did not request this withdrawal, contact us immediately at info@mymint.co.za.",
   });
 }
+
+/**
+ * Funeral Cover Policy Schedule Email
+ *
+ * @param {object} params
+ * @param {string} params.firstName
+ * @param {string} params.lastName
+ * @param {string} params.policyNo       - e.g. "MNT123456"
+ * @param {string} params.planLabel      - e.g. "Family"
+ * @param {number} params.coverAmount    - in rands, e.g. 10000
+ * @param {number} params.basePremium    - in rands, e.g. 122.56
+ * @param {Array}  params.addonDetails   - [{ label, sub, premium }]
+ * @param {number} params.totalMonthly   - in rands
+ * @param {string} params.deductionDate  - e.g. "1st"
+ * @param {string} params.dateStr        - formatted date string
+ */
+export function buildPolicySummaryHtml({
+  firstName,
+  lastName,
+  policyNo,
+  planLabel,
+  coverAmount,
+  basePremium,
+  addonDetails = [],
+  totalMonthly,
+  deductionDate,
+  dateStr,
+}) {
+  const fullName = `${firstName} ${lastName}`.trim();
+
+  const fmtR = (n) =>
+    `R ${Number(n).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtCover = (n) => `R ${Number(n).toLocaleString("en-ZA")}`;
+
+  const addonRows = addonDetails
+    .map((a) =>
+      detailRow(
+        `${a.label}${a.sub ? ` (${a.sub})` : ""}`,
+        `<span style="color:#16a34a; font-weight:700;">+${fmtR(a.premium)}/mo</span>`
+      )
+    )
+    .join("");
+
+  const body = `
+    <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 32px;">
+      Dear ${fullName}, your Mint Funeral Cover policy schedule has been issued.
+      Please find your policy document attached. Keep it in a safe place — your
+      family will need it when making a claim.
+    </p>
+
+    ${detailRow("Policy Number", `<span style="font-family:monospace; color:#64748b;">${policyNo}</span>`)}
+    ${detailRow("Plan Type", `<strong>${planLabel} Funeral Plan</strong>`)}
+    ${detailRow("Cover Amount", `<span style="color:${MINT_PURPLE}; font-size:16px; font-weight:700;">${fmtCover(coverAmount)}</span>`)}
+    ${detailRow("Base Monthly Premium", fmtR(basePremium))}
+    ${addonRows}
+    ${detailRow("Total Monthly Premium", `<span style="color:${MINT_PURPLE}; font-size:16px; font-weight:700;">${fmtR(totalMonthly)}</span>`)}
+    ${detailRow("Deduction Date", `${deductionDate} of each month`)}
+    ${detailRow("Waiting Period", "6 months from commencement")}
+    ${detailRow("Bank Statement Reference", `<span style="font-family:monospace;">MINT-INS ${policyNo}</span>`)}
+    ${detailRow("Schedule Date", dateStr || new Date().toLocaleDateString("en-ZA"))}
+    ${detailRow("Status", `<span style="color:#16a34a; font-weight:700;">Active — Waiting Period Applies</span>`)}
+
+    <p style="font-size:14px; color:#64748b; line-height:1.6; margin:32px 0 0;">
+      Your premium of <strong>${fmtR(totalMonthly)}</strong> will be debited on the
+      <strong>${deductionDate}</strong> of each month. Your bank statement will reflect
+      <strong style="font-family:monospace;">MINT-INS ${policyNo}</strong>.
+    </p>
+
+    <div style="margin-top:40px; text-align:center;">
+      <a href="https://www.mymint.co.za" style="${S.button}">View My Cover &rarr;</a>
+    </div>`;
+
+  return buildShell({
+    heroLabel: "Policy Schedule Issued",
+    heroTitle: "Your Mint Funeral<br>Cover is confirmed.",
+    body,
+    footerNote:
+      "Mint Financial Services (Pty) Ltd FSP No. 55118. A 6-month waiting period applies from commencement. Benefits and premium rates may change with 31 days' notice. Claims must be submitted within 6 months of the insured event. This is not a tax invoice.",
+  });
+}

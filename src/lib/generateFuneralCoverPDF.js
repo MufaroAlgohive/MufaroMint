@@ -547,4 +547,6 @@ export async function generateFuneralCoverPDF({
   // ─── Save ─────────────────────────────────────────────────────────────────
   const safe = fullName.replace(/\s+/g, "_") || "Client";
   doc.save(`Mint_Policy_Schedule_${safe}_${policyNo}.pdf`);
+
+  return { policyNo, dateStr };
 }

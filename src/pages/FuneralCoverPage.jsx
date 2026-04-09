@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ArrowLeft, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain, FileText, Loader2 } from "lucide-react";
 import { generateFuneralCoverPDF } from "../lib/generateFuneralCoverPDF";
+import { supabase } from "../lib/supabase";
 
 // ─── Premium Tables ───────────────────────────────────────────────────────────
 
@@ -195,13 +196,15 @@ export default function FuneralCoverPage({ onBack, profile }) {
   async function handleGeneratePDF() {
     setGenerating(true);
     try {
-      await generateFuneralCoverPDF({
+      const planLabel = PLAN_TYPES.find(p => p.key === planType)?.label || planType;
+
+      const result = await generateFuneralCoverPDF({
         firstName,
         lastName,
         age,
         ageBand,
         planType,
-        planLabel: PLAN_TYPES.find(p => p.key === planType)?.label || planType,
+        planLabel,
         coverAmount,
         basePremium,
         addonDetails,
@@ -209,6 +212,35 @@ export default function FuneralCoverPage({ onBack, profile }) {
         deductionDate,
         societySize: planType === "stokvel" ? societySize : null,
       });
+
+      // Send confirmation email to client
+      try {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token;
+        if (token && result?.policyNo) {
+          await fetch("/api/insurance/send-policy-email", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              policyNo:     result.policyNo,
+              dateStr:      result.dateStr,
+              planLabel,
+              coverAmount,
+              basePremium,
+              addonDetails,
+              totalMonthly,
+              deductionDate,
+              firstName,
+              lastName,
+            }),
+          });
+        }
+      } catch (emailErr) {
+        console.warn("[funeral-cover] Could not send policy email:", emailErr?.message);
+      }
     } finally {
       setGenerating(false);
     }

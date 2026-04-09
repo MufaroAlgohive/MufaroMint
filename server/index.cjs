@@ -6603,6 +6603,60 @@ app.delete('/api/family-members', async (req, res) => {
   }
 });
 
+// ── Funeral Cover Policy Email ─────────────────────────────────────────────
+app.post("/api/insurance/send-policy-email", async (req, res) => {
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser(
+      req.headers.authorization?.replace("Bearer ", "")
+    );
+    if (userError || !userData?.user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    const user = userData.user;
+
+    const {
+      policyNo, planLabel, coverAmount, basePremium,
+      addonDetails = [], totalMonthly, deductionDate,
+      firstName, lastName, dateStr,
+    } = req.body;
+
+    if (!policyNo || !planLabel || !coverAmount || !totalMonthly) {
+      return res.status(400).json({ success: false, error: "Missing required policy fields" });
+    }
+
+    const { buildPolicySummaryHtml } = await import('../api/_lib/order-email-templates.js');
+    const html = buildPolicySummaryHtml({
+      firstName, lastName, policyNo, planLabel, coverAmount,
+      basePremium, addonDetails, totalMonthly, deductionDate, dateStr,
+    });
+
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    if (!resend) {
+      return res.status(503).json({ success: false, error: "Email service not configured" });
+    }
+
+    const toEmail = user.email;
+    const resp = await resend.emails.send({
+      from: "Mint <noreply@mymint.co.za>",
+      to: toEmail,
+      subject: `Your Mint Funeral Cover Policy Schedule — ${policyNo}`,
+      html,
+    });
+
+    if (resp.error) {
+      console.error("[insurance/send-policy-email] Resend error:", resp.error.message);
+      return res.status(500).json({ success: false, error: resp.error.message });
+    }
+
+    console.log(`[insurance/send-policy-email] Policy email sent to ${toEmail}, policy: ${policyNo}`);
+    return res.status(200).json({ success: true, emailId: resp.data?.id });
+  } catch (err) {
+    console.error("[insurance/send-policy-email] Error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to send policy email" });
+  }
+});
+
 // Catch-all 404 handler - MUST be after all route definitions
 app.use((req, res) => {
   res.status(404).json({ error: "Not found", message: "This is the API server. The frontend is served separately." });
