@@ -1,20 +1,23 @@
 import { jsPDF } from "jspdf";
 
-// ─── Colours ─────────────────────────────────────────────────────────────────
-const VIOLET  = [107, 33, 168];
-const BLACK   = [20, 20, 20];
-const GREY    = [120, 120, 120];
-const LGREY   = [200, 200, 200];
-const WHITE   = [255, 255, 255];
+// ─── Brand ────────────────────────────────────────────────────────────────────
+const DARK_PURPLE  = [14,  5,  45];   // near-black violet – main banner bg
+const MID_PURPLE   = [88, 28, 135];   // mid violet – sub-banners
+const LIGHT_PURPLE = [109, 40, 217];  // lighter violet – accents
+const TINT         = [245, 243, 255]; // lavender tint – alt row bg
+const BLACK        = [20,  20,  20];
+const GREY         = [110, 110, 110];
+const LGREY        = [210, 210, 210];
+const WHITE        = [255, 255, 255];
 
-// ─── Layout ──────────────────────────────────────────────────────────────────
-const L  = 20;
-const R  = 190;
-const PW = 210;
-const PH = 297;
-const TW = R - L;
+// ─── Layout ───────────────────────────────────────────────────────────────────
+const PW = 210;   // page width mm
+const PH = 297;   // page height mm
+const L  = 14;    // left text margin
+const R  = 196;   // right text margin
+const TW = R - L; // text width
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtR(n) {
   return `R ${Number(n).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -22,91 +25,110 @@ function fmtCover(n) {
   return `R ${Number(n).toLocaleString("en-ZA")}`;
 }
 function todayStr() {
-  return new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
+  return new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" }).toUpperCase();
 }
 function policyRef() {
   return `MNT${Math.floor(100000 + Math.random() * 899999)}`;
 }
-
 async function imgToBase64(url) {
   try {
     const res = await fetch(url);
     const blob = await res.blob();
-    return await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror  = reject;
-      reader.readAsDataURL(blob);
+    return await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onloadend = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(blob);
     });
-  } catch {
-    return null;
+  } catch { return null; }
+}
+
+// ─── Drawing primitives ───────────────────────────────────────────────────────
+
+/** Full-width banner (Capital Legacy-style colored bar across the whole page) */
+function banner(doc, y, h, color = DARK_PURPLE) {
+  doc.setFillColor(...color);
+  doc.rect(0, y, PW, h, "F");
+  return y + h;
+}
+
+/** Full-width banner with white label left + optional right text */
+function sectionBanner(doc, label, y, sub = "", color = DARK_PURPLE) {
+  const h = sub ? 13 : 9;
+  banner(doc, y, h, color);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(sub ? 10 : 8.5);
+  doc.setTextColor(...WHITE);
+  doc.text(label, L, y + (sub ? 7 : 6));
+  if (sub) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(200, 180, 255);
+    doc.text(sub, L, y + 11.5);
   }
+  return y + h + 5;
 }
 
-// ─── Drawing helpers ─────────────────────────────────────────────────────────
-function hRule(doc, y, x1 = L, x2 = R, lw = 0.25) {
-  doc.setDrawColor(...LGREY);
-  doc.setLineWidth(lw);
-  doc.line(x1, y, x2, y);
-}
-function violetRule(doc, y) {
-  doc.setDrawColor(...VIOLET);
-  doc.setLineWidth(0.6);
-  doc.line(L, y, R, y);
-}
-
-function secHead(doc, text, y) {
+/** Sub-section label (smaller inline label, not a full-width banner) */
+function subLabel(doc, text, y) {
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...VIOLET);
-  doc.text(text, L, y);
-  violetRule(doc, y + 1.5);
-  return y + 7;
-}
-
-function subHead(doc, text, y) {
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   doc.setTextColor(...BLACK);
   doc.text(text, L, y);
-  hRule(doc, y + 1.5);
+  doc.setDrawColor(...LGREY);
+  doc.setLineWidth(0.25);
+  doc.line(L, y + 1.5, R, y + 1.5);
   return y + 6;
 }
 
+/** Horizontal rule */
+function hr(doc, y, x1 = L, x2 = R, color = LGREY) {
+  doc.setDrawColor(...color);
+  doc.setLineWidth(0.25);
+  doc.line(x1, y, x2, y);
+}
+
+/** Table header row */
 function tHead(doc, cols, y) {
   let x = L;
   cols.forEach(({ label, w, align }) => {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.setTextColor(...VIOLET);
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GREY);
     doc.text(label, align === "right" ? x + w : x, y, { align: align || "left" });
     x += w;
   });
-  hRule(doc, y + 1.5);
+  doc.setDrawColor(...LGREY);
+  doc.setLineWidth(0.3);
+  doc.line(L, y + 1.5, R, y + 1.5);
   return y + 7;
 }
 
+/** Table data row */
 function tRow(doc, cols, y, shade = false) {
   if (shade) {
-    doc.setFillColor(248, 246, 255);
-    doc.rect(L, y - 4, TW, 6, "F");
+    doc.setFillColor(...TINT);
+    doc.rect(0, y - 4.5, PW, 7, "F");
   }
   let x = L;
-  cols.forEach(({ text, w, align, bold }) => {
+  cols.forEach(({ text, w, align, bold, color }) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(8.5);
-    doc.setTextColor(...BLACK);
+    doc.setTextColor(...(color || BLACK));
     doc.text(String(text ?? ""), align === "right" ? x + w : x, y, { align: align || "left" });
     x += w;
   });
-  hRule(doc, y + 2);
+  doc.setDrawColor(...LGREY);
+  doc.setLineWidth(0.2);
+  doc.line(L, y + 2, R, y + 2);
   return y + 8;
 }
 
-function detailGrid(doc, rows, y) {
+/** Two-column key-value grid (like Capital Legacy benefit details block) */
+function kvGrid(doc, rows, y) {
   const colW = TW / 2;
   rows.forEach((pair, pi) => {
-    const rowY = y + pi * 10;
+    const rowY = y + pi * 11;
     pair.forEach(({ label, value }, ci) => {
       const x = L + ci * colW;
       doc.setFont("helvetica", "normal");
@@ -116,59 +138,70 @@ function detailGrid(doc, rows, y) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
       doc.setTextColor(...BLACK);
-      doc.text(String(value ?? ""), x, rowY + 4.5);
+      doc.text(String(value ?? ""), x, rowY + 5);
+      // thin underline per cell
+      doc.setDrawColor(...LGREY);
+      doc.setLineWidth(0.2);
+      doc.line(x, rowY + 7, x + colW - 4, rowY + 7);
     });
   });
-  return y + rows.length * 10 + 2;
+  return y + rows.length * 11 + 2;
 }
 
+/** Logo in top-right corner of content pages */
+function pageLogoRight(doc, logoB64, y = 6) {
+  if (logoB64) {
+    try { doc.addImage(logoB64, "PNG", R - 38, y, 38, 4.8); } catch { /* skip */ }
+  }
+}
+
+/** Full-width footer on every page */
 function addFooters(doc, fullName, policyNo, dateStr, logoB64) {
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) {
     doc.setPage(i);
-    hRule(doc, PH - 20, L, R, 0.4);
 
-    // Small logo in footer if available
+    // Footer banner
+    banner(doc, PH - 18, 18, DARK_PURPLE);
+
+    // Logo in footer (white version, left side)
     if (logoB64) {
-      try {
-        doc.addImage(logoB64, "PNG", L, PH - 18, 22, 2.8);
-      } catch { /* skip */ }
+      try { doc.addImage(logoB64, "PNG", L, PH - 14, 30, 3.8); } catch { /* skip */ }
     }
 
+    // Page info centred
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7);
-    doc.setTextColor(...GREY);
+    doc.setFontSize(6.5);
+    doc.setTextColor(180, 160, 220);
     doc.text(
-      `Policy Schedule – ${fullName}  |  ${policyNo}  |  ${dateStr}  |  Page ${i} of ${n}`,
-      PW / 2, PH - 13, { align: "center" }
+      `Policy Schedule – ${fullName}  ${policyNo}  |  ${dateStr}  |  Page ${i} of ${n}`,
+      PW / 2, PH - 10, { align: "center" }
     );
     doc.text(
-      "support@mintapp.co.za  |  Mint Financial Services (Pty) Ltd  |  FSP No. 55118",
-      PW / 2, PH - 8, { align: "center" }
+      "support@mymint.co.za  |  Mint Financial Services (Pty) Ltd  |  FSP No. 55118",
+      PW / 2, PH - 5.5, { align: "center" }
     );
   }
 }
 
-// ─── Main (async) ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN
+// ═══════════════════════════════════════════════════════════════════════════════
 export async function generateFuneralCoverPDF({
-  firstName,
-  lastName,
-  age,
-  ageBand,
-  planType,
-  planLabel,
-  coverAmount,
-  basePremium,
-  addonDetails = [],
-  totalMonthly,
-  deductionDate,
-  societySize,
+  firstName, lastName, age, ageBand,
+  planType, planLabel,
+  coverAmount, basePremium,
+  addonDetails = [], totalMonthly,
+  deductionDate, societySize,
 }) {
-  // Load assets in parallel
+  // Load assets
   const [logoB64, sigB64] = await Promise.all([
     imgToBase64("/assets/mint-logo.png"),
     imgToBase64("/assets/ceo-signature.png"),
   ]);
+
+  // Use the same PNG for both light and dark backgrounds
+  const logoWhiteB64 = logoB64;
 
   const doc      = new jsPDF({ unit: "mm", format: "a4" });
   const policyNo = policyRef();
@@ -176,48 +209,57 @@ export async function generateFuneralCoverPDF({
   const dateStr  = todayStr();
   const planFull = `${planLabel} Funeral Plan${societySize ? ` (${societySize})` : ""}`;
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
   // PAGE 1 – COVER LETTER
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
 
-  // Mint logo – top left
-  if (logoB64) {
-    try {
-      // PNG is 9357×1188 → ratio 7.87:1 → at 55mm wide → ~7mm tall
-      doc.addImage(logoB64, "PNG", L, 10, 55, 7);
-    } catch { /* fallback to text */ }
-  }
-  // Wordmark fallback if image fails
-  if (!logoB64) {
+  // ── Top banner: "PLAN SCHEDULE" row ──
+  banner(doc, 0, 22, DARK_PURPLE);
+
+  // White logo on the left inside top banner
+  if (logoWhiteB64) {
+    try { doc.addImage(logoWhiteB64, "PNG", L, 4, 42, 5.3); } catch { /* skip */ }
+  } else {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(26);
-    doc.setTextColor(...VIOLET);
-    doc.text("mint", L, 22);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(...GREY);
-    doc.text("Invest. Protect. Grow.", L, 27);
+    doc.setFontSize(18);
+    doc.setTextColor(...WHITE);
+    doc.text("mint", L, 14);
   }
 
-  // Policy number – left below logo
+  // "POLICY SCHEDULE" right + date below
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...BLACK);
-  doc.text(policyNo, L, 24);
-
-  // Date + policyholder – right
+  doc.setFontSize(13);
+  doc.setTextColor(...WHITE);
+  doc.text("POLICY SCHEDULE", R, 10, { align: "right" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...BLACK);
-  doc.text(dateStr.toUpperCase(), R, 13, { align: "right" });
+  doc.setFontSize(8);
+  doc.setTextColor(190, 170, 230);
+  doc.text(dateStr, R, 16, { align: "right" });
+
+  // ── Policy number / Client name row (purple mid-banner) ──
+  banner(doc, 22, 10, MID_PURPLE);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text(fullName.toUpperCase(), R, 21, { align: "right" });
+  doc.setFontSize(9);
+  doc.setTextColor(...WHITE);
+  doc.text(policyNo, L, 29);
+  doc.text(fullName.toUpperCase(), R, 29, { align: "right" });
 
-  hRule(doc, 30, L, R, 0.4);
+  // ── Referring entity row (lighter tint band) ──
+  doc.setFillColor(...TINT);
+  doc.rect(0, 32, PW, 9, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(...GREY);
+  doc.text("PLAN TYPE", L, 37);
+  doc.text("FINANCIAL SERVICES PROVIDER", R, 37, { align: "right" });
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...BLACK);
+  doc.text(planFull, L, 40);
+  doc.text("Mint Financial Services (Pty) Ltd — FSP No. 55118", R, 40, { align: "right" });
 
-  // Dear block
-  let y = 40;
+  // ── Letter body ──
+  let y = 52;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9.5);
   doc.setTextColor(...BLACK);
@@ -230,174 +272,170 @@ export async function generateFuneralCoverPDF({
   y += 8;
 
   const paras = [
-    `Thank you for choosing the Mint Funeral Plan, underwritten by a licensed South African Life Insurer (FSP No. 55118). ` +
-    `Our funeral plan is designed to give your loved ones immediate financial support to cover all the costs associated with your funeral, ` +
-    `without delay and without the burden of out-of-pocket expenses at an already difficult time.`,
-
-    `Please read the enclosed information carefully and in conjunction with the policy terms and conditions that will have been ` +
-    `attached to this communication.`,
-
-    `Please advise us within thirty-one (31) days of this letter if any of the information in your Policy Schedule is incorrect or ` +
-    `incomplete. This is in your best interest as incorrect or incomplete information could impact your claim against the plan benefits.`,
-
-    `Please also advise us, at any time, when there are changes to your personal information or if you wish to change your ` +
-    `beneficiary nominations.`,
-
+    `Thank you for choosing the Mint Funeral Plan, underwritten by a licensed South African Life Insurer (FSP No. 55118). Our funeral plan has been designed to give your loved ones immediate financial support to cover all funeral costs without delay.`,
+    `Please read the enclosed information carefully and in conjunction with the policy terms and conditions attached to this communication.`,
+    `Please advise us within thirty-one (31) days of this letter if any of the information in your Policy Schedule is incorrect or incomplete. This is in your best interest as incorrect or incomplete information could impact your claim.`,
+    `Please also advise us at any time when there are changes to your personal information or if you wish to change your beneficiary nominations.`,
     `We thank you for your business and trust in us to deliver.`,
   ];
-
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(40, 40, 40);
+  doc.setFontSize(8.5);
+  doc.setTextColor(40, 40, 60);
   paras.forEach(p => {
     const lines = doc.splitTextToSize(p, TW);
     doc.text(lines, L, y);
-    y += lines.length * 5.2 + 5;
+    y += lines.length * 5 + 4;
   });
 
   y += 2;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(8.5);
   doc.setTextColor(...BLACK);
   doc.text("Kind regards,", L, y);
-  y += 6;
+  y += 5;
 
   // CEO signature image
   if (sigB64) {
-    try {
-      // 640×640 square → show at 35×35mm
-      doc.addImage(sigB64, "PNG", L, y, 35, 35);
-      y += 38;
-    } catch { y += 6; }
-  } else {
-    y += 6;
-  }
+    try { doc.addImage(sigB64, "PNG", L, y, 32, 32); y += 35; } catch { y += 8; }
+  } else { y += 8; }
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
+  doc.setFontSize(9.5);
   doc.setTextColor(...BLACK);
   doc.text("Lonwabo", L, y);
   y += 5;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(8);
   doc.setTextColor(...GREY);
   doc.text("Chief Executive Officer", L, y);
   y += 4;
   doc.text("Mint Financial Services (Pty) Ltd", L, y);
-  y += 10;
+  y += 12;
 
-  // "underwritten by" box
+  // ── "underwritten by" box with logo (like Capital Legacy) ──
+  const boxX = R - 58;
   doc.setDrawColor(...LGREY);
   doc.setLineWidth(0.4);
-  doc.roundedRect(R - 60, y - 6, 60, 18, 2, 2, "D");
+  doc.roundedRect(boxX, y - 4, 58, 20, 2, 2, "D");
+  doc.setFillColor(...DARK_PURPLE);
+  doc.roundedRect(boxX, y - 4, 58, 8, 2, 2, "F");
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(...GREY);
-  doc.text("underwritten by", R - 30, y, { align: "center" });
+  doc.setFontSize(6.5);
+  doc.setTextColor(...WHITE);
+  doc.text("underwritten by", boxX + 29, y + 0.5, { align: "center" });
+
+  // Logo inside box
   if (logoB64) {
-    try { doc.addImage(logoB64, "PNG", R - 52, y + 3, 44, 5.6); } catch { /* skip */ }
+    try { doc.addImage(logoB64, "PNG", boxX + 4, y + 6, 50, 6.3); } catch { /* skip */ }
   } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.setTextColor(...VIOLET);
-    doc.text("mint", R - 30, y + 8, { align: "center" });
+    doc.setTextColor(...MID_PURPLE);
+    doc.text("mint", boxX + 29, y + 13, { align: "center" });
   }
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(...GREY);
-  doc.text("FSP No. 55118", R - 30, y + 13, { align: "center" });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 2 – PLAN SUMMARY
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
+  // PAGE 2 – SUMMARY
+  // ════════════════════════════════════════════════════════════════════════════
   doc.addPage();
-  y = 20;
 
-  // Page logo top-right
-  if (logoB64) {
-    try { doc.addImage(logoB64, "PNG", R - 40, 10, 40, 5.1); } catch { /* skip */ }
+  // Page header – full width dark banner with logo right
+  banner(doc, 0, 14, DARK_PURPLE);
+  if (logoWhiteB64) {
+    try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ }
   }
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...BLACK);
-  doc.text("SUMMARY OF COVER SELECTION", L, y);
-  y += 10;
+  // Section banner: SUMMARY OF COVER SELECTION
+  y = sectionBanner(doc, "SUMMARY OF COVER SELECTION", 14, "", MID_PURPLE);
 
-  y = subHead(doc, "PLAN SUMMARY", y);
-  const sumCols = [
-    { label: "Product Name",     w: 100 },
-    { label: "Monthly Premium",  w: 45, align: "right" },
-    { label: "Cover Amount",     w: 45, align: "right" },
-  ];
-  y = tHead(doc, sumCols, y);
+  // PLAN SUMMARY sub-label
+  y = subLabel(doc, "PLAN SUMMARY", y);
+
+  y = tHead(doc, [
+    { label: "Product Name",    w: 100 },
+    { label: "Monthly Premium", w: 48, align: "right" },
+    { label: "Cover Amount",    w: 42, align: "right" },
+  ], y);
+
   y = tRow(doc, [
-    { text: planFull,               w: 100 },
-    { text: fmtR(basePremium),      w: 45, align: "right" },
-    { text: fmtCover(coverAmount),  w: 45, align: "right" },
+    { text: planFull,              w: 100 },
+    { text: fmtR(basePremium),     w: 48, align: "right" },
+    { text: fmtCover(coverAmount), w: 42, align: "right" },
   ], y, false);
+
   addonDetails.forEach((a, i) => {
     y = tRow(doc, [
       { text: `${a.label}${a.sub ? ` – ${a.sub}` : ""}`, w: 100 },
-      { text: fmtR(a.premium),   w: 45, align: "right" },
-      { text: "Included",        w: 45, align: "right" },
+      { text: fmtR(a.premium), w: 48, align: "right" },
+      { text: "Optional benefit", w: 42, align: "right" },
     ], y, i % 2 === 0);
   });
 
-  // Total
-  doc.setDrawColor(...VIOLET);
-  doc.setLineWidth(0.5);
-  doc.line(L, y - 1, R, y - 1);
+  // Total row
+  doc.setFillColor(...DARK_PURPLE);
+  doc.rect(0, y - 1, PW, 9, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(...BLACK);
-  doc.text("Total", L, y + 3);
-  doc.setTextColor(...VIOLET);
-  doc.text(fmtR(totalMonthly), R, y + 3, { align: "right" });
+  doc.setFontSize(8.5);
+  doc.setTextColor(...WHITE);
+  doc.text("Total", L, y + 5);
+  doc.text(fmtR(totalMonthly), R, y + 5, { align: "right" });
   y += 14;
 
-  y = subHead(doc, "COVER BENEFITS", y);
+  // Image divider between sections – purple banner with logo
+  banner(doc, y, 10, MID_PURPLE);
+  if (logoWhiteB64) {
+    try { doc.addImage(logoWhiteB64, "PNG", R - 36, y + 2, 36, 4.5); } catch { /* skip */ }
+  }
+  y += 15;
+
+  // PRINCIPAL COVER BENEFITS
+  y = subLabel(doc, "PRINCIPAL COVER BENEFITS", y);
   y = tHead(doc, [
-    { label: "Benefit",  w: 130 },
-    { label: "Amount",   w: 60, align: "right" },
+    { label: "Benefit Name", w: 140 },
+    { label: "Amount",       w: 50, align: "right" },
   ], y);
-  const benefits = [
+
+  const allBenefits = [
     { name: "Funeral Cover – Main Member", value: fmtCover(coverAmount) },
-    ...addonDetails.map(a => ({ name: `${a.label}${a.sub ? ` (${a.sub})` : ""}`, value: "Included" })),
+    ...addonDetails.map(a => ({ name: `${a.label}${a.sub ? ` (${a.sub})` : ""}`, value: fmtR(a.premium) + " pm" })),
   ];
-  benefits.forEach((b, i) => {
+  allBenefits.forEach((b, i) => {
     y = tRow(doc, [
-      { text: b.name,  w: 130 },
-      { text: b.value, w: 60, align: "right" },
+      { text: b.name,  w: 140 },
+      { text: b.value, w: 50, align: "right", bold: true },
     ], y, i % 2 === 0);
   });
 
-  y += 8;
+  y += 6;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(...BLACK);
   const debitLine = doc.splitTextToSize(
-    `Your total premium of ${fmtR(totalMonthly)} will be debited from your bank account on the ${deductionDate} of every month. ` +
-    `The reference on your bank statement will be: MINT-INS ${policyNo}.`,
+    `Your total premium of ${fmtR(totalMonthly)} will be debited from your bank account on the ${deductionDate} of every month. The reference on your bank statement will be: MINT-INS ${policyNo}.`,
     TW
   );
   doc.text(debitLine, L, y);
 
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
   // PAGE 3 – BENEFIT DETAILS
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
   doc.addPage();
-  y = 20;
 
-  if (logoB64) {
-    try { doc.addImage(logoB64, "PNG", R - 40, 10, 40, 5.1); } catch { /* skip */ }
+  banner(doc, 0, 14, DARK_PURPLE);
+  if (logoWhiteB64) {
+    try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ }
   }
 
-  y = secHead(doc, "BENEFIT DETAILS", y);
-  y += 2;
+  y = sectionBanner(doc, "BENEFIT DETAILS", 14, "", MID_PURPLE);
 
-  y = subHead(doc, planFull, y);
-  y = detailGrid(doc, [
+  // Main plan sub-section
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MID_PURPLE);
+  doc.text(planFull, L, y);
+  y += 6;
+
+  y = kvGrid(doc, [
     [
       { label: "Life Assured",      value: fullName },
       { label: "Commencement Date", value: dateStr },
@@ -410,91 +448,100 @@ export async function generateFuneralCoverPDF({
       { label: "Age Band",          value: ageBand },
       { label: "Waiting Period",    value: "6 months (all causes)" },
     ],
+    [
+      { label: "Premium Increases", value: "Not Guaranteed" },
+      { label: "Deduction Date",    value: `${deductionDate} of each month` },
+    ],
   ], y);
+
   y += 2;
-  y = tHead(doc, [
-    { label: "Monthly Premium", w: 47 },
-    { label: "Cover Amount",    w: 47 },
+  // Mini number row (like Capital Legacy's 5-column monthly premium table)
+  const numCols = [
+    { label: "Monthly Premium", w: 48 },
+    { label: "Cover Amount",    w: 48 },
     { label: "Plan Type",       w: 50 },
-    { label: "Society Size",    w: 46 },
-  ], y);
+    { label: "Society Size",    w: 44 },
+  ];
+  y = tHead(doc, numCols, y);
   y = tRow(doc, [
-    { text: fmtR(basePremium),     w: 47 },
-    { text: fmtCover(coverAmount), w: 47 },
+    { text: fmtR(basePremium),     w: 48 },
+    { text: fmtCover(coverAmount), w: 48 },
     { text: planLabel,             w: 50 },
-    { text: societySize || "N/A",  w: 46 },
+    { text: societySize || "N/A",  w: 44 },
   ], y);
   y += 6;
 
-  addonDetails.forEach(a => {
-    if (y > 235) { doc.addPage(); y = 20; }
-    y = subHead(doc, `${a.label}${a.sub ? ` – ${a.sub}` : ""}`, y);
-    y = detailGrid(doc, [
+  // Add-on sub-sections
+  addonDetails.forEach(addon => {
+    if (y > 220) { doc.addPage(); banner(doc, 0, 14, DARK_PURPLE); if (logoWhiteB64) { try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ } } y = 22; }
+
+    // Image divider between add-on sections
+    banner(doc, y, 8, MID_PURPLE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...WHITE);
+    doc.text(`${addon.label}${addon.sub ? ` – ${addon.sub}` : ""}`, L, y + 5.5);
+    y += 13;
+
+    y = kvGrid(doc, [
       [
         { label: "Life Assured",    value: fullName },
         { label: "Policy Term",     value: "Whole of Life" },
       ],
       [
         { label: "Benefit Type",    value: "Once Off Payout" },
-        { label: "Monthly Premium", value: fmtR(a.premium) },
+        { label: "Monthly Premium", value: fmtR(addon.premium) },
       ],
     ], y);
     y += 4;
   });
 
-  if (y > 210) { doc.addPage(); y = 20; }
-  y += 4;
-  y = secHead(doc, "POLICYHOLDER DETAILS", y);
-  y += 2;
-  y = detailGrid(doc, [
+  // Image divider before policyholder details
+  if (y > 205) { doc.addPage(); banner(doc, 0, 14, DARK_PURPLE); if (logoWhiteB64) { try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ } } y = 22; }
+
+  banner(doc, y, 10, DARK_PURPLE);
+  if (logoWhiteB64) {
+    try { doc.addImage(logoWhiteB64, "PNG", R - 36, y + 2, 36, 4.5); } catch { /* skip */ }
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...WHITE);
+  doc.text("POLICYHOLDER DETAILS", L, y + 7);
+  y += 15;
+
+  y = kvGrid(doc, [
     [
-      { label: "Full Name",       value: fullName },
-      { label: "Age",             value: `${age} years` },
+      { label: "Full Name",      value: fullName },
+      { label: "Age",            value: `${age} years` },
     ],
     [
-      { label: "Deduction Date",  value: `${deductionDate} of each month` },
-      { label: "Bank Reference",  value: `MINT-INS ${policyNo}` },
+      { label: "Policy Number",  value: policyNo },
+      { label: "Schedule Date",  value: dateStr },
     ],
     [
-      { label: "Policy Number",   value: policyNo },
-      { label: "Schedule Date",   value: dateStr },
+      { label: "Deduction Date", value: `${deductionDate} of each month` },
+      { label: "Bank Reference", value: `MINT-INS ${policyNo}` },
     ],
   ], y);
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PAGE 4 – TERMS & DISCLOSURES
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════════════════
+  // PAGE 4 – TERMS & REMUNERATION
+  // ════════════════════════════════════════════════════════════════════════════
   doc.addPage();
-  y = 20;
 
-  if (logoB64) {
-    try { doc.addImage(logoB64, "PNG", R - 40, 10, 40, 5.1); } catch { /* skip */ }
+  banner(doc, 0, 14, DARK_PURPLE);
+  if (logoWhiteB64) {
+    try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ }
   }
 
-  y = secHead(doc, "IMPORTANT TERMS & CONDITIONS", y);
-  y += 2;
+  y = sectionBanner(doc, "IMPORTANT TERMS & CONDITIONS", 14, "", MID_PURPLE);
 
   [
-    {
-      head: "Waiting Period",
-      body: "A waiting period of six (6) months applies to all claims from the commencement date of this policy. No claims will be paid during the waiting period, except in the case of accidental death where the Accidental Death benefit has been selected.",
-    },
-    {
-      head: "Premium Changes",
-      body: "Benefits and premium rates may change from time to time. You will be given thirty-one (31) days' notice of any such changes. Your continued payment of premiums after notice constitutes acceptance of the change.",
-    },
-    {
-      head: "Claim Submission",
-      body: "All claims must be submitted within six (6) months of the insured event. Claims submitted after this period may be declined. Required documentation includes a certified copy of the death certificate, identity documents, and a completed claim form.",
-    },
-    {
-      head: "Lapse & Reinstatement",
-      body: "If premiums are not paid within the grace period of thirty (30) days, this policy will lapse and all benefits will cease. Reinstatement is subject to approval and may require a new waiting period.",
-    },
-    {
-      head: "Complaints",
-      body: "Should you have any complaint regarding this policy, please contact Mint Financial Services at support@mintapp.co.za. If unresolved, you may escalate to the FSCA or the Ombud for Financial Services Providers.",
-    },
+    { head: "Waiting Period", body: "A waiting period of six (6) months applies to all claims from the commencement date. No claims will be paid during this period, except for accidental death where the Accidental Death benefit has been selected." },
+    { head: "Premium Changes", body: "Benefits and premium rates may change. You will be given thirty-one (31) days' notice. Continued payment of premiums after notice constitutes acceptance of the change." },
+    { head: "Claim Submission", body: "All claims must be submitted within six (6) months of the insured event. Required documentation: certified death certificate, ID documents, and completed claim form." },
+    { head: "Lapse & Reinstatement", body: "If premiums are not paid within thirty (30) days' grace, this policy lapses. Reinstatement is subject to approval and may require a new waiting period." },
+    { head: "Complaints", body: "Contact Mint Financial Services at support@mymint.co.za. Unresolved complaints may be escalated to the FSCA or the Ombud for Financial Services Providers." },
   ].forEach(({ head, body }) => {
     if (y > 240) { doc.addPage(); y = 20; }
     doc.setFont("helvetica", "bold");
@@ -505,29 +552,39 @@ export async function generateFuneralCoverPDF({
     const lines = doc.splitTextToSize(body, TW);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.setTextColor(50, 50, 50);
+    doc.setTextColor(50, 50, 70);
     doc.text(lines, L, y);
-    y += lines.length * 5 + 6;
+    y += lines.length * 5 + 5;
   });
 
-  y += 4;
-  y = secHead(doc, "REMUNERATION DISCLOSURE", y);
-  y += 2;
+  // Image divider before remuneration
+  if (y > 220) { doc.addPage(); y = 20; }
+  banner(doc, y, 10, MID_PURPLE);
+  if (logoWhiteB64) {
+    try { doc.addImage(logoWhiteB64, "PNG", R - 36, y + 2, 36, 4.5); } catch { /* skip */ }
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...WHITE);
+  doc.text("REMUNERATION STRUCTURE", L, y + 7);
+  y += 15;
+
   y = tHead(doc, [
     { label: "Category", w: 140 },
     { label: "Value",    w: 50, align: "right" },
   ], y);
+
   [
-    { cat: "Intermediary remuneration (first 12 months, payable upfront and recoverable on lapse)", val: "Per FAIS schedule" },
-    { cat: "Ongoing administration fee payable to Mint Financial Services (Pty) Ltd", val: "Included in premium" },
-    { cat: "These amounts exclude VAT. Future premium increases may attract commission.", val: "" },
+    { cat: "Intermediary remuneration (first 12 months, payable upfront on inception of the cover and recoverable should the plan lapse).", val: "Per FAIS schedule" },
+    { cat: "Ongoing administration fee payable to Mint Financial Services (Pty) Ltd each month.", val: "Included in premium" },
+    { cat: "Please take into consideration that these amounts exclude VAT. Future premium increases on your plan may attract commission.", val: "" },
   ].forEach((r, i) => {
-    if (y > 265) { doc.addPage(); y = 20; }
+    if (y > 260) { doc.addPage(); y = 20; }
     const lines = doc.splitTextToSize(r.cat, 136);
-    const rowH = Math.max(8, lines.length * 5 + 4);
+    const rowH = Math.max(9, lines.length * 5 + 5);
     if (i % 2 === 0) {
-      doc.setFillColor(248, 246, 255);
-      doc.rect(L, y - 4, TW, rowH, "F");
+      doc.setFillColor(...TINT);
+      doc.rect(0, y - 4.5, PW, rowH, "F");
     }
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
@@ -537,14 +594,14 @@ export async function generateFuneralCoverPDF({
       doc.setFont("helvetica", "bold");
       doc.text(r.val, R, y, { align: "right" });
     }
-    hRule(doc, y + rowH - 2);
+    hr(doc, y + rowH - 2);
     y += rowH + 2;
   });
 
-  // ─── Footers ──────────────────────────────────────────────────────────────
-  addFooters(doc, fullName, policyNo, dateStr, logoB64);
+  // ─── Footers on all pages ──────────────────────────────────────────────────
+  addFooters(doc, fullName, policyNo, dateStr, logoWhiteB64 || logoB64);
 
-  // ─── Save ─────────────────────────────────────────────────────────────────
+  // ─── Save ──────────────────────────────────────────────────────────────────
   const safe = fullName.replace(/\s+/g, "_") || "Client";
   doc.save(`Mint_Policy_Schedule_${safe}_${policyNo}.pdf`);
 
