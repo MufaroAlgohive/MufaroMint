@@ -202,13 +202,14 @@ export async function generateFuneralCoverPDF({
   dependents = [],
 }) {
   // Load assets (non-blocking — fails gracefully)
-  const [logoB64, sigB64, heroB64, coinB64, splashB64, familyB64] = await Promise.all([
+  const [logoB64, sigB64, heroB64, coinB64, splashB64, familyB64, childrenB64] = await Promise.all([
     imgToBase64("/assets/mint-logo.png"),
     imgToBase64("/assets/ceo-signature.png"),
     imgToBase64("/assets/images/onboarding-hero.png"),
     imgToBase64("/assets/images/coinAlgoMoney.png"),
     imgToBase64("/assets/splash.png"),
     imgToBase64("/assets/images/family-hero.jpeg"),
+    imgToBase64("/assets/images/children-hero.jpeg"),
   ]);
 
   const doc       = new jsPDF({ unit: "mm", format: "a4" });
@@ -665,15 +666,18 @@ export async function generateFuneralCoverPDF({
     ],
   ], y);
 
-  // ── Full-width landscape hero strip at bottom of page 3 ───────────────────
+  // ── Full-width children photo strip at bottom of page 3 ──────────────────
   {
     const stripY = 231, stripH = 46;
-    if (heroB64) {
+    if (childrenB64) {
+      try {
+        doc.addImage(childrenB64, "JPEG", 0, stripY, PW, stripH);
+      } catch { /* skip */ }
+    } else if (heroB64) {
       try {
         doc.addImage(heroB64, "PNG", 0, stripY, PW, stripH);
       } catch { /* skip */ }
     } else {
-      // Fallback: purple strip with tagline
       fillRect(doc, stripY, stripH, PURPLE_MID);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
