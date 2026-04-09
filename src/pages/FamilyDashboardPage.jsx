@@ -893,9 +893,6 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-[17px] font-bold text-slate-900 tabular-nums">{fmt(child.available_balance || 0)}</p>
-                            {child.mint_number && (
-                              <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{child.mint_number}</p>
-                            )}
                           </div>
                         </div>
 
