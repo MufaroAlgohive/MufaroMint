@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { ArrowLeft, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain, FileText, Loader2 } from "lucide-react";
 import { generateFuneralCoverPDF } from "../lib/generateFuneralCoverPDF";
 import { supabase } from "../lib/supabase";
@@ -159,6 +159,38 @@ export default function FuneralCoverPage({ onBack, profile }) {
     setDependents(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d));
   }
   const hasSpouse = dependents.some(d => d.type === "spouse");
+  const [familyImportCount, setFamilyImportCount] = useState(0);
+
+  // Auto-import family members from the family account on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFamily() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const { data, error } = await supabase
+          .from("family_members")
+          .select("first_name, last_name, date_of_birth, relationship")
+          .eq("user_id", session.user.id);
+        if (error || !data || cancelled) return;
+        const imported = data
+          .filter(m => m.relationship === "spouse" || m.relationship === "child")
+          .map(m => ({
+            id: ++_depId,
+            type: m.relationship === "spouse" ? "spouse" : "child",
+            firstName: m.first_name || "",
+            lastName:  m.last_name  || "",
+            dob:       m.date_of_birth || "",
+          }));
+        if (imported.length > 0) {
+          setDependents(imported);
+          setFamilyImportCount(imported.length);
+        }
+      } catch { /* ignore */ }
+    }
+    loadFamily();
+    return () => { cancelled = true; };
+  }, []);
 
   // Derived
   const age = useManualAge ? manualAge : (calcAge(dob) ?? manualAge);
@@ -453,7 +485,17 @@ export default function FuneralCoverPage({ onBack, profile }) {
         {/* ── Step 3: Beneficiary Details ── */}
         {step === 3 && (
           <>
-            <p className="text-sm text-slate-500">
+            {familyImportCount > 0 && (
+              <div className="flex items-start gap-2.5 bg-violet-900/40 border border-violet-600/50 rounded-2xl px-4 py-3">
+                <Check className="h-4 w-4 text-violet-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-violet-200">
+                  <span className="font-bold">{familyImportCount} family member{familyImportCount > 1 ? "s" : ""}</span> imported from your family account.
+                  You can edit or remove them below.
+                </p>
+              </div>
+            )}
+
+            <p className="text-sm text-slate-400">
               {planType === "stokvel"
                 ? "Enter details for each society member. Ages affect premium calculations."
                 : "Enter details for each person on this policy."}
