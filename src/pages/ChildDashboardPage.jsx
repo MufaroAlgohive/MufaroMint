@@ -766,9 +766,6 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                 <Baby className="h-3.5 w-3.5" />
                 {age !== null ? `${age} yr${age !== 1 ? "s" : ""} old` : "Child"}
               </span>
-              {child?.mint_number && (
-                <span className="text-[11px] text-slate-600 font-mono">{child.mint_number}</span>
-              )}
             </div>
             <div className="flex items-center gap-1.5 mt-2">
               <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
@@ -919,12 +916,6 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                   <span className="text-slate-600">Account Type</span>
                   <span className="font-semibold text-slate-900">Child (Minor)</span>
                 </div>
-                {child?.mint_number && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Mint Number</span>
-                    <span className="font-mono text-xs font-semibold text-slate-900">{child.mint_number}</span>
-                  </div>
-                )}
                 {age !== null && (
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-600">Age</span>

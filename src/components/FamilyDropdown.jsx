@@ -219,11 +219,7 @@ export default function FamilyDropdown({ profile, userId, initials, avatarUrl, o
                           <p className="text-sm font-medium text-white truncate">
                             {[child.first_name, child.last_name].filter(Boolean).join(" ")}
                           </p>
-                          <p className="text-[11px] text-white/40">
-                            {age !== null ? `Age ${age}` : ""}
-                            {age !== null && child.mint_number ? " · " : ""}
-                            {child.mint_number || ""}
-                          </p>
+                          <p className="text-[11px] text-white/40">{age !== null ? `Age ${age}` : ""}</p>
                         </div>
                         <span className="text-white/30 text-xs">›</span>
                       </button>
