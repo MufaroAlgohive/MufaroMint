@@ -76,8 +76,8 @@ const SwipeableBalanceCard = ({
           .eq("user_id", userId)
           .maybeSingle();
         if (!error && data?.balance !== undefined) {
-          // Divide by 100 assuming cents in DB
-          const bal = Number(data.balance) / 100;
+          // Balance is stored in Rands (not cents)
+          const bal = Number(data.balance);
           setWalletBalance(bal);
         } else if (error) {
           console.error("❌ [SwipeableBalanceCard] Wallet fetch error:", error);
@@ -404,7 +404,23 @@ const SwipeableBalanceCard = ({
         const hasStrategyData = Object.keys(strategyPnlByDate).length > 0;
 
         if (allPriceData.length === 0 && !hasStrategyData) {
-          setChartData([]);
+          // No price history in DB — synthesize a 2-point chart from cost basis → current market value
+          const activeHoldings = holdingsToChart.filter(h => !h.isStrategy && Number(h.avg_fill || 0) > 0);
+          if (activeHoldings.length > 0) {
+            const totalCostCents = activeHoldings.reduce((s, h) => s + Number(h.avg_fill || 0) * Number(h.quantity || 0), 0);
+            const totalMarketCents = activeHoldings.reduce((s, h) => s + Number(h.market_value || 0), 0);
+            const totalPnl = (totalMarketCents - totalCostCents) / 100;
+            const earliest = activeHoldings
+              .map(h => (h.created_at || h.as_of_date || "").slice(0, 10))
+              .filter(Boolean).sort()[0] || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+            const today = new Date().toISOString().slice(0, 10);
+            setChartData([
+              { d: earliest, v: 0 },
+              { d: today, v: Number(totalPnl.toFixed(2)) },
+            ]);
+          } else {
+            setChartData([]);
+          }
           return;
         }
 

@@ -3,6 +3,35 @@ import { Resend } from "resend";
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
+function isValidUuid(str) {
+  return typeof str === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
+function generateChildMintNumber(firstName, idNumber, dateOfBirth) {
+  const normalized = (firstName || "CHD").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, "").padEnd(3, "X").substring(0, 3);
+
+  let idPart = "0000";
+  if (idNumber && String(idNumber).length >= 10) {
+    idPart = String(idNumber).substring(6, 10);
+  } else if (dateOfBirth) {
+    const dob = new Date(dateOfBirth);
+    if (!isNaN(dob.getTime())) {
+      const mm = String(dob.getMonth() + 1).padStart(2, "0");
+      const yy = String(dob.getFullYear()).slice(-2);
+      idPart = mm + yy;
+    }
+  }
+
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yy = String(now.getFullYear()).slice(-2);
+
+  return namePart + idPart + dd + mm + yy;
+}
+
 function getResend() {
   if (!process.env.RESEND_API_KEY) return null;
   return new Resend(process.env.RESEND_API_KEY);
@@ -38,103 +67,56 @@ function normalizeName(value) {
   return String(value || "").trim().toLowerCase();
 }
 
-function pickExactNameMatches(rows, firstName, lastName) {
-  const normalizedFirst = normalizeName(firstName);
-  const normalizedLast = normalizeName(lastName);
-  return (rows || []).filter((row) => (
-    normalizeName(row.first_name) === normalizedFirst
-    && normalizeName(row.last_name) === normalizedLast
-  ));
+async function findExistingUserByIdNumber(db, idNumber) {
+  const { data: profileRow, error: profileErr } = await db
+    .from("profiles")
+    .select("id, first_name, last_name, email, id_number")
+    .eq("id_number", idNumber)
+    .maybeSingle();
+
+  if (!profileErr && profileRow) {
+    return { match: profileRow };
+  }
+
+  const { data: onboardingRow, error: onboardingErr } = await db
+    .from("user_onboarding")
+    .select("id, user_id, first_name, last_name, email, id_number")
+    .eq("id_number", idNumber)
+    .maybeSingle();
+
+  if (!onboardingErr && onboardingRow) {
+    const linkedUserId = onboardingRow.user_id || onboardingRow.id || null;
+    if (!linkedUserId) return { match: null };
+
+    const { data: linkedProfile } = await db
+      .from("profiles")
+      .select("id, first_name, last_name, email")
+      .eq("id", linkedUserId)
+      .maybeSingle();
+
+    return {
+      match: {
+        id: linkedUserId,
+        first_name: linkedProfile?.first_name || onboardingRow.first_name || "",
+        last_name: linkedProfile?.last_name || onboardingRow.last_name || "",
+        email: linkedProfile?.email || onboardingRow.email || null,
+      },
+    };
+  }
+
+  return { match: null };
 }
 
-async function findExistingUserByName(db, firstName, lastName, normalizedEmailHint) {
-  const { data: profileRows, error: profileErr } = await db
-    .from("profiles")
-    .select("id, first_name, last_name, email")
-    .ilike("first_name", firstName)
-    .ilike("last_name", lastName)
-    .limit(20);
-
-  if (!profileErr) {
-    const exactProfiles = pickExactNameMatches(profileRows, firstName, lastName);
-    if (exactProfiles.length === 1) {
-      return { match: exactProfiles[0], ambiguous: false };
-    }
-    if (exactProfiles.length > 1) {
-      if (normalizedEmailHint) {
-        const byEmail = exactProfiles.find((p) => normalizeName(p.email) === normalizedEmailHint);
-        if (byEmail) return { match: byEmail, ambiguous: false };
-      }
-      return { match: null, ambiguous: true };
-    }
-  }
-
-  const { data: onboardingRows, error: onboardingErr } = await db
+async function checkKycComplete(db, userId) {
+  const { data: onboarding } = await db
     .from("user_onboarding")
-    .select("id, user_id, first_name, last_name, email")
-    .ilike("first_name", firstName)
-    .ilike("last_name", lastName)
-    .limit(20);
+    .select("kyc_status")
+    .eq("user_id", userId)
+    .maybeSingle();
 
-  if (!onboardingErr) {
-    const exactOnboarding = pickExactNameMatches(onboardingRows, firstName, lastName);
-    if (exactOnboarding.length === 1) {
-      const row = exactOnboarding[0];
-      const linkedUserId = row.user_id || row.id || null;
-      if (!linkedUserId) return { match: null, ambiguous: false };
-
-      const { data: linkedProfile } = await db
-        .from("profiles")
-        .select("id, first_name, last_name, email")
-        .eq("id", linkedUserId)
-        .maybeSingle();
-
-      if (linkedProfile) {
-        return {
-          match: {
-            id: linkedProfile.id,
-            first_name: linkedProfile.first_name || row.first_name || "",
-            last_name: linkedProfile.last_name || row.last_name || "",
-            email: linkedProfile.email || row.email || null,
-          },
-          ambiguous: false,
-        };
-      }
-
-      return {
-        match: {
-          id: linkedUserId,
-          first_name: row.first_name || "",
-          last_name: row.last_name || "",
-          email: row.email || null,
-        },
-        ambiguous: false,
-      };
-    }
-
-    if (exactOnboarding.length > 1) {
-      if (normalizedEmailHint) {
-        const byEmail = exactOnboarding.find((p) => normalizeName(p.email) === normalizedEmailHint);
-        if (byEmail) {
-          const linkedUserId = byEmail.user_id || byEmail.id || null;
-          if (linkedUserId) {
-            return {
-              match: {
-                id: linkedUserId,
-                first_name: byEmail.first_name || "",
-                last_name: byEmail.last_name || "",
-                email: byEmail.email || null,
-              },
-              ambiguous: false,
-            };
-          }
-        }
-      }
-      return { match: null, ambiguous: true };
-    }
-  }
-
-  return { match: null, ambiguous: false };
+  if (!onboarding) return false;
+  const status = onboarding.kyc_status || "";
+  return status === "approved" || status === "onboarding_complete" || status === "verified";
 }
 
 /* ── handler ──────────────────────────────────────────────────────────────── */
@@ -163,7 +145,7 @@ export default async function handler(req, res) {
 
       const members = data || [];
       const spouseLinkedUserIds = members
-        .filter((m) => m.relationship === "spouse" && m.linked_user_id)
+        .filter((m) => m.relationship === "spouse" && isValidUuid(m.linked_user_id))
         .map((m) => m.linked_user_id);
 
       if (spouseLinkedUserIds.length > 0) {
@@ -211,11 +193,18 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "relationship must be spouse or child" });
     }
 
+    const { id_number, certificate_verification_status } = req.body || {};
+
     try {
       /* ──────────────── SPOUSE ──────────────── */
       if (relationship === "spouse") {
-        if (!first_name?.trim() || !last_name?.trim()) {
-          return res.status(400).json({ error: "First name and last name are required to link a spouse." });
+
+        if (!id_number?.trim()) {
+          return res.status(400).json({ error: "A 13-digit South African ID number is required." });
+        }
+        const cleanId = String(id_number).replace(/\D/g, "");
+        if (cleanId.length !== 13) {
+          return res.status(400).json({ error: "ID number must be exactly 13 digits." });
         }
         if (email && !email.includes("@")) {
           return res.status(400).json({ error: "If provided, email must be valid." });
@@ -232,28 +221,17 @@ export default async function handler(req, res) {
           return res.status(409).json({ error: "A spouse is already linked to this account." });
         }
 
-        // Look up spouse by case-insensitive name + surname
-        const normalizedEmail = email?.toLowerCase().trim() || null;
-        const nameFirst = first_name.trim();
-        const nameLast = last_name.trim();
-        const { match: matchedProfile, ambiguous } = await findExistingUserByName(
-          db,
-          nameFirst,
-          nameLast,
-          normalizedEmail
-        );
-
-        if (ambiguous) {
-          return res.status(409).json({
-            error: "Multiple users found with that name. Please provide their email to disambiguate.",
-          });
-        }
+        // Look up by ID number
+        const { match: matchedProfile } = await findExistingUserByIdNumber(db, cleanId);
 
         if (matchedProfile) {
           // Prevent self-linking
           if (matchedProfile.id === primary_user_id) {
             return res.status(400).json({ error: "You cannot add yourself as a spouse." });
           }
+
+          // Check KYC status
+          const kycComplete = await checkKycComplete(db, matchedProfile.id);
 
           // Fetch their real mint number from wallet
           let spouseMintNumber = null;
@@ -269,44 +247,60 @@ export default async function handler(req, res) {
             spouseMintNumber = `SPO${String(rand).padStart(10, "0")}`;
           }
 
+          const normalizedEmail = email?.toLowerCase().trim() || null;
           const insertPayload = {
             primary_user_id,
             relationship: "spouse",
-            first_name: matchedProfile.first_name || first_name?.trim() || "",
-            last_name: matchedProfile.last_name || last_name?.trim() || "",
+            first_name: matchedProfile.first_name || "",
+            last_name: matchedProfile.last_name || "",
             spouse_email: normalizedEmail || matchedProfile.email || null,
             mint_number: spouseMintNumber,
           };
 
-          // Try with linked_user_id (column may not exist yet)
+          // Try with linked_user_id + kyc_pending (columns may not exist yet)
           let member = null;
           const { data: d1, error: e1 } = await db
             .from("family_members")
-            .insert({ ...insertPayload, linked_user_id: matchedProfile.id })
+            .insert({ ...insertPayload, linked_user_id: matchedProfile.id, kyc_pending: !kycComplete })
             .select()
             .single();
 
-          if (e1 && e1.message?.includes("linked_user_id")) {
+          if (e1 && (e1.message?.includes("linked_user_id") || e1.message?.includes("kyc_pending"))) {
             const { data: d2, error: e2 } = await db
               .from("family_members")
-              .insert(insertPayload)
+              .insert({ ...insertPayload, linked_user_id: matchedProfile.id })
               .select()
               .single();
-            if (e2) throw e2;
-            member = d2;
+            if (e2 && e2.message?.includes("linked_user_id")) {
+              const { data: d3, error: e3 } = await db
+                .from("family_members")
+                .insert(insertPayload)
+                .select()
+                .single();
+              if (e3) throw e3;
+              member = d3;
+            } else if (e2) {
+              throw e2;
+            } else {
+              member = d2;
+            }
           } else if (e1) {
             throw e1;
           } else {
             member = d1;
           }
 
-          return res.status(201).json({ member, linked: true });
+          // Attach kyc_pending to response so UI can show pending icon
+          const memberWithKyc = { ...member, kyc_pending: !kycComplete };
+          return res.status(201).json({ member: memberWithKyc, linked: true, kyc_pending: !kycComplete });
         }
 
-        /* ── user NOT found → optional invite email ── */
+        /* ── user NOT found → send invite email ── */
+        const normalizedEmail = email?.toLowerCase().trim() || null;
         if (!normalizedEmail) {
           return res.status(404).json({
-            error: "No Mint account found for that name and surname. Add an email to send an invite.",
+            not_found: true,
+            error: "No Mint account found for that ID number. Provide their email address to send them an invite.",
           });
         }
 
@@ -343,7 +337,7 @@ export default async function handler(req, res) {
           masked_email: masked,
           message: emailSent
             ? `Invitation sent to ${masked}. Once they sign up on Mint, you can link them as your spouse.`
-            : `${masked} is not on Mint yet. Please ask them to sign up, then try again.`,
+            : `${masked} is not on Mint yet. Please ask them to sign up at mymint.co.za, then try linking again.`,
         });
       }
 
@@ -359,8 +353,9 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: "Unabridged birth certificate is required." });
         }
 
-        const rand = Math.floor(1000000 + Math.random() * 9000000);
-        const mint_number = `CHD${String(rand).padStart(10, "0")}`;
+        const cleanChildId = id_number ? String(id_number).replace(/\D/g, "") : null;
+        const mint_number = generateChildMintNumber(first_name.trim(), cleanChildId, date_of_birth);
+        const verificationStatus = certificate_verification_status || "pending_review";
 
         const basePayload = {
           primary_user_id,
@@ -372,29 +367,63 @@ export default async function handler(req, res) {
           mint_number,
         };
 
-        // Try with certificate_url column (may not exist yet)
+        // Try to insert with all optional columns, fall back gracefully
+        const fullPayload = {
+          ...basePayload,
+          certificate_url,
+          certificate_verification_status: verificationStatus,
+          ...(cleanChildId ? { id_number: cleanChildId } : {}),
+        };
+
         const { data: d1, error: e1 } = await db
           .from("family_members")
-          .insert({ ...basePayload, certificate_url })
+          .insert(fullPayload)
           .select()
           .single();
 
-        if (e1 && e1.message?.includes("certificate_url")) {
+        if (e1) {
+          // Graceful fallback: strip unknown columns one by one
           const { data: d2, error: e2 } = await db
             .from("family_members")
-            .insert(basePayload)
+            .insert({ ...basePayload, certificate_url })
             .select()
             .single();
-          if (e2) throw e2;
+          if (e2 && e2.message?.includes("certificate_url")) {
+            const { data: d3, error: e3 } = await db
+              .from("family_members")
+              .insert(basePayload)
+              .select()
+              .single();
+            if (e3) throw e3;
+            return res.status(201).json({ member: d3 });
+          } else if (e2) { throw e2; }
           return res.status(201).json({ member: d2 });
-        } else if (e1) {
-          throw e1;
         }
 
         return res.status(201).json({ member: d1 });
       }
     } catch (e) {
       console.error("[family] POST error:", e.message);
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // ── DELETE /api/family-members ────────────────────────────────────────────
+  if (req.method === "DELETE") {
+    const { member_id, primary_user_id } = req.body || {};
+    if (!member_id || !primary_user_id) {
+      return res.status(400).json({ error: "member_id and primary_user_id required" });
+    }
+    try {
+      const { error } = await db
+        .from("family_members")
+        .delete()
+        .eq("id", member_id)
+        .eq("primary_user_id", primary_user_id);
+      if (error) throw error;
+      return res.json({ success: true });
+    } catch (e) {
+      console.error("[family] DELETE error:", e.message);
       return res.status(500).json({ error: e.message });
     }
   }
