@@ -107,7 +107,6 @@ function TransferModal({ child, parentBalance, balancesLoading, onTransfer, onCl
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 380, damping: 38 }}
       >
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#34d399,#059669)" }} />
         <div className="flex justify-center pt-3 pb-1"><div className="h-1 w-10 rounded-full bg-slate-200" /></div>
 
         <div className="px-6 pt-3 pb-8">
@@ -329,7 +328,6 @@ function InvestModal({ child, onInvest, onClose }) {
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 380, damping: 38 }}
       >
-        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#818cf8,#6366f1)" }} />
         <div className="flex justify-center pt-3 pb-1"><div className="h-1 w-10 rounded-full bg-slate-200" /></div>
 
         <div className="px-6 pt-3 pb-8 overflow-y-auto" style={{ maxHeight: "calc(85vh - 24px)" }}>

@@ -851,7 +851,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 {children.map((child, i) => {
                   const age = getAge(child.date_of_birth);
                   const childName = [child.first_name, child.last_name].filter(Boolean).join(" ");
-                  const parentMint = profile?.mintNumber;
+                  const parentMint = profile?.mintNumber || profile?.mint_number;
                   return (
                     <motion.button
                       key={child.id}
