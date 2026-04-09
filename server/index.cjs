@@ -33,6 +33,7 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 const truIDClient = require("./truidClient.cjs");
 const { Resend } = require("resend");
+const { runFuneralCoverMigration } = require("./funeralCoverMigration.cjs");
 
 // Helper to check both standard and VITE_ prefixed env vars
 const readEnv = (key) => process.env[key] || process.env[`VITE_${key}`];
@@ -607,6 +608,7 @@ async function ensureUserSessionsTable() {
   }
 }
 ensureUserSessionsTable();
+runFuneralCoverMigration(pgPool);
 
 function generateChildMintNumber(firstName, idNumber, dateOfBirth) {
   const normalized = (firstName || 'CHD').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
