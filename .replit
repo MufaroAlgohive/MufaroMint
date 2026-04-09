@@ -77,6 +77,9 @@ VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 VITE_PAYSTACK_PUBLIC_KEY = "pk_live_1cbfba656265cbb275483c8f953bc356dd5869d2"
 SUMSUB_BASE_URL = "api.sumsub.com"
 
+[userenv.development]
+VITE_ENABLE_INSURE = "true"
+
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 120000

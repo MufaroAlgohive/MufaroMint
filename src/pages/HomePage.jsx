@@ -44,6 +44,10 @@ import SettlementBadge from "../components/PendingBadge";
 import NotificationBell from "../components/NotificationBell";
 import FamilyDropdown from "../components/FamilyDropdown";
 
+// Feature flags — set VITE_ENABLE_INSURE=true in Replit Secrets to preview.
+// Leave unset in Vercel production to keep the feature hidden from live users.
+const INSURE_ENABLED = import.meta.env.VITE_ENABLE_INSURE === "true";
+
 const CARD_VISIBILITY_KEY = "mintBalanceVisible";
 
 const HomePage = ({
@@ -66,6 +70,7 @@ const HomePage = ({
   onOpenNews,
   onOpenNewsArticle,
   onOpenFamily,
+  onOpenInsure,
   onSelectMember,
 }) => {
   const { profile, loading } = useProfile();
@@ -723,7 +728,7 @@ const HomePage = ({
             {[
               { label: "Family", icon: Users, onClick: onOpenFamily, comingSoon: false },
               { label: "Stokvel", icon: Handshake, onClick: null, comingSoon: true },
-              { label: "Insure", icon: Umbrella, onClick: null, comingSoon: true },
+              { label: "Insure", icon: Umbrella, onClick: INSURE_ENABLED ? (onOpenInsure || null) : null, comingSoon: !INSURE_ENABLED },
               { label: "Rewards", icon: Gift, onClick: null, comingSoon: true },
             ].map((item, index) => {
               const Icon = item.icon;
