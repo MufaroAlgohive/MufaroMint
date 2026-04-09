@@ -380,6 +380,23 @@ export default function ChildResponsibilityAgreement({
         signatureDataUrl: sigUrl,
         signedAt: now,
       });
+
+      // Trigger download immediately after signing
+      try {
+        const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const childName = `${childData?.first_name || ""}_${childData?.last_name || ""}`.trim().replace(/\s+/g, "_") || "child";
+        a.download = `Mint_Agreement_${childName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        // Download failing shouldn't block the save flow
+      }
+
       onComplete({ pdfBuffer, signedAt: now, signatureDataUrl: sigUrl });
     } catch {
       setError("Failed to generate agreement PDF. Please try again.");
