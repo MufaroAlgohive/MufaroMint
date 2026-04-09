@@ -6376,7 +6376,7 @@ app.get('/api/family-members', async (req, res) => {
 });
 
 app.post('/api/family-members', async (req, res) => {
-  const { primary_user_id, relationship, first_name, last_name, date_of_birth, id_number, email, certificate_url } = req.body || {};
+  const { primary_user_id, relationship, first_name, last_name, date_of_birth, id_number, email, certificate_url, certificate_verification_status } = req.body || {};
   if (!primary_user_id || !relationship) {
     return res.status(400).json({ error: 'primary_user_id and relationship required' });
   }
