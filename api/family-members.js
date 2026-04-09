@@ -160,7 +160,37 @@ export default async function handler(req, res) {
         .eq("primary_user_id", userId)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return res.json({ members: data || [] });
+
+      const members = data || [];
+      const spouseLinkedUserIds = members
+        .filter((m) => m.relationship === "spouse" && m.linked_user_id)
+        .map((m) => m.linked_user_id);
+
+      if (spouseLinkedUserIds.length > 0) {
+        const { data: spouseWallets, error: spouseWalletErr } = await db
+          .from("wallets")
+          .select("user_id, mint_number")
+          .in("user_id", spouseLinkedUserIds);
+
+        if (!spouseWalletErr && spouseWallets?.length) {
+          const spouseMintByUserId = new Map(
+            spouseWallets
+              .filter((w) => w?.user_id && w?.mint_number)
+              .map((w) => [w.user_id, w.mint_number])
+          );
+
+          const enrichedMembers = members.map((member) => {
+            if (member.relationship !== "spouse" || !member.linked_user_id) return member;
+            const actualMint = spouseMintByUserId.get(member.linked_user_id);
+            if (!actualMint) return member;
+            return { ...member, mint_number: actualMint };
+          });
+
+          return res.json({ members: enrichedMembers });
+        }
+      }
+
+      return res.json({ members });
     } catch (e) {
       console.error("[family] GET error:", e.message);
       return res.status(500).json({ error: e.message });
@@ -228,7 +258,7 @@ export default async function handler(req, res) {
           // Fetch their real mint number from wallet
           let spouseMintNumber = null;
           const { data: walletRow } = await db
-            .from("wallet")
+            .from("wallets")
             .select("mint_number")
             .eq("user_id", matchedProfile.id)
             .maybeSingle();

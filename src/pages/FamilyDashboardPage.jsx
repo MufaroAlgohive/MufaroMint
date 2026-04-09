@@ -333,7 +333,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 {[spouseResult.member?.first_name, spouseResult.member?.last_name].filter(Boolean).join(" ")} has been linked to your family account.
               </p>
               {spouseResult.member?.mint_number && (
-                <p className="text-xs text-slate-400 mt-1">Mint # {spouseResult.member.mint_number}</p>
+                <p className="text-xs text-slate-400 mt-1">Linked Mint # {spouseResult.member.mint_number}</p>
               )}
               <button
                 onClick={() => { onSave(spouseResult.member); }}
@@ -893,9 +893,6 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="text-[17px] font-bold text-slate-900 tabular-nums">{fmt(child.available_balance || 0)}</p>
-                            {child.mint_number && (
-                              <p className="text-[10px] text-slate-500 mt-0.5 font-mono">{child.mint_number}</p>
-                            )}
                           </div>
                         </div>
 
