@@ -610,6 +610,24 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
   const [portfolioValue, setPortfolioValue] = useState(0);
   const [portfolioChange, setPortfolioChange] = useState(0);
   const [addingType, setAddingType] = useState(null);
+  const [parentMintNumber, setParentMintNumber] = useState("");
+
+  // Fetch parent mint number directly from wallets table as fallback
+  useEffect(() => {
+    if (profile?.mintNumber) {
+      setParentMintNumber(profile.mintNumber);
+      return;
+    }
+    if (!userId || !supabase) return;
+    supabase
+      .from("wallets")
+      .select("mint_number")
+      .eq("user_id", userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.mint_number) setParentMintNumber(data.mint_number);
+      });
+  }, [userId, profile?.mintNumber]);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "My Account";
   const familyLastName = profile?.lastName || "";
@@ -858,7 +876,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 {children.map((child, i) => {
                   const age = getAge(child.date_of_birth);
                   const childName = [child.first_name, child.last_name].filter(Boolean).join(" ");
-                  const parentMint = profile?.mintNumber;
+                  const parentMint = parentMintNumber || profile?.mintNumber;
                   return (
                     <motion.button
                       key={child.id}

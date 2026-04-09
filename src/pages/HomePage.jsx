@@ -39,7 +39,6 @@ import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
 import SettlementBadge from "../components/PendingBadge";
 import NotificationBell from "../components/NotificationBell";
-import FamilyDropdown from "../components/FamilyDropdown";
 
 const CARD_VISIBILITY_KEY = "mintBalanceVisible";
 
@@ -62,8 +61,6 @@ const HomePage = ({
   onOpenDeposit,
   onOpenNews,
   onOpenNewsArticle,
-  onOpenFamily,
-  onSelectMember,
 }) => {
   const { profile, loading } = useProfile();
   const { bankLinked, loading: actionsLoading, refetch: fetchRequiredActions } = useRequiredActions();
@@ -645,14 +642,19 @@ const HomePage = ({
       <div className="rounded-b-[36px] bg-transparent px-4 pb-12 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
           <header className="relative flex items-center justify-between text-white">
-            <FamilyDropdown
-              profile={profile}
-              userId={userId}
-              initials={initials}
-              avatarUrl={profile.avatarUrl}
-              onOpenFamily={onOpenFamily}
-              onSelectMember={onSelectMember}
-            />
+            <div className="flex items-center gap-3">
+              {profile.avatarUrl ? (
+                <img
+                  src={profile.avatarUrl}
+                  alt={displayName || "Profile"}
+                  className="h-10 w-10 rounded-full border border-white/40 object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 border border-white/30 text-xs font-semibold text-white">
+                  {initials || "—"}
+                </div>
+              )}
+            </div>
 
             <NavigationPill
               activeTab="home"
@@ -689,19 +691,18 @@ const HomePage = ({
       </div>
 
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
-        <section className="grid grid-cols-5 gap-2 text-[11px] font-medium">
+        <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
           {[
             { label: "Invest", icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
             { label: "Deposit", icon: ArrowDownToLine, onClick: onOpenDeposit },
-            { label: "News", icon: Newspaper, onClick: () => (onOpenNews ? onOpenNews("news") : (onOpenInvest && onOpenInvest("news"))) },
-            { label: "Family", icon: Users, onClick: onOpenFamily },
+            { label: "Family", icon: Users, onClick: () => window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "familyDashboard" } })) },
             { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
           ].map((item, index) => {
             const Icon = item.icon;
             return (
               <button
                 key={index}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-1 py-3 text-slate-700 shadow-md transition-all active:scale-95 active:shadow-sm"
+                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md transition-all active:scale-95 active:shadow-sm"
                 type="button"
                 onClick={item.onClick}
               >
