@@ -368,13 +368,14 @@ const App = () => {
       const { page, member } = e.detail || {};
       if (member) setSelectedMember(member);
       if (page) {
+        const normalizedPage = page === 'family' ? 'familyDashboard' : page;
         if (page === 'childDashboard' && e.detail?.child) {
           setSelectedFamilyChild(e.detail.child);
         }
         if (page === 'userOnboarding') {
           setNotificationReturnPage(currentPage);
         }
-        navigateTo(page);
+        navigateTo(normalizedPage);
       }
     };
 

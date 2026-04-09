@@ -333,7 +333,7 @@ function AddMemberModal({ type, userId, onSave, onClose }) {
                 {[spouseResult.member?.first_name, spouseResult.member?.last_name].filter(Boolean).join(" ")} has been linked to your family account.
               </p>
               {spouseResult.member?.mint_number && (
-                <p className="text-xs text-slate-400 mt-1">Mint # {spouseResult.member.mint_number}</p>
+                <p className="text-xs text-slate-400 mt-1">Linked Mint # {spouseResult.member.mint_number}</p>
               )}
               <button
                 onClick={() => { onSave(spouseResult.member); }}
