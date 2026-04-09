@@ -193,6 +193,7 @@ export async function generateFuneralCoverPDF({
   coverAmount, basePremium,
   addonDetails = [], totalMonthly,
   deductionDate, societySize,
+  dependents = [],
 }) {
   // Load assets
   const [logoB64, sigB64] = await Promise.all([
@@ -495,6 +496,51 @@ export async function generateFuneralCoverPDF({
     ], y);
     y += 4;
   });
+
+  // ── Beneficiary / Dependent Details ──
+  if (dependents.length > 0) {
+    if (y > 195) { doc.addPage(); banner(doc, 0, 14, DARK_PURPLE); if (logoWhiteB64) { try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ } } y = 22; }
+
+    banner(doc, y, 10, MID_PURPLE);
+    if (logoWhiteB64) { try { doc.addImage(logoWhiteB64, "PNG", R - 36, y + 2, 36, 4.5); } catch { /* skip */ } }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...WHITE);
+    doc.text("BENEFICIARY DETAILS", L, y + 7);
+    y += 15;
+
+    y = tHead(doc, [
+      { label: "Name",          w: 68 },
+      { label: "Type",          w: 36 },
+      { label: "Date of Birth", w: 38 },
+      { label: "Age",           w: 20, align: "right" },
+      { label: "Allocation",    w: 28, align: "right" },
+    ], y);
+
+    dependents.forEach((dep, i) => {
+      if (y > 250) { doc.addPage(); banner(doc, 0, 14, DARK_PURPLE); if (logoWhiteB64) { try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ } } y = 22; }
+      const depName = [dep.firstName, dep.lastName].filter(Boolean).join(" ") || "—";
+      const depType = dep.type === "spouse" ? "Spouse" : dep.type === "member" ? "Society Member" : "Child";
+      let depAge = "—";
+      if (dep.dob) {
+        const parts = dep.dob.split("-").map(Number);
+        if (parts.length === 3) {
+          const now = new Date();
+          let a = now.getFullYear() - parts[0];
+          if (now.getMonth() + 1 < parts[1] || (now.getMonth() + 1 === parts[1] && now.getDate() < parts[2])) a--;
+          depAge = `${a} yrs`;
+        }
+      }
+      y = tRow(doc, [
+        { text: depName,  w: 68 },
+        { text: depType,  w: 36 },
+        { text: dep.dob || "—", w: 38 },
+        { text: depAge,   w: 20, align: "right" },
+        { text: "100%",   w: 28, align: "right" },
+      ], y, i % 2 === 0);
+    });
+    y += 6;
+  }
 
   // Image divider before policyholder details
   if (y > 205) { doc.addPage(); banner(doc, 0, 14, DARK_PURPLE); if (logoWhiteB64) { try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ } } y = 22; }

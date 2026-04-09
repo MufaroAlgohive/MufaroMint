@@ -105,7 +105,19 @@ const PLAN_TYPES = [
 ];
 const DEDUCTION_DATES = ["1st", "5th", "10th", "15th", "20th", "25th"];
 const SOCIETY_SIZES = ["1+5", "1+9", "1+13"];
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
+
+function calcMemberAge(dobStr) {
+  if (!dobStr) return null;
+  const parts = dobStr.split("-");
+  if (parts.length !== 3) return null;
+  const [y, m, d] = parts.map(Number);
+  const now = new Date();
+  let a = now.getFullYear() - y;
+  if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) a--;
+  return a;
+}
+let _depId = 0;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -123,16 +135,30 @@ export default function FuneralCoverPage({ onBack, profile }) {
   const [manualAge, setManualAge] = useState(35);
   const [useManualAge, setUseManualAge] = useState(!profileDob);
 
-  // Step 3
+  // Step 4 — Select Cover
   const [societySize, setSocietySize] = useState("1+5");
   const [coverAmount, setCoverAmount] = useState(null);
 
-  // Step 4
+  // Step 3 — Beneficiary / Dependent details
+  const [dependents, setDependents] = useState([]);
+
+  // Step 4 (was 3)
   const [addons, setAddons] = useState([]);
 
-  // Step 5
+  // Step 6 (was 5)
   const [deductionDate, setDeductionDate] = useState("1st");
   const [generating, setGenerating] = useState(false);
+
+  function addDependent(type) {
+    setDependents(prev => [...prev, { id: ++_depId, type, firstName: "", lastName: "", dob: "" }]);
+  }
+  function removeDependent(id) {
+    setDependents(prev => prev.filter(d => d.id !== id));
+  }
+  function updateDependent(id, field, val) {
+    setDependents(prev => prev.map(d => d.id === id ? { ...d, [field]: val } : d));
+  }
+  const hasSpouse = dependents.some(d => d.type === "spouse");
 
   // Derived
   const age = useManualAge ? manualAge : (calcAge(dob) ?? manualAge);
@@ -211,6 +237,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
         totalMonthly,
         deductionDate,
         societySize: planType === "stokvel" ? societySize : null,
+        dependents,
       });
 
       // Send confirmation email to client
@@ -247,22 +274,27 @@ export default function FuneralCoverPage({ onBack, profile }) {
   }
 
   function handleContinue() {
-    if (step === 3) setAddons([]);
-    setStep(s => Math.min(s+1, TOTAL_STEPS));
+    if (step === 4) setAddons([]);
+    // Skip Beneficiary Details step for individual plan
+    if (step === 2 && planType === "individual") { setStep(4); return; }
+    setStep(s => Math.min(s + 1, TOTAL_STEPS));
   }
   function handleBack() {
     if (step === 1) { onBack?.(); return; }
-    setStep(s => s-1);
+    // Skip Beneficiary Details step for individual plan (going back from step 4)
+    if (step === 4 && planType === "individual") { setStep(2); return; }
+    setStep(s => s - 1);
   }
 
-  const stepTitles = ["Choose Plan","Your Details","Select Cover","Add Benefits","Review & Confirm"];
+  const stepTitles = ["Choose Plan","Your Details","Beneficiary Details","Select Cover","Add Benefits","Review & Confirm"];
 
   const canProceed = () => {
     if (step === 1) return true;
     if (step === 2) return firstName.trim() && lastName.trim() && (dob || useManualAge) && ageBand;
-    if (step === 3) return !!coverAmount;
-    if (step === 4) return true;
-    if (step === 5) return !!deductionDate;
+    if (step === 3) return true;
+    if (step === 4) return !!coverAmount;
+    if (step === 5) return true;
+    if (step === 6) return !!deductionDate;
     return true;
   };
 
@@ -418,8 +450,131 @@ export default function FuneralCoverPage({ onBack, profile }) {
           </>
         )}
 
-        {/* ── Step 3: Select Cover ── */}
+        {/* ── Step 3: Beneficiary Details ── */}
         {step === 3 && (
+          <>
+            <p className="text-sm text-slate-500">
+              {planType === "stokvel"
+                ? "Enter details for each society member. Ages affect premium calculations."
+                : "Enter details for each person on this policy."}
+            </p>
+
+            <div className="flex flex-col gap-4">
+              {dependents.map((dep, idx) => {
+                const memberAge = calcMemberAge(dep.dob);
+                const label = dep.type === "spouse"
+                  ? "Spouse"
+                  : dep.type === "member"
+                  ? `Member ${idx + 1}`
+                  : `Child ${dependents.filter(d => d.type === "child").indexOf(dep) + 1}`;
+                const ageWarning = planType === "stokvel" && memberAge !== null && memberAge > 65;
+
+                return (
+                  <div key={dep.id} className="bg-[#1e0a35] rounded-2xl p-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-white">{label}</span>
+                      <div className="flex items-center gap-2">
+                        {memberAge !== null && (
+                          <span className="text-xs font-bold bg-violet-700 text-white px-2 py-0.5 rounded-full">
+                            {memberAge} yrs
+                          </span>
+                        )}
+                        <button
+                          onClick={() => removeDependent(dep.id)}
+                          className="text-xs text-red-400 hover:text-red-300 font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        className="flex-1 rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white placeholder-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        placeholder="First name"
+                        value={dep.firstName}
+                        onChange={e => updateDependent(dep.id, "firstName", e.target.value)}
+                      />
+                      <input
+                        className="flex-1 rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white placeholder-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        placeholder="Surname"
+                        value={dep.lastName}
+                        onChange={e => updateDependent(dep.id, "lastName", e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-violet-300 mb-1">Date of Birth</p>
+                      <input
+                        type="date"
+                        className="w-full rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        value={dep.dob}
+                        onChange={e => updateDependent(dep.id, "dob", e.target.value)}
+                      />
+                    </div>
+
+                    {ageWarning && (
+                      <div className="flex items-start gap-2 bg-amber-900/40 border border-amber-700/50 rounded-xl px-3 py-2">
+                        <span className="text-amber-400 text-sm mt-px">⚠</span>
+                        <p className="text-xs text-amber-300">This member's age may affect the group's premium band</p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Add buttons */}
+            <div className="flex gap-3 flex-wrap">
+              {(planType === "family" || planType === "single-parent") && (
+                <button
+                  onClick={() => addDependent("child")}
+                  className="flex-1 py-3 rounded-2xl border-2 border-dashed border-violet-400 text-violet-300 text-sm font-bold hover:border-violet-300 hover:text-violet-200 transition-all flex items-center justify-center gap-1.5"
+                >
+                  + Add Child
+                </button>
+              )}
+              {planType === "family" && !hasSpouse && (
+                <button
+                  onClick={() => addDependent("spouse")}
+                  className="flex-1 py-3 rounded-2xl border-2 border-dashed border-violet-400 text-violet-300 text-sm font-bold hover:border-violet-300 hover:text-violet-200 transition-all flex items-center justify-center gap-1.5"
+                >
+                  + Add Spouse
+                </button>
+              )}
+              {planType === "stokvel" && (
+                <button
+                  onClick={() => addDependent("member")}
+                  className="w-full py-3 rounded-2xl border-2 border-dashed border-violet-400 text-violet-300 text-sm font-bold hover:border-violet-300 hover:text-violet-200 transition-all flex items-center justify-center gap-1.5"
+                >
+                  + Add Member
+                </button>
+              )}
+            </div>
+
+            {dependents.length === 0 && (
+              <div className="rounded-xl bg-violet-950/50 border border-violet-800/40 px-4 py-4 text-center">
+                <p className="text-sm text-violet-300">
+                  {planType === "stokvel"
+                    ? "Add society members to your policy."
+                    : "Add your spouse and/or children to your policy."}
+                </p>
+                <p className="text-xs text-violet-400 mt-1">You can continue without adding members.</p>
+              </div>
+            )}
+
+            {/* Estimated premium */}
+            {basePremium > 0 && (
+              <div className="rounded-2xl bg-[#1e0a35] border border-violet-700/40 px-4 py-3 flex items-center justify-between">
+                <span className="text-sm text-violet-300">Estimated Premium</span>
+                <span className="text-lg font-bold text-emerald-400">{fmtR(totalMonthly)}/mo</span>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Step 4: Select Cover ── */}
+        {step === 4 && (
           <>
             {planType === "stokvel" && (
               <div>
@@ -477,8 +632,8 @@ export default function FuneralCoverPage({ onBack, profile }) {
           </>
         )}
 
-        {/* ── Step 4: Add Benefits ── */}
-        {step === 4 && (
+        {/* ── Step 5: Add Benefits ── */}
+        {step === 5 && (
           <>
             <p className="text-sm text-slate-500">Enhance your cover with optional benefits</p>
 
@@ -525,8 +680,8 @@ export default function FuneralCoverPage({ onBack, profile }) {
           </>
         )}
 
-        {/* ── Step 5: Review & Confirm ── */}
-        {step === 5 && (
+        {/* ── Step 6: Review & Confirm ── */}
+        {step === 6 && (
           <>
             {/* Policy Summary */}
             <div className="rounded-2xl bg-white border border-slate-100 shadow-md p-5">
@@ -538,6 +693,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
                   { label:"Cover Amount", value: fmtCover(coverAmount) },
                   { label:"Age", value: `${age} years` },
                   { label:"Waiting Period", value: "6 months" },
+                  ...(dependents.length > 0 ? [{ label: "Covered Members", value: `${dependents.length} person${dependents.length>1?"s":""}` }] : []),
                 ].map(row => (
                   <div key={row.label} className="flex items-center justify-between">
                     <span className="text-sm text-slate-500">{row.label}</span>
