@@ -22,6 +22,9 @@ import {
   Plus,
   Calendar,
   ChevronRight,
+  Handshake,
+  Gift,
+  Umbrella,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import NavigationPill from "../components/NavigationPill";
@@ -689,12 +692,11 @@ const HomePage = ({
       </div>
 
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
-        <section className="grid grid-cols-5 gap-2 text-[11px] font-medium">
+        <section className="grid grid-cols-4 gap-2 text-[11px] font-medium">
           {[
             { label: "Invest", icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
             { label: "Deposit", icon: ArrowDownToLine, onClick: onOpenDeposit },
             { label: "News", icon: Newspaper, onClick: () => (onOpenNews ? onOpenNews("news") : (onOpenInvest && onOpenInvest("news"))) },
-            { label: "Family", icon: Users, onClick: onOpenFamily },
             { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
           ].map((item, index) => {
             const Icon = item.icon;
@@ -709,6 +711,50 @@ const HomePage = ({
                   <Icon className="h-4 w-4" />
                 </span>
                 <span className="text-center leading-tight">{item.label}</span>
+              </button>
+            );
+          })}
+        </section>
+
+        {/* New Service Hub Section */}
+        <section className="grid grid-cols-4 gap-3">
+          {[
+            { label: "Family", icon: Users, onClick: onOpenFamily, comingSoon: false },
+            { label: "Stokvel", icon: Handshake, onClick: null, comingSoon: true },
+            { label: "Insure", icon: Umbrella, onClick: null, comingSoon: true },
+            { label: "Rewards", icon: Gift, onClick: null, comingSoon: true },
+          ].map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={index}
+                disabled={item.comingSoon}
+                onClick={item.onClick}
+                className={`relative flex flex-col items-center justify-center gap-3 rounded-[24px] aspect-square transition-all ${item.comingSoon
+                    ? "bg-slate-100/50 opacity-60 cursor-not-allowed border border-slate-200/50"
+                    : "bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] border border-slate-100 active:scale-95"
+                  }`}
+              >
+                <div className={`p-2.5 rounded-2xl ${item.comingSoon ? "bg-slate-200 text-slate-400" : "bg-violet-50 text-violet-600"}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <span className={`text-[11px] font-bold ${item.comingSoon ? "text-slate-400" : "text-slate-700"}`}>
+                  {item.label}
+                </span>
+
+                {item.comingSoon && (
+                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-max">
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[7px] font-bold uppercase tracking-wider text-white shadow-lg"
+                      style={{
+                        background: "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 50%, #6d28d9 100%)",
+                        boxShadow: "0 2px 8px rgba(109,40,217,0.25)",
+                      }}
+                    >
+                      Soon
+                    </span>
+                  </div>
+                )}
               </button>
             );
           })}
