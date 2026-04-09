@@ -668,6 +668,7 @@ const App = () => {
               onOpenInvest={noOp}
               onOpenWithdraw={noOp}
               onOpenSettings={noOp}
+              onOpenFamily={() => navigateTo("familyDashboard")}
             />
           </AppLayout>
         );
@@ -1133,6 +1134,7 @@ const App = () => {
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
           onOpenInstantLiquidity={() => navigateTo("instantLiquidity")}
+          onOpenFamily={() => navigateTo("familyDashboard")}
         />
       </AppLayout>
     );
