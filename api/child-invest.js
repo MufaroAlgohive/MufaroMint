@@ -27,10 +27,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Amount must be a positive number (in cents)." });
   }
 
-  // Authenticate parent
+  // Authenticate parent — authenticateUser returns { user, error }
   let parentUserId;
   try {
-    const user = await authenticateUser(req);
+    const { user } = await authenticateUser(req);
     parentUserId = user?.id;
   } catch {}
   if (!parentUserId) {
