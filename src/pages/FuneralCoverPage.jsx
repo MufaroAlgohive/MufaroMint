@@ -54,9 +54,16 @@ const ADDONS = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function parseDobLocal(dob) {
+  if (!dob) return null;
+  const parts = dob.split("-").map(Number);
+  if (parts.length === 3) return new Date(parts[0], parts[1] - 1, parts[2]);
+  return new Date(dob);
+}
 function calcAge(dob) {
   if (!dob) return null;
-  const b = new Date(dob), t = new Date();
+  const b = parseDobLocal(dob), t = new Date();
+  if (!b || isNaN(b)) return null;
   let a = t.getFullYear() - b.getFullYear();
   if (t.getMonth() - b.getMonth() < 0 || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--;
   return a;
@@ -289,7 +296,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
                 <div>
                   <p className="text-xs font-medium text-slate-400 mb-0.5">Date of Birth</p>
                   <p className="text-sm font-semibold text-slate-900">
-                    {new Date(profileDob).toLocaleDateString("en-ZA", { day:"2-digit", month:"long", year:"numeric" })}
+                    {parseDobLocal(profileDob)?.toLocaleDateString("en-ZA", { day:"2-digit", month:"long", year:"numeric" }) || profileDob}
                   </p>
                 </div>
                 <div className="text-right">
