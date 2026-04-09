@@ -202,7 +202,7 @@ export async function generateFuneralCoverPDF({
   dependents = [],
 }) {
   // Load assets (non-blocking — fails gracefully)
-  const [logoB64, sigB64, heroB64, coinB64, splashB64, familyB64, childrenB64] = await Promise.all([
+  const [logoB64, sigB64, heroB64, coinB64, splashB64, familyB64, childrenB64, handsB64] = await Promise.all([
     imgToBase64("/assets/mint-logo.png"),
     imgToBase64("/assets/ceo-signature.png"),
     imgToBase64("/assets/images/onboarding-hero.png"),
@@ -210,6 +210,7 @@ export async function generateFuneralCoverPDF({
     imgToBase64("/assets/splash.png"),
     imgToBase64("/assets/images/family-hero.jpeg"),
     imgToBase64("/assets/images/children-hero.jpeg"),
+    imgToBase64("/assets/images/hands-hero.jpeg"),
   ]);
 
   const doc       = new jsPDF({ unit: "mm", format: "a4" });
@@ -330,6 +331,11 @@ export async function generateFuneralCoverPDF({
   doc.text("Chief Executive Officer", L, y);
   y += 4.5;
   doc.text("Mint Financial Services (Pty) Ltd", L, y);
+
+  // ── Hands photo strip — full width between letter and GuardRisk box ─────────
+  if (handsB64) {
+    try { doc.addImage(handsB64, "JPEG", 0, 213, PW, 36); } catch { /* skip */ }
+  }
 
   // ── "underwritten by GuardRisk" box (bottom-right, like Capital Legacy) ────
   const boxW = 60, boxH = 22;
