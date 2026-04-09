@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, TrendingUp, TrendingDown, Heart, Users,
   ShieldCheck, Crown, Baby, UserPlus, Mail, Upload, Check, FileText,
-  ChevronDown, Clock, AlertCircle
+  ChevronDown, Clock, AlertCircle, Trash2
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
@@ -884,6 +884,9 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
   const [portfolioChange, setPortfolioChange] = useState(0);
   const [addingType, setAddingType] = useState(null);
   const [pledgeExpanded, setPledgeExpanded] = useState(false);
+  const [walletBalanceCents, setWalletBalanceCents] = useState(0);
+  const [confirmRemove, setConfirmRemove] = useState(null);
+  const [removingId, setRemovingId] = useState(null);
 
   const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "My Account";
   const familyLastName = profile?.lastName || "";
@@ -908,13 +911,37 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
   async function fetchPortfolio() {
     if (!userId) return;
     try {
-      const { data: holdings } = await supabase
-        .from("stock_holdings").select("market_value, unrealized_pnl").eq("user_id", userId);
-      if (holdings) {
-        setPortfolioValue(holdings.reduce((s, h) => s + (h.market_value || 0), 0));
-        setPortfolioChange(holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0));
-      }
+      const [holdingsRes, walletRes] = await Promise.all([
+        supabase.from("stock_holdings").select("market_value, unrealized_pnl").eq("user_id", userId),
+        supabase.from("wallets").select("balance").eq("user_id", userId).maybeSingle(),
+      ]);
+      const holdings = holdingsRes.data || [];
+      setPortfolioValue(holdings.reduce((s, h) => s + (h.market_value || 0), 0));
+      setPortfolioChange(holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0));
+      const walletRands = walletRes.data?.balance || 0;
+      setWalletBalanceCents(Math.round(walletRands * 100));
     } catch (e) { console.error("[family] portfolio", e); }
+  }
+
+  async function removeMember(member) {
+    setRemovingId(member.id);
+    try {
+      const res = await fetch("/api/family-members", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: member.id, primary_user_id: userId }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "Failed to remove member");
+      }
+      setMembers(prev => prev.filter(m => m.id !== member.id));
+      setConfirmRemove(null);
+    } catch (e) {
+      console.error("[family] remove", e.message);
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   function handleMemberSaved(member) {
@@ -924,7 +951,8 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
 
   const changePct = portfolioValue > 0
     ? ((portfolioChange / Math.max(portfolioValue - portfolioChange, 1)) * 100) : 0;
-  const spousalPledge = Math.round(portfolioValue * 0.6);
+  const totalWealthCents = portfolioValue + walletBalanceCents;
+  const spousalPledge = Math.round(totalWealthCents * 0.6);
   const isPositive = portfolioChange >= 0;
 
   const childAvatarGradients = [
@@ -1102,8 +1130,8 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
 
               {/* Spouse or placeholder */}
               {spouse ? (
-                <motion.div variants={item} className="rounded-2xl bg-white border border-slate-200 p-5" style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
-                  <div className="flex items-center gap-4">
+                <motion.div variants={item} className="rounded-2xl bg-white border border-slate-200 overflow-hidden" style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
+                  <div className="flex items-center gap-4 p-5">
                     <Avatar name={[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")} gradient="linear-gradient(135deg,#a855f7,#7c3aed)" size="h-12 w-12" text="text-lg" />
                     <div className="flex-1 min-w-0">
                       <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{[spouse.first_name, spouse.last_name].filter(Boolean).join(" ")}</p>
@@ -1121,8 +1149,38 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                         )}
                       </div>
                     </div>
-                    <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{fmt(0)}</p>
+                    <button
+                      onClick={() => setConfirmRemove(confirmRemove?.id === spouse.id ? null : spouse)}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition flex-shrink-0"
+                      aria-label="Remove spouse"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
+                  <AnimatePresence>
+                    {confirmRemove?.id === spouse.id && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden border-t border-red-100 bg-red-50"
+                      >
+                        <div className="flex items-center justify-between px-5 py-3 gap-3">
+                          <p className="text-[12px] font-semibold text-red-700 flex-1">Remove {spouse.first_name} as spouse?</p>
+                          <button
+                            onClick={() => setConfirmRemove(null)}
+                            className="text-[12px] font-semibold text-slate-500 px-3 py-1.5 rounded-lg hover:bg-white transition"
+                          >Cancel</button>
+                          <button
+                            onClick={() => removeMember(spouse)}
+                            disabled={removingId === spouse.id}
+                            className="text-[12px] font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition disabled:opacity-60"
+                          >{removingId === spouse.id ? "Removing…" : "Remove"}</button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               ) : !addingType && (
                 <motion.button
@@ -1159,52 +1217,86 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                   const certIdMatched = certStatus === "id_matched_pending_review";
                   const certPending = !certVerified && !!child.certificate_url;
                   return (
-                    <motion.button
+                    <motion.div
                       key={child.id}
                       variants={item}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => onOpenChildDashboard?.(child)}
-                      className="w-full text-left rounded-2xl bg-white border border-slate-200 p-5 transition"
+                      className="rounded-2xl bg-white border border-slate-200 overflow-hidden"
                       style={{ boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}
                     >
-                      <div className="flex items-center gap-4">
-                        <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-12 w-12" text="text-lg" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{childName}</p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
-                              <Baby className="h-3 w-3" />Child
-                            </span>
-                            {age !== null && (
-                              <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>
-                            )}
-                            {certVerified && (
-                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <ShieldCheck className="h-2.5 w-2.5" />Verified
+                      <div className="flex items-center gap-4 p-5">
+                        <button
+                          className="flex items-center gap-4 flex-1 min-w-0 text-left"
+                          onClick={() => onOpenChildDashboard?.(child)}
+                        >
+                          <Avatar name={childName} gradient={childAvatarGradients[i % childAvatarGradients.length]} size="h-12 w-12" text="text-lg" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[15px] font-semibold text-slate-900 leading-tight truncate">{childName}</p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase" style={{ background: "#faf5ff", color: "#7c3aed" }}>
+                                <Baby className="h-3 w-3" />Child
                               </span>
-                            )}
-                            {certIdMatched && !certVerified && (
-                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
-                                <Clock className="h-2.5 w-2.5" />ID Matched · Under Review
+                              {age !== null && (
+                                <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>
+                              )}
+                              {certVerified && (
+                                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <ShieldCheck className="h-2.5 w-2.5" />Verified
+                                </span>
+                              )}
+                              {certIdMatched && !certVerified && (
+                                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200">
+                                  <Clock className="h-2.5 w-2.5" />ID Matched · Under Review
+                                </span>
+                              )}
+                              {certPending && !certIdMatched && !certVerified && (
+                                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                                  <Clock className="h-2.5 w-2.5" />Cert Pending Review
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <ShieldCheck className="h-3 w-3 text-purple-400 flex-shrink-0" />
+                              <span className="text-[10px] text-slate-400 truncate">
+                                Managed by {profile?.firstName || "Parent"}
+                                {parentMint ? ` · #${parentMint}` : ""}
                               </span>
-                            )}
-                            {certPending && !certIdMatched && !certVerified && (
-                              <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-200">
-                                <Clock className="h-2.5 w-2.5" />Cert Pending Review
-                              </span>
-                            )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1.5 mt-1.5">
-                            <ShieldCheck className="h-3 w-3 text-purple-400 flex-shrink-0" />
-                            <span className="text-[10px] text-slate-400 truncate">
-                              Managed by {profile?.firstName || "Parent"}
-                              {parentMint ? ` · #${parentMint}` : ""}
-                            </span>
-                          </div>
-                        </div>
-                        <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{fmt(child.available_balance || 0)}</p>
+                          <p className="text-[15px] font-bold text-slate-900 tabular-nums flex-shrink-0">{fmt(child.available_balance || 0)}</p>
+                        </button>
+                        <button
+                          onClick={() => setConfirmRemove(confirmRemove?.id === child.id ? null : child)}
+                          className="flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition flex-shrink-0 ml-1"
+                          aria-label={`Remove ${childName}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                    </motion.button>
+                      <AnimatePresence>
+                        {confirmRemove?.id === child.id && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.18 }}
+                            className="overflow-hidden border-t border-red-100 bg-red-50"
+                          >
+                            <div className="flex items-center justify-between px-5 py-3 gap-3">
+                              <p className="text-[12px] font-semibold text-red-700 flex-1">Remove {child.first_name}'s account?</p>
+                              <button
+                                onClick={() => setConfirmRemove(null)}
+                                className="text-[12px] font-semibold text-slate-500 px-3 py-1.5 rounded-lg hover:bg-white transition"
+                              >Cancel</button>
+                              <button
+                                onClick={() => removeMember(child)}
+                                disabled={removingId === child.id}
+                                className="text-[12px] font-bold text-white bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg transition disabled:opacity-60"
+                              >{removingId === child.id ? "Removing…" : "Remove"}</button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
                   );
                 })}
 

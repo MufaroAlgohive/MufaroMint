@@ -6553,12 +6553,26 @@ app.post('/api/family-members', async (req, res) => {
 });
 
 app.delete('/api/family-members/:id', async (req, res) => {
-  const { id } = req.params;
-  const userId = req.query.user_id;
-  if (!userId) return res.status(400).json({ error: 'user_id required' });
+  const id = req.params.id || req.body?.member_id;
+  const userId = req.query.user_id || req.body?.primary_user_id;
+  if (!id || !userId) return res.status(400).json({ error: 'member_id and primary_user_id required' });
   try {
     const db = supabaseAdmin || supabase;
     const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[family] DELETE error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/family-members', async (req, res) => {
+  const { member_id, primary_user_id } = req.body || {};
+  if (!member_id || !primary_user_id) return res.status(400).json({ error: 'member_id and primary_user_id required' });
+  try {
+    const db = supabaseAdmin || supabase;
+    const { error } = await db.from('family_members').delete().eq('id', member_id).eq('primary_user_id', primary_user_id);
     if (error) throw error;
     return res.json({ success: true });
   } catch (e) {

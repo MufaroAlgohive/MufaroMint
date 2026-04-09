@@ -386,5 +386,25 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── DELETE /api/family-members ────────────────────────────────────────────
+  if (req.method === "DELETE") {
+    const { member_id, primary_user_id } = req.body || {};
+    if (!member_id || !primary_user_id) {
+      return res.status(400).json({ error: "member_id and primary_user_id required" });
+    }
+    try {
+      const { error } = await db
+        .from("family_members")
+        .delete()
+        .eq("id", member_id)
+        .eq("primary_user_id", primary_user_id);
+      if (error) throw error;
+      return res.json({ success: true });
+    } catch (e) {
+      console.error("[family] DELETE error:", e.message);
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   return res.status(405).json({ error: "Method not allowed" });
 }
