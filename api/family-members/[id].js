@@ -1,13 +1,13 @@
-import { supabase, supabaseAdmin } from "../_lib/supabase.js";
+import { supabase, supabaseAdmin, getClient } from "../_lib/supabase.js";
 
 export default async function handler(req, res) {
+  const db = getClient(req);
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "DELETE, PATCH, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const db = supabaseAdmin || supabase;
   if (!db) return res.status(500).json({ error: "Database not connected" });
 
   if (req.method === "DELETE") {

@@ -102,30 +102,33 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...MINT_PURPLE);
-  doc.text("PARENTAL RESPONSIBILITY AGREEMENT", MARGIN, y);
+  doc.text("CLIENT SECURITIES ADMINISTRATION AND NOMINEE", MARGIN, y);
   y += 6;
+  doc.text("APPOINTMENT AGREEMENT (MINOR ACCOUNT)", MARGIN, y);
+  y += 7;
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text("FOR MINOR CHILD INVESTMENT ACCOUNT MANAGEMENT", MARGIN, y);
+  doc.text("ACCORDING TO THE MINT PLATFORMS (PTY) LTD SERVICE FRAMEWORK", MARGIN, y);
   y += 12;
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(30, 30, 30);
-  doc.text("1. PARTICIPANT DETAILS", MARGIN, y);
+  doc.text("1. PARTIES TO THE AGREEMENT", MARGIN, y);
   y += 6;
 
-  y = drawRow(doc, y, "Parent / Guardian Name", parentName, COL1, COL2, MARGIN);
-  y = drawRow(doc, y, "Parent Identity Number", parentId, COL1, COL2, MARGIN);
-  y = drawRow(doc, y, "Child Full Name", childName, COL1, COL2, MARGIN);
-  y = drawRow(doc, y, "Child Date of Birth", childDob, COL1, COL2, MARGIN);
-  y = drawRow(doc, y, "Child Mint ID", childMint, COL1, COL2, MARGIN);
-  y = drawRow(doc, y, "Date Signed", formatDateLong(signedAt), COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "The Minor (Client)", childName, COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "Minor Identity Number", childData.id_number || "—", COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "Minor Mint ID", childMint, COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "The Legal Guardian", parentName, COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "Guardian Identity Number", parentId, COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "Relationship to Minor", "Parent/Legal Guardian", COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "Date of Agreement", formatDateLong(signedAt), COL1, COL2, MARGIN);
 
   y += 12;
   doc.setFont("helvetica", "bold");
-  doc.text("2. CORE AGREEMENT", MARGIN, y);
+  doc.text("2. REPRESENTATION AND WARRANTY", MARGIN, y);
   y += 6;
 
   const writePara = (text, indent = 0) => {
@@ -134,19 +137,40 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
     doc.setTextColor(60, 60, 60);
     const lines = doc.splitTextToSize(text, PAGE_W - MARGIN * 2 - indent);
     lines.forEach(line => {
+      // Check for page break
+      if (y > PAGE_H - MARGIN - 10) {
+        doc.addPage();
+        y = MARGIN + 10;
+      }
       doc.text(line, MARGIN + indent, y);
       y += 5;
     });
     y += 2;
   };
 
-  writePara("I, the undersigned Parent/Guardian, hereby agree and confirm the following:");
-  writePara("2.1 I represent and warrant that I am the legal parent or guardian of the Minor Child named above and possess the full legal capacity to enter into this agreement on their behalf.", 4);
-  writePara("2.2 I authorize Mint Platforms (Pty) Ltd to open an investment account in the name of the Minor Child, which will be linked to my primary account for management and oversight purposes.", 4);
-  writePara("2.3 I assume full responsibility for all investment decisions, transactions, and management actions taken within the Minor Child's account.", 4);
-  writePara("2.4 I acknowledge that I am responsible for ensuring that all funds deposited into the Minor Child's account are for the sole benefit of the Minor Child and comply with all South African anti-money laundering and tax regulations.", 4);
-  writePara("2.5 I agree to provide any additional documentation required by Mint or relevant financial authorities to verify my relationship with the Minor Child and the source of funds utilized for these investments.", 4);
-  writePara("2.6 I understand that this account is subject to the standard Terms & Conditions of Mint Platforms (Pty) Ltd, which I have previously accepted.", 4);
+  writePara("2.1 The Guardian hereby warrants that they are the legal parent or court-appointed guardian of the Minor and have the necessary legal capacity to enter into this Agreement on the Minor’s behalf.");
+  writePara("2.2 The Guardian warrants that all information provided regarding the Minor and the Guardian's relationship to the Minor is true, accurate, and complete.");
+
+  y += 6;
+  doc.setFont("helvetica", "bold");
+  doc.text("3. APPOINTMENT", MARGIN, y);
+  y += 6;
+  writePara("3.1 The Guardian, acting for and on behalf of the Minor, hereby appoints Mint Platforms (Pty) Ltd ('the Platform') as its nominee and administrator to manage the Minor's securities and investment account subject to the Platform's general Terms and Conditions.");
+
+  y += 6;
+  doc.setFont("helvetica", "bold");
+  doc.text("4. INDEMNITY AND RESPONSIBILITY", MARGIN, y);
+  y += 6;
+  writePara("4.1 The Guardian accepts full and exclusive legal and financial responsibility for the account, including all instructions (buy, sell, or transfer) provided to the Platform.");
+  writePara("4.2 The Guardian warrants that all funds utilized for investments in the Minor's account are for the sole benefit of the Minor and comply with South African anti-money laundering and tax regulations.");
+  writePara("4.3 The Guardian hereby indemnifies the Platform, its directors, and employees against any and all claims, losses, or damages made by the Minor upon reaching the age of majority, or by any third party, in relation to the management of this account.");
+  writePara("4.4 The Guardian acknowledges that they are responsible for any fees, costs, or tax liabilities associated with the account.");
+
+  y += 6;
+  doc.setFont("helvetica", "bold");
+  doc.text("5. TRANSITION OF AUTHORITY", MARGIN, y);
+  y += 6;
+  writePara("5.1 Upon the Minor reaching the age of majority (18 years), all control and authority over the account shall vest in the Minor, subject to the Minor confirming their identity and signing a new Client Agreement in their own capacity.");
 
   y += 10;
   doc.setFont("helvetica", "bold");
@@ -155,7 +179,7 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text("Signed by Parent/Guardian:", MARGIN, y);
+  doc.text(`Signed by Guardian, acting in their capacity as parent/legal guardian of ${childName}:`, MARGIN, y);
   
   if (signatureDataUrl) {
     doc.addImage(signatureDataUrl, "PNG", MARGIN, y + 2, 40, 15);
@@ -248,17 +272,17 @@ export default function ChildResponsibilityAgreement({
 
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 max-h-[220px] overflow-y-auto custom-scrollbar">
         <div className="flex flex-col gap-3 text-[12px] text-slate-600 font-medium">
-          <p className="font-bold text-slate-900 border-b pb-2 uppercase tracking-wide">Agreement Summary</p>
+          <p className="font-bold text-slate-900 border-b pb-2 uppercase tracking-wide">Legal Appointment Summary</p>
           <div className="flex justify-between items-center py-1 border-b border-slate-100">
-            <span>Parent/Guardian</span>
+            <span>Legal Guardian</span>
             <span className="text-slate-900 font-bold">{parentProfile.firstName} {parentProfile.lastName}</span>
           </div>
           <div className="flex justify-between items-center py-1 border-b border-slate-100">
-            <span>Beneficiary</span>
+            <span>Minor (Client)</span>
             <span className="text-slate-900 font-bold">{childData.first_name} {childData.last_name || ""}</span>
           </div>
           <p className="mt-2 text-[11px] leading-relaxed italic">
-            "I acknowledge full legal responsibility for all investment actions taken on behalf of the minor beneficiary and confirm that all funds are for their exclusive benefit."
+            "I warrant my legal authority as guardian and accept full fiduciary responsibility for this minor investment account under the Securities Administration Agreement."
           </p>
         </div>
       </div>
