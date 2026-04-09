@@ -25,9 +25,6 @@ function fmt(cents) {
   return `R\u202F${val.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function fmtRands(rands) {
-  return `R\u202F${(rands || 0).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 // ─── Animation variants ─────────────────────────────────────────────────────
 
@@ -565,9 +562,9 @@ function HoldingRow({ holding }) {
         <p className="text-[11px] text-slate-600 truncate font-medium">{securityName}</p>
       </div>
       <div className="text-right flex-shrink-0">
-        <p className="text-sm font-bold text-slate-900 tabular-nums">{fmtRands(holding.market_value || 0)}</p>
+        <p className="text-sm font-bold text-slate-900 tabular-nums">{fmt(holding.market_value || 0)}</p>
         <p className="text-[11px] font-semibold tabular-nums text-purple-600">
-          {isUp ? "+" : ""}{fmtRands(holding.unrealized_pnl || 0)}
+          {isUp ? "+" : ""}{fmt(holding.unrealized_pnl || 0)}
         </p>
       </div>
     </div>
@@ -811,7 +808,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <p className="text-[10px] font-semibold tracking-[0.16em] text-white/45 uppercase mb-1">Portfolio Value</p>
-                  <p className="text-2xl font-bold text-white tracking-tight">{fmtRands(totalPortfolio)}</p>
+                  <p className="text-2xl font-bold text-white tracking-tight">{fmt(totalPortfolio)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-semibold tracking-[0.16em] text-white/45 uppercase mb-1">All-time return</p>
@@ -820,7 +817,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                     style={{ color: isPortUp ? "#86efac" : "#fca5a5" }}
                   >
                     {isPortUp ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
-                    {isPortUp ? "+" : ""}{fmtRands(totalPnl)}&nbsp;
+                    {isPortUp ? "+" : ""}{fmt(totalPnl)}&nbsp;
                     <span className="font-semibold opacity-80">({pnlPct >= 0 ? "+" : ""}{pnlPct.toFixed(1)}%)</span>
                   </span>
                 </div>
