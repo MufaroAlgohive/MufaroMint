@@ -1,4 +1,10 @@
 import { jsPDF } from "jspdf";
+import {
+  getChildCoverAmount,
+  getChildAgeBracket,
+  FSP_NUMBER,
+  WAITING_PERIOD_MONTHS,
+} from "./funeralCoverRates";
 
 // ─── Brand ────────────────────────────────────────────────────────────────────
 const DARK_PURPLE  = [14,  5,  45];   // near-black violet – main banner bg
@@ -178,7 +184,7 @@ function addFooters(doc, fullName, policyNo, dateStr, logoB64) {
       PW / 2, PH - 10, { align: "center" }
     );
     doc.text(
-      "support@mymint.co.za  |  Mint Financial Services (Pty) Ltd  |  FSP No. 55118",
+      `support@mymint.co.za  |  Mint Financial Services (Pty) Ltd  |  FSP No. ${FSP_NUMBER}`,
       PW / 2, PH - 5.5, { align: "center" }
     );
   }
@@ -510,33 +516,49 @@ export async function generateFuneralCoverPDF({
     y += 15;
 
     y = tHead(doc, [
-      { label: "Name",          w: 68 },
-      { label: "Type",          w: 36 },
-      { label: "Date of Birth", w: 38 },
-      { label: "Age",           w: 20, align: "right" },
-      { label: "Allocation",    w: 28, align: "right" },
+      { label: "Name",          w: 58 },
+      { label: "Type",          w: 30 },
+      { label: "Date of Birth", w: 32 },
+      { label: "Age",           w: 18, align: "right" },
+      { label: "Cover Benefit", w: 44, align: "right" },
     ], y);
 
     dependents.forEach((dep, i) => {
       if (y > 250) { doc.addPage(); banner(doc, 0, 14, DARK_PURPLE); if (logoWhiteB64) { try { doc.addImage(logoWhiteB64, "PNG", R - 38, 2, 38, 4.8); } catch { /* skip */ } } y = 22; }
       const depName = [dep.firstName, dep.lastName].filter(Boolean).join(" ") || "—";
       const depType = dep.type === "spouse" ? "Spouse" : dep.type === "member" ? "Society Member" : "Child";
-      let depAge = "—";
+
+      // Calculate age
+      let depAgeYears = null;
+      let depAgeStr = "—";
       if (dep.dob) {
         const parts = dep.dob.split("-").map(Number);
         if (parts.length === 3) {
           const now = new Date();
           let a = now.getFullYear() - parts[0];
           if (now.getMonth() + 1 < parts[1] || (now.getMonth() + 1 === parts[1] && now.getDate() < parts[2])) a--;
-          depAge = `${a} yrs`;
+          depAgeYears = a;
+          depAgeStr = `${a} yrs`;
         }
       }
+
+      // Determine cover benefit from child cover matrix or main cover
+      let benefitStr = "Full cover";
+      if (dep.type === "child" && depAgeYears !== null && coverAmount) {
+        const childBenefit = getChildCoverAmount(coverAmount, depAgeYears);
+        benefitStr = childBenefit > 0
+          ? `R ${childBenefit.toLocaleString("en-ZA")} (${getChildAgeBracket(depAgeYears)})`
+          : "Not eligible";
+      } else if (dep.type === "spouse") {
+        benefitStr = `R ${Number(coverAmount || 0).toLocaleString("en-ZA")}`;
+      }
+
       y = tRow(doc, [
-        { text: depName,  w: 68 },
-        { text: depType,  w: 36 },
-        { text: dep.dob || "—", w: 38 },
-        { text: depAge,   w: 20, align: "right" },
-        { text: "100%",   w: 28, align: "right" },
+        { text: depName,    w: 58 },
+        { text: depType,    w: 30 },
+        { text: dep.dob || "—", w: 32 },
+        { text: depAgeStr,  w: 18, align: "right" },
+        { text: benefitStr, w: 44, align: "right", bold: true },
       ], y, i % 2 === 0);
     });
     y += 6;
@@ -583,7 +605,7 @@ export async function generateFuneralCoverPDF({
   y = sectionBanner(doc, "IMPORTANT TERMS & CONDITIONS", 14, "", MID_PURPLE);
 
   [
-    { head: "Waiting Period", body: "A waiting period of six (6) months applies to all claims from the commencement date. No claims will be paid during this period, except for accidental death where the Accidental Death benefit has been selected." },
+    { head: "Waiting Period", body: `A waiting period of ${WAITING_PERIOD_MONTHS} months applies to all claims from the commencement date. No claims will be paid during this period, except for accidental death where the Accidental Death benefit has been selected.` },
     { head: "Premium Changes", body: "Benefits and premium rates may change. You will be given thirty-one (31) days' notice. Continued payment of premiums after notice constitutes acceptance of the change." },
     { head: "Claim Submission", body: "All claims must be submitted within six (6) months of the insured event. Required documentation: certified death certificate, ID documents, and completed claim form." },
     { head: "Lapse & Reinstatement", body: "If premiums are not paid within thirty (30) days' grace, this policy lapses. Reinstatement is subject to approval and may require a new waiting period." },
