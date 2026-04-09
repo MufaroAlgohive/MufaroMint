@@ -3,6 +3,11 @@ import { Resend } from "resend";
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
+function isValidUuid(str) {
+  return typeof str === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+}
+
 function getResend() {
   if (!process.env.RESEND_API_KEY) return null;
   return new Resend(process.env.RESEND_API_KEY);
@@ -116,7 +121,7 @@ export default async function handler(req, res) {
 
       const members = data || [];
       const spouseLinkedUserIds = members
-        .filter((m) => m.relationship === "spouse" && m.linked_user_id)
+        .filter((m) => m.relationship === "spouse" && isValidUuid(m.linked_user_id))
         .map((m) => m.linked_user_id);
 
       if (spouseLinkedUserIds.length > 0) {
@@ -164,7 +169,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "relationship must be spouse or child" });
     }
 
-    const { id_number, email, certificate_url, certificate_verification_status } = req.body || {};
+    const { id_number, certificate_verification_status } = req.body || {};
 
     try {
       /* ──────────────── SPOUSE ──────────────── */
