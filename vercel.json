@@ -21,7 +21,11 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://*.truidconnect.io https://truidconnect.io https://*.thealgohive.com https://thealgohive.com https://algo-money-nine.vercel.app"
+          "value": "frame-ancestors *"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "ALLOWALL"
         }
       ]
     },
