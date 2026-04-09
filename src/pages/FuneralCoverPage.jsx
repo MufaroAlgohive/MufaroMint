@@ -277,8 +277,8 @@ export default function FuneralCoverPage({ onBack, profile }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <div className="bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 pt-12 pb-5 flex-shrink-0">
-        <div className="mx-auto w-full max-w-sm md:max-w-md">
+      <div className="bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] pt-12 pb-5 flex-shrink-0">
+        <div className="mx-auto w-full max-w-sm md:max-w-md px-4">
           <div className="flex items-center justify-between mb-4">
             <button onClick={handleBack} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm transition hover:bg-white/20 active:scale-95">
               <ArrowLeft className="h-5 w-5" />
@@ -304,7 +304,8 @@ export default function FuneralCoverPage({ onBack, profile }) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 flex flex-col gap-4 mx-auto w-full max-w-sm md:max-w-md">
+      <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-sm md:max-w-md px-4 py-5 flex flex-col gap-4">
 
         {/* ── Step 1: Choose Plan ── */}
         {step === 1 && (
@@ -738,6 +739,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
             </div>
           </>
         )}
+      </div>
       </div>
 
       {/* Footer button */}
