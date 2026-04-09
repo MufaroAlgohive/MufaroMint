@@ -769,15 +769,15 @@ const HomePage = ({
         ) : null}
 
         {/* Market Insights */}
-        <section>
-          <div className="flex items-end justify-between px-5 mb-3">
+        <section className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden">
+          <div className="flex items-end justify-between px-5 py-4 border-b border-slate-100">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-900">
                 Market Insights
               </p>
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <Newspaper className="h-3 w-3" />
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 bg-slate-50">
+                  <Newspaper className="h-2.5 w-2.5" />
                 </span>
                 <span>Latest updates for your portfolio</span>
               </div>
@@ -790,13 +790,13 @@ const HomePage = ({
             </button>
           </div>
 
-          <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
+          <div className="divide-y divide-slate-100">
             {news.length > 0 ? (
               news.slice(0, 4).map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onOpenNewsArticle && onOpenNewsArticle(item.id)}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-slate-50"
+                  className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors active:bg-slate-50"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -838,17 +838,17 @@ const HomePage = ({
         </section>
 
         {/* Investment Goals */}
-        <section>
-          <div className="flex items-end justify-between px-5 mb-3">
+        <section className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden">
+          <div className="flex items-end justify-between px-5 py-4 border-b border-slate-100">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-slate-900">
                 Investment Goals
               </p>
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <Target className="h-3 w-3" />
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500 bg-slate-50">
+                  <Target className="h-2.5 w-2.5" />
                 </span>
-                <span>Track progress towards your goals</span>
+                <span>Track your long-term wealth</span>
               </div>
             </div>
             <button
@@ -859,22 +859,21 @@ const HomePage = ({
             </button>
           </div>
 
-          {loadingGoals ? (
-            <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
-              {[0, 1].map((i) => (
-                <div key={i} className="flex items-center gap-3 px-4 py-3.5">
-                  <Skeleton className="h-10 w-10 rounded-2xl" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-1.5 w-full rounded-full" />
-                    <Skeleton className="h-3 w-24" />
+          <div className="divide-y divide-slate-100">
+            {loadingGoals ? (
+              <div className="divide-y divide-slate-100">
+                {[0, 1].map((i) => (
+                  <div key={i} className="flex items-center gap-3 px-5 py-4">
+                    <Skeleton className="h-10 w-10 rounded-2xl" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-1.5 w-full rounded-full" />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : goals.length > 0 ? (
-            <div className="rounded-3xl bg-white shadow-[0_2px_16px_-2px_rgba(0,0,0,0.08)] overflow-hidden divide-y divide-slate-100">
-              {goals.map((goal) => {
+                ))}
+              </div>
+            ) : goals.length > 0 ? (
+              goals.map((goal) => {
                 const invested = goal.current_amount || 0;
                 const target = goal.target_amount || 0;
                 const progress = target > 0 ? Math.min(100, (invested / target) * 100) : 0;
@@ -883,7 +882,7 @@ const HomePage = ({
                     key={goal.id}
                     type="button"
                     onClick={() => handleEditClick(goal)}
-                    className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors active:bg-slate-50"
+                    className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors active:bg-slate-50"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-600 flex-shrink-0">
                       <Target className="h-5 w-5" />
@@ -922,24 +921,24 @@ const HomePage = ({
                     <ChevronRight className="h-4 w-4 text-slate-300 flex-shrink-0" />
                   </button>
                 );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
-                <Target className="h-8 w-8" />
+              })
+            ) : (
+              <div className="p-10 text-center">
+                <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
+                  <Target className="h-8 w-8" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900 mb-1">No goals yet</p>
+                <p className="text-xs text-slate-500 mb-6">Set investment goals to track your progress</p>
+                <button
+                  type="button"
+                  onClick={() => setShowGoalsModal(true)}
+                  className="inline-flex items-center justify-center rounded-full bg-slate-900 px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
+                >
+                  Create Goal
+                </button>
               </div>
-              <p className="text-sm font-semibold text-slate-900 mb-1">No goals yet</p>
-              <p className="text-xs text-slate-500 mb-4">Set investment goals to track your progress</p>
-              <button
-                type="button"
-                onClick={() => setShowGoalsModal(true)}
-                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
-              >
-                Create your first goal
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </section>
 
         {/* Best Performing Assets */}
