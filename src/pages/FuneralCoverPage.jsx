@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { ArrowLeft, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain } from "lucide-react";
+import { ArrowLeft, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain, FileText, Loader2 } from "lucide-react";
+import { generateFuneralCoverPDF } from "../lib/generateFuneralCoverPDF";
 
 // ─── Premium Tables ───────────────────────────────────────────────────────────
 
@@ -130,6 +131,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
 
   // Step 5
   const [deductionDate, setDeductionDate] = useState("1st");
+  const [generating, setGenerating] = useState(false);
 
   // Derived
   const age = useManualAge ? manualAge : (calcAge(dob) ?? manualAge);
@@ -188,6 +190,29 @@ export default function FuneralCoverPage({ onBack, profile }) {
 
   function toggleAddon(key) {
     setAddons(prev => prev.includes(key) ? prev.filter(k=>k!==key) : [...prev, key]);
+  }
+
+  async function handleGeneratePDF() {
+    setGenerating(true);
+    try {
+      await new Promise(r => setTimeout(r, 50));
+      generateFuneralCoverPDF({
+        firstName,
+        lastName,
+        age,
+        ageBand,
+        planType,
+        planLabel: PLAN_TYPES.find(p => p.key === planType)?.label || planType,
+        coverAmount,
+        basePremium,
+        addonDetails,
+        totalMonthly,
+        deductionDate,
+        societySize: planType === "stokvel" ? societySize : null,
+      });
+    } finally {
+      setGenerating(false);
+    }
   }
 
   function handleContinue() {
@@ -542,12 +567,18 @@ export default function FuneralCoverPage({ onBack, profile }) {
       {/* Footer button */}
       <div className="flex-shrink-0 px-4 py-4 bg-white border-t border-slate-100">
         <button
-          onClick={step === TOTAL_STEPS ? () => alert("Policy document generation coming soon.") : handleContinue}
-          disabled={!canProceed()}
-          className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ background: canProceed() ? "linear-gradient(135deg,#7c3aed,#6d28d9)" : undefined, backgroundColor: canProceed() ? undefined : "#cbd5e1" }}
+          onClick={step === TOTAL_STEPS ? handleGeneratePDF : handleContinue}
+          disabled={!canProceed() || generating}
+          className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          style={{ background: (canProceed() && !generating) ? "linear-gradient(135deg,#7c3aed,#6d28d9)" : "#cbd5e1" }}
         >
-          {step === TOTAL_STEPS ? "Generate Policy Document" : "Continue"}
+          {step === TOTAL_STEPS ? (
+            generating ? (
+              <><Loader2 className="h-4 w-4 animate-spin" />Generating document…</>
+            ) : (
+              <><FileText className="h-4 w-4" />Generate Policy Document</>
+            )
+          ) : "Continue"}
         </button>
       </div>
     </div>
