@@ -123,8 +123,9 @@ const HomePage = ({
     try {
       const { data: holdings, error: holdingsError } = await supabase
         .from('stock_holdings')
-        .select('id, security_id, quantity, avg_fill, market_value, unrealized_pnl')
-        .eq('user_id', profile.id);
+        .select('id, security_id, quantity, avg_fill, market_value, unrealized_pnl, Status')
+        .eq('user_id', profile.id)
+        .eq('Status', 'active');
 
       if (holdingsError) throw holdingsError;
 
