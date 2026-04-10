@@ -8,7 +8,7 @@ import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer } from "r
 import { supabase } from "../lib/supabase";
 import { getStrategiesWithMetrics, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
 import { formatCurrency } from "../lib/formatCurrency";
-import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment, getAdjustedShares } from "../lib/strategyUtils";
+import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment, calculateYtdReturn, getAdjustedShares } from "../lib/strategyUtils";
 
 const sortOptions = [
   "Recommended",
@@ -204,7 +204,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
           chunks.map((symbols) => (
             supabase
               .from("securities")
-              .select("symbol, name, logo_url, last_price")
+              .select("symbol, name, logo_url, last_price, ytd_start_price")
               .in("symbol", symbols)
           )),
         );
@@ -594,8 +594,8 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
               style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
             >
               {filteredStrategies.map((strategy) => {
-                // Calculate display values from strategy_metrics
-                const ytdReturn = strategy.r_ytd ?? null;
+                // Calculate live YTD return from holdings prices (falls back to strategy_metrics.r_ytd)
+                const ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
                 const hasYtd = ytdReturn !== null && ytdReturn !== undefined;
                 const holdings = getHoldingsArray(strategy);
                 

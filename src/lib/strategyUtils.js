@@ -48,6 +48,40 @@ const getMinFromPrice = (price) => {
   return Math.max(Math.round(price), MIN_ASSET_VALUE);
 };
 
+/**
+ * Calculate live YTD return for a strategy using the formula:
+ * YTD = Σ(last_price × shares) / Σ(ytd_start_price × shares) - 1
+ * Falls back to strategy.r_ytd from strategy_metrics if ytd_start_price not set.
+ */
+export const calculateYtdReturn = (strategy, holdingsBySymbol) => {
+  const holdings = getHoldingsArray(strategy);
+  if (holdings.length > 0) {
+    let todayValue = 0;
+    let jan1Value = 0;
+    let matched = 0;
+    for (const holding of holdings) {
+      const rawSymbol = holding.ticker || holding.symbol || holding;
+      const normalizedSym = normalizeSymbol(rawSymbol);
+      const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSym);
+      const lastPrice = Number(security?.last_price ?? 0);
+      const startPrice = Number(security?.ytd_start_price ?? 0);
+      if (lastPrice > 0 && startPrice > 0) {
+        const shares = Number(holding.shares || holding.quantity || 1);
+        todayValue += lastPrice * shares;
+        jan1Value += startPrice * shares;
+        matched++;
+      }
+    }
+    if (matched > 0 && jan1Value > 0) {
+      return (todayValue / jan1Value) - 1;
+    }
+  }
+  // Fallback: use stored r_ytd from strategy_metrics
+  const raw = strategy?.r_ytd ?? null;
+  if (raw !== null && typeof raw === 'number' && isFinite(raw) && raw > -1 && raw < 5) return raw;
+  return null;
+};
+
 export const calculateMinInvestment = (strategy, holdingsBySymbol) => {
   const holdings = getHoldingsArray(strategy);
   if (!holdings.length) {

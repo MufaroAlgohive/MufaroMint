@@ -539,6 +539,14 @@ async function runSettlementMigration() {
   } catch (e) {
     console.log('[holdings] Could not add is_active/exit_price columns (may already exist)');
   }
+
+  // Add ytd_start_price column to securities for live YTD return calculation
+  try {
+    await db.rpc('exec_sql', { query: 'ALTER TABLE securities ADD COLUMN IF NOT EXISTS ytd_start_price INTEGER' });
+    console.log('[securities] ytd_start_price column ensured');
+  } catch (e) {
+    console.log('[securities] ytd_start_price column may already exist (ok)');
+  }
 }
 
 async function migrateGoalColumns() {
@@ -7024,6 +7032,31 @@ app.post("/api/insurance/send-policy-email", async (req, res) => {
   } catch (err) {
     console.error("[insurance/send-policy-email] Error:", err);
     return res.status(500).json({ success: false, error: err.message || "Failed to send policy email" });
+  }
+});
+
+// ── Admin: snapshot current prices as YTD start (run on Jan 1 each year) ──
+app.post('/api/admin/set-ytd-prices', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Unauthorised' });
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorised' });
+
+    const adminDb = supabaseAdmin || supabase;
+    if (!adminDb) return res.status(503).json({ error: 'Database not available' });
+
+    // Snapshot last_price → ytd_start_price for all securities that have a price
+    const { error: updateErr } = await adminDb.rpc('exec_sql', {
+      query: 'UPDATE securities SET ytd_start_price = last_price WHERE last_price IS NOT NULL AND last_price > 0'
+    });
+    if (updateErr) throw new Error(updateErr.message);
+    console.log(`[admin] ytd_start_price snapshot applied by ${user.email}`);
+    return res.json({ success: true, message: 'YTD start prices updated from current last_price values.' });
+  } catch (err) {
+    console.error('[admin] set-ytd-prices error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 
