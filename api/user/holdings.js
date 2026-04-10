@@ -30,13 +30,15 @@ export default async function handler(req, res) {
     const holdingsResult = await db
       .from("stock_holdings")
       .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("Status", "active");
 
     if (holdingsResult.error && holdingsResult.error.message && holdingsResult.error.message.includes("settlement_status")) {
       const fallback = await db
         .from("stock_holdings")
         .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .eq("Status", "active");
       holdings = fallback.data;
       holdingsError = fallback.error;
     } else {
