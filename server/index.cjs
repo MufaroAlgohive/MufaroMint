@@ -6593,58 +6593,31 @@ app.post('/api/family-members', async (req, res) => {
           } else if (e1) { throw e1; } else { member = d1; }
         }
 
-        // Send pairing code email
+        // Send pairing code email using branded Mint template
         const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
         const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
         const recipientName = matchedProfile.first_name || '';
-        const greeting = recipientName ? `Hi ${recipientName},` : 'Hi there,';
 
         const resendKey = process.env.RESEND_API_KEY;
-        if (resendKey) {
+        if (!resendKey) {
+          console.warn('[family] RESEND_API_KEY not set — pairing code email NOT sent. Code:', pairingCode);
+        } else {
           try {
             const { Resend } = require('resend');
+            const { buildSpousePairingHtml } = await import('../api/_lib/order-email-templates.js');
             const resend = new Resend(resendKey);
-            await resend.emails.send({
+            const emailHtml = buildSpousePairingHtml({ recipientName, inviterName, pairingCode });
+            const resp = await resend.emails.send({
               from: 'Mint <noreply@mymint.co.za>',
               to: [normalizedEmail],
               subject: `Your Mint pairing code from ${inviterName}`,
-              html: `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
-</head>
-<body style="margin:0;padding:0;background:#EEEAF5;font-family:'Barlow',Helvetica,Arial,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;padding:40px 20px;">
-    <div style="background:#3D1A6B;border-radius:16px 16px 0 0;padding:20px 32px;text-align:center;">
-      <div style="font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:36px;font-weight:800;color:white;letter-spacing:4px;text-transform:uppercase;">MINT</div>
-      <div style="color:rgba(255,255,255,0.55);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Family Account Linking</div>
-    </div>
-    <div style="height:3px;background:linear-gradient(90deg,#5B2D8E,#7B4DB0,#EDE8F8);"></div>
-    <div style="background:white;border-radius:0 0 16px 16px;padding:36px 32px;">
-      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">${greeting}</p>
-      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">
-        <strong style="color:#3D1A6B;">${inviterName}</strong> wants to link your <strong style="color:#3D1A6B;">MINT</strong> account to their family profile as their spouse.
-      </p>
-      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0 0 24px;">
-        If you agree, share the pairing code below with them. They will enter it in the Mint app to complete the link. <strong>This code expires in 1 hour.</strong>
-      </p>
-      <div style="background:#F3EEFF;border:2px solid #C4B5FD;border-radius:16px;padding:24px;text-align:center;margin-bottom:24px;">
-        <p style="margin:0 0 8px;color:#7C3AED;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Your Pairing Code</p>
-        <p style="margin:0;font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:48px;font-weight:800;color:#3D1A6B;letter-spacing:10px;">${pairingCode}</p>
-      </div>
-      <p style="color:#94a3b8;font-size:11px;text-align:center;margin:0;">
-        If you weren&rsquo;t expecting this request, you can safely ignore this email. Do not share this code with anyone other than ${inviterName}.
-      </p>
-    </div>
-    <p style="color:#a0aec0;font-size:10px;text-align:center;margin-top:16px;">
-      Mint Financial Services (Pty) Ltd &nbsp;·&nbsp; FSP No. 55118
-    </p>
-  </div>
-</body>
-</html>`,
+              html: emailHtml,
             });
+            if (resp.error) {
+              console.error('[family] Pairing code email send error:', resp.error);
+            } else {
+              console.log(`[family] Pairing code email sent to ${normalizedEmail}, id: ${resp.data?.id}`);
+            }
           } catch (emailErr) {
             console.error('[family] Pairing code email failed:', emailErr.message);
           }

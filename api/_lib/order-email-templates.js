@@ -399,3 +399,57 @@ export function buildPolicySummaryHtml({
       "Mint Financial Services (Pty) Ltd FSP No. 55118. A 6-month waiting period applies from commencement. Benefits and premium rates may change with 31 days' notice. Claims must be submitted within 6 months of the insured event. This is not a tax invoice.",
   });
 }
+
+/**
+ * Spouse Account Pairing Email — sent to the spouse with their 6-digit code
+ *
+ * @param {object} params
+ * @param {string} params.recipientName  - spouse's first name (or empty string)
+ * @param {string} params.inviterName    - the primary account holder's full name
+ * @param {string} params.pairingCode    - 6-digit numeric code
+ */
+export function buildSpousePairingHtml({ recipientName, inviterName, pairingCode }) {
+  const greeting = recipientName ? `Hi ${recipientName},` : 'Hi there,';
+
+  // Render each digit of the code in its own box for clarity
+  const digitBoxStyle = `display:inline-block; width:44px; height:56px; line-height:56px; text-align:center; font-family:${F}; font-size:28px; font-weight:800; color:#4a1d96; background:#f3eeff; border:2px solid #c4b5fd; border-radius:12px; margin:0 4px;`;
+  const codeDigits = String(pairingCode).split('').map(d => `<span style="${digitBoxStyle}">${d}</span>`).join('');
+
+  const body = `
+    <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 24px;">${greeting}</p>
+    <p style="font-size:16px; color:#475569; line-height:1.6; margin:0 0 24px;">
+      <strong style="color:#4a1d96;">${inviterName}</strong> wants to link your
+      <strong style="color:#4a1d96;">Mint</strong> account to their family profile as their spouse.
+    </p>
+    <p style="font-size:14px; color:#64748b; line-height:1.6; margin:0 0 32px;">
+      If you agree, share the 6-digit code below with them. They will enter it in
+      the Mint app to complete the link. <strong>This code expires in 1 hour.</strong>
+    </p>
+
+    <div style="background:#f8f4ff; border:2px solid #c4b5fd; border-radius:20px; padding:32px 24px; text-align:center; margin-bottom:32px;">
+      <div style="font-size:11px; font-weight:700; color:#7c3aed; text-transform:uppercase; letter-spacing:0.15em; margin-bottom:20px;">Your Pairing Code</div>
+      <div style="white-space:nowrap;">${codeDigits}</div>
+      <div style="font-size:12px; color:#94a3b8; margin-top:20px;">Valid for 1 hour &nbsp;·&nbsp; Do not share with anyone other than ${inviterName}</div>
+    </div>
+
+    ${detailRow("Requested by", `<strong>${inviterName}</strong>`)}
+    ${detailRow("Purpose", "Spouse Account Linking")}
+    ${detailRow("Action Required", `<span style="color:#d97706; font-weight:700;">Share code with ${inviterName}</span>`)}
+
+    <p style="font-size:13px; color:#94a3b8; line-height:1.6; margin:32px 0 0;">
+      If you were not expecting this request, you can safely ignore this email.
+      Your account will not be linked unless you share this code.
+    </p>
+
+    <div style="margin-top:40px; text-align:center;">
+      <a href="https://www.mymint.co.za" style="${S.button}">Open Mint &rarr;</a>
+    </div>`;
+
+  return buildShell({
+    heroLabel: "Family Account Linking",
+    heroTitle: "Someone wants to<br>link your Mint account.",
+    body,
+    footerNote:
+      "Mint Financial Services (Pty) Ltd FSP No. 55118. This code is valid for 1 hour and can only be used once. If you did not request this, please contact us at info@mymint.co.za.",
+  });
+}
