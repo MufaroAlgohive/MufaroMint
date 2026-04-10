@@ -63,9 +63,17 @@ const slideVariants = {
 
 function AddMemberModal({ type, userId, profile, onSave, onClose }) {
   /* ── Spouse state ── */
+  const [spouseMode, setSpouseMode] = useState(null); // null | 'link' | 'invite'
+  // Link mode
+  const [spouseLinkEmail, setSpouseLinkEmail] = useState("");
+  const [spouseLinkId, setSpouseLinkId] = useState("");
+  const [spousePending, setSpousePending] = useState(null); // { member_id, masked_email } after code sent
+  const [spousePairingCode, setSpousePairingCode] = useState("");
+  // Invite mode
   const [spouseFirstName, setSpouseFirstName] = useState("");
   const [spouseLastName, setSpouseLastName] = useState("");
   const [spouseEmail, setSpouseEmail] = useState("");
+  // Shared result
   const [spouseResult, setSpouseResult] = useState(null); // null | { linked, kyc_pending, member } | { invited, … }
 
   /* ── Child state ── */
@@ -82,8 +90,60 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
 
   const isSpouse = type === "spouse";
 
-  /* ── Spouse: submit name + surname + email ── */
-  async function handleSpouseSubmit() {
+  /* ── Spouse: send pairing code (link existing Mint member) ── */
+  async function handleSpouseLinkSubmit() {
+    if (!spouseLinkEmail.trim() || !spouseLinkEmail.includes("@")) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/family-members", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          primary_user_id: userId,
+          relationship: "spouse",
+          mode: "link",
+          email: spouseLinkEmail.trim(),
+          id_number: spouseLinkId.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error || "Could not send pairing request."); return; }
+      setSpousePending({ member_id: json.member_id, masked_email: json.masked_email });
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* ── Spouse: confirm pairing code ── */
+  async function handleSpouseConfirmCode() {
+    const code = spousePairingCode.trim();
+    if (!code || code.length < 6) { setError("Please enter the 6-digit code."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const res = await fetch("/api/family-members/confirm-pairing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: spousePending.member_id, code }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error || "Invalid or expired code."); return; }
+      setSpouseResult({ linked: true, kyc_pending: json.kyc_pending, member: json.member });
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* ── Spouse: invite (not yet on Mint) ── */
+  async function handleSpouseInviteSubmit() {
     if (!spouseEmail.trim() || !spouseEmail.includes("@")) {
       setError("Please enter a valid email address.");
       return;
@@ -97,21 +157,15 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
         body: JSON.stringify({
           primary_user_id: userId,
           relationship: "spouse",
+          mode: "invite",
           first_name: spouseFirstName.trim() || undefined,
           last_name: spouseLastName.trim() || undefined,
           email: spouseEmail.trim(),
         }),
       });
       const json = await res.json();
-      if (!res.ok && !json.invited) {
-        setError(json.error || "Could not send invite.");
-        return;
-      }
-      if (json.invited) {
-        setSpouseResult({ invited: true, ...json });
-      } else {
-        setSpouseResult({ linked: true, kyc_pending: json.kyc_pending, member: json.member });
-      }
+      if (!res.ok) { setError(json.error || "Could not send invite."); return; }
+      setSpouseResult({ invited: true, ...json });
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -404,91 +458,251 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
 
         <div className="px-6 pt-3 pb-8">
 
-          {/* ═══════════════ SPOUSE: invite form ═══════════════ */}
+          {/* ═══════════════ SPOUSE: shared header ═══════════════ */}
           {isSpouse && !spouseResult && (
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)" }}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                {spouseMode !== null && !spousePending && (
+                  <button
+                    onClick={() => { setSpouseMode(null); setError(""); }}
+                    className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95 mr-1"
                   >
-                    <Heart className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-base font-bold text-slate-900">Invite Spouse</p>
-                    <p className="text-xs text-slate-400">We'll send them an email invitation</p>
-                  </div>
-                </div>
-                <button
-                  onClick={onClose}
-                  className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                  </button>
+                )}
+                <div
+                  className="h-10 w-10 rounded-xl flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)" }}
                 >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                  <Heart className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-base font-bold text-slate-900">
+                    {spouseMode === null ? "Add Spouse" :
+                     spouseMode === "link" && !spousePending ? "Link Mint Member" :
+                     spouseMode === "link" && spousePending ? "Enter Pairing Code" :
+                     "Invite to Mint"}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {spouseMode === null ? "Choose how to add your spouse" :
+                     spouseMode === "link" && !spousePending ? "Your partner has a Mint account" :
+                     spouseMode === "link" && spousePending ? `Code sent to ${spousePending.masked_email}` :
+                     "We'll send them an invitation"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* ── Mode selection ── */}
+          {isSpouse && !spouseResult && spouseMode === null && (
+            <div className="space-y-3">
+              <button
+                onClick={() => { setSpouseMode("link"); setError(""); }}
+                className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-200 bg-white px-5 py-4 text-left hover:border-violet-300 hover:bg-violet-50/50 transition active:scale-[0.98]"
+              >
+                <div className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg,#ede9fe,#ddd6fe)" }}>
+                  <ShieldCheck className="h-5 w-5 text-violet-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900">Link existing Mint member</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Your partner already has a Mint account</p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400 -rotate-90 flex-shrink-0" />
+              </button>
+
+              <button
+                onClick={() => { setSpouseMode("invite"); setError(""); }}
+                className="w-full flex items-center gap-4 rounded-2xl border-2 border-slate-200 bg-white px-5 py-4 text-left hover:border-violet-300 hover:bg-violet-50/50 transition active:scale-[0.98]"
+              >
+                <div className="h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg,#e0f2fe,#bae6fd)" }}>
+                  <Mail className="h-5 w-5 text-sky-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900">Invite to Mint</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Your partner isn't on Mint yet</p>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400 -rotate-90 flex-shrink-0" />
+              </button>
+            </div>
+          )}
+
+          {/* ── Link mode: step 1 — enter email + ID ── */}
+          {isSpouse && !spouseResult && spouseMode === "link" && !spousePending && (
+            <div className="space-y-3">
+              <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3">
+                <p className="text-xs text-violet-700 leading-relaxed">
+                  We'll send your partner a <strong>6-digit pairing code</strong> by email. They share it with you, and you enter it here to confirm the link.
+                </p>
               </div>
 
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                      First Name
-                    </label>
-                    <input
-                      type="text"
-                      value={spouseFirstName}
-                      onChange={(e) => { setSpouseFirstName(e.target.value); setError(""); }}
-                      placeholder="e.g. Sarah"
-                      autoComplete="off"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                      Surname
-                    </label>
-                    <input
-                      type="text"
-                      value={spouseLastName}
-                      onChange={(e) => { setSpouseLastName(e.target.value); setError(""); }}
-                      placeholder="e.g. Smith"
-                      autoComplete="off"
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                  Partner's Email Address <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={spouseLinkEmail}
+                  onChange={(e) => { setSpouseLinkEmail(e.target.value); setError(""); }}
+                  placeholder="partner@example.com"
+                  autoComplete="off"
+                  className={inputCls}
+                />
+              </div>
 
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                  Partner's SA ID Number <span className="normal-case font-normal text-slate-400">(optional — for verification)</span>
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={13}
+                  value={spouseLinkId}
+                  onChange={(e) => { setSpouseLinkId(e.target.value.replace(/\D/g, "")); setError(""); }}
+                  placeholder="13-digit ID number"
+                  autoComplete="off"
+                  className={inputCls}
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                  <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-red-500">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleSpouseLinkSubmit}
+                disabled={saving || !spouseLinkEmail.trim()}
+                className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+              >
+                {saving ? "Sending…" : "Send Pairing Code"}
+              </button>
+            </div>
+          )}
+
+          {/* ── Link mode: step 2 — enter code ── */}
+          {isSpouse && !spouseResult && spouseMode === "link" && spousePending && (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-4">
+                <p className="text-sm font-semibold text-emerald-800 mb-1">Pairing code sent!</p>
+                <p className="text-xs text-emerald-700 leading-relaxed">
+                  A 6-digit code was emailed to <strong>{spousePending.masked_email}</strong>. Ask your partner to check their email and share the code with you.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                  Enter 6-digit code
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={spousePairingCode}
+                  onChange={(e) => { setSpousePairingCode(e.target.value.replace(/\D/g, "")); setError(""); }}
+                  placeholder="e.g. 482 917"
+                  autoComplete="off"
+                  className={`${inputCls} text-center text-xl tracking-[0.4em] font-bold`}
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                  <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-red-500">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleSpouseConfirmCode}
+                disabled={saving || spousePairingCode.length < 6}
+                className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+              >
+                {saving ? "Confirming…" : "Confirm & Link"}
+              </button>
+
+              <button
+                onClick={() => { setSpousePending(null); setSpousePairingCode(""); setError(""); }}
+                className="w-full text-xs text-slate-400 hover:text-slate-600 py-1 transition"
+              >
+                Didn't receive it? Try a different email
+              </button>
+            </div>
+          )}
+
+          {/* ── Invite mode: form ── */}
+          {isSpouse && !spouseResult && spouseMode === "invite" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                    Email Address <span className="normal-case font-normal text-slate-400">*</span>
+                    First Name
                   </label>
                   <input
-                    type="email"
-                    value={spouseEmail}
-                    onChange={(e) => { setSpouseEmail(e.target.value); setError(""); }}
-                    placeholder="partner@example.com"
+                    type="text"
+                    value={spouseFirstName}
+                    onChange={(e) => { setSpouseFirstName(e.target.value); setError(""); }}
+                    placeholder="e.g. Sarah"
                     autoComplete="off"
                     className={inputCls}
                   />
                 </div>
-
-                {error && (
-                  <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
-                    <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-red-500">{error}</p>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleSpouseSubmit}
-                  disabled={saving || !spouseEmail.trim()}
-                  className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
-                >
-                  {saving ? "Sending…" : "Send Invitation"}
-                </button>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                    Surname
+                  </label>
+                  <input
+                    type="text"
+                    value={spouseLastName}
+                    onChange={(e) => { setSpouseLastName(e.target.value); setError(""); }}
+                    placeholder="e.g. Smith"
+                    autoComplete="off"
+                    className={inputCls}
+                  />
+                </div>
               </div>
-            </>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                  Email Address <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={spouseEmail}
+                  onChange={(e) => { setSpouseEmail(e.target.value); setError(""); }}
+                  placeholder="partner@example.com"
+                  autoComplete="off"
+                  className={inputCls}
+                />
+              </div>
+
+              {error && (
+                <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
+                  <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-red-500">{error}</p>
+                </div>
+              )}
+
+              <button
+                onClick={handleSpouseInviteSubmit}
+                disabled={saving || !spouseEmail.trim()}
+                className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+              >
+                {saving ? "Sending…" : "Send Invitation"}
+              </button>
+            </div>
           )}
 
           {/* ═══════════════ SPOUSE: linked success ═══════════════ */}

@@ -6325,6 +6325,11 @@ async function ensureFamilyMembersTable() {
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS spouse_email TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS linked_user_id UUID;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code_expires_at TIMESTAMPTZ;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
       CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id);
     `;
     try {
@@ -6387,6 +6392,11 @@ async function ensureFamilyMembersTablePg() {
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS spouse_email TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS linked_user_id UUID`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code_expires_at TIMESTAMPTZ`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`,
     ];
     for (const sql of cols) {
       try { await client.query(sql); } catch (_) {}
@@ -6428,97 +6438,85 @@ app.post('/api/family-members', async (req, res) => {
 
     /* ── SPOUSE ── */
     if (relationship === 'spouse') {
+      const spouseMode = req.body.mode || 'link'; // 'link' | 'invite'
       const normalizedEmail = email?.toLowerCase().trim() || null;
       if (!normalizedEmail || !normalizedEmail.includes('@')) {
-        return res.status(400).json({ error: 'An email address is required to invite your spouse.' });
+        return res.status(400).json({ error: 'An email address is required.' });
       }
 
       // Already have a spouse?
-      const { data: existingSpouse } = await db.from('family_members').select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
+      const { data: existingSpouse } = await db.from('family_members')
+        .select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
       if (existingSpouse) return res.status(409).json({ error: 'A spouse is already linked to this account.' });
 
-      // Look up by email address
-      let matchedProfile = null;
-      const { data: profileRow } = await db.from('profiles').select('id, first_name, last_name, email').eq('email', normalizedEmail).maybeSingle();
-      if (profileRow) {
-        matchedProfile = profileRow;
-      } else {
-        const { data: onboardingRow } = await db.from('user_onboarding').select('id, user_id, first_name, last_name, email').eq('email', normalizedEmail).maybeSingle();
+      const masked = normalizedEmail.includes('@')
+        ? `${normalizedEmail[0]}***@${normalizedEmail.split('@')[1]}` : '***';
+
+      // ── Helper: look up profile by email ──
+      async function findProfileByEmail(em) {
+        const { data: profileRow } = await db.from('profiles').select('id, first_name, last_name, email').eq('email', em).maybeSingle();
+        if (profileRow) return profileRow;
+        const { data: onboardingRow } = await db.from('user_onboarding').select('id, user_id, first_name, last_name, email').eq('email', em).maybeSingle();
         if (onboardingRow) {
           const linkedUserId = onboardingRow.user_id || onboardingRow.id || null;
           if (linkedUserId) {
-            const { data: linkedProfile } = await db.from('profiles').select('id, first_name, last_name, email').eq('id', linkedUserId).maybeSingle();
-            matchedProfile = {
-              id: linkedUserId,
-              first_name: linkedProfile?.first_name || onboardingRow.first_name || first_name || '',
-              last_name: linkedProfile?.last_name || onboardingRow.last_name || last_name || '',
-              email: normalizedEmail,
-            };
+            const { data: lp } = await db.from('profiles').select('id, first_name, last_name, email').eq('id', linkedUserId).maybeSingle();
+            return { id: linkedUserId, first_name: lp?.first_name || onboardingRow.first_name || '', last_name: lp?.last_name || onboardingRow.last_name || '', email: em };
           }
         }
+        return null;
       }
 
-      if (matchedProfile) {
+      /* ── MODE: link existing Mint member ── */
+      if (spouseMode === 'link') {
+        const matchedProfile = await findProfileByEmail(normalizedEmail);
+        if (!matchedProfile) {
+          return res.status(404).json({ error: 'No Mint account found with that email address. If your partner hasn\'t joined yet, use "Invite to Mint" instead.' });
+        }
         if (matchedProfile.id === primary_user_id) {
-          return res.status(400).json({ error: 'You cannot add yourself as a spouse.' });
+          return res.status(400).json({ error: 'You cannot link yourself as a spouse.' });
         }
 
-        // Check KYC status
-        const { data: onboarding } = await db.from('user_onboarding').select('kyc_status').eq('user_id', matchedProfile.id).maybeSingle();
-        const kycStatus = onboarding?.kyc_status || '';
-        const kycComplete = kycStatus === 'approved' || kycStatus === 'onboarding_complete' || kycStatus === 'verified';
+        // Generate 6-digit pairing code, expires in 1 hour
+        const pairingCode = String(Math.floor(100000 + Math.random() * 900000));
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-        // Get mint number
-        let spouseMintNumber = null;
-        const { data: walletRow } = await db.from('wallets').select('mint_number').eq('user_id', matchedProfile.id).maybeSingle();
-        spouseMintNumber = walletRow?.mint_number || null;
-        if (!spouseMintNumber) {
-          const rand = Math.floor(1000000 + Math.random() * 9000000);
-          spouseMintNumber = `SPO${String(rand).padStart(10, '0')}`;
-        }
-
-        const normalizedEmail = email?.toLowerCase().trim() || null;
+        // Create pending family_members record
         const insertPayload = {
           primary_user_id,
           relationship: 'spouse',
           first_name: matchedProfile.first_name || '',
           last_name: matchedProfile.last_name || '',
-          spouse_email: normalizedEmail || matchedProfile.email || null,
-          mint_number: spouseMintNumber,
+          spouse_email: normalizedEmail,
+          status: 'pending_code',
+          pairing_code: pairingCode,
+          pairing_code_expires_at: expiresAt,
         };
 
         let member = null;
-        const { data: d1, error: e1 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id, kyc_pending: !kycComplete }).select().single();
-        if (e1 && (e1.message?.includes('linked_user_id') || e1.message?.includes('kyc_pending'))) {
-          const { data: d2, error: e2 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id }).select().single();
-          if (e2 && e2.message?.includes('linked_user_id')) {
-            const { data: d3, error: e3 } = await db.from('family_members').insert(insertPayload).select().single();
-            if (e3) throw e3;
-            member = d3;
-          } else if (e2) { throw e2; } else { member = d2; }
+        const { data: d1, error: e1 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id }).select().single();
+        if (e1 && e1.message?.includes('linked_user_id')) {
+          const { data: d2, error: e2 } = await db.from('family_members').insert(insertPayload).select().single();
+          if (e2) throw e2;
+          member = d2;
         } else if (e1) { throw e1; } else { member = d1; }
 
-        const memberWithKyc = { ...member, kyc_pending: !kycComplete };
-        return res.status(201).json({ member: memberWithKyc, linked: true, kyc_pending: !kycComplete });
-      }
+        // Send pairing code email
+        const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
+        const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
+        const recipientName = matchedProfile.first_name || '';
+        const greeting = recipientName ? `Hi ${recipientName},` : 'Hi there,';
 
-      /* ── Not found → send invite email ── */
-      const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
-      const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
-      const inviteeName = [first_name, last_name].filter(Boolean).join(' ');
-      const greeting = inviteeName ? `Hi ${inviteeName},` : 'Hi there,';
-
-      let emailSent = false;
-      const resendKey = process.env.RESEND_API_KEY;
-      if (resendKey) {
-        try {
-          const { Resend } = require('resend');
-          const resend = new Resend(resendKey);
-          await resend.emails.send({
-            from: 'Mint <noreply@mymint.co.za>',
-            to: [normalizedEmail],
-            subject: `${inviterName} has invited you to join Mint`,
-            html: `<!DOCTYPE html>
+        const resendKey = process.env.RESEND_API_KEY;
+        if (resendKey) {
+          try {
+            const { Resend } = require('resend');
+            const resend = new Resend(resendKey);
+            await resend.emails.send({
+              from: 'Mint <noreply@mymint.co.za>',
+              to: [normalizedEmail],
+              subject: `Your Mint pairing code from ${inviterName}`,
+              html: `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -6527,70 +6525,128 @@ app.post('/api/family-members', async (req, res) => {
 </head>
 <body style="margin:0;padding:0;background:#EEEAF5;font-family:'Barlow',Helvetica,Arial,sans-serif;">
   <div style="max-width:520px;margin:0 auto;padding:40px 20px;">
-
-    <!-- Logo bar -->
     <div style="background:#3D1A6B;border-radius:16px 16px 0 0;padding:20px 32px;text-align:center;">
       <div style="font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:36px;font-weight:800;color:white;letter-spacing:4px;text-transform:uppercase;">MINT</div>
-      <div style="color:rgba(255,255,255,0.55);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Wills &amp; Funeral Specialists</div>
+      <div style="color:rgba(255,255,255,0.55);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Family Account Linking</div>
     </div>
-
-    <!-- Divider -->
     <div style="height:3px;background:linear-gradient(90deg,#5B2D8E,#7B4DB0,#EDE8F8);"></div>
-
-    <!-- Card -->
     <div style="background:white;border-radius:0 0 16px 16px;padding:36px 32px;">
-
       <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">${greeting}</p>
-
-      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">
-        <strong style="color:#3D1A6B;">${inviterName}</strong> has invited you to join them on
-        <strong style="color:#3D1A6B;">MINT</strong> — the smart investing and financial planning
-        platform for South African families.
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 20px;">
+        <strong style="color:#3D1A6B;">${inviterName}</strong> wants to link your <strong style="color:#3D1A6B;">MINT</strong> account to their family profile as their spouse.
       </p>
-
-      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 28px;">
-        Sign up to start investing together, plan for the future, and manage your family&rsquo;s
-        wealth in one place.
+      <p style="color:#334155;font-size:14px;line-height:1.6;margin:0 0 24px;">
+        If you agree, share the pairing code below with them. They will enter it in the Mint app to complete the link. <strong>This code expires in 1 hour.</strong>
       </p>
-
-      <!-- CTA button -->
-      <div style="text-align:center;margin-bottom:28px;">
-        <a href="https://mymint.co.za"
-           style="display:inline-block;background:linear-gradient(135deg,#3D1A6B,#5B2D8E);color:white;
-                  padding:14px 44px;border-radius:12px;text-decoration:none;
-                  font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;
-                  font-weight:800;font-size:17px;letter-spacing:1px;text-transform:uppercase;">
-          Join MINT
-        </a>
+      <div style="background:#F3EEFF;border:2px solid #C4B5FD;border-radius:16px;padding:24px;text-align:center;margin-bottom:24px;">
+        <p style="margin:0 0 8px;color:#7C3AED;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">Your Pairing Code</p>
+        <p style="margin:0;font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:48px;font-weight:800;color:#3D1A6B;letter-spacing:10px;">${pairingCode}</p>
       </div>
-
       <p style="color:#94a3b8;font-size:11px;text-align:center;margin:0;">
-        If you weren&rsquo;t expecting this invitation, you can safely ignore this email.
+        If you weren&rsquo;t expecting this request, you can safely ignore this email. Do not share this code with anyone other than ${inviterName}.
       </p>
     </div>
-
     <p style="color:#a0aec0;font-size:10px;text-align:center;margin-top:16px;">
       Mint Financial Services (Pty) Ltd &nbsp;·&nbsp; FSP No. 55118
     </p>
   </div>
 </body>
 </html>`,
-          });
-          emailSent = true;
-        } catch (emailErr) {
-          console.error('[family] Invite email failed:', emailErr.message);
+            });
+          } catch (emailErr) {
+            console.error('[family] Pairing code email failed:', emailErr.message);
+          }
         }
+
+        return res.status(200).json({ pairing_sent: true, member_id: member.id, masked_email: masked });
       }
 
-      const masked = normalizedEmail.includes('@') ? `${normalizedEmail[0]}***@${normalizedEmail.split('@')[1]}` : '***';
-      return res.status(200).json({
-        invited: true,
-        email_sent: emailSent,
-        masked_email: masked,
-        message: emailSent
-          ? `Invitation sent to ${masked}. Once they sign up on Mint, you can link them as your spouse.`
-          : `${masked} is not on Mint yet. Please ask them to sign up at mymint.co.za, then try linking again.`,
-      });
+      /* ── MODE: invite (not on Mint yet) ── */
+      if (spouseMode === 'invite') {
+        // Check if they're already on Mint — direct to link flow instead
+        const existing = await findProfileByEmail(normalizedEmail);
+        if (existing) {
+          return res.status(409).json({ error: 'This email address already has a Mint account. Use "Link existing Mint member" to link them with a pairing code.' });
+        }
+
+        const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
+        const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
+        const inviteeName = [first_name, last_name].filter(Boolean).join(' ');
+        const greeting = inviteeName ? `Hi ${inviteeName},` : 'Hi there,';
+
+        let emailSent = false;
+        const resendKey = process.env.RESEND_API_KEY;
+        if (resendKey) {
+          try {
+            const { Resend } = require('resend');
+            const resend = new Resend(resendKey);
+            await resend.emails.send({
+              from: 'Mint <noreply@mymint.co.za>',
+              to: [normalizedEmail],
+              subject: `${inviterName} has invited you to join Mint`,
+              html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#EEEAF5;font-family:'Barlow',Helvetica,Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:40px 20px;">
+    <div style="background:#3D1A6B;border-radius:16px 16px 0 0;padding:20px 32px;text-align:center;">
+      <div style="font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:36px;font-weight:800;color:white;letter-spacing:4px;text-transform:uppercase;">MINT</div>
+      <div style="color:rgba(255,255,255,0.55);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Family Investment Platform</div>
+    </div>
+    <div style="height:3px;background:linear-gradient(90deg,#5B2D8E,#7B4DB0,#EDE8F8);"></div>
+    <div style="background:white;border-radius:0 0 16px 16px;padding:36px 32px;">
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">${greeting}</p>
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">
+        <strong style="color:#3D1A6B;">${inviterName}</strong> has invited you to join them on
+        <strong style="color:#3D1A6B;">MINT</strong> — the smart investing and financial planning
+        platform for South African families.
+      </p>
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 28px;">
+        Sign up to start investing together, plan for the future, and manage your family&rsquo;s wealth in one place.
+      </p>
+      <div style="text-align:center;margin-bottom:28px;">
+        <a href="https://mymint.co.za" style="display:inline-block;background:linear-gradient(135deg,#3D1A6B,#5B2D8E);color:white;padding:14px 44px;border-radius:12px;text-decoration:none;font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-weight:800;font-size:17px;letter-spacing:1px;text-transform:uppercase;">Join MINT</a>
+      </div>
+      <p style="color:#94a3b8;font-size:11px;text-align:center;margin:0;">If you weren&rsquo;t expecting this invitation, you can safely ignore this email.</p>
+    </div>
+    <p style="color:#a0aec0;font-size:10px;text-align:center;margin-top:16px;">Mint Financial Services (Pty) Ltd &nbsp;·&nbsp; FSP No. 55118</p>
+  </div>
+</body>
+</html>`,
+            });
+            emailSent = true;
+          } catch (emailErr) {
+            console.error('[family] Invite email failed:', emailErr.message);
+          }
+        }
+
+        // Record as invited (pending)
+        try {
+          await db.from('family_members').insert({
+            primary_user_id,
+            relationship: 'spouse',
+            first_name: first_name?.trim() || '',
+            last_name: last_name?.trim() || '',
+            spouse_email: normalizedEmail,
+            status: 'invited',
+          });
+        } catch (_) { /* non-fatal */ }
+
+        return res.status(200).json({
+          invited: true,
+          email_sent: emailSent,
+          masked_email: masked,
+          message: emailSent
+            ? `Invitation sent to ${masked}. Once they sign up on Mint, you can link them as your spouse.`
+            : `${masked} is not on Mint yet. Please ask them to sign up at mymint.co.za, then try linking again.`,
+        });
+      }
+
+      return res.status(400).json({ error: 'Invalid spouse mode. Use "link" or "invite".' });
     }
 
     /* ── CHILD ── */
@@ -6633,6 +6689,57 @@ app.post('/api/family-members', async (req, res) => {
     }
   } catch (e) {
     console.error('[family] POST error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/family-members/confirm-pairing', async (req, res) => {
+  const { member_id, code } = req.body || {};
+  if (!member_id || !code) return res.status(400).json({ error: 'member_id and code required' });
+
+  try {
+    const db = supabaseAdmin || supabase;
+
+    const { data: member, error: fetchErr } = await db
+      .from('family_members')
+      .select('*')
+      .eq('id', member_id)
+      .eq('status', 'pending_code')
+      .maybeSingle();
+
+    if (fetchErr) throw fetchErr;
+    if (!member) return res.status(404).json({ error: 'Pairing request not found or already confirmed.' });
+
+    // Check code
+    if (member.pairing_code !== String(code).trim()) {
+      return res.status(400).json({ error: 'Incorrect pairing code. Please check and try again.' });
+    }
+
+    // Check expiry
+    if (member.pairing_code_expires_at && new Date(member.pairing_code_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'This pairing code has expired. Please go back and send a new one.' });
+    }
+
+    // Determine KYC status of linked user
+    let kycPending = false;
+    if (member.linked_user_id) {
+      const { data: onboarding } = await db.from('user_onboarding').select('kyc_status').eq('user_id', member.linked_user_id).maybeSingle();
+      const kycStatus = onboarding?.kyc_status || '';
+      kycPending = !['approved', 'onboarding_complete', 'verified'].includes(kycStatus);
+    }
+
+    // Activate the member
+    const { data: updated, error: updateErr } = await db
+      .from('family_members')
+      .update({ status: 'active', pairing_code: null, pairing_code_expires_at: null })
+      .eq('id', member_id)
+      .select()
+      .single();
+    if (updateErr) throw updateErr;
+
+    return res.json({ linked: true, kyc_pending: kycPending, member: { ...updated, kyc_pending: kycPending } });
+  } catch (e) {
+    console.error('[family] confirm-pairing error:', e.message);
     return res.status(500).json({ error: e.message });
   }
 });
