@@ -530,6 +530,15 @@ async function runSettlementMigration() {
       }
     }
   }
+
+  // Add is_active and exit_price columns if not present
+  try {
+    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true" });
+    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS exit_price BIGINT" });
+    console.log('[holdings] is_active and exit_price columns ensured');
+  } catch (e) {
+    console.log('[holdings] Could not add is_active/exit_price columns (may already exist)');
+  }
 }
 
 async function migrateGoalColumns() {
@@ -3547,13 +3556,13 @@ app.get("/api/user/holdings", async (req, res) => {
     let holdings, holdingsError;
     const holdingsResult = await db
       .from("stock_holdings")
-      .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status")
+      .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status, is_active, exit_price")
       .eq("user_id", userId);
 
     if (holdingsResult.error && holdingsResult.error.message && holdingsResult.error.message.includes("settlement_status")) {
       const fallback = await db
         .from("stock_holdings")
-        .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+        .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, is_active, exit_price")
         .eq("user_id", userId);
       holdings = fallback.data;
       holdingsError = fallback.error;
@@ -3607,7 +3616,7 @@ app.get("/api/user/holdings", async (req, res) => {
     }
 
     const enrichedHoldings = rawHoldings
-      .filter(h => securitiesMap[h.security_id])
+      .filter(h => securitiesMap[h.security_id] && h.is_active !== false)
       .map(h => {
         const sec = securitiesMap[h.security_id];
         const priceData = latestPricesMap[h.security_id];
@@ -3655,7 +3664,24 @@ app.get("/api/user/holdings", async (req, res) => {
         };
       });
 
-    res.json({ success: true, holdings: enrichedHoldings });
+    const closedHoldings = rawHoldings
+      .filter(h => h.is_active === false && securitiesMap[h.security_id])
+      .map(h => {
+        const sec = securitiesMap[h.security_id];
+        return {
+          id: h.id,
+          security_id: h.security_id,
+          symbol: sec?.symbol || "N/A",
+          name: sec?.name || "Unknown",
+          logo_url: sec?.logo_url || null,
+          avg_fill: h.avg_fill || 0,
+          exit_price: h.exit_price || 0,
+          quantity: h.quantity || 0,
+          updated_at: h.updated_at,
+        };
+      });
+
+    res.json({ success: true, holdings: enrichedHoldings, closedHoldings });
   } catch (error) {
     console.error("User holdings error:", error);
     res.status(500).json({ success: false, error: error.message || "Failed to fetch holdings" });

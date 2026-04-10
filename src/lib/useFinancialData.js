@@ -15,17 +15,17 @@ async function fetchServerHoldings(token) {
     });
     if (!res.ok) {
       console.error("Failed to fetch holdings from server:", res.status);
-      return [];
+      return { holdings: [], closedHoldings: [] };
     }
     const json = await res.json();
-    return json.holdings || [];
+    return { holdings: json.holdings || [], closedHoldings: json.closedHoldings || [] };
   } catch (err) {
     if (err.name === "TimeoutError" || err.name === "AbortError") {
       console.warn("[useFinancialData] Holdings fetch timed out, returning empty");
     } else {
       console.error("Failed to fetch holdings:", err);
     }
-    return [];
+    return { holdings: [], closedHoldings: [] };
   }
 }
 
@@ -387,6 +387,7 @@ export const useInvestments = () => {
     portfolioMix: [],
     goals: [],
     holdings: [],
+    closedHoldings: [],
     loading: true,
     hasInvestments: false,
   });
@@ -407,11 +408,13 @@ export const useInvestments = () => {
       const userId = session.user.id;
       const token = session.access_token;
 
-      const [holdings, goalsResult] = await Promise.all([
+      const [holdingsResult, goalsResult] = await Promise.all([
         fetchServerHoldings(token),
         supabase.from("investment_goals").select("*").eq("user_id", userId),
       ]);
 
+      const holdings = holdingsResult.holdings;
+      const closedHoldings = holdingsResult.closedHoldings;
       const goals = goalsResult.data || [];
 
       const liveHV = (h) => h.last_price != null && h.quantity != null ? (h.last_price * h.quantity) / 100 : (h.market_value || 0) / 100;
@@ -473,6 +476,7 @@ export const useInvestments = () => {
         portfolioMix: portfolioMix.length > 0 ? portfolioMix : [],
         goals: formattedGoals,
         holdings,
+        closedHoldings,
         loading: false,
         hasInvestments: holdings.length > 0,
       });

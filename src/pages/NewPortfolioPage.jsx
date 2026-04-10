@@ -251,7 +251,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
     return date.toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
   };
 
-  const { holdings: rawHoldings, loading: holdingsLoading, goals: investmentGoals, refetch: refetchInvestments } = useInvestments();
+  const { holdings: rawHoldings, closedHoldings, loading: holdingsLoading, goals: investmentGoals, refetch: refetchInvestments } = useInvestments();
 
   const selectedStockPurchaseDate = useMemo(() => {
     if (!selectedSecurityId || !rawHoldings) return null;
@@ -1927,6 +1927,45 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                             })}
                           </div>
                         </section>
+
+                        {closedHoldings && closedHoldings.length > 0 && (
+                          <section className="rounded-3xl bg-white/70 backdrop-blur-xl p-5 shadow-sm border border-slate-100/50" style={{ fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+                            <p className="text-sm font-semibold text-slate-900 mb-4">Closed Positions</p>
+                            <div className="space-y-3">
+                              {closedHoldings.map((h) => {
+                                const exitPriceRands = (h.exit_price || 0) / 100;
+                                const avgFillRands = (h.avg_fill || 0) / 100;
+                                const pnlRands = (exitPriceRands - avgFillRands) * (h.quantity || 0);
+                                const isGain = pnlRands >= 0;
+                                return (
+                                  <div key={h.id} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4">
+                                    <div className="h-10 w-10 rounded-full bg-white border border-slate-200 shadow-sm overflow-hidden flex-shrink-0">
+                                      {h.logo_url ? (
+                                        <img src={h.logo_url} alt={h.name} className="h-full w-full object-cover" />
+                                      ) : (
+                                        <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-xs font-bold text-slate-500">
+                                          {(h.symbol || '').slice(0, 2)}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-semibold text-slate-900 truncate">{h.name}</p>
+                                      <p className="text-xs text-slate-500">{h.symbol} · Exit: R{exitPriceRands.toFixed(2)}</p>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                      <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5 mb-1">Exited</span>
+                                      {h.exit_price > 0 && (
+                                        <p className={`text-xs font-bold ${isGain ? 'text-emerald-600' : 'text-rose-500'}`}>
+                                          {isGain ? '+' : ''}R{Math.abs(pnlRands).toFixed(2)}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </section>
+                        )}
 
                         {(() => {
                           const STOCKS_PER_PAGE = 6;
