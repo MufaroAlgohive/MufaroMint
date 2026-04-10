@@ -6544,6 +6544,26 @@ app.post('/api/family-members', async (req, res) => {
 
       // ── Helper: look up profile by email ──
       async function findProfileByEmail(em) {
+        // pgPool bypasses RLS and can join auth.users — preferred path
+        if (pgPool) {
+          try {
+            const rows = await fmQuery(
+              `SELECT p.id, p.first_name, p.last_name, u.email
+               FROM auth.users u
+               LEFT JOIN profiles p ON p.id = u.id
+               WHERE lower(u.email) = lower($1)
+               LIMIT 1`,
+              [em]
+            );
+            if (rows.length > 0 && rows[0].id) {
+              console.log(`[family] findProfileByEmail via pgPool: found user ${rows[0].id} for ${em}`);
+              return rows[0];
+            }
+          } catch (pgErr) {
+            console.warn('[family] findProfileByEmail pgPool fallback:', pgErr.message);
+          }
+        }
+        // Supabase fallback (may be limited by RLS)
         const { data: profileRow } = await db.from('profiles').select('id, first_name, last_name, email').eq('email', em).maybeSingle();
         if (profileRow) return profileRow;
         const { data: onboardingRow } = await db.from('user_onboarding').select('id, user_id, first_name, last_name, email').eq('email', em).maybeSingle();
