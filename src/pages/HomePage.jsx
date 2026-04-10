@@ -728,7 +728,7 @@ const HomePage = ({
             {[
               { label: "Family", icon: Users, onClick: onOpenFamily, comingSoon: false },
               { label: "Stokvel", icon: Handshake, onClick: null, comingSoon: true },
-              { label: "Insure", icon: Umbrella, onClick: INSURE_ENABLED ? (onOpenInsure || null) : null, comingSoon: !INSURE_ENABLED },
+              { label: "Insure", icon: Umbrella, onClick: onOpenInsure || null, comingSoon: false },
               { label: "Rewards", icon: Gift, onClick: null, comingSoon: true },
             ].map((item, index) => {
               const Icon = item.icon;

@@ -192,8 +192,26 @@ export default function FuneralCoverPage({ onBack, profile }) {
   }, [ageBand, coverAmount, isFamily]);
 
   function toggleAddon(key) {
-    setAddons(prev => prev.includes(key) ? prev.filter(k=>k!==key) : [...prev, key]);
+    const def = ADDONS.find(a => a.key === key);
+    setAddons(prev => {
+      if (prev.includes(key)) return prev.filter(k => k !== key);
+      // Remove any other selected addon of the SAME type before adding this one
+      const sameType = def
+        ? ADDONS.filter(a => a.type === def.type && a.key !== key).map(a => a.key)
+        : [];
+      return [...prev.filter(k => !sameType.includes(k)), key];
+    });
   }
+
+  // Group available addons by type for the UI
+  const groupedAddons = useMemo(() => {
+    const groups = {};
+    availableAddons.forEach(addon => {
+      if (!groups[addon.type]) groups[addon.type] = [];
+      groups[addon.type].push(addon);
+    });
+    return Object.entries(groups);
+  }, [availableAddons]);
 
   async function handleGeneratePDF() {
     setGenerating(true);
@@ -416,10 +434,10 @@ export default function FuneralCoverPage({ onBack, profile }) {
               </>
             )}
 
-            {!profileDob && age && ageBand && (
+            {age && ageBand && (
               <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 flex items-center gap-2">
                 <Check className="h-4 w-4 text-violet-600 flex-shrink-0" />
-                <p className="text-xs text-violet-700 font-medium">Age {age} — {ageBand} age band confirmed</p>
+                <p className="text-xs text-violet-700 font-medium">Age {age} — rate band: <strong>{ageBand}</strong></p>
               </div>
             )}
             {age && !ageBand && (
@@ -625,38 +643,98 @@ export default function FuneralCoverPage({ onBack, profile }) {
         {/* ── Step 5: Add Benefits ── */}
         {step === 5 && (
           <>
-            <p className="text-sm text-slate-500">Enhance your cover with optional benefits</p>
+            <p className="text-sm text-slate-500">Enhance your cover with optional add-on benefits</p>
 
-            {availableAddons.length === 0 ? (
+            {groupedAddons.length === 0 ? (
               <div className="rounded-xl bg-slate-100 px-4 py-6 text-center">
-                <p className="text-sm text-slate-500">No additional benefits are available for your age band.</p>
+                <p className="text-sm text-slate-500">No additional benefits available for your age band.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {availableAddons.map(addon => {
-                  const Icon = addon.icon;
-                  const selected = addons.includes(addon.key);
+                {groupedAddons.map(([type, variants]) => {
+                  const selectedKey = addons.find(k => variants.some(v => v.key === k));
+                  const isGroupSelected = !!selectedKey;
+                  const Icon = variants[0].icon;
+
+                  if (variants.length === 1) {
+                    // Single variant — simple toggle card
+                    const addon = variants[0];
+                    const selected = addons.includes(addon.key);
+                    return (
+                      <button
+                        key={type}
+                        onClick={() => toggleAddon(addon.key)}
+                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
+                          selected ? "border-violet-500 bg-violet-50" : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <div className={`p-2 rounded-xl flex-shrink-0 ${selected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-bold ${selected ? "text-violet-700" : "text-slate-900"}`}>{addon.label}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{addon.sub}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span className={`text-sm font-bold ${selected ? "text-violet-600" : "text-emerald-600"}`}>
+                            +{fmtR(addon.premium)}/mo
+                          </span>
+                          {selected && <Check className="h-4 w-4 text-violet-500" />}
+                        </div>
+                      </button>
+                    );
+                  }
+
+                  // Multiple variants — grouped card, pick one
                   return (
-                    <button
-                      key={addon.key}
-                      onClick={() => toggleAddon(addon.key)}
-                      className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
-                        selected
-                          ? "border-violet-500 bg-violet-50"
-                          : "border-slate-200 bg-white hover:border-slate-300"
+                    <div
+                      key={type}
+                      className={`rounded-2xl border-2 p-4 transition-all ${
+                        isGroupSelected ? "border-violet-500 bg-violet-50" : "border-slate-200 bg-white"
                       }`}
                     >
-                      <div className={`p-2 rounded-xl flex-shrink-0 ${selected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>
-                        <Icon className="h-4 w-4" />
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`p-2 rounded-xl flex-shrink-0 ${isGroupSelected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1">
+                          <p className={`text-sm font-bold ${isGroupSelected ? "text-violet-700" : "text-slate-900"}`}>
+                            {variants[0].label}
+                          </p>
+                          <p className="text-xs text-slate-400">Choose one option</p>
+                        </div>
+                        {isGroupSelected && <Check className="h-4 w-4 text-violet-500 flex-shrink-0" />}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-bold ${selected ? "text-violet-700" : "text-slate-900"}`}>{addon.label}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{addon.sub}</p>
+                      <div className="flex gap-2">
+                        {variants.map(v => {
+                          const sel = selectedKey === v.key;
+                          return (
+                            <button
+                              key={v.key}
+                              onClick={() => toggleAddon(v.key)}
+                              className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                                sel
+                                  ? "border-violet-500 bg-violet-600 text-white"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-violet-300"
+                              }`}
+                            >
+                              <div>{fmtCover(v.benefit)}</div>
+                              <div className={`text-xs font-semibold mt-0.5 ${sel ? "text-violet-200" : "text-emerald-600"}`}>
+                                +{fmtR(v.premium)}/mo
+                              </div>
+                            </button>
+                          );
+                        })}
+                        {isGroupSelected && (
+                          <button
+                            onClick={() => toggleAddon(selectedKey)}
+                            className="px-3 rounded-xl border-2 border-slate-200 text-slate-400 text-xs font-medium hover:border-red-200 hover:text-red-400 transition-all"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
-                      <span className={`text-sm font-bold flex-shrink-0 ${selected ? "text-violet-600" : "text-emerald-600"}`}>
-                        +{fmtR(addon.premium)}/mo
-                      </span>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
