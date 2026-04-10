@@ -8,6 +8,7 @@ import {
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 import ChildResponsibilityAgreement from "../components/ChildResponsibilityAgreement";
+import MinorProofOfAddressDeclaration from "../components/MinorProofOfAddressDeclaration";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -138,16 +139,14 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
     if (!childForm.date_of_birth) { setError("Date of birth is required."); return; }
 
     const idClean = childForm.id_number.replace(/\D/g, "");
-    if (idClean && idClean.length !== 13) {
-      setError("If provided, the ID number must be exactly 13 digits.");
+    if (!idClean || idClean.length !== 13) {
+      setError("Child's SA ID number is required and must be exactly 13 digits.");
       return;
     }
-    if (idClean.length === 13) {
-      const { checked, match } = verifyIdVsDob(idClean, childForm.date_of_birth);
-      if (checked && !match) {
-        setError("The date of birth extracted from the ID number does not match the date of birth entered. Please check both fields.");
-        return;
-      }
+    const { checked, match } = verifyIdVsDob(idClean, childForm.date_of_birth);
+    if (checked && !match) {
+      setError("The date of birth extracted from the ID number does not match the date of birth entered. Please check both fields.");
+      return;
     }
 
     setError("");
@@ -158,7 +157,68 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
   function handleChildBack() {
     setError("");
     setSlideDir(-1);
-    setChildStep(0);
+    if (childStep === 3) {
+      setChildStep(2);
+    } else {
+      setChildStep(0);
+    }
+  }
+
+  /* ── Child: POA complete → upload PDF / file, then proceed to agreement ── */
+  async function handlePoaComplete({ livesWithParent, pdfBuffer, fileUpload, signedAt }) {
+    if (!newChildMember) return;
+    setSaving(true);
+    setError("");
+    try {
+      let poaUrl = null;
+
+      if (livesWithParent && pdfBuffer) {
+        const uint8 = new Uint8Array(pdfBuffer);
+        let binary = "";
+        for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+        const pdfBase64 = btoa(binary);
+
+        const uploadRes = await fetch("/api/onboarding/upload-agreement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdfBase64 }),
+        });
+        const uploadJson = await uploadRes.json();
+        if (uploadRes.ok && uploadJson.publicUrl) {
+          poaUrl = uploadJson.publicUrl;
+        }
+      } else if (!livesWithParent && fileUpload) {
+        if (supabase) {
+          const safeFileName = fileUpload.name.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
+          const filePath = `poa/${newChildMember.id}/${Date.now()}-${safeFileName}`;
+          const { error: uploadErr } = await supabase.storage
+            .from("birth-certificates")
+            .upload(filePath, fileUpload, { upsert: true });
+          if (!uploadErr) {
+            poaUrl = `storage://birth-certificates/${filePath}`;
+          }
+        }
+      }
+
+      if (poaUrl) {
+        await fetch(`/api/family-members/${newChildMember.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ poa_declaration_url: poaUrl, poa_declaration_signed_at: signedAt }),
+        });
+        setNewChildMember(prev => ({ ...prev, poa_declaration_url: poaUrl }));
+      }
+
+      setSlideDir(1);
+      setChildStep(3);
+    } catch (e) {
+      console.error("[poa]", e);
+      setError("POA upload failed — you can complete this from your child's profile later.");
+      setSlideDir(1);
+      setChildStep(3);
+    } finally {
+      setSaving(false);
+    }
   }
 
   /* ── Child: file pick ── */
@@ -529,7 +589,7 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  {childStep === 1 && (
+                  {childStep >= 1 && childStep <= 2 && (
                     <button
                       onClick={handleChildBack}
                       className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95 mr-1"
@@ -547,12 +607,16 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                   </div>
                   <div>
                     <p className="text-base font-bold text-slate-900">
-                      {childStep === 0 ? "Add Child" : "Birth Certificate"}
+                      {childStep === 0 ? "Add Child" :
+                       childStep === 1 ? "Birth Certificate" :
+                       childStep === 2 ? "Proof of Address" :
+                       "Responsibility Agreement"}
                     </p>
                     <p className="text-xs text-slate-400">
-                      {childStep === 0 ? "Step 1 of 3 — Child details" : 
-                       childStep === 1 ? "Step 2 of 3 — Upload document" :
-                       "Step 3 of 3 — Sign agreement"}
+                      {childStep === 0 ? "Step 1 of 4 — Child details" :
+                       childStep === 1 ? "Step 2 of 4 — Upload document" :
+                       childStep === 2 ? "Step 3 of 4 — Address declaration" :
+                       "Step 4 of 4 — Sign agreement"}
                     </p>
                   </div>
                 </div>
@@ -608,7 +672,7 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                         </div>
                         <div>
                           <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                            SA ID Number <span className="normal-case tracking-normal font-normal text-slate-400">(optional — used to verify birth certificate)</span>
+                            SA ID Number <span className="text-red-400">*</span>
                           </label>
                           <input
                             type="text"
@@ -733,8 +797,28 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                     </motion.div>
                   )}
 
-                  {/* Step 2 — Agreement */}
+                  {/* Step 2 — Proof of Address Declaration */}
                   {childStep === 2 && (
+                    <motion.div
+                      key="child-poa"
+                      custom={slideDir}
+                      variants={slideVariants}
+                      initial="enter"
+                      animate="center"
+                      exit="exit"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    >
+                      <MinorProofOfAddressDeclaration
+                        childData={newChildMember}
+                        parentProfile={profile}
+                        onComplete={handlePoaComplete}
+                        onBack={handleChildBack}
+                      />
+                    </motion.div>
+                  )}
+
+                  {/* Step 3 — Computershare Responsibility Agreement */}
+                  {childStep === 3 && (
                     <motion.div
                       key="child-agreement"
                       custom={slideDir}

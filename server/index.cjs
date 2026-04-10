@@ -6318,6 +6318,13 @@ async function ensureFamilyMembersTable() {
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT '';
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS id_number TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_verification_status TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_agreement_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ;
       CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id);
     `;
     try {
@@ -6373,6 +6380,13 @@ async function ensureFamilyMembersTablePg() {
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT ''`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS id_number TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_verification_status TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_agreement_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ`,
     ];
     for (const sql of cols) {
       try { await client.query(sql); } catch (_) {}
@@ -6619,6 +6633,40 @@ app.post('/api/family-members', async (req, res) => {
     }
   } catch (e) {
     console.error('[family] POST error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.patch('/api/family-members/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Member ID required' });
+
+  const allowed = [
+    'signed_agreement_url', 'signed_at',
+    'poa_declaration_url', 'poa_declaration_signed_at',
+    'id_number', 'certificate_url', 'certificate_verification_status',
+  ];
+  const body = req.body || {};
+  const patch = {};
+  for (const k of allowed) {
+    if (body[k] !== undefined) patch[k] = body[k];
+  }
+  if (Object.keys(patch).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  try {
+    const db = supabaseAdmin || supabase;
+    const { data, error } = await db
+      .from('family_members')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return res.json({ success: true, member: data });
+  } catch (e) {
+    console.error('[family] PATCH error:', e.message);
     return res.status(500).json({ error: e.message });
   }
 });

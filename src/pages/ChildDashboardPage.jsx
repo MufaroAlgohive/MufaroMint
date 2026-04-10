@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowUpRight, ArrowDownLeft, X, TrendingUp, TrendingDown,
   ShieldCheck, Baby, Wallet, BarChart3, ChevronRight,
-  RefreshCw, Search, Star, AlertCircle, Check,
+  RefreshCw, Search, Star, AlertCircle, Check, ClipboardList,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
+import MinorProofOfAddressDeclaration from "../components/MinorProofOfAddressDeclaration";
+import ChildResponsibilityAgreement from "../components/ChildResponsibilityAgreement";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -594,8 +596,223 @@ function TransactionRow({ tx }) {
   );
 }
 
+// ─── CompleteProfileModal ────────────────────────────────────────────────────
+
+function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
+  const [step, setStep] = useState(() => {
+    if (!child.id_number) return "id";
+    if (!child.poa_declaration_url) return "poa";
+    return "agreement";
+  });
+  const [idInput, setIdInput] = useState("");
+  const [idError, setIdError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const childName =
+    [child.first_name, child.last_name].filter(Boolean).join(" ") || "your child";
+
+  function verifyId(id) {
+    const clean = String(id || "").replace(/\D/g, "");
+    if (clean.length !== 13) return { ok: false, msg: "ID number must be exactly 13 digits." };
+    if (child.date_of_birth) {
+      const yy = clean.substring(0, 2);
+      const mm = clean.substring(2, 4);
+      const dd = clean.substring(4, 6);
+      const y = parseInt(yy, 10);
+      const fullYear = y <= new Date().getFullYear() % 100 ? `20${yy}` : `19${yy}`;
+      const idDob = `${fullYear}-${mm}-${dd}`;
+      if (idDob !== child.date_of_birth)
+        return { ok: false, msg: "Date of birth in ID does not match the child's record." };
+    }
+    return { ok: true, clean };
+  }
+
+  async function handleIdSave() {
+    const { ok, msg, clean } = verifyId(idInput);
+    if (!ok) { setIdError(msg); return; }
+    setSaving(true);
+    try {
+      await fetch(`/api/family-members/${child.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_number: clean }),
+      });
+      onUpdate({ ...child, id_number: clean });
+      if (!child.poa_declaration_url) { setStep("poa"); }
+      else if (!child.signed_agreement_url) { setStep("agreement"); }
+      else { onClose(); }
+    } catch { setIdError("Save failed. Please try again."); }
+    finally { setSaving(false); }
+  }
+
+  async function handlePoaComplete({ livesWithParent, pdfBuffer, fileUpload, signedAt }) {
+    setSaving(true);
+    try {
+      let poaUrl = null;
+      if (livesWithParent && pdfBuffer) {
+        const uint8 = new Uint8Array(pdfBuffer);
+        let bin = "";
+        for (let i = 0; i < uint8.length; i++) bin += String.fromCharCode(uint8[i]);
+        const pdfBase64 = btoa(bin);
+        const res = await fetch("/api/onboarding/upload-agreement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pdfBase64 }),
+        });
+        const j = await res.json();
+        if (res.ok && j.publicUrl) poaUrl = j.publicUrl;
+      } else if (!livesWithParent && fileUpload && supabase) {
+        const safeName = fileUpload.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
+        const path = `poa/${child.id}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from("birth-certificates").upload(path, fileUpload, { upsert: true });
+        if (!upErr) poaUrl = `storage://birth-certificates/${path}`;
+      }
+      if (poaUrl) {
+        await fetch(`/api/family-members/${child.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ poa_declaration_url: poaUrl, poa_declaration_signed_at: signedAt }),
+        });
+        onUpdate({ ...child, poa_declaration_url: poaUrl });
+      }
+      if (!child.signed_agreement_url) { setStep("agreement"); }
+      else { onClose(); }
+    } catch (e) {
+      console.error("[complete-poa]", e);
+      if (!child.signed_agreement_url) { setStep("agreement"); }
+      else { onClose(); }
+    } finally { setSaving(false); }
+  }
+
+  async function handleAgreementComplete({ pdfBuffer, signedAt }) {
+    setSaving(true);
+    try {
+      const uint8 = new Uint8Array(pdfBuffer);
+      let bin = "";
+      for (let i = 0; i < uint8.length; i++) bin += String.fromCharCode(uint8[i]);
+      const pdfBase64 = btoa(bin);
+      const uploadRes = await fetch("/api/onboarding/upload-agreement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfBase64 }),
+      });
+      const uploadJson = await uploadRes.json();
+      if (uploadRes.ok && uploadJson.publicUrl) {
+        await fetch(`/api/family-members/${child.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ signed_agreement_url: uploadJson.publicUrl, signed_at: signedAt }),
+        });
+        onUpdate({ ...child, signed_agreement_url: uploadJson.publicUrl });
+      }
+      onClose();
+    } catch (e) {
+      console.error("[complete-agreement]", e);
+      onClose();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl pb-[env(safe-area-inset-bottom)]"
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "spring", stiffness: 380, damping: 38 }}
+      >
+        <div className="h-1 w-full" style={{ background: "linear-gradient(90deg,#8b5cf6,#6366f1)" }} />
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full bg-slate-200" />
+        </div>
+        <div className="px-6 pt-2 pb-8">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#a78bfa,#7c3aed)" }}>
+                <ClipboardList className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <p className="text-base font-bold text-slate-900">Complete Profile</p>
+                <p className="text-xs text-slate-400">
+                  {step === "id" ? "Step 1 — ID number" :
+                   step === "poa" ? "Proof of address" :
+                   "Responsibility agreement"}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition">
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Step: ID number */}
+          {step === "id" && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Please provide <strong>{childName}'s</strong> SA ID number to complete their profile.
+              </p>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={13}
+                value={idInput}
+                onChange={(e) => { setIdInput(e.target.value.replace(/\D/g, "")); setIdError(""); }}
+                placeholder="13-digit ID number"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:border-violet-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-100 transition"
+              />
+              {idError && (
+                <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">{idError}</p>
+              )}
+              <button
+                onClick={handleIdSave}
+                disabled={saving || idInput.length !== 13}
+                className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
+              >
+                {saving ? "Saving…" : "Save & Continue"}
+              </button>
+            </div>
+          )}
+
+          {/* Step: POA */}
+          {step === "poa" && (
+            <MinorProofOfAddressDeclaration
+              childData={child}
+              parentProfile={parentProfile}
+              onComplete={handlePoaComplete}
+              onBack={() => {
+                if (!child.id_number) setStep("id");
+                else onClose();
+              }}
+            />
+          )}
+
+          {/* Step: Agreement */}
+          {step === "agreement" && (
+            <ChildResponsibilityAgreement
+              parentProfile={parentProfile}
+              childData={child}
+              saving={saving}
+              onBack={onClose}
+              onComplete={handleAgreementComplete}
+            />
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
-// ─── Main Page ──────────────────────────────────────────────────────────────
+// ─── Main Page ──────────────────════════════════════════════════════════════
 // ═════════════════════════════════════════════════════════════════════════════
 
 export default function ChildDashboardPage({ child: initialChild, onBack }) {
@@ -610,12 +827,20 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   const [showTransfer, setShowTransfer] = useState(false);
   const [openingTransfer, setOpeningTransfer] = useState(false);
   const [showInvest, setShowInvest] = useState(false);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
 
   const childName = [child?.first_name, child?.last_name].filter(Boolean).join(" ") || "Child";
   const age = getAge(child?.date_of_birth);
   const parentName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "Parent";
   const parentMintNumber = profile?.mintNumber || "";
   const childBalance = child?.available_balance || 0;
+
+  const missingItems = [
+    !child?.id_number && "ID number",
+    !child?.poa_declaration_url && "proof of address",
+    !child?.signed_agreement_url && "responsibility agreement",
+  ].filter(Boolean);
+  const isProfileIncomplete = missingItems.length > 0;
 
   useEffect(() => {
     isMounted.current = true;
@@ -779,6 +1004,28 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
       {/* ── Content ── */}
       <div className="mx-auto w-full max-w-sm px-4 pb-12 md:max-w-md">
         <motion.div variants={container} initial="hidden" animate="show" className="space-y-4">
+
+          {/* ── Incomplete profile banner ── */}
+          {isProfileIncomplete && (
+            <motion.div variants={item}>
+              <button
+                onClick={() => setShowCompleteModal(true)}
+                className="w-full flex items-center gap-3 rounded-2xl px-4 py-4 text-left transition active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg,#fef3c7,#fef9c3)", border: "1px solid #fde68a" }}
+              >
+                <div className="h-9 w-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="h-4.5 w-4.5 text-amber-600" style={{ height: "1.125rem", width: "1.125rem" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-amber-800">Complete {child?.first_name}'s profile</p>
+                  <p className="text-xs text-amber-700 mt-0.5 truncate">
+                    Missing: {missingItems.join(", ")}
+                  </p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-amber-600 flex-shrink-0" />
+              </button>
+            </motion.div>
+          )}
 
           {/* ── Unified Wallet + Portfolio Card ── */}
           <motion.div
@@ -971,6 +1218,16 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
             child={child}
             onInvest={handleInvestDone}
             onClose={() => setShowInvest(false)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {showCompleteModal && (
+          <CompleteProfileModal
+            child={child}
+            parentProfile={profile}
+            onUpdate={(updated) => setChild(updated)}
+            onClose={() => setShowCompleteModal(false)}
           />
         )}
       </AnimatePresence>
