@@ -36,6 +36,7 @@ import MintBalancePage from "./pages/MintBalancePage.jsx";
 import MarketsPage from "./pages/MarketsPage.jsx";
 import StockDetailPage from "./pages/StockDetailPage.jsx";
 import StockBuyPage from "./pages/StockBuyPage.jsx";
+import StockSellPage from "./pages/StockSellPage.jsx";
 import NewsArticlePage from "./pages/NewsArticlePage.jsx";
 import { NotificationsProvider, createWelcomeNotification, useNotificationsContext } from "./lib/NotificationsContext.jsx";
 import ActivityPage from "./pages/ActivityPage.jsx";
@@ -128,6 +129,7 @@ const App = () => {
   const [investmentAmount, setInvestmentAmount] = useState(0);
   const [baseInvestmentAmount, setBaseInvestmentAmount] = useState(0);
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0, baseAmount: 0 });
+  const [selectedHolding, setSelectedHolding] = useState(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [pendingPaymentMethod, setPendingPaymentMethod] = useState(null);
@@ -789,6 +791,15 @@ const App = () => {
             onContinue={noOp}
           />
         );
+      case 'stockSell':
+        return (
+          <StockSellPage
+            security={previewSecurity}
+            holding={cachedState?.selectedHolding || selectedHolding}
+            onBack={noOp}
+            onSuccess={noOp}
+          />
+        );
       case 'factsheet':
         return (
           <FactsheetPage
@@ -1352,6 +1363,10 @@ const App = () => {
           security={selectedSecurity}
           onBack={goBack}
           onOpenBuy={() => navigateTo("stockBuy")}
+          onOpenSell={(holding) => {
+            setSelectedHolding(holding);
+            navigateTo("stockSell");
+          }}
           onNavigateToOnboarding={() => navigateTo("identityCheck")}
         />
       </SwipeBackWrapper>
@@ -1480,6 +1495,22 @@ const App = () => {
             navigationHistory.current = [];
             setPreviousPageName(null);
             setCurrentPage("paymentPending");
+          }}
+        />
+      </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "stockSell") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <StockSellPage
+          security={selectedSecurity}
+          holding={selectedHolding}
+          onBack={goBack}
+          onSuccess={() => {
+            setSelectedHolding(null);
+            goBack();
           }}
         />
       </SwipeBackWrapper>

@@ -3862,6 +3862,118 @@ app.get("/api/user/strategies", async (req, res) => {
   }
 });
 
+app.post("/api/record-sell", async (req, res) => {
+  try {
+    if (!supabase) return res.status(500).json({ error: "Database not connected" });
+
+    const { user, error: authError } = await authenticateUser(req);
+    if (authError || !user) return res.status(401).json({ error: "Unauthorized" });
+
+    const db = supabaseAdmin || supabase;
+    const userId = user.id;
+    const { securityId, symbol, name, shares, pricePerShareCents, netProceedsCents } = req.body || {};
+
+    if (!securityId || !shares || Number(shares) <= 0) {
+      return res.status(400).json({ error: "securityId and shares are required." });
+    }
+
+    const sellShares = Number(shares);
+
+    // Verify holding exists and has enough shares
+    const { data: holding, error: holdingErr } = await db
+      .from("stock_holdings")
+      .select("id, quantity, avg_fill, market_value")
+      .eq("user_id", userId)
+      .eq("security_id", securityId)
+      .maybeSingle();
+
+    if (holdingErr) throw holdingErr;
+    if (!holding) return res.status(400).json({ error: "You do not hold any shares of this security." });
+
+    const ownedQty = Number(holding.quantity || 0);
+    if (sellShares > ownedQty) {
+      return res.status(400).json({ error: `You only own ${ownedQty} shares. Cannot sell ${sellShares}.` });
+    }
+
+    const newQty = ownedQty - sellShares;
+    const proceeds = Number(netProceedsCents || 0);
+    const now = new Date().toISOString();
+
+    // Update or delete holding
+    if (newQty <= 0) {
+      await db.from("stock_holdings").delete().eq("id", holding.id);
+    } else {
+      const newMarketValue = newQty * Number(pricePerShareCents || 0);
+      await db.from("stock_holdings")
+        .update({ quantity: newQty, market_value: Math.round(newMarketValue), updated_at: now })
+        .eq("id", holding.id);
+    }
+
+    // Record sell transaction
+    const assetName = name || symbol || "Security";
+    const ref = `SELL-${Date.now()}-${userId.substring(0, 8)}`;
+    const { data: tx, error: txErr } = await db.from("transactions").insert({
+      user_id: userId,
+      direction: "credit",
+      name: `Sold ${assetName}`,
+      description: `Sell order: ${sellShares} ${sellShares === 1 ? "share" : "shares"} of ${assetName} at R${((Number(pricePerShareCents || 0)) / 100).toFixed(2)} each`,
+      amount: proceeds,
+      store_reference: ref,
+      currency: "ZAR",
+      status: "pending",
+      transaction_date: now,
+      created_at: now,
+    }).select().single();
+
+    if (txErr) throw txErr;
+
+    // Send confirmation email
+    try {
+      const resendKey = process.env.RESEND_API_KEY;
+      if (resendKey) {
+        const { Resend } = require("resend");
+        const resend = new Resend(resendKey);
+        const { data: profile } = await db.from("profiles").select("first_name").eq("id", userId).maybeSingle();
+        const firstName = profile?.first_name || "Client";
+        const fmtR = (c) => `R${(c / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`;
+        await resend.emails.send({
+          from: "Mint <noreply@mymint.co.za>",
+          to: [user.email],
+          subject: `Sell order placed — ${assetName}`,
+          html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#EEEAF5;font-family:Helvetica,Arial,sans-serif;">
+<div style="max-width:520px;margin:0 auto;padding:40px 20px;">
+  <div style="background:#3D1A6B;border-radius:16px 16px 0 0;padding:20px 32px;text-align:center;">
+    <div style="font-size:32px;font-weight:800;color:white;letter-spacing:4px;">MINT</div>
+  </div>
+  <div style="height:3px;background:linear-gradient(90deg,#5B2D8E,#7B4DB0,#EDE8F8);"></div>
+  <div style="background:white;border-radius:0 0 16px 16px;padding:32px;">
+    <p style="color:#334155;font-size:15px;margin:0 0 12px;">Hi <strong>${firstName}</strong>,</p>
+    <p style="color:#334155;font-size:15px;margin:0 0 20px;">Your sell order has been received and is being processed.</p>
+    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <p style="margin:0 0 8px;color:#166534;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Order Details</p>
+      <p style="margin:4px 0;color:#15803D;font-size:14px;"><strong>Asset:</strong> ${assetName}</p>
+      <p style="margin:4px 0;color:#15803D;font-size:14px;"><strong>Shares:</strong> ${sellShares}</p>
+      <p style="margin:4px 0;color:#15803D;font-size:14px;"><strong>Net proceeds:</strong> ${fmtR(proceeds)}</p>
+      <p style="margin:4px 0;color:#15803D;font-size:14px;"><strong>Status:</strong> Pending settlement (T+3)</p>
+    </div>
+    <p style="color:#94a3b8;font-size:11px;text-align:center;margin:0;">Settlement typically takes 3 business days.</p>
+  </div>
+  <p style="color:#a0aec0;font-size:10px;text-align:center;margin-top:16px;">Mint Financial Services (Pty) Ltd &nbsp;·&nbsp; FSP No. 55118</p>
+</div></body></html>`,
+        });
+      }
+    } catch (emailErr) {
+      console.error("[record-sell] Email failed:", emailErr.message);
+    }
+
+    return res.json({ success: true, transaction: tx });
+  } catch (e) {
+    console.error("[record-sell] Error:", e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 app.get("/api/user/transactions", async (req, res) => {
   try {
     if (!supabase) {
@@ -3913,6 +4025,8 @@ app.get("/api/user/transactions", async (req, res) => {
         extractedNames.set(txName.replace("Strategy Investment: ", "").trim(), "strategy");
       } else if (txName.startsWith("Purchased ")) {
         extractedNames.set(txName.replace("Purchased ", "").trim(), "purchased");
+      } else if (txName.startsWith("Sold ")) {
+        extractedNames.set(txName.replace("Sold ", "").trim(), "sold");
       }
     }
 
@@ -3977,6 +4091,8 @@ app.get("/api/user/transactions", async (req, res) => {
         sName = txName.replace("Strategy Investment: ", "").trim();
       } else if (txName.startsWith("Purchased ")) {
         sName = txName.replace("Purchased ", "").trim();
+      } else if (txName.startsWith("Sold ")) {
+        sName = txName.replace("Sold ", "").trim();
       }
 
       const settlement_status = deriveSettlementStatus(tx);

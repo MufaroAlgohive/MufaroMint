@@ -6,7 +6,7 @@ import { useProfile } from "../lib/useProfile";
 import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 
-const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavigateToOnboarding }) => {
+const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onOpenSell, onNavigateToOnboarding }) => {
   const { onboardingComplete, loading: onboardingLoading } = useOnboardingStatus();
   const { profile } = useProfile();
   const [selectedPeriod, setSelectedPeriod] = useState("YTD");
@@ -17,6 +17,7 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
   const [loading, setLoading] = useState(true);
   const [watchlist, setWatchlist] = useState([]);
   const [watchlistAnimating, setWatchlistAnimating] = useState(false);
+  const [userHolding, setUserHolding] = useState(null); // { quantity, avg_fill, market_value }
   const periods = ["1W", "1M", "3M", "6M", "YTD", "1Y"];
 
   useEffect(() => {
@@ -82,6 +83,25 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
 
     fetchSecurityData();
   }, [initialSecurity?.symbol]);
+
+  // Fetch user's holding for this security
+  useEffect(() => {
+    const fetchHolding = async () => {
+      if (!initialSecurity?.id) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        const { data } = await supabase
+          .from("stock_holdings")
+          .select("quantity, avg_fill, market_value")
+          .eq("user_id", session.user.id)
+          .eq("security_id", initialSecurity.id)
+          .maybeSingle();
+        if (data && Number(data.quantity || 0) > 0) setUserHolding(data);
+      } catch {}
+    };
+    fetchHolding();
+  }, [initialSecurity?.id]);
 
   // Fetch price history when period changes
   useEffect(() => {
@@ -493,31 +513,44 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
         )}
 
         {/* Action Buttons */}
-        <div className="mt-8 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={buyChecking}
-            onClick={async () => {
-              setBuyChecking(true);
-              try {
-              // Use hook status to prevent race conditions on clicks while fetching
-              if (onboardingLoading) return;
-              if (!onboardingComplete) {
-                setShowOnboardingModal(true);
-                return;
-              }
-                onOpenBuy?.();
-              } finally {
-                setBuyChecking(false);
-              }
-            }}
-            className="rounded-2xl bg-gradient-to-r from-black to-purple-600 py-4 font-semibold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
-          >
-            {buyChecking ? "Checking…" : "Buy"}
-          </button>
+        <div className="mt-8 space-y-3">
+          <div className={`grid gap-3 ${userHolding ? "grid-cols-2" : "grid-cols-1"}`}>
+            <button
+              type="button"
+              disabled={buyChecking}
+              onClick={async () => {
+                setBuyChecking(true);
+                try {
+                if (onboardingLoading) return;
+                if (!onboardingComplete) {
+                  setShowOnboardingModal(true);
+                  return;
+                }
+                  onOpenBuy?.();
+                } finally {
+                  setBuyChecking(false);
+                }
+              }}
+              className="rounded-2xl bg-gradient-to-r from-black to-purple-600 py-4 font-semibold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
+            >
+              {buyChecking ? "Checking…" : "Buy"}
+            </button>
+
+            {userHolding && (
+              <button
+                type="button"
+                onClick={() => onOpenSell?.(userHolding)}
+                className="rounded-2xl py-4 font-semibold text-white shadow-lg transition-all active:scale-95"
+                style={{ background: "linear-gradient(135deg,#059669,#047857)" }}
+              >
+                Sell
+              </button>
+            )}
+          </div>
+
           <button
             onClick={toggleWatchlist}
-            className={`relative overflow-hidden rounded-2xl border-2 py-4 font-semibold transition-all duration-300 active:scale-95 ${
+            className={`w-full relative overflow-hidden rounded-2xl border-2 py-3.5 font-semibold transition-all duration-300 active:scale-95 ${
               isWatched
                 ? "border-yellow-400 bg-yellow-50 text-yellow-700"
                 : "border-slate-200 bg-white text-slate-900"

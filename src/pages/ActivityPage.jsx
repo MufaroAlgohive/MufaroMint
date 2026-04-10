@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef } from "react";
-import { ArrowDownLeft, ArrowLeft, ArrowUpRight, CalendarDays, Search, X, TrendingUp, CreditCard, Wallet, RefreshCw, Gift, Filter, ChevronDown } from "lucide-react";
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, CalendarDays, Search, X, TrendingUp, TrendingDown, CreditCard, Wallet, RefreshCw, Gift, Filter, ChevronDown } from "lucide-react";
 import ActivitySkeleton from "../components/ActivitySkeleton";
 import { useTransactions } from "../lib/useFinancialData";
 
@@ -11,6 +11,7 @@ const getTransactionIcon = (name, direction) => {
   if (lower.includes("credit") || lower.includes("loan")) return CreditCard;
   if (lower.includes("withdraw") || lower.includes("repay")) return Wallet;
   if (lower.includes("recurring") || lower.includes("auto")) return RefreshCw;
+  if (lower.includes("sold") || lower.includes("sell")) return TrendingDown;
   if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return TrendingUp;
   if (direction === "credit") return ArrowDownLeft;
   return ArrowUpRight;
@@ -18,6 +19,7 @@ const getTransactionIcon = (name, direction) => {
 
 const getIconColors = (direction, name) => {
   const lower = (name || "").toLowerCase();
+  if (lower.includes("sold") || lower.includes("sell")) return { bg: "bg-emerald-50", text: "text-emerald-600" };
   if (lower.includes("invest") || lower.includes("strategy") || lower.includes("purchas") || lower.includes("buy") || lower.includes("bought")) return { bg: "bg-blue-50", text: "text-blue-600" };
   if (direction === "credit") return { bg: "bg-emerald-50", text: "text-emerald-600" };
   return { bg: "bg-red-50", text: "text-red-500" };
@@ -27,7 +29,7 @@ const getFilterCategory = (direction, name) => {
   const lower = (name || "").toLowerCase();
   if (lower.includes("withdraw") || lower.includes("repay")) return "Withdrawals";
   if (lower.includes("fee") || lower.includes("commission") || lower.includes("brokerage") || lower.includes("charge") || lower.includes("levy")) return "Fees";
-  if (lower.includes("invest") || lower.includes("buy") || lower.includes("purchas") || lower.includes("strategy") || direction === "debit") return "Investments";
+  if (lower.includes("sold") || lower.includes("sell") || lower.includes("invest") || lower.includes("buy") || lower.includes("purchas") || lower.includes("strategy") || direction === "debit") return "Investments";
   return "Other";
 };
 
