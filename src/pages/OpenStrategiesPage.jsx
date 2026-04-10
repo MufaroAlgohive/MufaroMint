@@ -595,8 +595,8 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
             >
               {filteredStrategies.map((strategy) => {
                 // Calculate display values from strategy_metrics
-                const changePct = strategy.change_pct;
-                const hasMetrics = changePct !== null && changePct !== undefined;
+                const ytdReturn = strategy.r_ytd ?? null;
+                const hasYtd = ytdReturn !== null && ytdReturn !== undefined;
                 const holdings = getHoldingsArray(strategy);
                 
                 const calculatedMin = calculateMinInvestment(strategy, holdingsBySymbol);
@@ -616,10 +616,10 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                     <div className="text-left space-y-1">
                       <p className="text-sm font-semibold text-slate-900">{strategy.name}</p>
                       <div>
-                        {hasMetrics ? (
+                        {hasYtd ? (
                           <>
-                            <p className={`text-xs font-semibold ${getChangeColor(changePct)}`}>
-                              Daily&nbsp;&nbsp;{formatChangePct(changePct)}
+                            <p className={`text-xs font-semibold ${getChangeColor(ytdReturn)}`}>
+                              YTD return&nbsp;&nbsp;{formatChangePct(ytdReturn)}
                             </p>
                             <p className="text-[11px] text-slate-400">
                               {minInvestmentText}
