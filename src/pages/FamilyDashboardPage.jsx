@@ -218,15 +218,15 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
     }
   }
 
-  /* ── Child: POA complete → upload PDF / file, then proceed to agreement ── */
-  async function handlePoaComplete({ livesWithParent, pdfBuffer, fileUpload, signedAt }) {
+  /* ── Child: POA complete → upload signed PDF, then proceed to agreement ── */
+  async function handlePoaComplete({ livesWithParent, pdfBuffer, signedAt }) {
     if (!newChildMember) return;
     setSaving(true);
     setError("");
     try {
       let poaUrl = null;
 
-      if (livesWithParent && pdfBuffer) {
+      if (pdfBuffer) {
         const uint8 = new Uint8Array(pdfBuffer);
         let binary = "";
         for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
@@ -240,17 +240,6 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
         const uploadJson = await uploadRes.json();
         if (uploadRes.ok && uploadJson.publicUrl) {
           poaUrl = uploadJson.publicUrl;
-        }
-      } else if (!livesWithParent && fileUpload) {
-        if (supabase) {
-          const safeFileName = fileUpload.name.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
-          const filePath = `poa/${newChildMember.id}/${Date.now()}-${safeFileName}`;
-          const { error: uploadErr } = await supabase.storage
-            .from("birth-certificates")
-            .upload(filePath, fileUpload, { upsert: true });
-          if (!uploadErr) {
-            poaUrl = `storage://birth-certificates/${filePath}`;
-          }
         }
       }
 
