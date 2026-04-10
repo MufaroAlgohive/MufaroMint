@@ -43,13 +43,13 @@ function addonIcon(label = "") {
   return "🛡️";
 }
 
-// ── SVG Mint logo (inline, works on any background) ──────────────────────────
-const MINT_SVG = `<svg viewBox="0 0 120 38" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:110px;height:auto;display:block;">
-  <polygon points="0,0 18,0 28,19 18,38 0,38 10,19" fill="#F5D400"/>
-  <polygon points="12,0 30,0 40,19 30,38 12,38 22,19" fill="rgba(255,255,255,0.28)"/>
-  <text x="46" y="27" font-family="Barlow Condensed,Arial Narrow,sans-serif" font-weight="800"
-        font-size="23" fill="white" letter-spacing="2">MINT</text>
-</svg>`;
+// ── Actual Mint logo (white version, for dark backgrounds) ───────────────────
+// "LOGO 2 WHITE MINT.svg" is the real white wordmark+icon designed for dark headers
+function mintLogo(height = "30px") {
+  const BASE_LOGO = typeof window !== "undefined" ? window.location.origin : "";
+  const src = `${BASE_LOGO}/assets/LOGO%202%20WHITE%20MINT.svg`;
+  return `<img src="${src}" alt="mint" style="height:${height};width:auto;display:block;">`;
+}
 
 export async function generateFuneralCoverPDF({
   firstName,
@@ -86,7 +86,7 @@ export async function generateFuneralCoverPDF({
 
   function topLogoBar() {
     return `<div style="background:#3D1A6B;padding:10px 24px;display:flex;align-items:center;">
-      ${MINT_SVG}
+      ${mintLogo("28px")}
     </div>
     <div style="height:3px;background:linear-gradient(90deg,#5B2D8E,#7B4DB0,#EDE8F8);"></div>`;
   }
@@ -105,9 +105,11 @@ export async function generateFuneralCoverPDF({
     </div>`;
   }
 
-  function photoBand(src, height = "260px", pos = "center 30%") {
-    return `<img src="${src}" alt=""
-      style="width:100%;height:${height};object-fit:cover;object-position:${pos};display:block;margin-top:24px;">`;
+  function photoBand(src, height = "380px", pos = "center 30%") {
+    return `<div style="width:100%;height:${height};overflow:hidden;margin-top:24px;">
+      <img src="${src}" alt=""
+        style="width:100%;height:100%;object-fit:cover;object-position:${pos};display:block;">
+    </div>`;
   }
 
   function sectionHeader(icon, title) {
@@ -140,10 +142,10 @@ export async function generateFuneralCoverPDF({
   <div class="page">
     <div style="background:#5B2D8E;position:relative;display:flex;align-items:stretch;min-height:90px;">
       <div style="background:#3D1A6B;padding:22px 30px;display:flex;flex-direction:column;
-                  justify-content:center;min-width:210px;">
-        ${MINT_SVG}
+                  justify-content:center;min-width:260px;">
+        ${mintLogo("36px")}
         <div style="color:rgba(255,255,255,0.6);font-size:10px;letter-spacing:1.5px;
-                    text-transform:uppercase;margin-top:5px;">Wills &amp; Funeral Specialists</div>
+                    text-transform:uppercase;margin-top:6px;">Wills &amp; Funeral Specialists</div>
       </div>
       <div style="flex:1;padding:18px 30px;display:flex;flex-direction:column;
                   justify-content:center;align-items:flex-end;">
@@ -283,7 +285,7 @@ export async function generateFuneralCoverPDF({
         Please read this plan schedule in conjunction with the plan terms and conditions.
       </div>
     </div>
-    ${photoBand(IMG_FAMILY, "240px", "center 25%")}
+    ${photoBand(IMG_FAMILY, "380px", "center 25%")}
     ${footerBar(2)}
   </div>`;
 
@@ -451,7 +453,7 @@ export async function generateFuneralCoverPDF({
         </table>
       </div>
     </div>
-    ${photoBand(IMG_KIDS, "240px", "center 25%")}
+    ${photoBand(IMG_KIDS, "380px", "center 20%")}
     ${footerBar(3)}
   </div>`;
 
@@ -510,7 +512,7 @@ export async function generateFuneralCoverPDF({
         Please note that these amounts exclude VAT. Future premium increases on your plan may attract additional commission.
       </p>
     </div>
-    ${photoBand(IMG_SUNSET, "220px", "center 40%")}
+    ${photoBand(IMG_SUNSET, "380px", "center 50%")}
     ${footerBar(4)}
   </div>`;
 
@@ -571,7 +573,7 @@ export async function generateFuneralCoverPDF({
           <li style="margin-bottom:4px;">Please read this plan schedule in conjunction with the plan terms and conditions.</li>
         </ul>`)}
     </div>
-    ${photoBand(IMG_FOREST, "220px", "center 30%")}
+    ${photoBand(IMG_FOREST, "380px", "center 35%")}
     ${footerBar(5)}
   </div>`;
 
@@ -613,7 +615,7 @@ export async function generateFuneralCoverPDF({
           <p><strong>FSP No:</strong> ${FSP_NUMBER} &nbsp;|&nbsp; <strong>Underwriter:</strong> GuardRisk Life Ltd — FSP 76</p>`)}
       </div>
     </div>
-    ${photoBand(IMG_HANDS, "300px", "center 40%")}
+    ${photoBand(IMG_HANDS, "420px", "center 40%")}
     ${footerBar(6)}
   </div>`;
 
