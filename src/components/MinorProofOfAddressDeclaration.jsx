@@ -442,6 +442,19 @@ async function buildDifferentAddressPdf({ parentProfile, coGuardianProfiles, chi
   return doc.output("arraybuffer");
 }
 
+// ─── Download helper ──────────────────────────────────────────────────────────
+
+function downloadPdf(pdfBuffer, filename) {
+  const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const SA_PROVINCES = [
@@ -521,6 +534,8 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
       const signatureDataUrl = samePadRef.current.toDataURL("image/png");
       const signedAt = new Date().toISOString();
       const pdfBuffer = await buildSameAddressPdf({ parentProfile, coGuardianProfiles, childData, signatureDataUrl, signedAt });
+      const safeName = (childData?.first_name || "minor").toLowerCase().replace(/\s+/g, "-");
+      downloadPdf(pdfBuffer, `mint-address-declaration-${safeName}.pdf`);
       onComplete({ livesWithParent: true, pdfBuffer, signedAt });
     } catch (e) {
       console.error("[poa]", e);
@@ -544,6 +559,8 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
       const signatureDataUrl = diffPadRef.current.toDataURL("image/png");
       const signedAt = new Date().toISOString();
       const pdfBuffer = await buildDifferentAddressPdf({ parentProfile, coGuardianProfiles, childData, childAddress, signatureDataUrl, signedAt });
+      const safeName = (childData?.first_name || "minor").toLowerCase().replace(/\s+/g, "-");
+      downloadPdf(pdfBuffer, `mint-address-declaration-${safeName}.pdf`);
       onComplete({ livesWithParent: false, childAddress, pdfBuffer, signedAt });
     } catch (e) {
       console.error("[poa]", e);
