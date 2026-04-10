@@ -6462,10 +6462,29 @@ async function ensureFamilyMembersTablePg() {
 }
 ensureFamilyMembersTable();
 
+// Helper: run a raw SQL query on the family_members table via pgPool (bypasses RLS)
+async function fmQuery(sql, params = []) {
+  if (!pgPool) throw new Error('pgPool unavailable');
+  const client = await pgPool.connect();
+  try {
+    const r = await client.query(sql, params);
+    return r.rows;
+  } finally {
+    client.release();
+  }
+}
+
 app.get('/api/family-members', async (req, res) => {
   const userId = req.query.user_id;
   if (!userId) return res.status(400).json({ error: 'user_id required' });
   try {
+    if (pgPool) {
+      const rows = await fmQuery(
+        'SELECT * FROM family_members WHERE primary_user_id = $1 ORDER BY created_at ASC',
+        [userId]
+      );
+      return res.json({ members: rows });
+    }
     const db = supabaseAdmin || supabase;
     const { data, error } = await db.from('family_members').select('*').eq('primary_user_id', userId).order('created_at', { ascending: true });
     if (error) throw error;
@@ -6495,9 +6514,19 @@ app.post('/api/family-members', async (req, res) => {
         return res.status(400).json({ error: 'An email address is required.' });
       }
 
-      // Already have a spouse?
-      const { data: existingSpouse } = await db.from('family_members')
-        .select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
+      // Already have a spouse? (use pgPool to bypass RLS)
+      let existingSpouse = null;
+      if (pgPool) {
+        const rows = await fmQuery(
+          `SELECT id FROM family_members WHERE primary_user_id = $1 AND relationship = 'spouse' LIMIT 1`,
+          [primary_user_id]
+        );
+        existingSpouse = rows[0] || null;
+      } else {
+        const { data } = await db.from('family_members')
+          .select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
+        existingSpouse = data;
+      }
       if (existingSpouse) return res.status(409).json({ error: 'A spouse is already linked to this account.' });
 
       const masked = normalizedEmail.includes('@')
@@ -6545,12 +6574,24 @@ app.post('/api/family-members', async (req, res) => {
         };
 
         let member = null;
-        const { data: d1, error: e1 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id }).select().single();
-        if (e1 && e1.message?.includes('linked_user_id')) {
-          const { data: d2, error: e2 } = await db.from('family_members').insert(insertPayload).select().single();
-          if (e2) throw e2;
-          member = d2;
-        } else if (e1) { throw e1; } else { member = d1; }
+        if (pgPool) {
+          const payload = { ...insertPayload, linked_user_id: matchedProfile.id };
+          const keys = Object.keys(payload);
+          const vals = Object.values(payload);
+          const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+          const rows = await fmQuery(
+            `INSERT INTO family_members (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+            vals
+          );
+          member = rows[0];
+        } else {
+          const { data: d1, error: e1 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id }).select().single();
+          if (e1 && e1.message?.includes('linked_user_id')) {
+            const { data: d2, error: e2 } = await db.from('family_members').insert(insertPayload).select().single();
+            if (e2) throw e2;
+            member = d2;
+          } else if (e1) { throw e1; } else { member = d1; }
+        }
 
         // Send pairing code email
         const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
@@ -6677,14 +6718,18 @@ app.post('/api/family-members', async (req, res) => {
 
         // Record as invited (pending)
         try {
-          await db.from('family_members').insert({
-            primary_user_id,
-            relationship: 'spouse',
-            first_name: first_name?.trim() || '',
-            last_name: last_name?.trim() || '',
-            spouse_email: normalizedEmail,
-            status: 'invited',
-          });
+          if (pgPool) {
+            await fmQuery(
+              `INSERT INTO family_members (primary_user_id, relationship, first_name, last_name, spouse_email, status) VALUES ($1, $2, $3, $4, $5, $6)`,
+              [primary_user_id, 'spouse', first_name?.trim() || '', last_name?.trim() || '', normalizedEmail, 'invited']
+            );
+          } else {
+            await db.from('family_members').insert({
+              primary_user_id, relationship: 'spouse',
+              first_name: first_name?.trim() || '', last_name: last_name?.trim() || '',
+              spouse_email: normalizedEmail, status: 'invited',
+            });
+          }
         } catch (_) { /* non-fatal */ }
 
         return res.status(200).json({
@@ -6726,6 +6771,19 @@ app.post('/api/family-members', async (req, res) => {
         certificate_verification_status: verificationStatus,
       };
 
+      if (pgPool) {
+        // Use pgPool directly to bypass RLS
+        const keys = Object.keys(fullPayload);
+        const vals = Object.values(fullPayload);
+        const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+        const rows = await fmQuery(
+          `INSERT INTO family_members (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+          vals
+        );
+        const member = rows[0];
+        return res.status(201).json({ member: { ...member, id_number: childIdClean || member.id_number } });
+      }
+
       const { data: d1, error: e1 } = await db.from('family_members').insert(fullPayload).select().single();
       if (e1) {
         const { data: d2, error: e2 } = await db.from('family_members').insert({ ...basePayload, certificate_url }).select().single();
@@ -6751,14 +6809,19 @@ app.post('/api/family-members/confirm-pairing', async (req, res) => {
   try {
     const db = supabaseAdmin || supabase;
 
-    const { data: member, error: fetchErr } = await db
-      .from('family_members')
-      .select('*')
-      .eq('id', member_id)
-      .eq('status', 'pending_code')
-      .maybeSingle();
+    let member;
+    if (pgPool) {
+      const rows = await fmQuery(
+        `SELECT * FROM family_members WHERE id = $1 AND status = 'pending_code' LIMIT 1`,
+        [member_id]
+      );
+      member = rows[0] || null;
+    } else {
+      const { data, error: fetchErr } = await db.from('family_members').select('*').eq('id', member_id).eq('status', 'pending_code').maybeSingle();
+      if (fetchErr) throw fetchErr;
+      member = data;
+    }
 
-    if (fetchErr) throw fetchErr;
     if (!member) return res.status(404).json({ error: 'Pairing request not found or already confirmed.' });
 
     // Check code
@@ -6780,13 +6843,18 @@ app.post('/api/family-members/confirm-pairing', async (req, res) => {
     }
 
     // Activate the member
-    const { data: updated, error: updateErr } = await db
-      .from('family_members')
-      .update({ status: 'active', pairing_code: null, pairing_code_expires_at: null })
-      .eq('id', member_id)
-      .select()
-      .single();
-    if (updateErr) throw updateErr;
+    let updated;
+    if (pgPool) {
+      const rows = await fmQuery(
+        `UPDATE family_members SET status = 'active', pairing_code = NULL, pairing_code_expires_at = NULL WHERE id = $1 RETURNING *`,
+        [member_id]
+      );
+      updated = rows[0];
+    } else {
+      const { data, error: updateErr } = await db.from('family_members').update({ status: 'active', pairing_code: null, pairing_code_expires_at: null }).eq('id', member_id).select().single();
+      if (updateErr) throw updateErr;
+      updated = data;
+    }
 
     return res.json({ linked: true, kyc_pending: kycPending, member: { ...updated, kyc_pending: kycPending } });
   } catch (e) {
@@ -6841,15 +6909,24 @@ app.patch('/api/family-members/:id', async (req, res) => {
   }
 
   try {
-    const db = supabaseAdmin || supabase;
-    const { data, error } = await db
-      .from('family_members')
-      .update(patch)
-      .eq('id', id)
-      .select()
-      .maybeSingle();
-    if (error) throw error;
-    return res.json({ success: true, member: data });
+    let member;
+    if (pgPool) {
+      const keys = Object.keys(patch);
+      const vals = Object.values(patch);
+      const setClauses = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ');
+      vals.push(id);
+      const rows = await fmQuery(
+        `UPDATE family_members SET ${setClauses} WHERE id = $${vals.length} RETURNING *`,
+        vals
+      );
+      member = rows[0] || null;
+    } else {
+      const db = supabaseAdmin || supabase;
+      const { data, error } = await db.from('family_members').update(patch).eq('id', id).select().maybeSingle();
+      if (error) throw error;
+      member = data;
+    }
+    return res.json({ success: true, member });
   } catch (e) {
     console.error('[family] PATCH error:', e.message);
     return res.status(500).json({ error: e.message });
@@ -6861,9 +6938,13 @@ app.delete('/api/family-members/:id', async (req, res) => {
   const userId = req.query.user_id || req.body?.primary_user_id;
   if (!id || !userId) return res.status(400).json({ error: 'member_id and primary_user_id required' });
   try {
-    const db = supabaseAdmin || supabase;
-    const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
-    if (error) throw error;
+    if (pgPool) {
+      await fmQuery(`DELETE FROM family_members WHERE id = $1 AND primary_user_id = $2`, [id, userId]);
+    } else {
+      const db = supabaseAdmin || supabase;
+      const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
+      if (error) throw error;
+    }
     return res.json({ success: true });
   } catch (e) {
     console.error('[family] DELETE error:', e.message);
@@ -6875,9 +6956,13 @@ app.delete('/api/family-members', async (req, res) => {
   const { member_id, primary_user_id } = req.body || {};
   if (!member_id || !primary_user_id) return res.status(400).json({ error: 'member_id and primary_user_id required' });
   try {
-    const db = supabaseAdmin || supabase;
-    const { error } = await db.from('family_members').delete().eq('id', member_id).eq('primary_user_id', primary_user_id);
-    if (error) throw error;
+    if (pgPool) {
+      await fmQuery(`DELETE FROM family_members WHERE id = $1 AND primary_user_id = $2`, [member_id, primary_user_id]);
+    } else {
+      const db = supabaseAdmin || supabase;
+      const { error } = await db.from('family_members').delete().eq('id', member_id).eq('primary_user_id', primary_user_id);
+      if (error) throw error;
+    }
     return res.json({ success: true });
   } catch (e) {
     console.error('[family] DELETE error:', e.message);
