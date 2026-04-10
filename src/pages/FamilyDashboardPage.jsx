@@ -439,7 +439,7 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
 
       {/* Sheet */}
       <motion.div
-        className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)]"
+        className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl overflow-hidden pb-[env(safe-area-inset-bottom)] min-h-[52vh]"
         initial={{ y: "100%" }}
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
