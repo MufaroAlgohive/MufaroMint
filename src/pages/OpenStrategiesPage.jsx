@@ -204,7 +204,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
           chunks.map((symbols) => (
             supabase
               .from("securities")
-              .select("symbol, name, logo_url, last_price, ytd_start_price")
+              .select("symbol, name, logo_url, last_price, ytd_performance, ytd_start_price")
               .in("symbol", symbols)
           )),
         );
