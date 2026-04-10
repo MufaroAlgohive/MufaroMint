@@ -219,10 +219,12 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
         });
 
         if (isMounted && merged.length) {
-          // Temporary debug: log ytd_performance for key strategy holdings
-          const keySyms = ['NED.JO','SUI.JO','EXX.JO','CLI.JO','DIB.JO','MTNZF.JO','MTN.JO','BOX.JO'];
-          const debugRows = merged.filter(s => keySyms.includes(s.symbol));
-          console.log('[YTD debug] securities returned:', merged.length, 'key holdings:', debugRows.map(s => `${s.symbol}:ytd=${s.ytd_performance}`).join(', '));
+          // Temporary debug: log ytd_performance for all strategy holdings
+          const nullYtd = merged.filter(s => s.ytd_performance == null);
+          const withYtd = merged.filter(s => s.ytd_performance != null);
+          console.log(`[YTD debug] ${merged.length} securities fetched | ${withYtd.length} have ytd_performance | ${nullYtd.length} are NULL`);
+          if (nullYtd.length) console.log('[YTD debug] NULL ytd_performance:', nullYtd.map(s => s.symbol).join(', '));
+          console.log('[YTD debug] Values:', withYtd.map(s => `${s.symbol}=${Number(s.ytd_performance).toFixed(1)}%`).join(', '));
           setHoldingsSecurities(merged);
         }
       } catch (error) {
