@@ -219,6 +219,10 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
         });
 
         if (isMounted && merged.length) {
+          // Temporary debug: log ytd_performance for key strategy holdings
+          const keySyms = ['NED.JO','SUI.JO','EXX.JO','CLI.JO','DIB.JO','MTNZF.JO','MTN.JO','BOX.JO'];
+          const debugRows = merged.filter(s => keySyms.includes(s.symbol));
+          console.log('[YTD debug] securities returned:', merged.length, 'key holdings:', debugRows.map(s => `${s.symbol}:ytd=${s.ytd_performance}`).join(', '));
           setHoldingsSecurities(merged);
         }
       } catch (error) {
