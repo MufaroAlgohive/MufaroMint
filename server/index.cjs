@@ -6775,6 +6775,32 @@ app.post('/api/family-members/confirm-pairing', async (req, res) => {
   }
 });
 
+// Fetch a linked user's public profile fields (name, ID, address) — used for co-guardian display in POA PDF
+app.get('/api/linked-user-profile/:userId', async (req, res) => {
+  const { userId } = req.params;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const db = supabaseAdmin || supabase;
+    const { data, error } = await db
+      .from('profiles')
+      .select('id, first_name, last_name, id_number, address')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Profile not found' });
+    return res.json({
+      id: data.id,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      idNumber: data.id_number,
+      address: data.address,
+    });
+  } catch (e) {
+    console.error('[linked-profile]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 app.patch('/api/family-members/:id', async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).json({ error: 'Member ID required' });

@@ -61,7 +61,7 @@ const slideVariants = {
   exit: (dir) => ({ x: dir * -200, opacity: 0 }),
 };
 
-function AddMemberModal({ type, userId, profile, onSave, onClose }) {
+function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClose }) {
   /* ── Spouse state ── */
   const [spouseMode, setSpouseMode] = useState(null); // null | 'link' | 'invite'
   // Link mode
@@ -1080,6 +1080,7 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                       <MinorProofOfAddressDeclaration
                         childData={newChildMember}
                         parentProfile={profile}
+                        coGuardians={coGuardians}
                         onComplete={handlePoaComplete}
                         onBack={handleChildBack}
                       />
@@ -1618,6 +1619,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
             type={addingType}
             userId={userId}
             profile={profile}
+            coGuardians={members.filter(m => m.relationship === "spouse")}
             onSave={handleMemberSaved}
             onClose={() => setAddingType(null)}
           />
