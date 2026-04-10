@@ -6414,34 +6414,31 @@ app.post('/api/family-members', async (req, res) => {
 
     /* ── SPOUSE ── */
     if (relationship === 'spouse') {
-      if (!id_number?.trim()) {
-        return res.status(400).json({ error: 'A 13-digit South African ID number is required.' });
-      }
-      const cleanId = String(id_number).replace(/\D/g, '');
-      if (cleanId.length !== 13) {
-        return res.status(400).json({ error: 'ID number must be exactly 13 digits.' });
+      const normalizedEmail = email?.toLowerCase().trim() || null;
+      if (!normalizedEmail || !normalizedEmail.includes('@')) {
+        return res.status(400).json({ error: 'An email address is required to invite your spouse.' });
       }
 
       // Already have a spouse?
       const { data: existingSpouse } = await db.from('family_members').select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
       if (existingSpouse) return res.status(409).json({ error: 'A spouse is already linked to this account.' });
 
-      // Look up by ID number
+      // Look up by email address
       let matchedProfile = null;
-      const { data: profileRow, error: profileErr } = await db.from('profiles').select('id, first_name, last_name, email, id_number').eq('id_number', cleanId).maybeSingle();
-      if (!profileErr && profileRow) {
+      const { data: profileRow } = await db.from('profiles').select('id, first_name, last_name, email').eq('email', normalizedEmail).maybeSingle();
+      if (profileRow) {
         matchedProfile = profileRow;
       } else {
-        const { data: onboardingRow, error: onboardingErr } = await db.from('user_onboarding').select('id, user_id, first_name, last_name, email, id_number').eq('id_number', cleanId).maybeSingle();
-        if (!onboardingErr && onboardingRow) {
+        const { data: onboardingRow } = await db.from('user_onboarding').select('id, user_id, first_name, last_name, email').eq('email', normalizedEmail).maybeSingle();
+        if (onboardingRow) {
           const linkedUserId = onboardingRow.user_id || onboardingRow.id || null;
           if (linkedUserId) {
             const { data: linkedProfile } = await db.from('profiles').select('id, first_name, last_name, email').eq('id', linkedUserId).maybeSingle();
             matchedProfile = {
               id: linkedUserId,
-              first_name: linkedProfile?.first_name || onboardingRow.first_name || '',
-              last_name: linkedProfile?.last_name || onboardingRow.last_name || '',
-              email: linkedProfile?.email || onboardingRow.email || null,
+              first_name: linkedProfile?.first_name || onboardingRow.first_name || first_name || '',
+              last_name: linkedProfile?.last_name || onboardingRow.last_name || last_name || '',
+              email: normalizedEmail,
             };
           }
         }
@@ -6492,16 +6489,10 @@ app.post('/api/family-members', async (req, res) => {
       }
 
       /* ── Not found → send invite email ── */
-      const normalizedEmail = email?.toLowerCase().trim() || null;
-      if (!normalizedEmail) {
-        return res.status(404).json({
-          not_found: true,
-          error: 'No Mint account found for that ID number. Provide their email address to send them an invite.',
-        });
-      }
-
       const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
       const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
+      const inviteeName = [first_name, last_name].filter(Boolean).join(' ');
+      const greeting = inviteeName ? `Hi ${inviteeName},` : 'Hi there,';
 
       let emailSent = false;
       const resendKey = process.env.RESEND_API_KEY;
@@ -6513,7 +6504,63 @@ app.post('/api/family-members', async (req, res) => {
             from: 'Mint <noreply@mymint.co.za>',
             to: [normalizedEmail],
             subject: `${inviterName} has invited you to join Mint`,
-            html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8f6fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;padding:40px 24px;"><div style="background:white;border-radius:24px;padding:40px 32px;text-align:center;"><div style="font-size:28px;font-weight:800;color:#1e1b4b;margin-bottom:8px;">mint</div><div style="color:#94a3b8;font-size:13px;margin-bottom:32px;">Family Investing</div><p style="color:#334155;font-size:15px;line-height:1.6;margin-bottom:24px;"><strong>${inviterName}</strong> wants to link you as their spouse on Mint — the smart investing platform for South African families.</p><p style="color:#334155;font-size:15px;line-height:1.6;margin-bottom:32px;">Sign up to start investing together and manage your family&rsquo;s wealth in one place.</p><a href="https://mymint.co.za" style="display:inline-block;background:linear-gradient(135deg,#1e1b4b,#312e81);color:white;padding:14px 40px;border-radius:14px;text-decoration:none;font-weight:700;font-size:15px;">Join Mint</a><p style="color:#94a3b8;font-size:11px;margin-top:24px;">If you weren&rsquo;t expecting this invite, you can safely ignore this email.</p></div></div></body></html>`,
+            html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#EEEAF5;font-family:'Barlow',Helvetica,Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:40px 20px;">
+
+    <!-- Logo bar -->
+    <div style="background:#3D1A6B;border-radius:16px 16px 0 0;padding:20px 32px;text-align:center;">
+      <div style="font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:36px;font-weight:800;color:white;letter-spacing:4px;text-transform:uppercase;">MINT</div>
+      <div style="color:rgba(255,255,255,0.55);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Wills &amp; Funeral Specialists</div>
+    </div>
+
+    <!-- Divider -->
+    <div style="height:3px;background:linear-gradient(90deg,#5B2D8E,#7B4DB0,#EDE8F8);"></div>
+
+    <!-- Card -->
+    <div style="background:white;border-radius:0 0 16px 16px;padding:36px 32px;">
+
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">${greeting}</p>
+
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">
+        <strong style="color:#3D1A6B;">${inviterName}</strong> has invited you to join them on
+        <strong style="color:#3D1A6B;">MINT</strong> — the smart investing and financial planning
+        platform for South African families.
+      </p>
+
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 28px;">
+        Sign up to start investing together, plan for the future, and manage your family&rsquo;s
+        wealth in one place.
+      </p>
+
+      <!-- CTA button -->
+      <div style="text-align:center;margin-bottom:28px;">
+        <a href="https://mymint.co.za"
+           style="display:inline-block;background:linear-gradient(135deg,#3D1A6B,#5B2D8E);color:white;
+                  padding:14px 44px;border-radius:12px;text-decoration:none;
+                  font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;
+                  font-weight:800;font-size:17px;letter-spacing:1px;text-transform:uppercase;">
+          Join MINT
+        </a>
+      </div>
+
+      <p style="color:#94a3b8;font-size:11px;text-align:center;margin:0;">
+        If you weren&rsquo;t expecting this invitation, you can safely ignore this email.
+      </p>
+    </div>
+
+    <p style="color:#a0aec0;font-size:10px;text-align:center;margin-top:16px;">
+      Mint Financial Services (Pty) Ltd &nbsp;·&nbsp; FSP No. 55118
+    </p>
+  </div>
+</body>
+</html>`,
           });
           emailSent = true;
         } catch (emailErr) {

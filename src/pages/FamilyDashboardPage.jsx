@@ -62,9 +62,9 @@ const slideVariants = {
 
 function AddMemberModal({ type, userId, profile, onSave, onClose }) {
   /* ── Spouse state ── */
-  const [spouseIdNumber, setSpouseIdNumber] = useState("");
+  const [spouseFirstName, setSpouseFirstName] = useState("");
+  const [spouseLastName, setSpouseLastName] = useState("");
   const [spouseEmail, setSpouseEmail] = useState("");
-  const [spouseStep, setSpouseStep] = useState(0); // 0 = id number, 1 = email (not found)
   const [spouseResult, setSpouseResult] = useState(null); // null | { linked, kyc_pending, member } | { invited, … }
 
   /* ── Child state ── */
@@ -81,49 +81,8 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
 
   const isSpouse = type === "spouse";
 
-  /* ── Spouse: check ID number ── */
-  async function handleSpouseCheckId() {
-    const clean = spouseIdNumber.replace(/\D/g, "");
-    if (clean.length !== 13) {
-      setError("Please enter a valid 13-digit South African ID number.");
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      const res = await fetch("/api/family-members", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          primary_user_id: userId,
-          relationship: "spouse",
-          id_number: clean,
-        }),
-      });
-      const json = await res.json();
-      if (json.not_found) {
-        // Person not on Mint — move to email invite step
-        setSpouseStep(1);
-        return;
-      }
-      if (!res.ok && !json.invited) {
-        setError(json.error || "Could not link spouse.");
-        return;
-      }
-      if (json.invited) {
-        setSpouseResult({ invited: true, ...json });
-      } else {
-        setSpouseResult({ linked: true, kyc_pending: json.kyc_pending, member: json.member });
-      }
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  /* ── Spouse: send invite email ── */
-  async function handleSpouseSendInvite() {
+  /* ── Spouse: submit name + surname + email ── */
+  async function handleSpouseSubmit() {
     if (!spouseEmail.trim() || !spouseEmail.includes("@")) {
       setError("Please enter a valid email address.");
       return;
@@ -131,14 +90,14 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
     setSaving(true);
     setError("");
     try {
-      const clean = spouseIdNumber.replace(/\D/g, "");
       const res = await fetch("/api/family-members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           primary_user_id: userId,
           relationship: "spouse",
-          id_number: clean,
+          first_name: spouseFirstName.trim() || undefined,
+          last_name: spouseLastName.trim() || undefined,
           email: spouseEmail.trim(),
         }),
       });
@@ -147,7 +106,11 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
         setError(json.error || "Could not send invite.");
         return;
       }
-      setSpouseResult({ invited: true, ...json });
+      if (json.invited) {
+        setSpouseResult({ invited: true, ...json });
+      } else {
+        setSpouseResult({ linked: true, kyc_pending: json.kyc_pending, member: json.member });
+      }
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -381,8 +344,8 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
 
         <div className="px-6 pt-3 pb-8">
 
-          {/* ═══════════════ SPOUSE: step 0 — ID number ═══════════════ */}
-          {isSpouse && !spouseResult && spouseStep === 0 && (
+          {/* ═══════════════ SPOUSE: invite form ═══════════════ */}
+          {isSpouse && !spouseResult && (
             <>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
@@ -393,8 +356,8 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                     <Heart className="h-5 w-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-base font-bold text-slate-900">Add Spouse</p>
-                    <p className="text-xs text-slate-400">Enter your partner's ID number</p>
+                    <p className="text-base font-bold text-slate-900">Invite Spouse</p>
+                    <p className="text-xs text-slate-400">We'll send them an email invitation</p>
                   </div>
                 </div>
                 <button
@@ -406,86 +369,38 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
               </div>
 
               <div className="space-y-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                    South African ID Number
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={13}
-                    value={spouseIdNumber}
-                    onChange={(e) => { setSpouseIdNumber(e.target.value.replace(/\D/g, "")); setError(""); }}
-                    placeholder="13-digit ID number"
-                    autoComplete="off"
-                    className={inputCls}
-                  />
-                </div>
-
-                <p className="text-[11px] text-slate-400 leading-relaxed px-1">
-                  We'll search for your spouse's Mint account using their South African ID number.
-                </p>
-
-                {error && (
-                  <div className="flex items-start gap-2 rounded-xl bg-red-50 px-4 py-3 border border-red-100">
-                    <X className="h-3.5 w-3.5 text-red-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-xs text-red-500">{error}</p>
-                  </div>
-                )}
-
-                <button
-                  onClick={handleSpouseCheckId}
-                  disabled={saving || spouseIdNumber.replace(/\D/g, "").length !== 13}
-                  className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
-                >
-                  {saving ? "Searching…" : "Find Spouse"}
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ═══════════════ SPOUSE: step 1 — not found, send email invite ═══════════════ */}
-          {isSpouse && !spouseResult && spouseStep === 1 && (
-            <>
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => { setSpouseStep(0); setError(""); }}
-                    className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95 mr-1"
-                  >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                  </button>
-                  <div
-                    className="h-10 w-10 rounded-xl flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg,#a855f7,#7c3aed)" }}
-                  >
-                    <Mail className="h-5 w-5 text-white" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      value={spouseFirstName}
+                      onChange={(e) => { setSpouseFirstName(e.target.value); setError(""); }}
+                      placeholder="e.g. Sarah"
+                      autoComplete="off"
+                      className={inputCls}
+                    />
                   </div>
                   <div>
-                    <p className="text-base font-bold text-slate-900">Invite Spouse</p>
-                    <p className="text-xs text-slate-400">No Mint account found</p>
+                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
+                      Surname
+                    </label>
+                    <input
+                      type="text"
+                      value={spouseLastName}
+                      onChange={(e) => { setSpouseLastName(e.target.value); setError(""); }}
+                      placeholder="e.g. Smith"
+                      autoComplete="off"
+                      className={inputCls}
+                    />
                   </div>
-                </div>
-                <button
-                  onClick={onClose}
-                  className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition active:scale-95"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
-                  <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-amber-700 leading-relaxed">
-                    No Mint account was found for that ID number. Enter their email address and we'll send them an invite to sign up.
-                  </p>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-0.5">
-                    Spouse's Email Address
+                    Email Address <span className="normal-case font-normal text-slate-400">*</span>
                   </label>
                   <input
                     type="email"
@@ -505,12 +420,12 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                 )}
 
                 <button
-                  onClick={handleSpouseSendInvite}
-                  disabled={saving}
+                  onClick={handleSpouseSubmit}
+                  disabled={saving || !spouseEmail.trim()}
                   className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
                   style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
                 >
-                  {saving ? "Sending…" : "Send Invite"}
+                  {saving ? "Sending…" : "Send Invitation"}
                 </button>
               </div>
             </>
