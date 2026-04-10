@@ -94,11 +94,13 @@ export const useFinancialData = () => {
         supabase.from("wallets").select("balance").eq("user_id", userId).maybeSingle(),
       ]);
 
-      const transactions = allServerTransactions.slice(0, 20);
-      const allTransactions = allServerTransactions;
+      const safeHoldings = Array.isArray(holdings) ? holdings : [];
+      const safeTxns = Array.isArray(allServerTransactions) ? allServerTransactions : [];
+      const transactions = safeTxns.slice(0, 20);
+      const allTransactions = safeTxns;
       const creditInfo = creditResult.data;
 
-      const sortedHoldings = [...holdings].filter(h => !h.strategy_id).sort((a, b) => {
+      const sortedHoldings = [...safeHoldings].filter(h => !h.strategy_id).sort((a, b) => {
         const aGain = (a.unrealized_pnl || 0) / 100;
         const bGain = (b.unrealized_pnl || 0) / 100;
         return bGain - aGain;
@@ -118,7 +120,7 @@ export const useFinancialData = () => {
         };
       });
 
-      const totalInvestments = holdings.reduce((sum, h) => sum + liveVal(h), 0);
+      const totalInvestments = safeHoldings.reduce((sum, h) => sum + liveVal(h), 0);
       
       const incomeTypes = ["credit"];
       const expenseTypes = ["debit"];
@@ -213,11 +215,13 @@ export const useMintBalance = () => {
         const userId = session.user.id;
         const token = session.access_token;
 
-        const [holdings, allServerTransactions] = await Promise.all([
+        const [holdingsRaw, allServerTransactionsRaw] = await Promise.all([
           fetchServerHoldings(token),
           fetchServerTransactions(token, 100),
         ]);
 
+        const holdings = Array.isArray(holdingsRaw) ? holdingsRaw : [];
+        const allServerTransactions = Array.isArray(allServerTransactionsRaw) ? allServerTransactionsRaw : [];
         const recentTransactions = allServerTransactions.slice(0, 10);
         const allTransactions = allServerTransactions;
         

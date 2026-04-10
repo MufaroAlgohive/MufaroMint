@@ -1,0 +1,85 @@
+[Info] Successfully preconnected to https://fonts.googleapis.com/
+[Info] Successfully preconnected to https://fonts.gstatic.com/
+[Log] [realtime-prices] Setting up singleton subscription (index-DMQIzsOs.js, line 64)
+[Log] Setting up SINGLETON notifications subscription (index-DMQIzsOs.js, line 64)
+[Log] [realtime-prices] Subscription status: – "SUBSCRIBED" (index-DMQIzsOs.js, line 64)
+[Log] Notifications singleton status: – "SUBSCRIBED" (index-DMQIzsOs.js, line 64)
+[Log] KYC status check: stored="verified" current="verified" (index-DMQIzsOs.js, line 64)
+[Log] Setting up SINGLETON real-time subscription: – "required-actions-singleton" (index-DMQIzsOs.js, line 64)
+[Log] [useOnboardingStatus] Total Onboarding Status: – "COMPLETE ✅" – Object (index-DMQIzsOs.js, line 64)
+Object
+[Log] Singleton subscription status: – "SUBSCRIBED" (index-DMQIzsOs.js, line 64)
+[Error] Error fetching financial data: – TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
+TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
+  (anonymous function) (index-DMQIzsOs.js:64:22328)
+[Log] 🔍 Computing price history from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (3M)... (index-DMQIzsOs.js, line 113)
+[Log] 🔍 Fetching price history for security 7715c7a6-1a77-43f3-a073-c8fd425476ad, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security 35b7cce7-a9d3-4a1b-971c-8635bca7f4a0, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security acef61ef-6108-45d0-bbec-a32d347ee7c7, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security 573935c4-b9ac-4779-822a-d15e6bd853c2, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security 4b445d81-e2f4-4b22-b3f3-a6001d4d521f, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security cb4fce85-b246-4a68-87f9-646f82570712, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] ✅ Fetched 75 price points for 3M (index-DMQIzsOs.js, line 98, x2)
+[Log] ✅ Fetched 46 price points for 3M (index-DMQIzsOs.js, line 98)
+[Log] ✅ Fetched 75 price points for 3M (index-DMQIzsOs.js, line 98, x3)
+[Log] ✅ Computed 75 NAV points from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (3M) (index-DMQIzsOs.js, line 113)
+[Log] Native haptics only (index-DMQIzsOs.js, line 268)
+[Log] [realtime-prices] Tearing down subscription (index-DMQIzsOs.js, line 64)
+[Log] [realtime-prices] Subscription status: – "CLOSED" (index-DMQIzsOs.js, line 64)
+[Log] 🔍 Fetching securities with metrics from Supabase... (index-DMQIzsOs.js, line 96)
+[Log] 🔍 Fetching strategies with metrics from Supabase... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching public strategies from Supabase... (index-DMQIzsOs.js, line 113)
+[Log] 🔍 Fetching news articles from News_articles table... (index-DMQIzsOs.js, line 308)
+[Log] ✅ Fetched 11 strategies with metrics (index-DMQIzsOs.js, line 113)
+[Log] ✅ Fetched strategies: – Array (11) (index-DMQIzsOs.js, line 308)
+Array (11)
+[Log] ✅ News articles fetched successfully! (index-DMQIzsOs.js, line 308)
+[Log] 📊 Total count in DB: – 3681 (index-DMQIzsOs.js, line 308)
+[Log] 📰 Articles returned: – 50 (index-DMQIzsOs.js, line 308)
+[Log] Sample article: – Object (index-DMQIzsOs.js, line 308)
+Object
+[Log] ✅ Fetched 6 public strategies (index-DMQIzsOs.js, line 113)
+[Log] ✅ Fetched public strategies: – Array (6) (index-DMQIzsOs.js, line 308)
+Array (6)
+[Log] 🔍 Raw securities sample: – Object (index-DMQIzsOs.js, line 98)
+Object
+[Log] ✅ Fetched 246 securities with metrics (index-DMQIzsOs.js, line 98)
+[Log] 📊 Fetched securities: – Array (246) (index-DMQIzsOs.js, line 308)
+Array (246)
+[Log] 📊 Securities with prices: – 246 (index-DMQIzsOs.js, line 308)
+[Log] 📊 Securities without prices: – 0 (index-DMQIzsOs.js, line 308)
+[Warning] The width(-1) and height(-1) of chart should be greater than 0, (index-DMQIzsOs.js, line 64, x6)
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[Log] Opening strategy: – Object (index-DMQIzsOs.js, line 308)
+Object
+[Warning] The width(-1) and height(-1) of chart should be greater than 0, (index-DMQIzsOs.js, line 64)
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[Warning] The width(-1) and height(-1) of chart should be greater than 0, (index-DMQIzsOs.js, line 64)
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[Log] Notifications singleton status: – "CLOSED" (index-DMQIzsOs.js, line 64)
+[Log] [realtime-prices] Setting up singleton subscription (index-DMQIzsOs.js, line 64)
+[Log] [realtime-prices] Subscription status: – "SUBSCRIBED" (index-DMQIzsOs.js, line 64)
+[Log] KYC status check: stored="null" current="verified" (index-DMQIzsOs.js, line 64)
+[Log] [useOnboardingStatus] Total Onboarding Status: – "COMPLETE ✅" – Object (index-DMQIzsOs.js, line 64)
+Objectflags: {kycDone: true, taxDone: true, bankDone: true, mandateAgreed: true, riskDone: true, …}Objectis_fully_onboarded: trueonboarding: {id: "99d86e70-498a-4ef7-b9b1-150d338ec90b", kyc_status: "onboarding_complete", employment_status: "employed", created_at: "2026-03-16T22:47:19.223536+00:00"}Objectonboarding_id: "99d86e70-498a-4ef7-b9b1-150d338ec90b"success: trueObject Prototype
+[Error] Error fetching financial data:
+TypeError: Spread syntax requires ...iterable[Symbol.iterator] to be a function
+(anonymous function) — index-DMQIzsOs.js:64:21541
+  (anonymous function) (index-DMQIzsOs.js:64:22328)
+[Log] 🔍 Computing price history from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (3M)... (index-DMQIzsOs.js, line 113)
+[Log] 🔍 Fetching price history for security 7715c7a6-1a77-43f3-a073-c8fd425476ad, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security 35b7cce7-a9d3-4a1b-971c-8635bca7f4a0, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security acef61ef-6108-45d0-bbec-a32d347ee7c7, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security 573935c4-b9ac-4779-822a-d15e6bd853c2, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security 4b445d81-e2f4-4b22-b3f3-a6001d4d521f, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] 🔍 Fetching price history for security cb4fce85-b246-4a68-87f9-646f82570712, timeframe 3M... (index-DMQIzsOs.js, line 98)
+[Log] ✅ Fetched 75 price points for 3M (index-DMQIzsOs.js, line 98, x3)
+[Log] ✅ Fetched 46 price points for 3M (index-DMQIzsOs.js, line 98)
+[Log] ✅ Fetched 75 price points for 3M (index-DMQIzsOs.js, line 98, x2)
+[Log] ✅ Computed 75 NAV points from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (3M) (index-DMQIzsOs.js, line 113)
