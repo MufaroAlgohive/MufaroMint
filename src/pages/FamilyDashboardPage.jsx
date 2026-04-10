@@ -275,12 +275,41 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
     }
   }
 
+  /* ── Compress image before upload ── */
+  async function compressImage(file) {
+    const isImage = file.type.startsWith("image/") && !file.name.toLowerCase().endsWith(".heic");
+    if (!isImage) return file;
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const MAX = 1600;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round((height / width) * MAX); width = MAX; }
+          else { width = Math.round((width / height) * MAX); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
+        }, "image/jpeg", 0.82);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  }
+
   /* ── Child: file pick ── */
   function handleCertSelect(e) {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError("File must be under 10 MB.");
+      if (file.size > 20 * 1024 * 1024) {
+        setError("File must be under 20 MB.");
         return;
       }
       setError("");
@@ -305,15 +334,17 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
     setUploading(true);
     setError("");
     try {
-      // Upload to Supabase storage
-      const safeFileName = certFile.name.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
+      // Compress image files before upload
+      const fileToUpload = await compressImage(certFile);
+
+      const safeFileName = fileToUpload.name.trim().replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
       const filePath = `${userId}/${Date.now()}-${safeFileName}`;
 
       let certificateUrl = null;
       if (supabase) {
         const { error: uploadError } = await supabase.storage
           .from("birth-certificates")
-          .upload(filePath, certFile, { upsert: true });
+          .upload(filePath, fileToUpload, { upsert: true });
 
         if (uploadError) {
           console.warn("[family] Certificate upload failed:", uploadError.message);
@@ -973,12 +1004,18 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                               <span className="text-sm font-semibold text-purple-700 truncate max-w-[240px]">
                                 {certFile.name}
                               </span>
+                              <span className="text-[11px] text-slate-400">
+                                {certFile.size > 1024 * 1024
+                                  ? `${(certFile.size / (1024 * 1024)).toFixed(1)} MB`
+                                  : `${Math.round(certFile.size / 1024)} KB`}
+                                {certFile.type.startsWith("image/") && " · will be compressed"}
+                              </span>
                             </div>
                           ) : (
                             <>
                               <Upload className="h-8 w-8 text-slate-300 mx-auto mb-2" />
                               <p className="text-sm font-semibold text-slate-600">Tap to upload</p>
-                              <p className="text-[11px] text-slate-400 mt-1">PDF, JPG or PNG · Max 10 MB</p>
+                              <p className="text-[11px] text-slate-400 mt-1">PDF, JPG or PNG · Max 20 MB</p>
                             </>
                           )}
                         </label>
@@ -1005,7 +1042,7 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
                           className="w-full rounded-xl py-3.5 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50"
                           style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81)" }}
                         >
-                          {uploading ? "Uploading…" : saving ? "Adding…" : "Add Child"}
+                          {uploading ? "Uploading document…" : saving ? "Saving…" : "Add Child"}
                         </button>
                       </div>
                     </motion.div>
