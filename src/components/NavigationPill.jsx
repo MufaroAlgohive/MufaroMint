@@ -55,7 +55,7 @@ const NavigationPill = ({ activeTab = "credit", onTabChange, className = "", the
               <span className="relative z-10">{tab.label}</span>
 
               {!tab.disabled && tab.id === "credit" && showNewBadge && (
-                <div className="absolute -top-4 -right-4 w-7 h-7 flex items-center justify-center pointer-events-none">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-7 h-7 flex items-center justify-center pointer-events-none">
                   <motion.div
                     animate={{
                       scale: [1, 1.12, 1],
