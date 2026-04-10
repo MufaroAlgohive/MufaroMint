@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mint – Policy Schedule | Kurt Von Schaeffer | MNT701617</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --purple: #5B2D8E;
+    --purple-dark: #3D1A6B;
+    --purple-mid: #7B4DB0;
+    --purple-light: #EDE8F8;
+    --purple-pale: #F5F2FC;
+    --yellow: #F5D400;
+    --text: #1A1A2E;
+    --text-mid: #444;
+    --text-light: #777;
+    --white: #FFFFFF;
+    --border: #DDD8F0;
+    --row-alt: #F9F7FF;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: #EEEAF5;
+    color: var(--text);
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  @media print {
+    body { background: white; }
+    .page { box-shadow: none; margin: 0; border-radius: 0; page-break-after: always; }
+  }
+
+  /* ── WRAPPER ── */
+  .doc { max-width: 860px; margin: 0 auto; padding: 28px 16px; }
+
+  /* ── PAGE CARD ── */
+  .page {
+    background: var(--white);
+    border-radius: 14px;
+    box-shadow: 0 6px 48px rgba(91,45,142,0.13);
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+
+  /* ══════════════════════════════════════
+     PAGE 1 — WELCOME
+  ══════════════════════════════════════ */
+
+  /* Top header strip */
+  .header-strip {
+    background: var(--purple);
+    padding: 0;
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    min-height: 90px;
+  }
+  .header-logo-box {
+    background: var(--purple-dark);
+    padding: 22px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 200px;
+  }
+  .header-logo-box .tagline {
+    color: rgba(255,255,255,0.6);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-top: 5px;
+  }
+  .header-right {
+    flex: 1;
+    padding: 18px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+  }
+  .header-right h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .header-right .hdate {
+    font-size: 11px;
+    color: rgba(255,255,255,0.65);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* Policy bar */
+  .policy-bar {
+    background: var(--purple-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 30px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .policy-bar .pnum {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 2px;
+  }
+  .policy-bar .pname {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* Plan-type sub-bar */
+  .plantype-bar {
+    background: var(--purple-light);
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 30px;
+    font-size: 11px;
+    color: var(--purple);
+  }
+  .plantype-bar .label { opacity: 0.65; text-transform: uppercase; letter-spacing: 1px; }
+  .plantype-bar .val { font-weight: 700; }
+
+  /* Body */
+  .body { padding: 32px 36px; }
+
+  /* Section title */
+  .sec-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 2px solid var(--purple-light);
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+  }
+
+  /* Welcome text */
+  .welcome-text p {
+    color: var(--text-mid);
+    margin-bottom: 13px;
+    font-size: 13.5px;
+  }
+  .welcome-text p strong { color: var(--purple); }
+
+  /* Notice box */
+  .notice-box {
+    background: linear-gradient(135deg, var(--purple-light), #E4DCF5);
+    border-left: 4px solid var(--purple);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 20px 0;
+    font-size: 13px;
+    color: var(--purple-dark);
+    font-weight: 500;
+  }
+
+  /* Signature */
+  .sig-area {
+    margin-top: 24px;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+  }
+  .sig-box {
+    background: var(--purple-pale);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 24px;
+    text-align: center;
+  }
+  .sig-name-script {
+    font-size: 30px;
+    color: var(--purple);
+    font-style: italic;
+    font-weight: 300;
+    font-family: 'Barlow', sans-serif;
+    line-height: 1.2;
+  }
+  .sig-person { font-weight: 700; font-size: 13px; margin-top: 6px; color: var(--text); }
+  .sig-role { font-size: 11px; color: var(--text-light); }
+  .sig-co { font-size: 11px; color: var(--purple); font-weight: 500; }
+
+  /* Underwriter badge */
+  .underwriter {
+    margin-top: 28px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+  }
+  .underwriter .uw-label {
+    font-size: 10px;
+    color: var(--text-light);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+  .uw-badge {
+    background: var(--text);
+    color: white;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .uw-badge .gr { color: var(--yellow); }
+
+  /* Full-width photo band */
+  .photo-band {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    object-position: center 30%;
+    display: block;
+    margin-top: 28px;
+  }
+  .photo-band-tall {
+    width: 100%;
+    height: 340px;
+    object-fit: cover;
+    object-position: center 20%;
+    display: block;
+  }
+
+  /* Footer bar */
+  .footer-bar {
+    background: var(--purple-dark);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 24px;
+    font-size: 10.5px;
+    color: rgba(255,255,255,0.7);
+  }
+  .footer-bar .flogo { color: white; font-weight: 700; font-size: 13px; letter-spacing: 1px; }
+  .footer-legal {
+    background: var(--purple);
+    text-align: center;
+    padding: 7px 24px;
+    font-size: 9.5px;
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* ══════════════════════════════════════
+     PAGE 2 — PLAN SUMMARY
+  ══════════════════════════════════════ */
+  .section-header {
+    background: var(--purple);
+    padding: 14px 30px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .section-header .sh-icon {
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .section-header h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Table styles */
+  .tbl-wrap { margin-bottom: 24px; }
+  .tbl-head {
+    background: var(--purple);
+    color: white;
+    padding: 9px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-radius: 6px 6px 0 0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table thead tr {
+    background: var(--purple-light);
+  }
+  table thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--purple);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  table thead th:last-child { text-align: right; }
+  table tbody tr { border-bottom: 1px solid var(--border); }
+  table tbody tr:nth-child(even) { background: var(--row-alt); }
+  table tbody td { padding: 10px 14px; font-size: 13px; color: var(--text-mid); }
+  table tbody td:last-child { text-align: right; font-weight: 600; color: var(--purple-dark); }
+  table tfoot tr { background: var(--purple-dark); }
+  table tfoot td {
+    padding: 11px 14px;
+    font-weight: 700;
+    color: white;
+    font-size: 13.5px;
+  }
+  table tfoot td:last-child { text-align: right; }
+
+  .debit-note {
+    background: var(--purple-pale);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 13px 18px;
+    font-size: 13px;
+    color: var(--text-mid);
+    margin: 16px 0;
+  }
+  .debit-note strong { color: var(--purple); }
+
+  /* ══════════════════════════════════════
+     PAGE 3 — BENEFIT DETAILS
+  ══════════════════════════════════════ */
+  .benefit-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .benefit-card-head {
+    background: var(--purple);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .benefit-card-head .bc-icon {
+    font-size: 20px;
+    width: 34px; height: 34px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .benefit-card-head h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .benefit-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    background: white;
+  }
+  .benefit-grid .bg-cell {
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+  .benefit-grid .bg-cell:nth-child(even) { border-right: none; }
+  .benefit-grid .bg-cell .bc-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-light);
+    margin-bottom: 2px;
+  }
+  .benefit-grid .bg-cell .bc-val {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--purple-dark);
+  }
+
+  /* Benefit icon row */
+  .benefit-icons {
+    display: flex;
+    gap: 0;
+    background: var(--purple-light);
+    border-top: 1.5px solid var(--border);
+  }
+  .bi-cell {
+    flex: 1;
+    text-align: center;
+    padding: 14px 8px;
+    border-right: 1px solid var(--border);
+  }
+  .bi-cell:last-child { border-right: none; }
+  .bi-icon {
+    font-size: 26px;
+    display: block;
+    margin-bottom: 5px;
+  }
+  .bi-label {
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--purple-dark);
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .bi-amount {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--purple);
+    margin-top: 3px;
+  }
+
+  /* Beneficiary table */
+  .bene-table th { text-align: left; }
+  .bene-table td:last-child { text-align: left; }
+
+  /* ══════════════════════════════════════
+     PAGE 4 — T&C
+  ══════════════════════════════════════ */
+  .tc-section {
+    margin-bottom: 20px;
+  }
+  .tc-head {
+    background: var(--purple);
+    color: white;
+    padding: 8px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-radius: 5px 5px 0 0;
+  }
+  .tc-body {
+    background: var(--purple-pale);
+    border: 1px solid var(--border);
+    border-top: none;
+    padding: 13px 16px;
+    font-size: 13px;
+    color: var(--text-mid);
+    border-radius: 0 0 5px 5px;
+    line-height: 1.65;
+  }
+
+  /* Remuneration table */
+  .rem-table thead th { text-align: left; }
+  .rem-table tbody td:last-child { text-align: right; font-weight: 700; color: var(--purple); }
+  .rem-table tbody td { vertical-align: top; }
+
+  /* ══════════════════════════════════════
+     PAGE 5 — FAIS
+  ══════════════════════════════════════ */
+  .fais-block { margin-bottom: 20px; }
+  .fais-block-head {
+    background: var(--purple);
+    color: white;
+    padding: 8px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border-radius: 5px 5px 0 0;
+  }
+  .fais-block-body {
+    border: 1px solid var(--border);
+    border-top: none;
+    padding: 13px 16px;
+    font-size: 12.5px;
+    color: var(--text-mid);
+    border-radius: 0 0 5px 5px;
+    line-height: 1.7;
+    background: white;
+  }
+  .fais-block-body p { margin-bottom: 4px; }
+  .fais-block-body strong { color: var(--purple-dark); }
+
+  /* ══════════════════════════════════════
+     PAGE 6 — REGULATORY CONTACTS
+  ══════════════════════════════════════ */
+  .reg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .reg-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .reg-card-head {
+    background: var(--purple);
+    padding: 10px 16px;
+    color: white;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .reg-card-body {
+    padding: 13px 16px;
+    font-size: 12px;
+    color: var(--text-mid);
+    line-height: 1.7;
+    background: var(--purple-pale);
+  }
+
+  /* ── MINT LOGO SVG ── */
+  .mint-logo-svg { width: 100px; height: auto; display: block; }
+
+  /* CL-style page top logo bar */
+  .top-logo-bar {
+    background: var(--purple-dark);
+    padding: 10px 24px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Divider */
+  .divider {
+    height: 3px;
+    background: linear-gradient(90deg, var(--purple), var(--purple-mid), var(--purple-light));
+    margin: 0;
+  }
+
+  ul.disc { padding-left: 18px; }
+  ul.disc li { margin-bottom: 4px; color: var(--text-mid); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 1 — WELCOME LETTER               -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page">
+    <!-- Header -->
+    <div class="header-strip">
+      <div class="header-logo-box">
+        <!-- Mint Logo SVG -->
+        <svg class="mint-logo-svg" viewBox="0 0 120 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Arrow/chevron icon -->
+          <g>
+            <polygon points="0,0 18,0 28,19 18,38 0,38 10,19" fill="#F5D400"/>
+            <polygon points="12,0 30,0 40,19 30,38 12,38 22,19" fill="rgba(255,255,255,0.3)"/>
+          </g>
+          <!-- MINT text -->
+          <text x="46" y="26" font-family="Barlow Condensed, sans-serif" font-weight="800" font-size="22" fill="white" letter-spacing="2">MINT</text>
+        </svg>
+        <div class="tagline">Wills &amp; Funeral Specialists</div>
+      </div>
+      <div class="header-right">
+        <h1>Policy Schedule</h1>
+        <div class="hdate">10 April 2026</div>
+      </div>
+    </div>
+
+    <div class="policy-bar">
+      <span class="pnum">MNT701617</span>
+      <span class="pname">Kurt Von Schaeffer</span>
+    </div>
+
+    <div class="plantype-bar">
+      <span><span class="label">Plan Type &nbsp;|&nbsp;</span><span class="val">Single Parent Funeral Plan</span></span>
+      <span><span class="label">Provider &nbsp;|&nbsp;</span><span class="val">Mint Financial Services (Pty) Ltd — FSP No. 55118</span></span>
+    </div>
+
+    <div class="body">
+      <div class="sec-title">Welcome to Mint</div>
+
+      <div class="welcome-text">
+        <p>Dear <strong>Kurt Von Schaeffer</strong>,</p>
+        <p>Thank you for choosing the Mint Funeral Plan. We are honoured to be your trusted financial services partner, and we are committed to ensuring that your loved ones are taken care of at their most vulnerable time.</p>
+        <p>Your Mint Funeral Plan has been designed to provide your family with an <strong>immediate lump-sum payout</strong> upon a valid claim — covering funeral costs, associated expenses, and providing financial relief when it matters most. Your policy is underwritten by a licensed South African Life Insurer in terms of the Long-term Insurance Act and the Financial Advisory and Intermediary Services Act (FAIS).</p>
+        <p>Please read the enclosed Policy Schedule and the attached terms and conditions carefully. Should any information in this Policy Schedule be incorrect or incomplete, please notify us in writing within <strong>thirty-one (31) days</strong> from the date of this letter.</p>
+        <p>Please also advise us, at any time, of any changes to your personal information or beneficiary nominations. Keeping your information up to date ensures that your cover remains valid and your claim can be processed without delay.</p>
+      </div>
+
+      <div class="notice-box">
+        ⚠️ &nbsp; A <strong>waiting period of 6 months</strong> applies from the commencement date. During this period, no benefits will be paid for natural causes of death. The Accidental Death benefit (where selected) is <strong>not</strong> subject to the waiting period.
+      </div>
+
+      <p style="color:var(--text-mid);font-size:13px;margin-bottom:20px;">Should you have any questions, please contact our client support team at <strong style="color:var(--purple)">support@mymint.co.za</strong>.</p>
+
+      <div class="sig-area">
+        <div class="sig-box">
+          <div class="sig-name-script">L. Damane</div>
+          <div class="sig-person">Lonwabo</div>
+          <div class="sig-role">Chief Executive Officer</div>
+          <div class="sig-co">Mint Financial Services (Pty) Ltd</div>
+        </div>
+      </div>
+
+      <div class="underwriter">
+        <span class="uw-label">Underwritten by</span>
+        <div class="uw-badge"><span class="gr">GUARD</span>RISK</div>
+        <div style="font-size:10px;color:var(--text-light);">Life Ltd — FSP 76</div>
+      </div>
+    </div>
+
+    <!-- Hero Photo -->
+    <img class="photo-band" src="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=900&q=80&fit=crop" alt="Family together">
+
+    <div class="footer-bar">
+      <span class="flogo">mint</span>
+      <span>Policy Schedule – Kurt Von Schaeffer | MNT701617 | 10 April 2026 | Page 1 of 6</span>
+      <span>support@mymint.co.za</span>
+    </div>
+    <div class="footer-legal">Mint Financial Services (Pty) Ltd | FSP No. 55118 | Underwritten by GuardRisk Life Ltd — FSP 76</div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 2 — PLAN SUMMARY                 -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page">
+    <div class="top-logo-bar">
+      <svg class="mint-logo-svg" viewBox="0 0 120 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="0,0 18,0 28,19 18,38 0,38 10,19" fill="#F5D400"/>
+        <polygon points="12,0 30,0 40,19 30,38 12,38 22,19" fill="rgba(255,255,255,0.25)"/>
+        <text x="46" y="26" font-family="Barlow Condensed, sans-serif" font-weight="800" font-size="22" fill="white" letter-spacing="2">MINT</text>
+      </svg>
+    </div>
+    <div class="divider"></div>
+
+    <div class="body">
+      <div class="sec-title">Summary of Product &amp; Service Selection</div>
+
+      <!-- Plan Summary Table -->
+      <div class="tbl-wrap">
+        <div class="tbl-head">📋 &nbsp; Plan Summary</div>
+        <table>
+          <thead><tr><th>Product Name</th><th>Monthly Premium</th><th>Plan Value</th></tr></thead>
+          <tbody>
+            <tr><td>Single Parent Funeral Plan</td><td style="text-align:right">R 273.08 pm</td><td>R 25 000</td></tr>
+            <tr><td>Accidental Death – Double payout on accidental death</td><td style="text-align:right">R 37.65 pm</td><td>Optional benefit</td></tr>
+            <tr><td>Tombstone Benefit – R5,000 in-kind benefit</td><td style="text-align:right">R 45.64 pm</td><td>Optional benefit</td></tr>
+            <tr><td>Meat Benefit – R5,000 in-kind benefit</td><td style="text-align:right">R 45.64 pm</td><td>Optional benefit</td></tr>
+          </tbody>
+          <tfoot><tr><td><strong>Total</strong></td><td style="text-align:right"><strong>R 402.01 pm</strong></td><td></td></tr></tfoot>
+        </table>
+      </div>
+
+      <!-- Principal Life Plan Benefits -->
+      <div class="tbl-wrap">
+        <div class="tbl-head">🛡️ &nbsp; Principal Life Plan Benefits</div>
+        <table>
+          <thead><tr><th>Benefit Name</th><th>Plan Value</th></tr></thead>
+          <tbody>
+            <tr><td>Funeral Cover – Main Member (Single Parent)</td><td>R 25 000</td></tr>
+            <tr><td>Children Funeral Cover (1 child)</td><td>Per age bracket</td></tr>
+            <tr><td>Accidental Death (Double payout on accidental death)</td><td>Included</td></tr>
+            <tr><td>Tombstone Benefit (R5,000 in-kind benefit)</td><td>R 5 000</td></tr>
+            <tr><td>Meat Benefit (R5,000 in-kind benefit)</td><td>R 5 000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="debit-note">
+        💳 &nbsp; Your total premium of <strong>R 402.01 per month</strong> will be debited from your bank account on the <strong>25th of every month</strong>. The reference on your bank statement will be: <strong>MINT-INS MNT701617</strong>.
+      </div>
+
+      <div class="notice-box">
+        ⚠️ &nbsp; A waiting period of <strong>6 months</strong> applies from the commencement date. Please read this plan schedule in conjunction with the plan terms and conditions included with this communication.
+      </div>
+    </div>
+
+    <img class="photo-band" src="https://images.unsplash.com/photo-1491013516836-7db643ee125a?w=900&q=80&fit=crop&crop=top" alt="Mother and child">
+
+    <div class="footer-bar">
+      <span class="flogo">mint</span>
+      <span>Policy Schedule – Kurt Von Schaeffer | MNT701617 | 10 April 2026 | Page 2 of 6</span>
+      <span>support@mymint.co.za</span>
+    </div>
+    <div class="footer-legal">Mint Financial Services (Pty) Ltd | FSP No. 55118 | Underwritten by GuardRisk Life Ltd — FSP 76</div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 3 — BENEFIT DETAILS              -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page">
+    <div class="top-logo-bar">
+      <svg class="mint-logo-svg" viewBox="0 0 120 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="0,0 18,0 28,19 18,38 0,38 10,19" fill="#F5D400"/>
+        <polygon points="12,0 30,0 40,19 30,38 12,38 22,19" fill="rgba(255,255,255,0.25)"/>
+        <text x="46" y="26" font-family="Barlow Condensed, sans-serif" font-weight="800" font-size="22" fill="white" letter-spacing="2">MINT</text>
+      </svg>
+    </div>
+    <div class="divider"></div>
+
+    <div class="body">
+      <div class="sec-title">Benefit Details</div>
+
+      <!-- Benefit 1 -->
+      <div class="benefit-card">
+        <div class="benefit-card-head">
+          <div class="bc-icon">🏠</div>
+          <h3>Single Parent Funeral Plan</h3>
+        </div>
+        <div class="benefit-grid">
+          <div class="bg-cell"><div class="bc-label">Life Assured</div><div class="bc-val">Kurt Von Schaeffer</div></div>
+          <div class="bg-cell"><div class="bc-label">Commencement Date</div><div class="bc-val">10 April 2026</div></div>
+          <div class="bg-cell"><div class="bc-label">Date of Birth / Age</div><div class="bc-val">33 Years</div></div>
+          <div class="bg-cell"><div class="bc-label">Policy Term</div><div class="bc-val">Whole of Life</div></div>
+          <div class="bg-cell"><div class="bc-label">Age Band</div><div class="bc-val">18–65</div></div>
+          <div class="bg-cell"><div class="bc-label">Premium Increases</div><div class="bc-val">Not Guaranteed</div></div>
+          <div class="bg-cell"><div class="bc-label">Waiting Period</div><div class="bc-val">6 Months (all causes)</div></div>
+          <div class="bg-cell"><div class="bc-label">Deduction Date</div><div class="bc-val">25th of each month</div></div>
+        </div>
+        <!-- Icon benefit row -->
+        <div class="benefit-icons">
+          <div class="bi-cell">
+            <span class="bi-icon">💰</span>
+            <div class="bi-label">Monthly<br>Premium</div>
+            <div class="bi-amount">R 273.08</div>
+          </div>
+          <div class="bi-cell">
+            <span class="bi-icon">🛡️</span>
+            <div class="bi-label">Cover<br>Amount</div>
+            <div class="bi-amount">R 25 000</div>
+          </div>
+          <div class="bi-cell">
+            <span class="bi-icon">🚑</span>
+            <div class="bi-label">Accidental<br>Death</div>
+            <div class="bi-amount">2× Payout</div>
+          </div>
+          <div class="bi-cell">
+            <span class="bi-icon">🪦</span>
+            <div class="bi-label">Tombstone<br>Benefit</div>
+            <div class="bi-amount">R 5 000</div>
+          </div>
+          <div class="bi-cell">
+            <span class="bi-icon">🥩</span>
+            <div class="bi-label">Meat<br>Benefit</div>
+            <div class="bi-amount">R 5 000</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Benefit 2 -->
+      <div class="benefit-card">
+        <div class="benefit-card-head">
+          <div class="bc-icon">⚡</div>
+          <h3>Accidental Death – Double Payout</h3>
+        </div>
+        <div class="benefit-grid">
+          <div class="bg-cell"><div class="bc-label">Life Assured</div><div class="bc-val">Kurt Von Schaeffer</div></div>
+          <div class="bg-cell"><div class="bc-label">Policy Term</div><div class="bc-val">Whole of Life</div></div>
+          <div class="bg-cell"><div class="bc-label">Benefit Type</div><div class="bc-val">Once Off Payout</div></div>
+          <div class="bg-cell"><div class="bc-label">Monthly Premium</div><div class="bc-val">R 37.65</div></div>
+        </div>
+      </div>
+
+      <!-- Benefit 3 -->
+      <div class="benefit-card">
+        <div class="benefit-card-head">
+          <div class="bc-icon">🪦</div>
+          <h3>Tombstone Benefit – R5,000 In-Kind</h3>
+        </div>
+        <div class="benefit-grid">
+          <div class="bg-cell"><div class="bc-label">Life Assured</div><div class="bc-val">Kurt Von Schaeffer</div></div>
+          <div class="bg-cell"><div class="bc-label">Policy Term</div><div class="bc-val">Whole of Life</div></div>
+          <div class="bg-cell"><div class="bc-label">Benefit Type</div><div class="bc-val">Once Off Payout</div></div>
+          <div class="bg-cell"><div class="bc-label">Monthly Premium</div><div class="bc-val">R 45.64</div></div>
+        </div>
+      </div>
+
+      <!-- Benefit 4 -->
+      <div class="benefit-card">
+        <div class="benefit-card-head">
+          <div class="bc-icon">🥩</div>
+          <h3>Meat Benefit – R5,000 In-Kind</h3>
+        </div>
+        <div class="benefit-grid">
+          <div class="bg-cell"><div class="bc-label">Life Assured</div><div class="bc-val">Kurt Von Schaeffer</div></div>
+          <div class="bg-cell"><div class="bc-label">Policy Term</div><div class="bc-val">Whole of Life</div></div>
+          <div class="bg-cell"><div class="bc-label">Benefit Type</div><div class="bc-val">Once Off Payout</div></div>
+          <div class="bg-cell"><div class="bc-label">Monthly Premium</div><div class="bc-val">R 45.64</div></div>
+        </div>
+      </div>
+
+      <!-- Beneficiary Details -->
+      <div class="sec-title" style="margin-top:8px;">Beneficiary &amp; Policyholder Details</div>
+
+      <div class="tbl-wrap">
+        <div class="tbl-head">👨‍👧 &nbsp; Beneficiary Details</div>
+        <table class="bene-table">
+          <thead><tr><th>Name</th><th>Relationship</th><th>Date of Birth</th><th>Age</th><th>Cover Benefit</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Suenin Von Schaeffer</strong></td>
+              <td>Child</td>
+              <td>2022-12-10</td>
+              <td>3 yrs</td>
+              <td><strong style="color:var(--purple)">R 4 000 (1–5)</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tbl-wrap">
+        <div class="tbl-head">👤 &nbsp; Policyholder Details</div>
+        <table>
+          <tbody>
+            <tr><td style="font-weight:600">Full Name</td><td>Kurt Von Schaeffer</td><td style="font-weight:600">Age at Inception</td><td>33 years</td></tr>
+            <tr><td style="font-weight:600">Policy Number</td><td>MNT701617</td><td style="font-weight:600">Schedule Date</td><td>10 April 2026</td></tr>
+            <tr><td style="font-weight:600">Deduction Date</td><td>25th of each month</td><td style="font-weight:600">Bank Reference</td><td>MINT-INS MNT701617</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <img class="photo-band" src="https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=900&q=80&fit=crop&crop=center" alt="Parent and child">
+
+    <div class="footer-bar">
+      <span class="flogo">mint</span>
+      <span>Policy Schedule – Kurt Von Schaeffer | MNT701617 | 10 April 2026 | Page 3 of 6</span>
+      <span>support@mymint.co.za</span>
+    </div>
+    <div class="footer-legal">Mint Financial Services (Pty) Ltd | FSP No. 55118 | Underwritten by GuardRisk Life Ltd — FSP 76</div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 4 — TERMS & CONDITIONS           -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page">
+    <div class="top-logo-bar">
+      <svg class="mint-logo-svg" viewBox="0 0 120 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="0,0 18,0 28,19 18,38 0,38 10,19" fill="#F5D400"/>
+        <polygon points="12,0 30,0 40,19 30,38 12,38 22,19" fill="rgba(255,255,255,0.25)"/>
+        <text x="46" y="26" font-family="Barlow Condensed, sans-serif" font-weight="800" font-size="22" fill="white" letter-spacing="2">MINT</text>
+      </svg>
+    </div>
+    <div class="divider"></div>
+
+    <div class="body">
+      <div class="sec-title">Important Terms &amp; Conditions</div>
+
+      <div class="tc-section">
+        <div class="tc-head">⏳ &nbsp; Waiting Period</div>
+        <div class="tc-body">A waiting period of 6 months applies from the commencement date of this policy. No benefits will be payable for natural causes of death during this period. Where the Accidental Death benefit has been selected, that benefit is not subject to the waiting period.</div>
+      </div>
+
+      <div class="tc-section">
+        <div class="tc-head">📈 &nbsp; Premium Changes</div>
+        <div class="tc-body">Your monthly premium may increase in line with inflation or as a result of adverse claims experience. Mint Financial Services will give you thirty-one (31) days' written notice of any premium or benefit change. Continued payment after notice constitutes acceptance.</div>
+      </div>
+
+      <div class="tc-section">
+        <div class="tc-head">📋 &nbsp; Claim Submission</div>
+        <div class="tc-body">All claims must be submitted within six (6) months of the date of the insured event. Required documentation includes a certified copy of the death certificate, the ID documents of the deceased and the claimant, the completed Mint claim form, and any other documents requested by the insurer.</div>
+      </div>
+
+      <div class="tc-section">
+        <div class="tc-head">⚠️ &nbsp; Non-Disclosure</div>
+        <div class="tc-body">Do not sign any blank or partially completed claim forms. Failure to disclose any material information — including pre-existing health conditions — may result in a claim being repudiated. All information you provide must be complete, accurate, and truthful.</div>
+      </div>
+
+      <div class="tc-section">
+        <div class="tc-head">🔄 &nbsp; Lapse &amp; Reinstatement</div>
+        <div class="tc-body">Should premiums not be received within the thirty (30) day grace period, this policy will lapse and no benefits will be payable. Reinstatement of a lapsed policy is subject to Mint's underwriting approval and may result in a new waiting period being applied.</div>
+      </div>
+
+      <div class="tc-section">
+        <div class="tc-head">❌ &nbsp; Cancellation</div>
+        <div class="tc-body">You may cancel this policy at any time by providing written notice to Mint Financial Services. No refund of premiums will be made. If you wish to cancel your policy, please contact us at support@mymint.co.za.</div>
+      </div>
+
+      <div class="tc-section">
+        <div class="tc-head">📣 &nbsp; Complaints</div>
+        <div class="tc-body">If you are dissatisfied with any aspect of our service, please contact us at support@mymint.co.za. If your complaint is not resolved to your satisfaction, you may escalate it to the FSCA (fsca.co.za) or the Ombud for Financial Services Providers: <strong>0860 663 274</strong>.</div>
+      </div>
+
+      <div class="sec-title" style="margin-top:8px;">Remuneration Structure</div>
+      <div class="tbl-wrap">
+        <table class="rem-table">
+          <thead><tr><th>Category</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Your referring intermediary will receive initial remuneration for the first twelve months, payable upfront on inception of the cover and recoverable should the plan lapse.</td>
+              <td>Per FAIS schedule</td>
+            </tr>
+            <tr>
+              <td>Ongoing administration and intermediary fees payable to Mint Financial Services (Pty) Ltd each month from the plan.</td>
+              <td>Included in premium</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:11.5px;color:var(--text-light);margin-top:8px;">Please note that these amounts exclude VAT. Future premium increases on your plan may attract additional commission.</p>
+    </div>
+
+    <img class="photo-band" src="https://images.unsplash.com/photo-1476703993599-0035a21b17a9?w=900&q=80&fit=crop&crop=center" alt="Family walking">
+
+    <div class="footer-bar">
+      <span class="flogo">mint</span>
+      <span>Policy Schedule – Kurt Von Schaeffer | MNT701617 | 10 April 2026 | Page 4 of 6</span>
+      <span>support@mymint.co.za</span>
+    </div>
+    <div class="footer-legal">Mint Financial Services (Pty) Ltd | FSP No. 55118 | Underwritten by GuardRisk Life Ltd — FSP 76</div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 5 — FAIS DISCLOSURE              -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page">
+    <div class="top-logo-bar">
+      <svg class="mint-logo-svg" viewBox="0 0 120 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="0,0 18,0 28,19 18,38 0,38 10,19" fill="#F5D400"/>
+        <polygon points="12,0 30,0 40,19 30,38 12,38 22,19" fill="rgba(255,255,255,0.25)"/>
+        <text x="46" y="26" font-family="Barlow Condensed, sans-serif" font-weight="800" font-size="22" fill="white" letter-spacing="2">MINT</text>
+      </svg>
+    </div>
+    <div class="divider"></div>
+
+    <div class="body">
+      <div class="sec-title">FAIS Disclosure Notice</div>
+      <p style="font-style:italic;color:var(--text-light);font-size:12.5px;margin-bottom:20px;">Disclosures required in terms of the Financial Advisory and Intermediary Services Act 37 of 2002</p>
+
+      <div class="fais-block">
+        <div class="fais-block-head">🏢 &nbsp; The Administrator / Binder Holder</div>
+        <div class="fais-block-body">
+          <p><strong>Name:</strong> Mint Financial Services (Pty) Ltd</p>
+          <p><strong>Physical Address:</strong> Sandton, Johannesburg, 2196</p>
+          <p><strong>Postal Address:</strong> PO Box 786015, Sandton, 2146</p>
+          <p><strong>Email:</strong> support@mymint.co.za</p>
+          <p><strong>Website:</strong> www.mymint.co.za</p>
+          <p><strong>FSP Licence Number:</strong> 55118 | Category: Long-term Insurance: Category A, B1, B1-A, B2, B2-A, C</p>
+        </div>
+      </div>
+
+      <div class="fais-block">
+        <div class="fais-block-head">💼 &nbsp; The Financial Services Provider Rendering Advice</div>
+        <div class="fais-block-body">
+          <p><strong>Name:</strong> Mint Financial Services (Pty) Ltd</p>
+          <p><strong>FSP Licence:</strong> 55118</p>
+          <p>Mint Financial Services is an Authorised Financial Services Provider. Products are offered subject to the FAIS Act and the Long-term Insurance Act.</p>
+        </div>
+      </div>
+
+      <div class="fais-block">
+        <div class="fais-block-head">🏦 &nbsp; Information About the Insurer</div>
+        <div class="fais-block-body">
+          <p><strong>Name:</strong> GuardRisk Life Limited ("GuardRisk")</p>
+          <p><strong>Registration Number:</strong> 1999/013922/06 &nbsp;|&nbsp; <strong>FAIS Number:</strong> FSP 76</p>
+          <p><strong>Physical Address:</strong> The MARC, Tower 2, 129 Rivonia Road, Sandton, 2196</p>
+          <p><strong>Postal Address:</strong> PO Box 786015, Sandton, 2146</p>
+          <p><strong>Website:</strong> www.guardrisk.co.za</p>
+          <p>GuardRisk is an Authorised Financial Services Provider in terms of FAIS (FSP 76). GuardRisk Life Limited has a Professional Indemnity Cover and a Fidelity Guarantee Cover in place.</p>
+        </div>
+      </div>
+
+      <div class="fais-block">
+        <div class="fais-block-head">⚖️ &nbsp; Conflict of Interest Policy</div>
+        <div class="fais-block-body">You can request a copy of our Conflict of Interest Policy on our website <strong>www.mymint.co.za</strong>.</div>
+      </div>
+
+      <div class="fais-block">
+        <div class="fais-block-head">🛡️ &nbsp; Guarantees and Undertakings</div>
+        <div class="fais-block-body">Both the Administrator and Insurer carry Professional Indemnity and Fidelity Guarantee Insurance. Without in any way limiting and subject to the other provisions of the services agreement, the Financial Service Providers accept responsibility for the lawful actions of their Representatives in rendering Financial Services within the course and scope of their employment.</div>
+      </div>
+
+      <div class="fais-block">
+        <div class="fais-block-head">⚠️ &nbsp; Warnings &amp; Other Matters of Importance</div>
+        <div class="fais-block-body">
+          <ul class="disc">
+            <li>Do not sign any blank or partially completed claim forms.</li>
+            <li>You have a <strong>thirty-one (31) day cooling-off period</strong> from the date of receipt of the plan within which you may cancel in writing at no cost.</li>
+            <li>Cover will cease upon cancellation of the plan.</li>
+            <li>You will always be given a reason for the repudiation of a claim.</li>
+            <li>If you fail to disclose facts relevant to your insurance, this may influence the assessment of a claim by the Insurer.</li>
+            <li>Please read this plan schedule in conjunction with the plan terms and conditions included with this communication.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <img class="photo-band" src="https://images.unsplash.com/photo-1502781252888-9143ba7f074e?w=900&q=80&fit=crop&crop=center" alt="Couple together">
+
+    <div class="footer-bar">
+      <span class="flogo">mint</span>
+      <span>Policy Schedule – Kurt Von Schaeffer | MNT701617 | 10 April 2026 | Page 5 of 6</span>
+      <span>support@mymint.co.za</span>
+    </div>
+    <div class="footer-legal">Mint Financial Services (Pty) Ltd | FSP No. 55118 | Underwritten by GuardRisk Life Ltd — FSP 76</div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- PAGE 6 — REGULATORY CONTACTS          -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page">
+    <div class="top-logo-bar">
+      <svg class="mint-logo-svg" viewBox="0 0 120 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="0,0 18,0 28,19 18,38 0,38 10,19" fill="#F5D400"/>
+        <polygon points="12,0 30,0 40,19 30,38 12,38 22,19" fill="rgba(255,255,255,0.25)"/>
+        <text x="46" y="26" font-family="Barlow Condensed, sans-serif" font-weight="800" font-size="22" fill="white" letter-spacing="2">MINT</text>
+      </svg>
+    </div>
+    <div class="divider"></div>
+
+    <div class="body">
+      <div class="sec-title">Regulatory &amp; Contact Information</div>
+
+      <div class="reg-grid">
+        <div class="reg-card">
+          <div class="reg-card-head">🏛️ &nbsp; National Financial Ombud Scheme</div>
+          <div class="reg-card-body">
+            <p>For claims/service-related matters</p>
+            <p><strong>Address:</strong> Claremont Central Building, 6th Floor, 6 Vineyard Road, Claremont, 7708</p>
+            <p><strong>Email:</strong> info@nfosa.co.za</p>
+            <p><strong>Website:</strong> www.nfosa.co.za</p>
+          </div>
+        </div>
+
+        <div class="reg-card">
+          <div class="reg-card-head">📞 &nbsp; Financial Sector Conduct Authority</div>
+          <div class="reg-card-body">
+            <p>For market conduct related matters</p>
+            <p><strong>Postal Address:</strong> PO Box 35655, Menlo Park, 0102</p>
+            <p><strong>Telephone:</strong> +27 12 428 8000</p>
+            <p><strong>Email:</strong> info@fsca.co.za</p>
+          </div>
+        </div>
+
+        <div class="reg-card">
+          <div class="reg-card-head">📜 &nbsp; Registrar of Long-Term Insurance</div>
+          <div class="reg-card-body">
+            <p><strong>Postal Address:</strong> PO Box 35655, Menlo Park, 0102</p>
+            <p><strong>Telephone:</strong> +27 12 428 8000</p>
+            <p><strong>Email:</strong> info@fsca.co.za</p>
+          </div>
+        </div>
+
+        <div class="reg-card">
+          <div class="reg-card-head">✉️ &nbsp; Mint Client Support</div>
+          <div class="reg-card-body">
+            <p><strong>Email:</strong> support@mymint.co.za</p>
+            <p><strong>Website:</strong> www.mymint.co.za</p>
+            <p><strong>FSP No:</strong> 55118</p>
+            <p><strong>Underwriter:</strong> GuardRisk Life Ltd — FSP 76</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <img class="photo-band-tall" src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=900&q=80&fit=crop&crop=top" alt="Happy family">
+
+    <div class="footer-bar">
+      <span class="flogo">mint</span>
+      <span>Policy Schedule – Kurt Von Schaeffer | MNT701617 | 10 April 2026 | Page 6 of 6</span>
+      <span>support@mymint.co.za</span>
+    </div>
+    <div class="footer-legal">Mint Financial Services (Pty) Ltd | FSP No. 55118 | Underwritten by GuardRisk Life Ltd — FSP 76</div>
+  </div>
+
+</div>
+</body>
+</html>
