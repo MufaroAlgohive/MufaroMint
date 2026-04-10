@@ -2895,9 +2895,15 @@ app.post("/api/record-investment", async (req, res) => {
         if (existing) {
           const oldQty = Number(existing.quantity || 0);
           const newQty = Math.round(oldQty + holdingQty);
+          const oldAvgFill = Number(existing.avg_fill || 0);
+          const newAvgFill = oldQty > 0 && oldAvgFill > 0
+            ? Math.round((oldAvgFill * oldQty + priceCents * holdingQty) / newQty)
+            : priceCents;
 
           const { error: updateErr } = await db.from("stock_holdings").update({
             quantity: newQty,
+            avg_fill: newAvgFill,
+            market_value: Math.round(newQty * priceCents),
             as_of_date: today,
             updated_at: now,
           }).eq("id", existing.id);
@@ -2906,13 +2912,16 @@ app.post("/api/record-investment", async (req, res) => {
             console.error("[record-investment] Failed to update holding for", holding.symbol, updateErr.message);
             return res.status(500).json({ success: false, error: `Failed to update holding for ${holding.symbol}` });
           }
-          console.log("[record-investment] Updated holding:", holding.symbol, "qty:", newQty);
+          console.log("[record-investment] Updated holding:", holding.symbol, "qty:", newQty, "avg_fill:", newAvgFill);
         } else {
           const { error: insertErr } = await db.from("stock_holdings").insert({
             user_id: userId,
             security_id: sec.id,
             strategy_id: strategyId,
             quantity: holdingQty,
+            avg_fill: priceCents,
+            market_value: Math.round(holdingQty * priceCents),
+            unrealized_pnl: 0,
             as_of_date: today,
             Status: "active",
           });
@@ -2921,7 +2930,7 @@ app.post("/api/record-investment", async (req, res) => {
             console.error("[record-investment] Failed to insert holding for", holding.symbol, insertErr.message);
             return res.status(500).json({ success: false, error: `Failed to record holding for ${holding.symbol}` });
           }
-          console.log("[record-investment] Inserted holding:", holding.symbol, "qty:", holdingQty);
+          console.log("[record-investment] Inserted holding:", holding.symbol, "qty:", holdingQty, "avg_fill:", priceCents);
         }
 
         insertedHoldings.push({ symbol: holding.symbol, quantity: holdingQty, priceCents });
@@ -3894,6 +3903,7 @@ app.get("/api/user/strategies", async (req, res) => {
           holdings: enrichedHoldings,
           investedAmount,
           currentMarketValue,
+          currentValue: currentMarketValue,
           metrics: latestMetric || null,
           firstInvestedDate: strategyFirstDate[matchKey] || null,
         });

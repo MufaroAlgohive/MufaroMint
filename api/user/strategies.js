@@ -196,6 +196,7 @@ export default async function handler(req, res) {
           holdings: enrichedHoldings,
           investedAmount,
           currentMarketValue,
+          currentValue: currentMarketValue,
           metrics: latestMetric || null,
           firstInvestedDate: strategyFirstDate[matchKey] || null,
         });
