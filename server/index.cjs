@@ -6352,6 +6352,8 @@ async function ensureFamilyMembersTable() {
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS address TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS lives_with_parent BOOLEAN;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS spouse_email TEXT;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS linked_user_id UUID;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code TEXT;
@@ -6419,6 +6421,8 @@ async function ensureFamilyMembersTablePg() {
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS address TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS lives_with_parent BOOLEAN`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS spouse_email TEXT`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS linked_user_id UUID`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code TEXT`,
@@ -6779,6 +6783,7 @@ app.patch('/api/family-members/:id', async (req, res) => {
     'signed_agreement_url', 'signed_at',
     'poa_declaration_url', 'poa_declaration_signed_at',
     'id_number', 'certificate_url', 'certificate_verification_status',
+    'address', 'lives_with_parent',
   ];
   const body = req.body || {};
   const patch = {};

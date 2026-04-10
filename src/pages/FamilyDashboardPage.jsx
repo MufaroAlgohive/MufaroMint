@@ -219,7 +219,7 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
   }
 
   /* ── Child: POA complete → upload signed PDF, then proceed to agreement ── */
-  async function handlePoaComplete({ livesWithParent, pdfBuffer, signedAt }) {
+  async function handlePoaComplete({ livesWithParent, pdfBuffer, childAddress, signedAt }) {
     if (!newChildMember) return;
     setSaving(true);
     setError("");
@@ -243,14 +243,39 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
         }
       }
 
-      if (poaUrl) {
-        await fetch(`/api/family-members/${newChildMember.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ poa_declaration_url: poaUrl, poa_declaration_signed_at: signedAt }),
-        });
-        setNewChildMember(prev => ({ ...prev, poa_declaration_url: poaUrl }));
+      // Build address string to store — child's own address or parent's registered address
+      let resolvedAddress = null;
+      if (livesWithParent) {
+        resolvedAddress = profile?.address || null;
+      } else if (childAddress) {
+        resolvedAddress = [
+          childAddress.line1,
+          childAddress.suburb,
+          childAddress.city,
+          childAddress.province,
+          childAddress.postalCode,
+        ].filter(Boolean).join(", ");
       }
+
+      const patchBody = {
+        poa_declaration_signed_at: signedAt,
+        lives_with_parent: livesWithParent,
+      };
+      if (poaUrl) patchBody.poa_declaration_url = poaUrl;
+      if (resolvedAddress) patchBody.address = resolvedAddress;
+
+      await fetch(`/api/family-members/${newChildMember.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patchBody),
+      });
+      setNewChildMember(prev => ({
+        ...prev,
+        ...(poaUrl ? { poa_declaration_url: poaUrl } : {}),
+        poa_declaration_signed_at: signedAt,
+        lives_with_parent: livesWithParent,
+        ...(resolvedAddress ? { address: resolvedAddress } : {}),
+      }));
 
       setSlideDir(1);
       setChildStep(3);
