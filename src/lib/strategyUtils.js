@@ -74,6 +74,10 @@ export const calculateYtdReturn = (strategy, holdingsBySymbol) => {
       // Preferred: derive jan1 price from ytd_performance (already live on the security)
       const ytdPerf = Number(security?.ytd_performance ?? NaN);
       if (!isNaN(ytdPerf) && isFinite(ytdPerf)) {
+        // Skip instruments with extreme negative YTD (>90% loss) — these are
+        // typically expired BEE schemes or data anomalies. Their near-zero price
+        // creates an astronomical Jan 1 implied value that wrecks the whole calc.
+        if (ytdPerf < -90) continue;
         const jan1Price = lastPrice / (1 + ytdPerf / 100);
         if (jan1Price > 0) {
           todayValue += lastPrice * shares;
