@@ -6693,13 +6693,13 @@ app.post('/api/family-members', async (req, res) => {
         date_of_birth,
         certificate_uploaded_at: new Date().toISOString(),
         mint_number,
+        ...(childIdClean ? { id_number: childIdClean } : {}),
       };
 
       const fullPayload = {
         ...basePayload,
         certificate_url,
         certificate_verification_status: verificationStatus,
-        ...(childIdClean ? { id_number: childIdClean } : {}),
       };
 
       const { data: d1, error: e1 } = await db.from('family_members').insert(fullPayload).select().single();
@@ -6708,11 +6708,11 @@ app.post('/api/family-members', async (req, res) => {
         if (e2 && e2.message?.includes('certificate_url')) {
           const { data: d3, error: e3 } = await db.from('family_members').insert(basePayload).select().single();
           if (e3) throw e3;
-          return res.status(201).json({ member: d3 });
+          return res.status(201).json({ member: { ...d3, id_number: childIdClean || d3.id_number } });
         } else if (e2) { throw e2; }
-        return res.status(201).json({ member: d2 });
+        return res.status(201).json({ member: { ...d2, id_number: childIdClean || d2.id_number } });
       }
-      return res.status(201).json({ member: d1 });
+      return res.status(201).json({ member: { ...d1, id_number: childIdClean || d1.id_number } });
     }
   } catch (e) {
     console.error('[family] POST error:', e.message);

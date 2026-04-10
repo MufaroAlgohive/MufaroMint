@@ -379,8 +379,12 @@ function AddMemberModal({ type, userId, profile, onSave, onClose }) {
       const json = await res.json();
       if (!res.ok) { setError(json.error || "Could not add child."); return; }
       
-      // Instead of onSave immediately, we move to the Agreement step
-      setNewChildMember(json.member);
+      // Merge form id_number in case API fallback path didn't persist it
+      const idCleanFinal = childForm.id_number.replace(/\D/g, "");
+      setNewChildMember({
+        ...json.member,
+        id_number: json.member.id_number || idCleanFinal || undefined,
+      });
       setSlideDir(1);
       setChildStep(2);
     } catch {
