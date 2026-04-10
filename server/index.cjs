@@ -3554,21 +3554,41 @@ app.get("/api/user/holdings", async (req, res) => {
     const userId = user.id;
 
     let holdings, holdingsError;
-    const holdingsResult = await db
+
+    // Attempt queries with progressively fewer optional columns to handle missing DB columns
+    const holdingsFull = await db
       .from("stock_holdings")
       .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status, is_active, exit_price")
       .eq("user_id", userId);
 
-    if (holdingsResult.error && holdingsResult.error.message && holdingsResult.error.message.includes("settlement_status")) {
-      const fallback = await db
+    if (!holdingsFull.error) {
+      holdings = holdingsFull.data;
+      holdingsError = null;
+    } else if (holdingsFull.error.code === "42703") {
+      // One or more optional columns missing — try without settlement_status
+      const noSettlement = await db
         .from("stock_holdings")
         .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, is_active, exit_price")
         .eq("user_id", userId);
-      holdings = fallback.data;
-      holdingsError = fallback.error;
+
+      if (!noSettlement.error) {
+        holdings = noSettlement.data;
+        holdingsError = null;
+      } else if (noSettlement.error.code === "42703") {
+        // Try without is_active and exit_price too
+        const noExtras = await db
+          .from("stock_holdings")
+          .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+          .eq("user_id", userId);
+        holdings = (noExtras.data || []).map(h => ({ ...h, is_active: true, exit_price: null }));
+        holdingsError = noExtras.error;
+      } else {
+        holdings = noSettlement.data;
+        holdingsError = noSettlement.error;
+      }
     } else {
-      holdings = holdingsResult.data;
-      holdingsError = holdingsResult.error;
+      holdings = holdingsFull.data;
+      holdingsError = holdingsFull.error;
     }
 
     if (holdingsError) {
