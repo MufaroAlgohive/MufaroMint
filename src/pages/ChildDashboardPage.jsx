@@ -258,7 +258,9 @@ function InvestModal({ child, onInvest, onClose }) {
         .select("id, name, description, risk_level, min_investment, is_featured, strategy_metrics(change_pct, r_1y)")
         .eq("is_active", true)
         .order("is_featured", { ascending: false })
-        .order("name");
+        .order("name")
+        .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
+        .limit(1, { foreignTable: "strategy_metrics" });
       setStrategies(data || []);
     } catch (e) { console.error("[child-invest] strategies", e); }
     finally { setLoading(false); }

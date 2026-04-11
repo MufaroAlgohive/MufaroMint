@@ -608,7 +608,7 @@ async function ensureUserSessionsTable() {
 }
 ensureUserSessionsTable();
 
-function generateMintNumber(firstName, idNumber, createdAt) {
+function generateMintNumber(firstName, idNumber, createdAt, suffix = '') {
   const normalized = (firstName || 'MNT').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X').substring(0, 3);
 
@@ -628,7 +628,7 @@ function generateMintNumber(firstName, idNumber, createdAt) {
     }
   }
 
-  return namePart + idPart + datePart;
+  return namePart + idPart + datePart + suffix;
 }
 
 function extractIdNumberFromPackDetails(packDetails) {
@@ -728,12 +728,29 @@ async function populateMintNumbers() {
       const mintNum = generateMintNumber(p.first_name, effectiveId, p.created_at);
 
       if (mintNum !== p.mint_number) {
-        const { error: updateErr } = await db
-          .from('profiles')
-          .update({ mint_number: mintNum })
-          .eq('id', p.id);
-        if (!updateErr) mintUpdatedCount++;
-        else console.log(`[mint] Failed to update profile ${p.id}:`, updateErr.message);
+        let finalMintNum = mintNum;
+        let retryCount = 0;
+        let success = false;
+
+        while (retryCount < 5 && !success) {
+          const { error: updateErr } = await db
+            .from('profiles')
+            .update({ mint_number: finalMintNum })
+            .eq('id', p.id);
+
+          if (!updateErr) {
+            success = true;
+            mintUpdatedCount++;
+          } else if (updateErr.message?.includes('unique constraint') || updateErr.code === '23505') {
+            retryCount++;
+            const randomSuffix = '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
+            finalMintNum = generateMintNumber(p.first_name, effectiveId, p.created_at, randomSuffix);
+            console.log(`[mint] Collision for ${p.id}, retrying with ${finalMintNum}`);
+          } else {
+            console.log(`[mint] Failed to update profile ${p.id}:`, updateErr.message);
+            break;
+          }
+        }
       }
     }
 
@@ -3488,16 +3505,36 @@ app.post("/api/user/ensure-mint-number", async (req, res) => {
       return res.json({ success: true, mint_number: profile.mint_number });
     }
 
-    const { error: updateErr } = await db
-      .from('profiles')
-      .update({ mint_number: mintNum })
-      .eq('id', user.id);
+    let finalMintNum = mintNum;
+    let retryCount = 0;
+    let success = false;
+    let lastError = null;
 
-    if (updateErr) {
-      console.log('[mint] Error setting mint number:', updateErr.message);
+    while (retryCount < 5 && !success) {
+      const { error: updateErr } = await db
+        .from('profiles')
+        .update({ mint_number: finalMintNum })
+        .eq('id', user.id);
+
+      if (!updateErr) {
+        success = true;
+      } else if (updateErr.message?.includes('unique constraint') || updateErr.code === '23505') {
+        retryCount++;
+        const randomSuffix = '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
+        finalMintNum = generateMintNumber(profile.first_name, effectiveId, profile.created_at, randomSuffix);
+        console.log(`[mint] Collision for user ${user.id}, retrying with ${finalMintNum}`);
+      } else {
+        lastError = updateErr.message;
+        break;
+      }
     }
 
-    return res.json({ success: true, mint_number: mintNum });
+    if (!success) {
+      console.log('[mint] Error setting mint number:', lastError || 'Max retries reached');
+      return res.status(500).json({ success: false, error: lastError || 'Collision resolution failed' });
+    }
+
+    return res.json({ success: true, mint_number: finalMintNum });
   } catch (e) {
     console.error('[mint] ensure-mint-number error:', e.message);
     return res.status(500).json({ success: false, error: e.message });
@@ -3746,7 +3783,9 @@ app.get("/api/user/strategies", async (req, res) => {
           as_of_date, last_close, change_pct, r_1w, r_1m, r_3m, r_ytd, r_1y
         )
       `)
-      .eq("status", "active");
+      .eq("status", "active")
+      .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
+      .limit(1, { foreignTable: "strategy_metrics" });
 
     if (stratErr) {
       console.error("[user/strategies] Error fetching strategies:", stratErr);
@@ -3766,11 +3805,20 @@ app.get("/api/user/strategies", async (req, res) => {
     if (allHoldingSymbols.size > 0) {
       const { data: secs } = await db
         .from("securities")
-        .select("symbol, logo_url, name")
+        .select("symbol, logo_url, name, last_price, ytd_performance")
         .in("symbol", Array.from(allHoldingSymbols));
       if (secs) {
         secs.forEach(s => { securitiesMap[s.symbol] = s; });
       }
+    }
+
+    // Dynamic import of Strategy utilities for YTD calculation
+    let calculateYtdReturn = null;
+    try {
+      const utils = await import("../src/lib/strategyUtils.js");
+      calculateYtdReturn = utils.calculateYtdReturn;
+    } catch (e) {
+      console.warn("[user/strategies] Failed to import calculateYtdReturn utility:", e.message);
     }
 
     // Match user's strategies
@@ -3810,6 +3858,15 @@ app.get("/api/user/strategies", async (req, res) => {
           }
         }
 
+        // Calculate dynamic YTD if utility is available
+        let rytd = latestMetric?.r_ytd || 0;
+        if (calculateYtdReturn) {
+          const matchedHoldingsMap = new Map();
+          Object.entries(securitiesMap).forEach(([sym, sec]) => matchedHoldingsMap.set(sym, sec));
+          const dynamicYtd = calculateYtdReturn(strategy, matchedHoldingsMap);
+          if (dynamicYtd !== null) rytd = dynamicYtd;
+        }
+
         matchedStrategies.push({
           id: strategy.id,
           name: strategy.name,
@@ -3822,7 +3879,7 @@ app.get("/api/user/strategies", async (req, res) => {
           holdings: enrichedHoldings,
           investedAmount,
           currentMarketValue,
-          metrics: latestMetric || null,
+          metrics: latestMetric ? { ...latestMetric, r_ytd: rytd } : { r_ytd: rytd },
           firstInvestedDate: strategyFirstDate[matchKey] || null,
         });
       }
@@ -6349,7 +6406,7 @@ async function ensureFamilyMembersTablePg() {
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
     ];
     for (const sql of cols) {
-      try { await client.query(sql); } catch (_) {}
+      try { await client.query(sql); } catch (_) { }
     }
     await client.query(`CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id)`);
     console.log('[family] family_members table ready (pgPool migration applied)');
@@ -6548,6 +6605,34 @@ app.post('/api/family-members', async (req, res) => {
     }
   } catch (e) {
     console.error('[family] POST error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.patch('/api/family-members/:id', async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body || {};
+  if (!id) return res.status(400).json({ error: 'id required' });
+
+  try {
+    const db = supabaseAdmin || supabase;
+    console.log(`[family] PATCH member ${id}:`, updates);
+
+    const { data, error } = await db
+      .from('family_members')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[family] PATCH error:', error.message);
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.json({ member: data });
+  } catch (e) {
+    console.error('[family] PATCH catch error:', e.message);
     return res.status(500).json({ error: e.message });
   }
 });

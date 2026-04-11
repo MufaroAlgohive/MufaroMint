@@ -171,3 +171,66 @@ export const computeExtendedSummary = (analytics) => {
 
   return { volatility, sharpe_ratio, max_drawdown, pct_positive_months };
 };
+
+/**
+ * Calculates the aggregate YTD return for a strategy based on its holdings
+ * and the individual YTD performance of the underlying securities.
+ * Formula: (Total Value Today / Total Value on Jan 1st) - 1
+ * 
+ * @param {Object} strategy - The strategy object with holdings array
+ * @param {Map} holdingsBySymbol - Map of Symbol -> Security Metrics
+ * @returns {number|null} The calculated YTD return, or null if insufficient data
+ */
+export const calculateYtdReturn = (strategy, holdingsBySymbol) => {
+  const holdings = getHoldingsArray(strategy);
+
+  if (holdings.length > 0) {
+    let todayValue = 0;
+    let jan1Value = 0;
+    let matched = 0;
+    let skipped = 0;
+
+    for (const holding of holdings) {
+      const rawSymbol = holding.ticker || holding.symbol || holding;
+      const normalizedSym = normalizeSymbol(rawSymbol);
+
+      // Match security data from our map
+      const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSym);
+      
+      const lastPriceCents = Number(security?.last_price ?? 0);
+      const ytdPerf = Number(security?.ytd_performance ?? NaN);
+
+      if (lastPriceCents <= 0 || isNaN(ytdPerf)) {
+        skipped++;
+        continue;
+      }
+
+      // DATA SANITY CHECK: Identify garbage data or extreme outliers
+      if (ytdPerf > 500 || ytdPerf < -90) {
+        console.warn(`[calculateYtdReturn] Skipping ${rawSymbol} due to extreme YTD performance (${ytdPerf.toFixed(2)}%). Likely garbage data.`);
+        skipped++;
+        continue;
+      }
+
+      const lastPrice = lastPriceCents / 100;
+      const shares = Number(holding.shares || holding.quantity || 1);
+      
+      const currentHoldingValue = shares * lastPrice;
+      const jan1Price = lastPrice / (1 + (ytdPerf / 100));
+      const jan1HoldingValue = shares * jan1Price;
+
+      todayValue += currentHoldingValue;
+      jan1Value += jan1HoldingValue;
+      matched++;
+    }
+
+    if (matched > 0 && jan1Value > 0) {
+      const calculatedReturn = (todayValue / jan1Value) - 1;
+      console.log(`🧮 [calculateYtdReturn] ${strategy?.name || 'Strategy'}: result=${(calculatedReturn * 100).toFixed(2)}% (matched ${matched}/${holdings.length} holdings)`);
+      return calculatedReturn;
+    }
+  }
+
+  // Fallback to existing r_ytd metric from strategy if calculation isn't possible
+  return strategy.strategy_metrics?.[0]?.r_ytd || 0;
+};

@@ -503,7 +503,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
       return {
         ...publicStrategy,
-        r_ytd: analyticsYtd ?? strategyWithMetrics.r_ytd ?? strategyWithMetrics.latest_metric?.r_ytd ?? null,
+        r_ytd: strategyWithMetrics.r_ytd ?? analyticsYtd ?? strategyWithMetrics.latest_metric?.r_ytd ?? null,
       };
     });
   }, [publicStrategies, strategies, strategyYtdById]);

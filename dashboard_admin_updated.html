@@ -3551,15 +3551,17 @@
       };
 
       const loadUserStats = async () => {
-        const [profilesRes, onboardingRes, packDetailsRes] = await Promise.all([
+        const [profilesRes, onboardingRes, packDetailsRes, familyRes] = await Promise.all([
           supabaseClient.from("profiles").select("*"),
           supabaseClient.from("user_onboarding").select("user_id, kyc_status"),
           supabaseClient.from("user_onboarding_pack_details").select("user_id"),
+          supabaseClient.from("family_members").select("*"),
         ]);
 
         const profiles = profilesRes.data || [];
         const onboardings = onboardingRes.data || [];
         const packDetailsRows = packDetailsRes.data || [];
+        const familyMembers = familyRes.data || [];
 
         const normalizeStatus = (value) =>
           String(value || "")
@@ -3588,7 +3590,13 @@
             .map((id) => String(id)),
         );
 
-        const totalUsers = profiles.length;
+        const children = familyMembers.filter(m => m.relationship === 'child');
+        const childKycCount = children.filter(c => 
+          c.certificate_verification_status === 'verified' || 
+          c.certificate_verification_status === 'id_matched_pending_review'
+        ).length;
+
+        const totalUsers = profiles.length + children.length;
         const usersKyc = profiles.filter((profile) => {
           const userId = String(profile?.id || "");
           if (!userId) return false;
@@ -3597,7 +3605,7 @@
             isKycCompleted(onboarding?.kyc_status) ||
             clientDetailsUsers.has(userId)
           );
-        }).length;
+        }).length + childKycCount;
 
         const usersLinkedBank = profiles.filter((row) =>
           Boolean(

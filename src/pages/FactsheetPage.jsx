@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 import { formatChangePct, getChangeColor } from "../lib/strategyData.js";
-import { buildHoldingsBySymbol, calculateMinInvestment, getAdjustedShares, computeExtendedSummary } from "../lib/strategyUtils";
+import { buildHoldingsBySymbol, calculateMinInvestment, calculateYtdReturn, getAdjustedShares, computeExtendedSummary } from "../lib/strategyUtils";
 import {
   Area,
   Line,
@@ -382,6 +382,12 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
   const performanceSummary = useMemo(() => {
     const summary = analytics?.summary || {};
+    const holdingsMap = buildHoldingsBySymbol(holdingsSecurities);
+    
+    // Prioritize dynamic calculation for YTD return
+    const dynamicYtd = calculateYtdReturn(currentStrategy, holdingsMap);
+    const displayYtd = dynamicYtd !== null ? dynamicYtd : (summary.ytd_return ?? analytics?.ytd_return);
+
     return [
       {
         label: "Best Day",
@@ -400,11 +406,11 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
       },
       {
         label: "YTD Return",
-        value: formatPercent(summary.ytd_return ?? analytics?.ytd_return),
+        value: formatPercent(displayYtd),
         description: "Year-to-date return for the strategy.",
       },
     ];
-  }, [analytics]);
+  }, [analytics, currentStrategy, holdingsSecurities]);
 
   // Auto-scroll removed to allow manual scrolling.
 

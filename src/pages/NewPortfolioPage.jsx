@@ -422,6 +422,7 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
           currentValue: sCv,
           investedAmount: sIa,
           change: sPnlPct,
+          ytd_return: s.metrics?.r_ytd,
         });
       }
     });
@@ -1840,9 +1841,16 @@ const NewPortfolioPage = ({ onOpenNotifications, onOpenInvest, onOpenStrategies,
                                           {stock.isPending ? (
                                             <p className="text-xs text-amber-500 font-semibold">Pending</p>
                                           ) : (
-                                            <p className={`text-xs font-semibold ${changePnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                                              {changePnl >= 0 ? '+' : ''}{changePnl.toFixed(1)}%
-                                            </p>
+                                            <div className="flex flex-col items-end">
+                                              <p className={`text-xs font-semibold ${changePnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                {changePnl >= 0 ? '+' : ''}{changePnl.toFixed(1)}%{stock.isStrategy ? ' Total Return' : ''}
+                                              </p>
+                                              {stock.isStrategy && stock.ytd_return != null && (
+                                                <p className={`text-[10px] font-medium mt-0.5 ${stock.ytd_return >= 0 ? 'text-emerald-500/70' : 'text-rose-500/70'}`}>
+                                                  {stock.ytd_return >= 0 ? '+' : ''}{(stock.ytd_return * 100).toFixed(1)}% Strategy YTD
+                                                </p>
+                                              )}
+                                            </div>
                                           )}
                                           <p className="text-[10px] text-slate-400">{pctValue.toFixed(1)}% of portfolio</p>
                                         </div>
