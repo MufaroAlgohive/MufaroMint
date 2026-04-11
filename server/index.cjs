@@ -33,6 +33,7 @@ const crypto = require("crypto");
 const { Pool } = require("pg");
 const truIDClient = require("./truidClient.cjs");
 const { Resend } = require("resend");
+const { runFuneralCoverMigration } = require("./funeralCoverMigration.cjs");
 
 // Helper to check both standard and VITE_ prefixed env vars
 const readEnv = (key) => process.env[key] || process.env[`VITE_${key}`];
@@ -529,6 +530,23 @@ async function runSettlementMigration() {
       }
     }
   }
+
+  // Add is_active and exit_price columns if not present
+  try {
+    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true" });
+    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS exit_price BIGINT" });
+    console.log('[holdings] is_active and exit_price columns ensured');
+  } catch (e) {
+    console.log('[holdings] Could not add is_active/exit_price columns (may already exist)');
+  }
+
+  // Add ytd_start_price column to securities for live YTD return calculation
+  try {
+    await db.rpc('exec_sql', { query: 'ALTER TABLE securities ADD COLUMN IF NOT EXISTS ytd_start_price INTEGER' });
+    console.log('[securities] ytd_start_price column ensured');
+  } catch (e) {
+    console.log('[securities] ytd_start_price column may already exist (ok)');
+  }
 }
 
 async function migrateGoalColumns() {
@@ -607,6 +625,31 @@ async function ensureUserSessionsTable() {
   }
 }
 ensureUserSessionsTable();
+runFuneralCoverMigration(pgPool);
+
+function generateChildMintNumber(firstName, idNumber, dateOfBirth) {
+  const normalized = (firstName || 'CHD').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X').substring(0, 3);
+
+  let idPart = '0000';
+  if (idNumber && String(idNumber).length >= 10) {
+    idPart = String(idNumber).substring(6, 10);
+  } else if (dateOfBirth) {
+    const dob = new Date(dateOfBirth);
+    if (!isNaN(dob.getTime())) {
+      const mm = String(dob.getMonth() + 1).padStart(2, '0');
+      const yy = String(dob.getFullYear()).slice(-2);
+      idPart = mm + yy;
+    }
+  }
+
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+
+  return namePart + idPart + dd + mm + yy;
+}
 
 function generateMintNumber(firstName, idNumber, createdAt, suffix = '') {
   const normalized = (firstName || 'MNT').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -2877,9 +2920,15 @@ app.post("/api/record-investment", async (req, res) => {
         if (existing) {
           const oldQty = Number(existing.quantity || 0);
           const newQty = Math.round(oldQty + holdingQty);
+          const oldAvgFill = Number(existing.avg_fill || 0);
+          const newAvgFill = oldQty > 0 && oldAvgFill > 0
+            ? Math.round((oldAvgFill * oldQty + priceCents * holdingQty) / newQty)
+            : priceCents;
 
           const { error: updateErr } = await db.from("stock_holdings").update({
             quantity: newQty,
+            avg_fill: newAvgFill,
+            market_value: Math.round(newQty * priceCents),
             as_of_date: today,
             updated_at: now,
           }).eq("id", existing.id);
@@ -2888,13 +2937,16 @@ app.post("/api/record-investment", async (req, res) => {
             console.error("[record-investment] Failed to update holding for", holding.symbol, updateErr.message);
             return res.status(500).json({ success: false, error: `Failed to update holding for ${holding.symbol}` });
           }
-          console.log("[record-investment] Updated holding:", holding.symbol, "qty:", newQty);
+          console.log("[record-investment] Updated holding:", holding.symbol, "qty:", newQty, "avg_fill:", newAvgFill);
         } else {
           const { error: insertErr } = await db.from("stock_holdings").insert({
             user_id: userId,
             security_id: sec.id,
             strategy_id: strategyId,
             quantity: holdingQty,
+            avg_fill: priceCents,
+            market_value: Math.round(holdingQty * priceCents),
+            unrealized_pnl: 0,
             as_of_date: today,
             Status: "active",
           });
@@ -2903,7 +2955,7 @@ app.post("/api/record-investment", async (req, res) => {
             console.error("[record-investment] Failed to insert holding for", holding.symbol, insertErr.message);
             return res.status(500).json({ success: false, error: `Failed to record holding for ${holding.symbol}` });
           }
-          console.log("[record-investment] Inserted holding:", holding.symbol, "qty:", holdingQty);
+          console.log("[record-investment] Inserted holding:", holding.symbol, "qty:", holdingQty, "avg_fill:", priceCents);
         }
 
         insertedHoldings.push({ symbol: holding.symbol, quantity: holdingQty, priceCents });
@@ -3556,21 +3608,41 @@ app.get("/api/user/holdings", async (req, res) => {
     const userId = user.id;
 
     let holdings, holdingsError;
-    const holdingsResult = await db
+
+    // Attempt queries with progressively fewer optional columns to handle missing DB columns
+    const holdingsFull = await db
       .from("stock_holdings")
-      .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status")
+      .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status, is_active, exit_price")
       .eq("user_id", userId);
 
-    if (holdingsResult.error && holdingsResult.error.message && holdingsResult.error.message.includes("settlement_status")) {
-      const fallback = await db
+    if (!holdingsFull.error) {
+      holdings = holdingsFull.data;
+      holdingsError = null;
+    } else if (holdingsFull.error.code === "42703") {
+      // One or more optional columns missing — try without settlement_status
+      const noSettlement = await db
         .from("stock_holdings")
-        .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+        .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, is_active, exit_price")
         .eq("user_id", userId);
-      holdings = fallback.data;
-      holdingsError = fallback.error;
+
+      if (!noSettlement.error) {
+        holdings = noSettlement.data;
+        holdingsError = null;
+      } else if (noSettlement.error.code === "42703") {
+        // Try without is_active and exit_price too
+        const noExtras = await db
+          .from("stock_holdings")
+          .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
+          .eq("user_id", userId);
+        holdings = (noExtras.data || []).map(h => ({ ...h, is_active: true, exit_price: null }));
+        holdingsError = noExtras.error;
+      } else {
+        holdings = noSettlement.data;
+        holdingsError = noSettlement.error;
+      }
     } else {
-      holdings = holdingsResult.data;
-      holdingsError = holdingsResult.error;
+      holdings = holdingsFull.data;
+      holdingsError = holdingsFull.error;
     }
 
     if (holdingsError) {
@@ -3618,7 +3690,7 @@ app.get("/api/user/holdings", async (req, res) => {
     }
 
     const enrichedHoldings = rawHoldings
-      .filter(h => securitiesMap[h.security_id])
+      .filter(h => securitiesMap[h.security_id] && h.is_active !== false)
       .map(h => {
         const sec = securitiesMap[h.security_id];
         const priceData = latestPricesMap[h.security_id];
@@ -3666,7 +3738,24 @@ app.get("/api/user/holdings", async (req, res) => {
         };
       });
 
-    res.json({ success: true, holdings: enrichedHoldings });
+    const closedHoldings = rawHoldings
+      .filter(h => h.is_active === false && securitiesMap[h.security_id])
+      .map(h => {
+        const sec = securitiesMap[h.security_id];
+        return {
+          id: h.id,
+          security_id: h.security_id,
+          symbol: sec?.symbol || "N/A",
+          name: sec?.name || "Unknown",
+          logo_url: sec?.logo_url || null,
+          avg_fill: h.avg_fill || 0,
+          exit_price: h.exit_price || 0,
+          quantity: h.quantity || 0,
+          updated_at: h.updated_at,
+        };
+      });
+
+    res.json({ success: true, holdings: enrichedHoldings, closedHoldings });
   } catch (error) {
     console.error("User holdings error:", error);
     res.status(500).json({ success: false, error: error.message || "Failed to fetch holdings" });
@@ -3879,7 +3968,8 @@ app.get("/api/user/strategies", async (req, res) => {
           holdings: enrichedHoldings,
           investedAmount,
           currentMarketValue,
-          metrics: latestMetric ? { ...latestMetric, r_ytd: rytd } : { r_ytd: rytd },
+          currentValue: currentMarketValue,
+          metrics: latestMetric || null,
           firstInvestedDate: strategyFirstDate[matchKey] || null,
         });
       }
@@ -3892,6 +3982,7 @@ app.get("/api/user/strategies", async (req, res) => {
     return res.status(500).json({ success: false, error: error.message || "Failed to fetch user strategies" });
   }
 });
+
 
 app.get("/api/user/transactions", async (req, res) => {
   try {
@@ -6349,6 +6440,20 @@ async function ensureFamilyMembersTable() {
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT;
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT '';
       ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS id_number TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_verification_status TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_agreement_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS address TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS lives_with_parent BOOLEAN;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS spouse_email TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS linked_user_id UUID;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code TEXT;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code_expires_at TIMESTAMPTZ;
+      ALTER TABLE family_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
       CREATE INDEX IF NOT EXISTS idx_family_members_user ON family_members(primary_user_id);
     `;
     try {
@@ -6404,6 +6509,20 @@ async function ensureFamilyMembersTablePg() {
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS avatar_url TEXT`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS mint_number TEXT DEFAULT ''`,
       `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW()`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS id_number TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS certificate_verification_status TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_agreement_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS signed_at TIMESTAMPTZ`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_url TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS poa_declaration_signed_at TIMESTAMPTZ`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS address TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS lives_with_parent BOOLEAN`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS spouse_email TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS linked_user_id UUID`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code TEXT`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS pairing_code_expires_at TIMESTAMPTZ`,
+      `ALTER TABLE family_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active'`,
     ];
     for (const sql of cols) {
       try { await client.query(sql); } catch (_) { }
@@ -6418,10 +6537,29 @@ async function ensureFamilyMembersTablePg() {
 }
 ensureFamilyMembersTable();
 
+// Helper: run a raw SQL query on the family_members table via pgPool (bypasses RLS)
+async function fmQuery(sql, params = []) {
+  if (!pgPool) throw new Error('pgPool unavailable');
+  const client = await pgPool.connect();
+  try {
+    const r = await client.query(sql, params);
+    return r.rows;
+  } finally {
+    client.release();
+  }
+}
+
 app.get('/api/family-members', async (req, res) => {
   const userId = req.query.user_id;
   if (!userId) return res.status(400).json({ error: 'user_id required' });
   try {
+    if (pgPool) {
+      const rows = await fmQuery(
+        'SELECT * FROM family_members WHERE primary_user_id = $1 ORDER BY created_at ASC',
+        [userId]
+      );
+      return res.json({ members: rows });
+    }
     const db = supabaseAdmin || supabase;
     const { data, error } = await db.from('family_members').select('*').eq('primary_user_id', userId).order('created_at', { ascending: true });
     if (error) throw error;
@@ -6433,7 +6571,7 @@ app.get('/api/family-members', async (req, res) => {
 });
 
 app.post('/api/family-members', async (req, res) => {
-  const { primary_user_id, relationship, first_name, last_name, date_of_birth, id_number, email, certificate_url } = req.body || {};
+  const { primary_user_id, relationship, first_name, last_name, date_of_birth, id_number, email, certificate_url, certificate_verification_status } = req.body || {};
   if (!primary_user_id || !relationship) {
     return res.status(400).json({ error: 'primary_user_id and relationship required' });
   }
@@ -6445,122 +6583,234 @@ app.post('/api/family-members', async (req, res) => {
 
     /* ── SPOUSE ── */
     if (relationship === 'spouse') {
-      if (!id_number?.trim()) {
-        return res.status(400).json({ error: 'A 13-digit South African ID number is required.' });
-      }
-      const cleanId = String(id_number).replace(/\D/g, '');
-      if (cleanId.length !== 13) {
-        return res.status(400).json({ error: 'ID number must be exactly 13 digits.' });
+      const spouseMode = req.body.mode || 'link'; // 'link' | 'invite'
+      const normalizedEmail = email?.toLowerCase().trim() || null;
+      if (!normalizedEmail || !normalizedEmail.includes('@')) {
+        return res.status(400).json({ error: 'An email address is required.' });
       }
 
-      // Already have a spouse?
-      const { data: existingSpouse } = await db.from('family_members').select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
+      // Already have a spouse? (use pgPool to bypass RLS)
+      let existingSpouse = null;
+      if (pgPool) {
+        const rows = await fmQuery(
+          `SELECT id FROM family_members WHERE primary_user_id = $1 AND relationship = 'spouse' LIMIT 1`,
+          [primary_user_id]
+        );
+        existingSpouse = rows[0] || null;
+      } else {
+        const { data } = await db.from('family_members')
+          .select('id').eq('primary_user_id', primary_user_id).eq('relationship', 'spouse').maybeSingle();
+        existingSpouse = data;
+      }
       if (existingSpouse) return res.status(409).json({ error: 'A spouse is already linked to this account.' });
 
-      // Look up by ID number
-      let matchedProfile = null;
-      const { data: profileRow, error: profileErr } = await db.from('profiles').select('id, first_name, last_name, email, id_number').eq('id_number', cleanId).maybeSingle();
-      if (!profileErr && profileRow) {
-        matchedProfile = profileRow;
-      } else {
-        const { data: onboardingRow, error: onboardingErr } = await db.from('user_onboarding').select('id, user_id, first_name, last_name, email, id_number').eq('id_number', cleanId).maybeSingle();
-        if (!onboardingErr && onboardingRow) {
-          const linkedUserId = onboardingRow.user_id || onboardingRow.id || null;
-          if (linkedUserId) {
-            const { data: linkedProfile } = await db.from('profiles').select('id, first_name, last_name, email').eq('id', linkedUserId).maybeSingle();
-            matchedProfile = {
-              id: linkedUserId,
-              first_name: linkedProfile?.first_name || onboardingRow.first_name || '',
-              last_name: linkedProfile?.last_name || onboardingRow.last_name || '',
-              email: linkedProfile?.email || onboardingRow.email || null,
-            };
+      const masked = normalizedEmail.includes('@')
+        ? `${normalizedEmail[0]}***@${normalizedEmail.split('@')[1]}` : '***';
+
+      // ── Helper: look up profile by email ──
+      async function findProfileByEmail(em) {
+        // pgPool bypasses RLS and can join auth.users — preferred path
+        if (pgPool) {
+          try {
+            const rows = await fmQuery(
+              `SELECT p.id, p.first_name, p.last_name, u.email
+               FROM auth.users u
+               LEFT JOIN profiles p ON p.id = u.id
+               WHERE lower(u.email) = lower($1)
+               LIMIT 1`,
+              [em]
+            );
+            if (rows.length > 0 && rows[0].id) {
+              console.log(`[family] findProfileByEmail via pgPool: found user ${rows[0].id} for ${em}`);
+              return rows[0];
+            }
+          } catch (pgErr) {
+            console.warn('[family] findProfileByEmail pgPool fallback:', pgErr.message);
           }
         }
+        // Supabase fallback (may be limited by RLS)
+        const { data: profileRow } = await db.from('profiles').select('id, first_name, last_name, email').eq('email', em).maybeSingle();
+        if (profileRow) return profileRow;
+        const { data: onboardingRow } = await db.from('user_onboarding').select('id, user_id, first_name, last_name, email').eq('email', em).maybeSingle();
+        if (onboardingRow) {
+          const linkedUserId = onboardingRow.user_id || onboardingRow.id || null;
+          if (linkedUserId) {
+            const { data: lp } = await db.from('profiles').select('id, first_name, last_name, email').eq('id', linkedUserId).maybeSingle();
+            return { id: linkedUserId, first_name: lp?.first_name || onboardingRow.first_name || '', last_name: lp?.last_name || onboardingRow.last_name || '', email: em };
+          }
+        }
+        return null;
       }
 
-      if (matchedProfile) {
+      /* ── MODE: link existing Mint member ── */
+      if (spouseMode === 'link') {
+        const matchedProfile = await findProfileByEmail(normalizedEmail);
+        if (!matchedProfile) {
+          return res.status(404).json({ error: 'No Mint account found with that email address. If your partner hasn\'t joined yet, use "Invite to Mint" instead.' });
+        }
         if (matchedProfile.id === primary_user_id) {
-          return res.status(400).json({ error: 'You cannot add yourself as a spouse.' });
+          return res.status(400).json({ error: 'You cannot link yourself as a spouse.' });
         }
 
-        // Check KYC status
-        const { data: onboarding } = await db.from('user_onboarding').select('kyc_status').eq('user_id', matchedProfile.id).maybeSingle();
-        const kycStatus = onboarding?.kyc_status || '';
-        const kycComplete = kycStatus === 'approved' || kycStatus === 'onboarding_complete' || kycStatus === 'verified';
+        // Generate 6-digit pairing code, expires in 1 hour
+        const pairingCode = String(Math.floor(100000 + Math.random() * 900000));
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-        // Get mint number
-        let spouseMintNumber = null;
-        const { data: walletRow } = await db.from('wallets').select('mint_number').eq('user_id', matchedProfile.id).maybeSingle();
-        spouseMintNumber = walletRow?.mint_number || null;
-        if (!spouseMintNumber) {
-          const rand = Math.floor(1000000 + Math.random() * 9000000);
-          spouseMintNumber = `SPO${String(rand).padStart(10, '0')}`;
-        }
-
-        const normalizedEmail = email?.toLowerCase().trim() || null;
+        // Create pending family_members record
         const insertPayload = {
           primary_user_id,
           relationship: 'spouse',
           first_name: matchedProfile.first_name || '',
           last_name: matchedProfile.last_name || '',
-          spouse_email: normalizedEmail || matchedProfile.email || null,
-          mint_number: spouseMintNumber,
+          spouse_email: normalizedEmail,
+          status: 'pending_code',
+          pairing_code: pairingCode,
+          pairing_code_expires_at: expiresAt,
         };
 
         let member = null;
-        const { data: d1, error: e1 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id, kyc_pending: !kycComplete }).select().single();
-        if (e1 && (e1.message?.includes('linked_user_id') || e1.message?.includes('kyc_pending'))) {
-          const { data: d2, error: e2 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id }).select().single();
-          if (e2 && e2.message?.includes('linked_user_id')) {
-            const { data: d3, error: e3 } = await db.from('family_members').insert(insertPayload).select().single();
-            if (e3) throw e3;
-            member = d3;
-          } else if (e2) { throw e2; } else { member = d2; }
-        } else if (e1) { throw e1; } else { member = d1; }
+        if (pgPool) {
+          const payload = { ...insertPayload, linked_user_id: matchedProfile.id };
+          const keys = Object.keys(payload);
+          const vals = Object.values(payload);
+          const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+          const rows = await fmQuery(
+            `INSERT INTO family_members (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+            vals
+          );
+          member = rows[0];
+        } else {
+          const { data: d1, error: e1 } = await db.from('family_members').insert({ ...insertPayload, linked_user_id: matchedProfile.id }).select().single();
+          if (e1 && e1.message?.includes('linked_user_id')) {
+            const { data: d2, error: e2 } = await db.from('family_members').insert(insertPayload).select().single();
+            if (e2) throw e2;
+            member = d2;
+          } else if (e1) { throw e1; } else { member = d1; }
+        }
 
-        const memberWithKyc = { ...member, kyc_pending: !kycComplete };
-        return res.status(201).json({ member: memberWithKyc, linked: true, kyc_pending: !kycComplete });
+        // Send pairing code email using branded Mint template
+        const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
+        const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
+        const recipientName = matchedProfile.first_name || '';
+
+        const resendKey = process.env.RESEND_API_KEY;
+        if (!resendKey) {
+          console.warn('[family] RESEND_API_KEY not set — pairing code email NOT sent. Code:', pairingCode);
+        } else {
+          try {
+            const { Resend } = require('resend');
+            const { buildSpousePairingHtml } = await import('../api/_lib/order-email-templates.js');
+            const resend = new Resend(resendKey);
+            const emailHtml = buildSpousePairingHtml({ recipientName, inviterName, pairingCode });
+            const resp = await resend.emails.send({
+              from: 'Mint <noreply@mymint.co.za>',
+              to: [normalizedEmail],
+              subject: `Your Mint pairing code from ${inviterName}`,
+              html: emailHtml,
+            });
+            if (resp.error) {
+              console.error('[family] Pairing code email send error:', resp.error);
+            } else {
+              console.log(`[family] Pairing code email sent to ${normalizedEmail}, id: ${resp.data?.id}`);
+            }
+          } catch (emailErr) {
+            console.error('[family] Pairing code email failed:', emailErr.message);
+          }
+        }
+
+        return res.status(200).json({ pairing_sent: true, member_id: member.id, masked_email: masked });
       }
 
-      /* ── Not found → send invite email ── */
-      const normalizedEmail = email?.toLowerCase().trim() || null;
-      if (!normalizedEmail) {
-        return res.status(404).json({
-          not_found: true,
-          error: 'No Mint account found for that ID number. Provide their email address to send them an invite.',
+      /* ── MODE: invite (not on Mint yet) ── */
+      if (spouseMode === 'invite') {
+        // Check if they're already on Mint — direct to link flow instead
+        const existing = await findProfileByEmail(normalizedEmail);
+        if (existing) {
+          return res.status(409).json({ error: 'This email address already has a Mint account. Use "Link existing Mint member" to link them with a pairing code.' });
+        }
+
+        const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
+        const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
+        const inviteeName = [first_name, last_name].filter(Boolean).join(' ');
+        const greeting = inviteeName ? `Hi ${inviteeName},` : 'Hi there,';
+
+        let emailSent = false;
+        const resendKey = process.env.RESEND_API_KEY;
+        if (resendKey) {
+          try {
+            const { Resend } = require('resend');
+            const resend = new Resend(resendKey);
+            await resend.emails.send({
+              from: 'Mint <noreply@mymint.co.za>',
+              to: [normalizedEmail],
+              subject: `${inviterName} has invited you to join Mint`,
+              html: `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#EEEAF5;font-family:'Barlow',Helvetica,Arial,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:40px 20px;">
+    <div style="background:#3D1A6B;border-radius:16px 16px 0 0;padding:20px 32px;text-align:center;">
+      <div style="font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-size:36px;font-weight:800;color:white;letter-spacing:4px;text-transform:uppercase;">MINT</div>
+      <div style="color:rgba(255,255,255,0.55);font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:3px;">Family Investment Platform</div>
+    </div>
+    <div style="height:3px;background:linear-gradient(90deg,#5B2D8E,#7B4DB0,#EDE8F8);"></div>
+    <div style="background:white;border-radius:0 0 16px 16px;padding:36px 32px;">
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">${greeting}</p>
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 16px;">
+        <strong style="color:#3D1A6B;">${inviterName}</strong> has invited you to join them on
+        <strong style="color:#3D1A6B;">MINT</strong> — the smart investing and financial planning
+        platform for South African families.
+      </p>
+      <p style="color:#334155;font-size:15px;line-height:1.7;margin:0 0 28px;">
+        Sign up to start investing together, plan for the future, and manage your family&rsquo;s wealth in one place.
+      </p>
+      <div style="text-align:center;margin-bottom:28px;">
+        <a href="https://mymint.co.za" style="display:inline-block;background:linear-gradient(135deg,#3D1A6B,#5B2D8E);color:white;padding:14px 44px;border-radius:12px;text-decoration:none;font-family:'Barlow Condensed',Arial Narrow,Arial,sans-serif;font-weight:800;font-size:17px;letter-spacing:1px;text-transform:uppercase;">Join MINT</a>
+      </div>
+      <p style="color:#94a3b8;font-size:11px;text-align:center;margin:0;">If you weren&rsquo;t expecting this invitation, you can safely ignore this email.</p>
+    </div>
+    <p style="color:#a0aec0;font-size:10px;text-align:center;margin-top:16px;">Mint Financial Services (Pty) Ltd &nbsp;·&nbsp; FSP No. 55118</p>
+  </div>
+</body>
+</html>`,
+            });
+            emailSent = true;
+          } catch (emailErr) {
+            console.error('[family] Invite email failed:', emailErr.message);
+          }
+        }
+
+        // Record as invited (pending)
+        try {
+          if (pgPool) {
+            await fmQuery(
+              `INSERT INTO family_members (primary_user_id, relationship, first_name, last_name, spouse_email, status) VALUES ($1, $2, $3, $4, $5, $6)`,
+              [primary_user_id, 'spouse', first_name?.trim() || '', last_name?.trim() || '', normalizedEmail, 'invited']
+            );
+          } else {
+            await db.from('family_members').insert({
+              primary_user_id, relationship: 'spouse',
+              first_name: first_name?.trim() || '', last_name: last_name?.trim() || '',
+              spouse_email: normalizedEmail, status: 'invited',
+            });
+          }
+        } catch (_) { /* non-fatal */ }
+
+        return res.status(200).json({
+          invited: true,
+          email_sent: emailSent,
+          masked_email: masked,
+          message: emailSent
+            ? `Invitation sent to ${masked}. Once they sign up on Mint, you can link them as your spouse.`
+            : `${masked} is not on Mint yet. Please ask them to sign up at mymint.co.za, then try linking again.`,
         });
       }
 
-      const { data: inviterProfile } = await db.from('profiles').select('first_name, last_name').eq('id', primary_user_id).maybeSingle();
-      const inviterName = [inviterProfile?.first_name, inviterProfile?.last_name].filter(Boolean).join(' ') || 'Your partner';
-
-      let emailSent = false;
-      const resendKey = process.env.RESEND_API_KEY;
-      if (resendKey) {
-        try {
-          const { Resend } = require('resend');
-          const resend = new Resend(resendKey);
-          await resend.emails.send({
-            from: 'Mint <noreply@mymint.co.za>',
-            to: [normalizedEmail],
-            subject: `${inviterName} has invited you to join Mint`,
-            html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f8f6fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;"><div style="max-width:480px;margin:0 auto;padding:40px 24px;"><div style="background:white;border-radius:24px;padding:40px 32px;text-align:center;"><div style="font-size:28px;font-weight:800;color:#1e1b4b;margin-bottom:8px;">mint</div><div style="color:#94a3b8;font-size:13px;margin-bottom:32px;">Family Investing</div><p style="color:#334155;font-size:15px;line-height:1.6;margin-bottom:24px;"><strong>${inviterName}</strong> wants to link you as their spouse on Mint — the smart investing platform for South African families.</p><p style="color:#334155;font-size:15px;line-height:1.6;margin-bottom:32px;">Sign up to start investing together and manage your family&rsquo;s wealth in one place.</p><a href="https://mymint.co.za" style="display:inline-block;background:linear-gradient(135deg,#1e1b4b,#312e81);color:white;padding:14px 40px;border-radius:14px;text-decoration:none;font-weight:700;font-size:15px;">Join Mint</a><p style="color:#94a3b8;font-size:11px;margin-top:24px;">If you weren&rsquo;t expecting this invite, you can safely ignore this email.</p></div></div></body></html>`,
-          });
-          emailSent = true;
-        } catch (emailErr) {
-          console.error('[family] Invite email failed:', emailErr.message);
-        }
-      }
-
-      const masked = normalizedEmail.includes('@') ? `${normalizedEmail[0]}***@${normalizedEmail.split('@')[1]}` : '***';
-      return res.status(200).json({
-        invited: true,
-        email_sent: emailSent,
-        masked_email: masked,
-        message: emailSent
-          ? `Invitation sent to ${masked}. Once they sign up on Mint, you can link them as your spouse.`
-          : `${masked} is not on Mint yet. Please ask them to sign up at mymint.co.za, then try linking again.`,
-      });
+      return res.status(400).json({ error: 'Invalid spouse mode. Use "link" or "invite".' });
     }
 
     /* ── CHILD ── */
@@ -6568,10 +6818,8 @@ app.post('/api/family-members', async (req, res) => {
       if (!first_name?.trim()) return res.status(400).json({ error: 'First name is required.' });
       if (!date_of_birth) return res.status(400).json({ error: 'Date of birth is required.' });
 
-      const rand = Math.floor(1000000 + Math.random() * 9000000);
-      const mint_number = `CHD${String(rand).padStart(10, '0')}`;
-
       const childIdClean = id_number ? String(id_number).replace(/\D/g, '') : null;
+      const mint_number = generateChildMintNumber(first_name.trim(), childIdClean, date_of_birth);
       const verificationStatus = certificate_verification_status || 'pending_review';
 
       const basePayload = {
@@ -6582,14 +6830,27 @@ app.post('/api/family-members', async (req, res) => {
         date_of_birth,
         certificate_uploaded_at: new Date().toISOString(),
         mint_number,
+        ...(childIdClean ? { id_number: childIdClean } : {}),
       };
 
       const fullPayload = {
         ...basePayload,
         certificate_url,
         certificate_verification_status: verificationStatus,
-        ...(childIdClean ? { id_number: childIdClean } : {}),
       };
+
+      if (pgPool) {
+        // Use pgPool directly to bypass RLS
+        const keys = Object.keys(fullPayload);
+        const vals = Object.values(fullPayload);
+        const placeholders = keys.map((_, i) => `$${i + 1}`).join(', ');
+        const rows = await fmQuery(
+          `INSERT INTO family_members (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`,
+          vals
+        );
+        const member = rows[0];
+        return res.status(201).json({ member: { ...member, id_number: childIdClean || member.id_number } });
+      }
 
       const { data: d1, error: e1 } = await db.from('family_members').insert(fullPayload).select().single();
       if (e1) {
@@ -6597,11 +6858,11 @@ app.post('/api/family-members', async (req, res) => {
         if (e2 && e2.message?.includes('certificate_url')) {
           const { data: d3, error: e3 } = await db.from('family_members').insert(basePayload).select().single();
           if (e3) throw e3;
-          return res.status(201).json({ member: d3 });
+          return res.status(201).json({ member: { ...d3, id_number: childIdClean || d3.id_number } });
         } else if (e2) { throw e2; }
-        return res.status(201).json({ member: d2 });
+        return res.status(201).json({ member: { ...d2, id_number: childIdClean || d2.id_number } });
       }
-      return res.status(201).json({ member: d1 });
+      return res.status(201).json({ member: { ...d1, id_number: childIdClean || d1.id_number } });
     }
   } catch (e) {
     console.error('[family] POST error:', e.message);
@@ -6609,46 +6870,250 @@ app.post('/api/family-members', async (req, res) => {
   }
 });
 
-app.patch('/api/family-members/:id', async (req, res) => {
-  const { id } = req.params;
-  const updates = req.body || {};
-  if (!id) return res.status(400).json({ error: 'id required' });
+app.post('/api/family-members/confirm-pairing', async (req, res) => {
+  const { member_id, code } = req.body || {};
+  if (!member_id || !code) return res.status(400).json({ error: 'member_id and code required' });
 
   try {
     const db = supabaseAdmin || supabase;
-    console.log(`[family] PATCH member ${id}:`, updates);
 
-    const { data, error } = await db
-      .from('family_members')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[family] PATCH error:', error.message);
-      return res.status(400).json({ error: error.message });
+    let member;
+    if (pgPool) {
+      const rows = await fmQuery(
+        `SELECT * FROM family_members WHERE id = $1 AND status = 'pending_code' LIMIT 1`,
+        [member_id]
+      );
+      member = rows[0] || null;
+    } else {
+      const { data, error: fetchErr } = await db.from('family_members').select('*').eq('id', member_id).eq('status', 'pending_code').maybeSingle();
+      if (fetchErr) throw fetchErr;
+      member = data;
     }
 
-    return res.json({ member: data });
+    if (!member) return res.status(404).json({ error: 'Pairing request not found or already confirmed.' });
+
+    // Check code
+    if (member.pairing_code !== String(code).trim()) {
+      return res.status(400).json({ error: 'Incorrect pairing code. Please check and try again.' });
+    }
+
+    // Check expiry
+    if (member.pairing_code_expires_at && new Date(member.pairing_code_expires_at) < new Date()) {
+      return res.status(400).json({ error: 'This pairing code has expired. Please go back and send a new one.' });
+    }
+
+    // Determine KYC status of linked user
+    let kycPending = false;
+    if (member.linked_user_id) {
+      const { data: onboarding } = await db.from('user_onboarding').select('kyc_status').eq('user_id', member.linked_user_id).maybeSingle();
+      const kycStatus = onboarding?.kyc_status || '';
+      kycPending = !['approved', 'onboarding_complete', 'verified'].includes(kycStatus);
+    }
+
+    // Activate the member
+    let updated;
+    if (pgPool) {
+      const rows = await fmQuery(
+        `UPDATE family_members SET status = 'active', pairing_code = NULL, pairing_code_expires_at = NULL WHERE id = $1 RETURNING *`,
+        [member_id]
+      );
+      updated = rows[0];
+    } else {
+      const { data, error: updateErr } = await db.from('family_members').update({ status: 'active', pairing_code: null, pairing_code_expires_at: null }).eq('id', member_id).select().single();
+      if (updateErr) throw updateErr;
+      updated = data;
+    }
+
+    return res.json({ linked: true, kyc_pending: kycPending, member: { ...updated, kyc_pending: kycPending } });
   } catch (e) {
-    console.error('[family] PATCH catch error:', e.message);
+    console.error('[family] confirm-pairing error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// Fetch a linked user's public profile fields (name, ID, address) — used for co-guardian display in POA PDF
+app.get('/api/linked-user-profile/:userId', async (req, res) => {
+  const { userId } = req.params;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+  try {
+    const db = supabaseAdmin || supabase;
+    const { data, error } = await db
+      .from('profiles')
+      .select('id, first_name, last_name, id_number, address')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Profile not found' });
+    return res.json({
+      id: data.id,
+      firstName: data.first_name,
+      lastName: data.last_name,
+      idNumber: data.id_number,
+      address: data.address,
+    });
+  } catch (e) {
+    console.error('[linked-profile]', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.patch('/api/family-members/:id', async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Member ID required' });
+
+  const allowed = [
+    'signed_agreement_url', 'signed_at',
+    'poa_declaration_url', 'poa_declaration_signed_at',
+    'id_number', 'certificate_url', 'certificate_verification_status',
+    'address', 'lives_with_parent',
+  ];
+  const body = req.body || {};
+  const patch = {};
+  for (const k of allowed) {
+    if (body[k] !== undefined) patch[k] = body[k];
+  }
+  if (Object.keys(patch).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  try {
+    let member;
+    if (pgPool) {
+      const keys = Object.keys(patch);
+      const vals = Object.values(patch);
+      const setClauses = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ');
+      vals.push(id);
+      const rows = await fmQuery(
+        `UPDATE family_members SET ${setClauses} WHERE id = $${vals.length} RETURNING *`,
+        vals
+      );
+      member = rows[0] || null;
+    } else {
+      const db = supabaseAdmin || supabase;
+      const { data, error } = await db.from('family_members').update(patch).eq('id', id).select().maybeSingle();
+      if (error) throw error;
+      member = data;
+    }
+    return res.json({ success: true, member });
+  } catch (e) {
+    console.error('[family] PATCH error:', e.message);
     return res.status(500).json({ error: e.message });
   }
 });
 
 app.delete('/api/family-members/:id', async (req, res) => {
-  const { id } = req.params;
-  const userId = req.query.user_id;
-  if (!userId) return res.status(400).json({ error: 'user_id required' });
+  const id = req.params.id || req.body?.member_id;
+  const userId = req.query.user_id || req.body?.primary_user_id;
+  if (!id || !userId) return res.status(400).json({ error: 'member_id and primary_user_id required' });
   try {
-    const db = supabaseAdmin || supabase;
-    const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
-    if (error) throw error;
+    if (pgPool) {
+      await fmQuery(`DELETE FROM family_members WHERE id = $1 AND primary_user_id = $2`, [id, userId]);
+    } else {
+      const db = supabaseAdmin || supabase;
+      const { error } = await db.from('family_members').delete().eq('id', id).eq('primary_user_id', userId);
+      if (error) throw error;
+    }
     return res.json({ success: true });
   } catch (e) {
     console.error('[family] DELETE error:', e.message);
     return res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/family-members', async (req, res) => {
+  const { member_id, primary_user_id } = req.body || {};
+  if (!member_id || !primary_user_id) return res.status(400).json({ error: 'member_id and primary_user_id required' });
+  try {
+    if (pgPool) {
+      await fmQuery(`DELETE FROM family_members WHERE id = $1 AND primary_user_id = $2`, [member_id, primary_user_id]);
+    } else {
+      const db = supabaseAdmin || supabase;
+      const { error } = await db.from('family_members').delete().eq('id', member_id).eq('primary_user_id', primary_user_id);
+      if (error) throw error;
+    }
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('[family] DELETE error:', e.message);
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Funeral Cover Policy Email ─────────────────────────────────────────────
+app.post("/api/insurance/send-policy-email", async (req, res) => {
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser(
+      req.headers.authorization?.replace("Bearer ", "")
+    );
+    if (userError || !userData?.user) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+    const user = userData.user;
+
+    const {
+      policyNo, planLabel, coverAmount, basePremium,
+      addonDetails = [], totalMonthly, deductionDate,
+      firstName, lastName, dateStr,
+    } = req.body;
+
+    if (!policyNo || !planLabel || !coverAmount || !totalMonthly) {
+      return res.status(400).json({ success: false, error: "Missing required policy fields" });
+    }
+
+    const { buildPolicySummaryHtml } = await import('../api/_lib/order-email-templates.js');
+    const html = buildPolicySummaryHtml({
+      firstName, lastName, policyNo, planLabel, coverAmount,
+      basePremium, addonDetails, totalMonthly, deductionDate, dateStr,
+    });
+
+    const { Resend } = await import('resend');
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    if (!resend) {
+      return res.status(503).json({ success: false, error: "Email service not configured" });
+    }
+
+    const toEmail = user.email;
+    const resp = await resend.emails.send({
+      from: "Mint <noreply@mymint.co.za>",
+      to: toEmail,
+      subject: `Your Mint Funeral Cover Policy Schedule — ${policyNo}`,
+      html,
+    });
+
+    if (resp.error) {
+      console.error("[insurance/send-policy-email] Resend error:", resp.error.message);
+      return res.status(500).json({ success: false, error: resp.error.message });
+    }
+
+    console.log(`[insurance/send-policy-email] Policy email sent to ${toEmail}, policy: ${policyNo}`);
+    return res.status(200).json({ success: true, emailId: resp.data?.id });
+  } catch (err) {
+    console.error("[insurance/send-policy-email] Error:", err);
+    return res.status(500).json({ success: false, error: err.message || "Failed to send policy email" });
+  }
+});
+
+// ── Admin: snapshot current prices as YTD start (run on Jan 1 each year) ──
+app.post('/api/admin/set-ytd-prices', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) return res.status(401).json({ error: 'Unauthorised' });
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ error: 'Unauthorised' });
+
+    const adminDb = supabaseAdmin || supabase;
+    if (!adminDb) return res.status(503).json({ error: 'Database not available' });
+
+    // Snapshot last_price → ytd_start_price for all securities that have a price
+    const { error: updateErr } = await adminDb.rpc('exec_sql', {
+      query: 'UPDATE securities SET ytd_start_price = last_price WHERE last_price IS NOT NULL AND last_price > 0'
+    });
+    if (updateErr) throw new Error(updateErr.message);
+    console.log(`[admin] ytd_start_price snapshot applied by ${user.email}`);
+    return res.json({ success: true, message: 'YTD start prices updated from current last_price values.' });
+  } catch (err) {
+    console.error('[admin] set-ytd-prices error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 

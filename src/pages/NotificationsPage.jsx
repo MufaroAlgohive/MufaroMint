@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   ArrowLeft,
   Settings,
@@ -247,7 +247,12 @@ const NotificationsPage = ({ onBack, onOpenSettings }) => {
     markAsRead,
     markAllAsRead,
     deleteNotification,
+    refetch,
   } = useNotificationsContext();
+
+  useEffect(() => {
+    if (typeof refetch === "function") refetch();
+  }, []);
 
   if (loading) {
     return <NotificationsSkeleton />;

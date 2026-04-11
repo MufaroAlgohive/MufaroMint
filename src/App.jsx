@@ -53,6 +53,7 @@ import ActiveSessionsPage from "./pages/ActiveSessionsPage.jsx";
 import PinSetupPage from "./pages/PinSetupPage.jsx";
 import FamilyDashboardPage from "./pages/FamilyDashboardPage.jsx";
 import ChildDashboardPage from "./pages/ChildDashboardPage.jsx";
+import FuneralCoverPage from "./pages/FuneralCoverPage.jsx";
 import { useInactivityTimeout } from "./lib/useInactivityTimeout.jsx";
 import PinLockScreen from "./components/PinLockScreen.jsx";
 import { isPinEnabled } from "./lib/usePin.js";
@@ -669,6 +670,7 @@ const App = () => {
               onOpenWithdraw={noOp}
               onOpenSettings={noOp}
               onOpenFamily={() => navigateTo("familyDashboard")}
+              onOpenInsure={() => navigateTo("funeralCover")}
             />
           </AppLayout>
         );
@@ -1135,6 +1137,7 @@ const App = () => {
           onOpenNewsArticle={(articleId) => { setSelectedArticleId(articleId); navigateTo("newsArticle"); }}
           onOpenInstantLiquidity={() => navigateTo("instantLiquidity")}
           onOpenFamily={() => navigateTo("familyDashboard")}
+          onOpenInsure={() => navigateTo("funeralCover")}
         />
       </AppLayout>
     );
@@ -1865,6 +1868,14 @@ const App = () => {
           child={selectedFamilyChild}
           onBack={goBack}
         />
+      </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "funeralCover") {
+    return (
+      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
+        <FuneralCoverPage onBack={goBack} userId={profile?.id} profile={profile} />
       </SwipeBackWrapper>
     );
   }

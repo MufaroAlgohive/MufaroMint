@@ -8,7 +8,7 @@ import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer } from "r
 import { supabase } from "../lib/supabase";
 import { getStrategiesWithMetrics, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
 import { formatCurrency } from "../lib/formatCurrency";
-import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment, getAdjustedShares } from "../lib/strategyUtils";
+import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment, calculateYtdReturn, getAdjustedShares } from "../lib/strategyUtils";
 
 const sortOptions = [
   "Recommended",
@@ -204,7 +204,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
           chunks.map((symbols) => (
             supabase
               .from("securities")
-              .select("symbol, name, logo_url, last_price")
+              .select("symbol, name, logo_url, last_price, ytd_performance, ytd_start_price")
               .in("symbol", symbols)
           )),
         );
@@ -219,6 +219,12 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
         });
 
         if (isMounted && merged.length) {
+          // Temporary debug: log ytd_performance for all strategy holdings
+          const nullYtd = merged.filter(s => s.ytd_performance == null);
+          const withYtd = merged.filter(s => s.ytd_performance != null);
+          console.log(`[YTD debug] ${merged.length} securities fetched | ${withYtd.length} have ytd_performance | ${nullYtd.length} are NULL`);
+          if (nullYtd.length) console.log('[YTD debug] NULL ytd_performance:', nullYtd.map(s => s.symbol).join(', '));
+          console.log('[YTD debug] Values:', withYtd.map(s => `${s.symbol}=${Number(s.ytd_performance).toFixed(1)}%`).join(', '));
           setHoldingsSecurities(merged);
         }
       } catch (error) {
@@ -594,11 +600,9 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
               style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
             >
               {filteredStrategies.map((strategy) => {
-                // Calculate display values from strategy_metrics
-                const price = strategy.last_close;
-                const changePct = strategy.change_pct;
-                const changeAbs = strategy.change_abs;
-                const hasMetrics = price !== null && price !== undefined;
+                // Calculate live YTD return from holdings prices (falls back to strategy_metrics.r_ytd)
+                const ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
+                const hasYtd = ytdReturn !== null && ytdReturn !== undefined;
                 const holdings = getHoldingsArray(strategy);
                 
                 const calculatedMin = calculateMinInvestment(strategy, holdingsBySymbol);
@@ -618,17 +622,19 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                     <div className="text-left space-y-1">
                       <p className="text-sm font-semibold text-slate-900">{strategy.name}</p>
                       <div>
-                        {hasMetrics ? (
+                        {hasYtd ? (
                           <>
-                            <p className={`text-xs font-semibold ${getChangeColor(changePct)}`}>
-                              {formatChangePct(changePct)}
+                            <p className={`text-xs font-semibold ${getChangeColor(ytdReturn)}`}>
+                              YTD return&nbsp;&nbsp;{formatChangePct(ytdReturn)}
                             </p>
                             <p className="text-[11px] text-slate-400">
                               {minInvestmentText}
                             </p>
                           </>
                         ) : (
-                          <p className="text-xs text-slate-400">Data updating...</p>
+                          <p className="text-xs text-slate-400">
+                            {minInvestmentText || "Data updating..."}
+                          </p>
                         )}
                       </div>
                     </div>

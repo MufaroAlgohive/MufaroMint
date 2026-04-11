@@ -125,6 +125,19 @@ Mint Auth is a React authentication application built with Vite, Tailwind CSS, a
 - **`api/sessions/validate.js`** — GET, validates session fingerprint. Always returns valid:true (user_sessions table not yet in Supabase).
 - **`api/_lib/supabase.js`** — Shared Supabase client (anon + admin) for Vercel serverless functions.
 
+### Family & Child Account Management
+- **Child add flow**: 4-step modal in `FamilyDashboardPage.jsx`
+  - Step 1: Child details (first name, last name, DOB, SA ID number — **required**)
+  - Step 2: Birth certificate upload (saves to `birth-certificates` Supabase storage)
+  - Step 3: Minor Proof of Address Declaration (`MinorProofOfAddressDeclaration.jsx`) — asks if child lives with parent; YES → signed declaration PDF (saved to `poa_declaration_url`); NO → file upload
+  - Step 4: Computershare Responsibility Agreement (`ChildResponsibilityAgreement.jsx`) — signed PDF saved to `signed_agreement_url`
+- **`MinorProofOfAddressDeclaration.jsx`**: Standalone component for FICA-compliant proof of residence; builds a jsPDF declaration with parent signature and saves to `poa_declaration_url` on the family_members record
+- **`ChildResponsibilityAgreement.jsx`**: Computershare nominee appointment agreement PDF with jsPDF + SignaturePad
+- **Child Mint number**: `generateChildMintNumber(firstName, idNumber, dob)` — uses `idNumber.substring(6,10)` for idPart; ID number is now required so this always uses the ID-based 4 digits
+- **PATCH `/api/family-members/:id`**: Updates `signed_agreement_url`, `signed_at`, `poa_declaration_url`, `poa_declaration_signed_at`, `id_number`, `certificate_url`, `certificate_verification_status`
+- **Incomplete profile prompt**: `ChildDashboardPage.jsx` shows an amber banner when `child.id_number`, `child.poa_declaration_url`, or `child.signed_agreement_url` is missing. Tapping opens `CompleteProfileModal` which guides the parent through adding each missing piece sequentially
+- **DB columns** (family_members): `id_number TEXT`, `certificate_url TEXT`, `certificate_verification_status TEXT`, `signed_agreement_url TEXT`, `signed_at TIMESTAMPTZ`, `poa_declaration_url TEXT`, `poa_declaration_signed_at TIMESTAMPTZ`
+
 ### Onboarding Completion Checks
 - **Shared utility**: `src/lib/checkOnboardingComplete.js` — `parseOnboardingFlags(record)` returns `{ kycDone, bankDone, mandateAgreed, riskDone, sofDone, allComplete }`
 - **Mandate check**: checks BOTH `sumsub_raw.mandate_data.agreedMandate` (legacy flow) AND `sumsub_raw.mandate_accepted` (new flow)

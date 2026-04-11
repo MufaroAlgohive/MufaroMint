@@ -6,6 +6,7 @@ import { X, Check, Loader2 } from "lucide-react";
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const MINT_LOGO_URL = "https://mfxnghmuccevsxwcetej.supabase.co/storage/v1/object/public/Mint%20Assets/tMOmeIOo4KE20Yh1bIuk8PFMlFHZ421rVESa2dcn.jpg";
+const CEO_SIGNATURE_URL = "/assets/ceo-signature.png";
 const MINT_PURPLE = [91, 33, 182];
 const PAGE_W = 210;
 const PAGE_H = 297;
@@ -89,7 +90,10 @@ function addPageHeader(doc, logoB64, pageNum, totalPages) {
 
 async function buildChildAgreementPdf({ parentProfile, childData, signatureDataUrl, signedAt }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const logoB64 = await fetchImageBase64(MINT_LOGO_URL);
+  const [logoB64, ceoSigB64] = await Promise.all([
+    fetchImageBase64(MINT_LOGO_URL),
+    fetchImageBase64(CEO_SIGNATURE_URL),
+  ]);
 
   const parentName = [parentProfile?.firstName, parentProfile?.lastName].filter(Boolean).join(" ") || "—";
   const parentId = parentProfile?.idNumber || "—";
@@ -250,7 +254,7 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
   writePara("8.1  This Agreement shall be governed by and construed in accordance with the laws of the Republic of South Africa. Any dispute shall be subject to the jurisdiction of the South Gauteng High Court, Johannesburg.");
 
   // Signatures section
-  if (y > PAGE_H - 80) {
+  if (y > PAGE_H - 110) {
     doc.addPage();
     pageNum++;
     addPageHeader(doc, logoB64, pageNum, 2);
@@ -296,19 +300,39 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
   doc.setFontSize(8);
   doc.setTextColor(60, 50, 90);
   doc.text("For and on behalf of Mint Platforms (Pty) Ltd:", MARGIN, y);
-  y += 14;
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(60, 50, 90);
+  doc.text("Name: Lonwabo Damane", MARGIN, y);
+  y += 4;
+  doc.text("Title: Chief Executive Officer", MARGIN, y);
+  y += 2;
+
+  if (ceoSigB64?.data && ceoSigB64.width > 0) {
+    const aspect = ceoSigB64.width / ceoSigB64.height;
+    let h = 18, w = h * aspect;
+    const maxW = 70;
+    if (w > maxW) { w = maxW; h = w / aspect; }
+    doc.addImage(ceoSigB64.data, "PNG", MARGIN, y, w, h, undefined, "FAST");
+    y += h + 2;
+  } else {
+    y += 14;
+  }
+
   doc.setDrawColor(180, 170, 210);
+  doc.setLineWidth(0.3);
   doc.line(MARGIN, y, MARGIN + 75, y);
   y += 4;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(30, 27, 75);
-  doc.text("Authorised Signatory — Mint Platforms (Pty) Ltd", MARGIN, y);
+  doc.text("Lonwabo Damane", MARGIN, y);
   y += 4;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(120, 110, 150);
-  doc.text("Director / Compliance Officer", MARGIN, y);
+  doc.text("Chief Executive Officer — Mint Platforms (Pty) Ltd", MARGIN, y);
 
   // Footer disclaimer box
   y += 14;
@@ -380,6 +404,23 @@ export default function ChildResponsibilityAgreement({
         signatureDataUrl: sigUrl,
         signedAt: now,
       });
+
+      // Trigger download immediately after signing
+      try {
+        const blob = new Blob([pdfBuffer], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const childName = `${childData?.first_name || ""}_${childData?.last_name || ""}`.trim().replace(/\s+/g, "_") || "child";
+        a.download = `Mint_Agreement_${childName}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        // Download failing shouldn't block the save flow
+      }
+
       onComplete({ pdfBuffer, signedAt: now, signatureDataUrl: sigUrl });
     } catch {
       setError("Failed to generate agreement PDF. Please try again.");

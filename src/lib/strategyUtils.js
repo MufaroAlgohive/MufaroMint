@@ -48,6 +48,63 @@ const getMinFromPrice = (price) => {
   return Math.max(Math.round(price), MIN_ASSET_VALUE);
 };
 
+/**
+ * Calculate live YTD return for a strategy using the formula:
+ * YTD = Σ(price_today × qty) / Σ(price_jan1 × qty) - 1
+ *
+ * Jan 1 price is derived from the security's ytd_performance field:
+ *   price_jan1 = last_price / (1 + ytd_performance / 100)
+ *
+ * Falls back to ytd_start_price (manual), then to strategy.r_ytd from strategy_metrics.
+ */
+export const calculateYtdReturn = (strategy, holdingsBySymbol) => {
+  const holdings = getHoldingsArray(strategy);
+  if (holdings.length > 0) {
+    let todayValue = 0;
+    let jan1Value = 0;
+    let matched = 0;
+    for (const holding of holdings) {
+      const rawSymbol = holding.ticker || holding.symbol || holding;
+      const normalizedSym = normalizeSymbol(rawSymbol);
+      const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSym);
+      const lastPrice = Number(security?.last_price ?? 0);
+      if (lastPrice <= 0) continue;
+      const shares = Number(holding.shares || holding.quantity || 1);
+
+      // Preferred: derive jan1 price from ytd_performance (already live on the security)
+      const ytdPerf = Number(security?.ytd_performance ?? NaN);
+      if (!isNaN(ytdPerf) && isFinite(ytdPerf)) {
+        // Skip instruments with extreme negative YTD (>90% loss) — these are
+        // typically expired BEE schemes or data anomalies. Their near-zero price
+        // creates an astronomical Jan 1 implied value that wrecks the whole calc.
+        if (ytdPerf < -90) continue;
+        const jan1Price = lastPrice / (1 + ytdPerf / 100);
+        if (jan1Price > 0) {
+          todayValue += lastPrice * shares;
+          jan1Value += jan1Price * shares;
+          matched++;
+          continue;
+        }
+      }
+
+      // Fallback: use manually stored ytd_start_price
+      const startPrice = Number(security?.ytd_start_price ?? 0);
+      if (startPrice > 0) {
+        todayValue += lastPrice * shares;
+        jan1Value += startPrice * shares;
+        matched++;
+      }
+    }
+    if (matched > 0 && jan1Value > 0) {
+      return (todayValue / jan1Value) - 1;
+    }
+  }
+  // Final fallback: stored r_ytd from strategy_metrics
+  const raw = strategy?.r_ytd ?? null;
+  if (raw !== null && typeof raw === 'number' && isFinite(raw) && raw > -1 && raw < 5) return raw;
+  return null;
+};
+
 export const calculateMinInvestment = (strategy, holdingsBySymbol) => {
   const holdings = getHoldingsArray(strategy);
   if (!holdings.length) {

@@ -204,79 +204,81 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
   };
 
   return (
-    <div className="min-h-screen bg-white pb-[env(safe-area-inset-bottom)] text-slate-900">
+    <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-white px-4 pb-4 pt-12">
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onBack}
-            aria-label="Back"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 active:scale-95"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <button
-            onClick={toggleWatchlist}
-            className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${
-              isWatched ? "bg-yellow-50" : "bg-slate-100"
-            } ${watchlistAnimating ? "scale-125" : "scale-100"}`}
-            aria-label={isWatched ? "Remove from Watchlist" : "Add to Watchlist"}
-          >
-            <Star className={`h-5 w-5 transition-all duration-300 ${
-              isWatched ? "fill-yellow-400 text-yellow-400" : "text-slate-400"
-            } ${watchlistAnimating ? "scale-110" : ""}`} />
-          </button>
-        </div>
+      <div className="rounded-b-[36px] bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 pb-8 pt-12 text-white">
+        <div className="mx-auto w-full max-w-sm md:max-w-md">
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label="Back"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-sm active:scale-95"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <button
+              onClick={toggleWatchlist}
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-all duration-300 active:scale-90 ${
+                isWatched ? "bg-yellow-400/20" : "bg-white/10"
+              } ${watchlistAnimating ? "scale-125" : "scale-100"}`}
+              aria-label={isWatched ? "Remove from Watchlist" : "Add to Watchlist"}
+            >
+              <Star className={`h-5 w-5 transition-all duration-300 ${
+                isWatched ? "fill-yellow-400 text-yellow-400" : "text-white/60"
+              } ${watchlistAnimating ? "scale-110" : ""}`} />
+            </button>
+          </div>
 
-        <div className="mt-6 flex items-start gap-3">
-          {security.logo_url ? (
-            <img
-              src={security.logo_url}
-              alt={security.symbol}
-              className="h-16 w-16 rounded-full border border-slate-200 object-cover"
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-xl font-bold text-white">
-              {security.symbol?.substring(0, 2) || "—"}
-            </div>
-          )}
-          <div className="flex-1">
-            <h1 className="text-xl font-bold text-slate-900">
-              {security.name || security.short_name}
-            </h1>
-            <div className="mt-1 flex items-center gap-2">
-              <p className="text-sm text-slate-600">{security.symbol}</p>
-              <span className="text-slate-300">•</span>
-              <div className="flex items-center gap-1">
-                <img
-                  src="https://flagcdn.com/w20/za.png"
-                  alt="South Africa"
-                  className="h-3 w-4 rounded-sm object-cover"
-                />
-                <p className="text-sm text-slate-600">{security.exchange}</p>
+          <div className="mt-6 flex items-start gap-4">
+            {security.logo_url ? (
+              <img
+                src={security.logo_url}
+                alt={security.symbol}
+                className="h-14 w-14 rounded-full border border-white/20 object-cover"
+              />
+            ) : (
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/15 text-lg font-bold text-white">
+                {security.symbol?.substring(0, 2) || "—"}
+              </div>
+            )}
+            <div className="flex-1">
+              <h1 className="text-xl font-bold text-white">
+                {security.name || security.short_name}
+              </h1>
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-sm text-white/60">{security.symbol}</p>
+                <span className="text-white/30">•</span>
+                <div className="flex items-center gap-1">
+                  <img
+                    src="https://flagcdn.com/w20/za.png"
+                    alt="South Africa"
+                    className="h-3 w-4 rounded-sm object-cover"
+                  />
+                  <p className="text-sm text-white/60">{security.exchange}</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Price Section */}
-        <div className="mt-6">
-          <div className="flex items-baseline gap-2">
-            <p className="text-4xl font-bold text-slate-900">{currentPrice}</p>
-            <span className="text-sm text-slate-500">{security.currency || "ZAR"}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-2">
-            <span className={`text-lg font-semibold ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
-              {priceChange}
-            </span>
-            <span className={`text-lg font-semibold ${isPositive ? "text-emerald-600" : "text-red-600"}`}>
-              {percentChange}
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-slate-400">
+          {/* Price Section */}
+          <div className="mt-6">
+            <div className="flex items-baseline gap-2">
+              <p className="text-4xl font-bold text-white">{currentPrice}</p>
+              <span className="text-sm text-white/50">{security.currency || "ZAR"}</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <span className={`text-lg font-semibold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
+                {priceChange}
+              </span>
+              <span className={`text-lg font-semibold ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>
+                {percentChange}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-white/40">
               As of today at {formatTimestamp()} GMT+2
-          </p>
+            </p>
+          </div>
         </div>
       </div>
 
@@ -491,31 +493,33 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
         )}
 
         {/* Action Buttons */}
-        <div className="mt-8 grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            disabled={buyChecking}
-            onClick={async () => {
-              setBuyChecking(true);
-              try {
-              // Use hook status to prevent race conditions on clicks while fetching
-              if (onboardingLoading) return;
-              if (!onboardingComplete) {
-                setShowOnboardingModal(true);
-                return;
-              }
-                onOpenBuy?.();
-              } finally {
-                setBuyChecking(false);
-              }
-            }}
-            className="rounded-2xl bg-gradient-to-r from-black to-purple-600 py-4 font-semibold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
-          >
-            {buyChecking ? "Checking…" : "Buy"}
-          </button>
+        <div className="mt-8 space-y-3">
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              disabled={buyChecking}
+              onClick={async () => {
+                setBuyChecking(true);
+                try {
+                if (onboardingLoading) return;
+                if (!onboardingComplete) {
+                  setShowOnboardingModal(true);
+                  return;
+                }
+                  onOpenBuy?.();
+                } finally {
+                  setBuyChecking(false);
+                }
+              }}
+              className="rounded-2xl bg-gradient-to-r from-black to-purple-600 py-4 font-semibold text-white shadow-lg transition-all active:scale-95 disabled:opacity-60"
+            >
+              {buyChecking ? "Checking…" : "Buy"}
+            </button>
+          </div>
+
           <button
             onClick={toggleWatchlist}
-            className={`relative overflow-hidden rounded-2xl border-2 py-4 font-semibold transition-all duration-300 active:scale-95 ${
+            className={`w-full relative overflow-hidden rounded-2xl border-2 py-3.5 font-semibold transition-all duration-300 active:scale-95 ${
               isWatched
                 ? "border-yellow-400 bg-yellow-50 text-yellow-700"
                 : "border-slate-200 bg-white text-slate-900"

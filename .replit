@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "swift-5.8"]
+modules = ["nodejs-20", "web", "swift-5.8", "postgresql-16"]
 [agent]
 expertMode = true
 integrations = ["resend:1.0.0"]
@@ -76,6 +76,9 @@ VITE_SUPABASE_URL = "https://mfxnghmuccevsxwcetej.supabase.co"
 VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1meG5naG11Y2NldnN4d2NldGVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4NTI1ODAsImV4cCI6MjA4NDQyODU4MH0.lktfglzBMaHd79hLFDRH1HHSwsEwZ56Tv6e287kQiFg"
 VITE_PAYSTACK_PUBLIC_KEY = "pk_live_1cbfba656265cbb275483c8f953bc356dd5869d2"
 SUMSUB_BASE_URL = "api.sumsub.com"
+
+[userenv.development]
+VITE_ENABLE_INSURE = "true"
 
 [postMerge]
 path = "scripts/post-merge.sh"
