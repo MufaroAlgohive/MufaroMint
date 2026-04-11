@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import 'dotenv/config';
 
 // Standalone implementation of the logic currently in src/lib/marketData.js (Active Workspace)
-const supabaseUrl = 'https://mfxnghmuccevsxwcetej.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1meG5naG11Y2NldnN4d2NldGVqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODg1MjU4MCwiZXhwIjoyMDg0NDI4NTgwfQ.0gsEFLa3PtZ82Oams9qbbdx6MFHCMCSlL-aa_ZcHHsY';
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!supabaseUrl || !supabaseKey) throw new Error('Missing SUPABASE env vars — check .env');
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
