@@ -183,10 +183,11 @@ const StatementsPage = ({ onOpenNotifications }) => {
         }
 
         const { data: strategies, error } = await supabase
-          .from("strategies")
           .select("id, name, short_name, description, risk_level, holdings, strategy_metrics(as_of_date, last_close, change_pct, r_1m, r_1w, r_3m, r_6m, r_ytd, r_1y, change_abs, prev_close)")
           .in("id", userStrats.map((s) => s.id))
-          .eq("status", "active");
+          .eq("status", "active")
+          .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
+          .limit(1, { foreignTable: "strategy_metrics" });
         if (error) throw error;
 
         const mapped = (strategies || []).map((strategy) => {
@@ -640,8 +641,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
                     type="button"
                     onClick={() => setActivityFilter(f)}
                     className={`flex-shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition ${activityFilter === f
-                        ? "bg-slate-900 text-white shadow-sm"
-                        : "bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100"
+                      ? "bg-slate-900 text-white shadow-sm"
+                      : "bg-white text-slate-500 hover:text-slate-700 shadow-sm border border-slate-100"
                       }`}
                   >
                     {f}
@@ -735,9 +736,9 @@ const StatementsPage = ({ onOpenNotifications }) => {
                                     <>
                                       <span className="text-slate-300">·</span>
                                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${["successful", "completed", "posted"].includes(item.status) ? "bg-emerald-50 text-emerald-600"
-                                          : item.status === "pending" ? "bg-amber-50 text-amber-600"
-                                            : item.status === "failed" ? "bg-rose-50 text-rose-500"
-                                              : "bg-slate-100 text-slate-500"
+                                        : item.status === "pending" ? "bg-amber-50 text-amber-600"
+                                          : item.status === "failed" ? "bg-rose-50 text-rose-500"
+                                            : "bg-slate-100 text-slate-500"
                                         }`}>
                                         {["successful", "completed", "posted"].includes(item.status) ? "Completed"
                                           : item.status === "pending" ? "Pending"
@@ -975,8 +976,8 @@ const StatementsPage = ({ onOpenNotifications }) => {
                   <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 text-center">
                     <p className="text-2xl font-bold text-slate-900">{selectedCard.amount}</p>
                     <p className={`mt-1 text-sm font-semibold ${selectedCard.unrealizedPL?.startsWith("+") ? "text-emerald-600"
-                        : selectedCard.unrealizedPL?.startsWith("-") ? "text-red-600"
-                          : "text-slate-400"
+                      : selectedCard.unrealizedPL?.startsWith("-") ? "text-red-600"
+                        : "text-slate-400"
                       }`}>{selectedCard.unrealizedPL || "—"}</p>
                     <p className="mt-0.5 text-xs text-slate-400">Unrealised P/L</p>
                   </div>

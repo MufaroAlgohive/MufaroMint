@@ -116,7 +116,10 @@ export default async function handler(req, res) {
         strategy_metrics (
           as_of_date, last_close, change_pct, r_1w, r_1m, r_3m, r_ytd, r_1y
         )
-      `).eq("status", "active"),
+      `)
+      .eq("status", "active")
+      .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
+      .limit(1, { foreignTable: "strategy_metrics" }),
     ]);
 
     const allStrategies = allStrategiesResult.data || [];
