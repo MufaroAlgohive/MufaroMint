@@ -651,13 +651,16 @@ function generateChildMintNumber(firstName, idNumber, dateOfBirth) {
   return namePart + idPart + dd + mm + yy;
 }
 
-function generateMintNumber(firstName, idNumber, createdAt, suffix = '') {
+function generateMintNumber(firstName, idNumber, createdAt, suffix = '', userId = null) {
   const normalized = (firstName || 'MNT').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X').substring(0, 3);
 
   let idPart = '0000';
   if (idNumber && idNumber.length >= 10) {
     idPart = idNumber.substring(6, 10);
+  } else if (userId) {
+    const cleanId = String(userId).replace(/-/g, '');
+    idPart = cleanId.substring(cleanId.length - 4).toUpperCase();
   }
 
   let datePart = '000000';
@@ -768,7 +771,7 @@ async function populateMintNumbers() {
       }
 
       const effectiveId = resolvedId || p.id_number;
-      const mintNum = generateMintNumber(p.first_name, effectiveId, p.created_at);
+      const mintNum = generateMintNumber(p.first_name, effectiveId, p.created_at, '', p.id);
 
       if (mintNum !== p.mint_number) {
         let finalMintNum = mintNum;
@@ -787,7 +790,7 @@ async function populateMintNumbers() {
           } else if (updateErr.message?.includes('unique constraint') || updateErr.code === '23505') {
             retryCount++;
             const randomSuffix = '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
-            finalMintNum = generateMintNumber(p.first_name, effectiveId, p.created_at, randomSuffix);
+            finalMintNum = generateMintNumber(p.first_name, effectiveId, p.created_at, randomSuffix, p.id);
             console.log(`[mint] Collision for ${p.id}, retrying with ${finalMintNum}`);
           } else {
             console.log(`[mint] Failed to update profile ${p.id}:`, updateErr.message);
@@ -3551,7 +3554,7 @@ app.post("/api/user/ensure-mint-number", async (req, res) => {
     }
 
     const effectiveId = resolvedId || profile.id_number;
-    const mintNum = generateMintNumber(profile.first_name, effectiveId, profile.created_at);
+    const mintNum = generateMintNumber(profile.first_name, effectiveId, profile.created_at, '', profile.id);
 
     if (mintNum === profile.mint_number) {
       return res.json({ success: true, mint_number: profile.mint_number });
@@ -3573,7 +3576,7 @@ app.post("/api/user/ensure-mint-number", async (req, res) => {
       } else if (updateErr.message?.includes('unique constraint') || updateErr.code === '23505') {
         retryCount++;
         const randomSuffix = '-' + Math.random().toString(36).substring(2, 5).toUpperCase();
-        finalMintNum = generateMintNumber(profile.first_name, effectiveId, profile.created_at, randomSuffix);
+        finalMintNum = generateMintNumber(profile.first_name, effectiveId, profile.created_at, randomSuffix, profile.id);
         console.log(`[mint] Collision for user ${user.id}, retrying with ${finalMintNum}`);
       } else {
         lastError = updateErr.message;
@@ -3969,7 +3972,7 @@ app.get("/api/user/strategies", async (req, res) => {
           investedAmount,
           currentMarketValue,
           currentValue: currentMarketValue,
-          metrics: latestMetric || null,
+          metrics: latestMetric ? { ...latestMetric, r_ytd: rytd } : { r_ytd: rytd },
           firstInvestedDate: strategyFirstDate[matchKey] || null,
         });
       }
