@@ -259,7 +259,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   const formattedAllTimeReturn = `${allTimeReturn >= 0 ? "+" : ""}${allTimeReturn.toFixed(2)}%`;
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
-  // Fetch and merge performance metrics from database
+  // Fetch performance metrics from database (real portfolio values, not dynamic calculations)
   const [strategiesWithMetrics, setStrategiesWithMetrics] = useState(strategies);
 
   useEffect(() => {
@@ -288,6 +288,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
           }));
 
           setStrategiesWithMetrics(merged);
+          console.log("[OpenStrategies] Merged performance metrics:", performanceMap);
         } else {
           setStrategiesWithMetrics(strategies);
         }
@@ -642,14 +643,14 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
               style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
             >
               {filteredStrategies.map((strategy) => {
-                // Calculate YTD from holdings - this is the primary source
-                const ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
+                // Use YTD from database (portfolio value today / portfolio value Jan 1)
+                const ytdReturn = strategy.r_ytd;
                 const hasYtd = ytdReturn !== null && ytdReturn !== undefined && ytdReturn !== 0;
 
-                console.log(`📊 [UI Render] ${strategy.name}:`, {
-                  ytdReturn,
+                console.log(`📊 [UI] ${strategy.name} YTD:`, {
+                  value: ytdReturn,
                   hasYtd,
-                  formatted: ytdReturn ? formatChangePct(ytdReturn) : 'N/A'
+                  formatted: hasYtd ? formatChangePct(ytdReturn) : 'N/A'
                 });
                 const holdings = getHoldingsArray(strategy);
                 
