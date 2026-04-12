@@ -14,15 +14,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Try to authenticate, but don't require it (strategy performance is public data)
-    const { user, error: authError } = await authenticateUser(req);
+    console.log("[strategy-performance] Request received, method:", req.method);
 
     if (!supabase) {
+      console.error("[strategy-performance] Supabase not initialized");
       return res.status(500).json({ success: false, error: "Database not connected" });
     }
 
     const db = supabase;
     const { strategyId } = req.query;
+
+    console.log("[strategy-performance] Fetching metrics, strategyId:", strategyId);
 
     let query = db
       .from("strategy_metrics")
@@ -46,14 +48,25 @@ export default async function handler(req, res) {
 
     // If specific strategy requested
     if (strategyId) {
+      console.log("[strategy-performance] Filtering by strategy:", strategyId);
       query = query.eq("strategy_id", strategyId);
     }
 
     const { data: metrics, error } = await query;
 
     if (error) {
-      console.error("[strategy-performance] Error fetching metrics:", error);
-      return res.status(500).json({ success: false, error: error.message });
+      console.error("[strategy-performance] Supabase error:", error);
+      return res.status(500).json({ success: false, error: error.message, details: error });
+    }
+
+    console.log("[strategy-performance] Found", metrics?.length || 0, "records");
+
+    if (!metrics || metrics.length === 0) {
+      console.log("[strategy-performance] No metrics found");
+      return res.status(200).json({
+        success: true,
+        data: [],
+      });
     }
 
     // Format the returns as percentages
@@ -80,7 +93,11 @@ export default async function handler(req, res) {
       data: formatted,
     });
   } catch (error) {
-    console.error("[strategy-performance] Error:", error);
-    return res.status(500).json({ success: false, error: error.message });
+    console.error("[strategy-performance] Catch error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
   }
 }
