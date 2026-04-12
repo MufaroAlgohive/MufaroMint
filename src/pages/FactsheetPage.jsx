@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 import { formatChangePct, getChangeColor } from "../lib/strategyData.js";
-import { buildHoldingsBySymbol, calculateMinInvestment, calculateYtdReturn, getAdjustedShares, computeExtendedSummary } from "../lib/strategyUtils";
+import { buildHoldingsBySymbol, calculateMinInvestment, getAdjustedShares, computeExtendedSummary } from "../lib/strategyUtils";
 import {
   Area,
   Line,
@@ -411,11 +411,6 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
   const performanceSummary = useMemo(() => {
     const summary = analytics?.summary || {};
-    const holdingsMap = buildHoldingsBySymbol(holdingsSecurities);
-    
-    // Prioritize dynamic calculation for YTD return
-    const dynamicYtd = calculateYtdReturn(currentStrategy, holdingsMap);
-    const displayYtd = dynamicYtd !== null ? dynamicYtd : (summary.ytd_return ?? analytics?.ytd_return);
 
     return [
       {
@@ -435,11 +430,11 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
       },
       {
         label: "YTD Return",
-        value: formatPercent(displayYtd),
+        value: formatPercent(analytics?.r_ytd ?? summary.ytd_return),
         description: "Year-to-date return for the strategy.",
       },
     ];
-  }, [analytics, currentStrategy, holdingsSecurities]);
+  }, [analytics]);
 
   // Auto-scroll removed to allow manual scrolling.
 
