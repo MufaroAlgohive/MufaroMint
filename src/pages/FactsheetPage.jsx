@@ -154,11 +154,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
           // Also fetch latest performance metrics from strategy_metrics table
           try {
-            const perfResponse = await fetch(`/api/strategy-performance.js?strategyId=${resolvedId}`, {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("supabase_token") || ""}`,
-              },
-            });
+            const perfResponse = await fetch(`/api/strategy-performance.js?strategyId=${resolvedId}`);
 
             if (perfResponse.ok) {
               const perfResult = await perfResponse.json();

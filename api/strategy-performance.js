@@ -14,9 +14,11 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Try to authenticate, but don't require it (strategy performance is public data)
     const { user, error: authError } = await authenticateUser(req);
-    if (authError || !user) {
-      return res.status(401).json({ success: false, error: authError || "Unauthorized" });
+
+    if (!supabase) {
+      return res.status(500).json({ success: false, error: "Database not connected" });
     }
 
     const db = supabase;

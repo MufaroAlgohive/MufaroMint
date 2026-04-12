@@ -309,11 +309,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       }
 
       try {
-        const response = await fetch(`/api/strategy-performance.js`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("supabase_token") || ""}`,
-          },
-        });
+        const response = await fetch(`/api/strategy-performance.js`);
 
         if (!response.ok) throw new Error("Failed to fetch performance metrics");
 

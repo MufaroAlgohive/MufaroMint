@@ -13,11 +13,7 @@ export const useStrategyPerformance = (strategyId = null) => {
           ? `/api/strategy-performance.js?strategyId=${strategyId}`
           : `/api/strategy-performance.js`;
 
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("supabase_token") || ""}`,
-          },
-        });
+        const response = await fetch(url);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch performance data: ${response.status}`);
