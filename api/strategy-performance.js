@@ -1,4 +1,4 @@
-import { supabase, authenticateUser } from "../_lib/supabase.js";
+import { supabase, authenticateUser } from "./_lib/supabase.js";
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
