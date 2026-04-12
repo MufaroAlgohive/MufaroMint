@@ -724,9 +724,31 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         v: Number((100 + wave + drift + noise).toFixed(2)),
       };
     });
-    const series = Array.isArray(curves[selectedStrategyTimeframe]) && curves[selectedStrategyTimeframe].length > 0
+    let series = Array.isArray(curves[selectedStrategyTimeframe]) && curves[selectedStrategyTimeframe].length > 0
       ? curves[selectedStrategyTimeframe]
       : fallbackSeries;
+
+    // Detect data order: if first value is higher than last value, data is likely reversed (newest-first)
+    // For YTD/period returns, the value should generally increase or at least the direction should be consistent
+    // If we see high at start and low at end, reverse it to oldest-first ordering
+    if (series.length > 1) {
+      const firstVal = series[0]?.v ?? 0;
+      const lastVal = series[series.length - 1]?.v ?? 0;
+      const firstDate = series[0]?.d ? new Date(series[0].d) : null;
+      const lastDate = series[series.length - 1]?.d ? new Date(series[series.length - 1].d) : null;
+
+      // If dates exist and show reversed order, flip the array
+      if (firstDate && lastDate && firstDate > lastDate) {
+        series = [...series].reverse();
+        console.log('[Chart] Data was reversed (newest-first), now oldest-first');
+      }
+      // Also check if the first value is significantly higher (suggesting reversed order even without valid dates)
+      else if (firstVal > lastVal * 1.05) {
+        series = [...series].reverse();
+        console.log('[Chart] Data appears reversed by value comparison, flipping');
+      }
+    }
+
     const labelIndices = series.length ? [0, Math.floor(series.length / 2), series.length - 1] : [];
     const values = series.map((point) => point?.v ?? 0);
     const minValue = values.length ? Math.min(...values) : 0;
@@ -747,10 +769,19 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       };
     });
 
+    // Log for debugging
+    if (values.length > 0) {
+      const baseValue = values[0];
+      const endValue = values[values.length - 1];
+      const calculatedReturn = ((endValue - baseValue) / baseValue) * 100;
+      console.log(`[Chart] TimeFrame: ${selectedStrategyTimeframe}, Base: ${baseValue}, End: ${endValue}, Return: ${calculatedReturn.toFixed(2)}%`);
+    }
+
+    const baseValue = values.length ? values[0] : null;
     return {
       previewChartData: mapped,
       previewChartDomain: domain,
-      previewBaseIndexValue: values.length ? values[0] : null,
+      previewBaseIndexValue: baseValue,
     };
   }, [selectedStrategyAnalytics, selectedStrategyTimeframe]);
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import SignaturePad from "signature_pad";
 import jsPDF from "jspdf";
-import { Check, Home, Navigation, MapPin, Users } from "lucide-react";
+import { Check, Home, Navigation, MapPin, Users, X, AlertCircle, PenTool } from "lucide-react";
 
 const MINT_PURPLE = [91, 33, 182];
 const MINT_LOGO_URL =
@@ -569,42 +569,65 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
   }
 
   const PURPLE = "#5B21B6";
+  const P2 = "#7C3AED";
   const P_CARD = "#EDE9FE";
-  const BTN = "linear-gradient(135deg, #7C3AED, #5B21B6)";
-  const inputCls = "w-full rounded-2xl border-0 bg-[#F5F3FF] px-4 py-3.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-200 transition";
+  const P_BG = "#F5F3FF";
+  const BTN = `linear-gradient(135deg, ${P2}, ${PURPLE})`;
+  const inputCls = "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200";
 
   // ── Question ────────────────────────────────────────────────────────────────
   if (answer === null) {
     return (
-      <div className="space-y-4">
-        {/* Guardian(s) card */}
-        <div className="rounded-3xl bg-[#F5F3FF] px-4 py-4 space-y-2">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="h-3.5 w-3.5 flex-shrink-0" style={{ color: PURPLE }} />
-            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: PURPLE }}>Guardian(s) on record</p>
+      <div className="space-y-5">
+        {/* Title */}
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-3 rounded-xl flex-shrink-0" style={{ background: P_CARD }}>
+            <MapPin className="h-5 w-5" style={{ color: PURPLE }} />
           </div>
-          <div className="space-y-2">
-            <div>
-              <p className="text-[13px] font-bold text-slate-900">{parentName}</p>
-              {parentAddress
-                ? <p className="text-[11px] text-slate-500 mt-0.5">{parentAddress}</p>
-                : <p className="text-[11px] text-slate-400 italic mt-0.5">Address on file with Mint</p>}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Address Verification</p>
+            <p className="text-[18px] font-bold text-slate-900 leading-tight">Where does {childName} live?</p>
+          </div>
+        </div>
+
+        {/* Guardian(s) card */}
+        <div className="rounded-3xl bg-white border border-slate-100 px-5 py-5 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-4 w-4" style={{ color: PURPLE }} />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Guardian(s) on record</p>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 rounded-xl" style={{ background: P_BG }}>
+              <div className="p-2 rounded-lg flex-shrink-0" style={{ background: P_CARD }}>
+                <Home className="h-4 w-4" style={{ color: PURPLE }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-slate-900">{parentName}</p>
+                {parentAddress
+                  ? <p className="text-xs text-slate-600 mt-1">{parentAddress}</p>
+                  : <p className="text-xs text-slate-400 italic mt-1">Address on file with Mint</p>}
+              </div>
             </div>
             {coGuardianProfiles.map((cg, i) => {
               const cgName = [cg.firstName, cg.lastName].filter(Boolean).join(" ") || "Co-guardian";
               return (
-                <div key={i} className="pt-2 border-t border-[#DDD6FE]">
-                  <p className="text-[13px] font-bold text-slate-900">{cgName}</p>
-                  {cg.address
-                    ? <p className="text-[11px] text-slate-500 mt-0.5">{cg.address}</p>
-                    : <p className="text-[11px] text-slate-400 italic mt-0.5">Address on file with Mint</p>}
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-slate-100">
+                  <div className="p-2 rounded-lg flex-shrink-0 bg-slate-50">
+                    <Users className="h-4 w-4 text-slate-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-900">{cgName}</p>
+                    {cg.address
+                      ? <p className="text-xs text-slate-600 mt-1">{cg.address}</p>
+                      : <p className="text-xs text-slate-400 italic mt-1">Address on file with Mint</p>}
+                  </div>
                 </div>
               );
             })}
           </div>
-          <div className="pt-3 mt-1 border-t border-[#DDD6FE]">
+          <div className="pt-4 mt-3 border-t border-slate-100">
             <p className="text-sm text-slate-700 leading-relaxed">
-              Does <strong style={{ color: PURPLE }}>{childName}</strong> currently reside with {coGuardianProfiles.length > 0 ? "one of the guardians above" : "you"} at the address above?
+              Does <strong style={{ color: PURPLE }}>{childName}</strong> currently reside with {coGuardianProfiles.length > 0 ? "one of the guardians above" : "you"} at their registered address?
             </p>
           </div>
         </div>
@@ -612,22 +635,22 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => { setAnswer("same"); setError(""); }}
-            className="flex flex-col items-center gap-2 rounded-2xl px-4 py-5 font-bold text-sm transition active:scale-95"
-            style={{ background: P_CARD, color: PURPLE }}
+            className="flex flex-col items-center gap-2 rounded-2xl px-4 py-5 font-bold text-sm transition active:scale-95 border-2 duration-200"
+            style={{ borderColor: PURPLE, background: P_CARD, color: PURPLE }}
           >
             <Home className="h-5 w-5" />
             Yes, same address
           </button>
           <button
             onClick={() => { setAnswer("different"); setError(""); setAddressStep("form"); diffPadRef.current = null; }}
-            className="flex flex-col items-center gap-2 rounded-2xl bg-white px-4 py-5 text-slate-600 font-bold text-sm border border-[#E5E7EB] hover:border-[#DDD6FE] hover:bg-[#F5F3FF] transition active:scale-95"
+            className="flex flex-col items-center gap-2 rounded-2xl bg-white px-4 py-5 text-slate-600 font-bold text-sm border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition active:scale-95 duration-200"
           >
-            <Navigation className="h-5 w-5 text-slate-400" />
+            <Navigation className="h-5 w-5" />
             No, different address
           </button>
         </div>
 
-        <button onClick={onBack} className="text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-slate-600 transition">← Back</button>
+        <button onClick={onBack} className="text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-slate-600 py-2 transition">← Back</button>
       </div>
     );
   }
@@ -635,45 +658,58 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
   // ── Same address: sign ──────────────────────────────────────────────────────
   if (answer === "same") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold tracking-widest uppercase" style={{ color: PURPLE }}>Address Declaration</p>
-            <p className="text-[19px] font-bold text-slate-900 leading-tight">Confirm residence</p>
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl flex-shrink-0" style={{ background: P_CARD }}>
+              <Check className="h-5 w-5" style={{ color: PURPLE }} />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400">Address Confirmation</p>
+              <p className="text-[18px] font-bold text-slate-900 leading-tight">Confirm residence</p>
+            </div>
           </div>
-          <button onClick={() => { setAnswer(null); samePadRef.current = null; setError(""); }} className="text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-slate-600 transition">Change</button>
+          <button onClick={() => { setAnswer(null); samePadRef.current = null; setError(""); }} className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 transition">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Declaration text */}
-        <div className="rounded-3xl bg-[#F5F3FF] px-4 py-4 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: PURPLE }}>Official Affirmation</p>
-          <p className="text-xs text-slate-700 leading-relaxed">
-            I, <strong>{parentName}</strong>
-            {parentAddress ? <span style={{ color: PURPLE }}> ({parentAddress})</span> : null},
+        <div className="rounded-3xl bg-white border border-slate-100 px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Official Affirmation</p>
+          <p className="text-sm leading-relaxed text-slate-700">
+            I, <strong className="text-slate-900">{parentName}</strong>
+            {parentAddress ? <span style={{ color: PURPLE }}> at {parentAddress}</span> : null},
             {coGuardianProfiles.length > 0 && (
-              <>{" "}and{" "}{coGuardianProfiles.map((cg, i) => {
+              <>{" "}and {coGuardianProfiles.map((cg, i) => {
                 const cgName = [cg.firstName, cg.lastName].filter(Boolean).join(" ") || "co-guardian";
-                return <span key={i}><strong>{cgName}</strong>{cg.address ? <span style={{ color: PURPLE }}> ({cg.address})</span> : null}{i < coGuardianProfiles.length - 1 ? ", " : ""}</span>;
+                return <span key={i}><strong className="text-slate-900">{cgName}</strong>{i < coGuardianProfiles.length - 1 ? ", " : ""}</span>;
               })}</>
             )}{" "}
-            hereby declare that <strong>{childName}</strong>
-            {childData?.date_of_birth ? ` (DOB: ${childData.date_of_birth})` : ""}
-            {childData?.id_number ? `, ID: ${childData.id_number}` : ""} currently resides with {coGuardianProfiles.length > 0 ? "us" : "me"} at the registered address on file with Mint Financial Services (Pty) Ltd. {coGuardianProfiles.length > 0 ? "We undertake" : "I undertake"} to notify Mint within 14 days if this changes.
+            hereby declare that <strong className="text-slate-900">{childName}</strong> currently resides with {coGuardianProfiles.length > 0 ? "us" : "me"} at the registered address on file with Mint. {coGuardianProfiles.length > 0 ? "We undertake" : "I undertake"} to notify Mint within 14 days if this changes.
           </p>
         </div>
 
         {/* Signature box */}
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest mb-2 ml-0.5" style={{ color: PURPLE }}>Sign here to declare</p>
-          <div className="rounded-2xl border-2 border-dashed border-[#C4B5FD] bg-white overflow-hidden" style={{ touchAction: "none" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+            <div className="p-2 rounded-lg" style={{ background: P_CARD }}>
+              <PenTool className="h-4 w-4" style={{ color: PURPLE }} />
+            </div>
+            Sign here to declare
+          </p>
+          <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white overflow-hidden shadow-sm" style={{ touchAction: "none" }}>
             <canvas ref={sameCanvasRef} width={340} height={110} className="w-full" style={{ display: "block" }} />
           </div>
-          <button onClick={() => samePadRef.current?.clear()} className="text-[10px] text-slate-400 hover:text-slate-600 mt-1.5 transition">Clear</button>
+          <button onClick={() => samePadRef.current?.clear()} className="text-[11px] text-slate-400 hover:text-slate-600 mt-2.5 transition font-medium">↻ Clear signature</button>
         </div>
 
-        {error && <p className="text-xs text-red-500 bg-red-50 rounded-2xl px-4 py-2.5">{error}</p>}
+        {error && <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-red-600">{error}</p>
+        </div>}
 
-        <button onClick={handleSameSign} disabled={signing} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50" style={{ background: BTN }}>
+        <button onClick={handleSameSign} disabled={signing} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60 duration-200 shadow-lg shadow-purple-900/20 hover:shadow-lg" style={{ background: BTN }}>
           {signing ? "Generating declaration…" : "Sign & Continue →"}
         </button>
       </div>
@@ -683,40 +719,56 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
   // ── Different address: form ─────────────────────────────────────────────────
   if (answer === "different" && addressStep === "form") {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold tracking-widest uppercase" style={{ color: PURPLE }}>Child's Address</p>
-            <p className="text-[19px] font-bold text-slate-900 leading-tight">{childName}'s address</p>
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl flex-shrink-0" style={{ background: P_CARD }}>
+              <MapPin className="h-5 w-5" style={{ color: PURPLE }} />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400">Child's Address</p>
+              <p className="text-[18px] font-bold text-slate-900 leading-tight">Where {childName} lives</p>
+            </div>
           </div>
-          <button onClick={() => { setAnswer(null); setError(""); }} className="text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-slate-600 transition">Change</button>
+          <button onClick={() => { setAnswer(null); setError(""); }} className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 transition">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <p className="text-sm text-slate-500 leading-relaxed">
+        <p className="text-sm text-slate-600 leading-relaxed">
           Enter where {childName} currently lives. You'll confirm this with a signed declaration.
         </p>
 
-        <div className="rounded-3xl bg-[#F5F3FF] p-4 space-y-3">
+        <div className="rounded-3xl bg-white border border-slate-100 p-5 space-y-4">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Street Address <span className="text-red-400">*</span></p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2.5 flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2 rounded-full" style={{ background: PURPLE }}></span>
+              Street Address
+            </p>
             <input type="text" placeholder="e.g. 12 Oak Street" value={childAddress.line1} onChange={e => setChildAddress(a => ({ ...a, line1: e.target.value }))} className={inputCls} />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Suburb</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">Suburb / Township</p>
             <input type="text" placeholder="e.g. Sandton" value={childAddress.suburb} onChange={e => setChildAddress(a => ({ ...a, suburb: e.target.value }))} className={inputCls} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">City / Town <span className="text-red-400">*</span></p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2.5 flex items-center gap-1.5">
+                <span className="relative flex h-2 w-2 rounded-full" style={{ background: PURPLE }}></span>
+                City / Town
+              </p>
               <input type="text" placeholder="e.g. Johannesburg" value={childAddress.city} onChange={e => setChildAddress(a => ({ ...a, city: e.target.value }))} className={inputCls} />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Postal Code</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">Postal Code</p>
               <input type="text" placeholder="e.g. 2196" value={childAddress.postalCode} maxLength={4} onChange={e => setChildAddress(a => ({ ...a, postalCode: e.target.value.replace(/\D/g, "") }))} className={inputCls} />
             </div>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Province <span className="text-red-400">*</span></p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-2.5 flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2 rounded-full" style={{ background: PURPLE }}></span>
+              Province
+            </p>
             <select value={childAddress.province} onChange={e => setChildAddress(a => ({ ...a, province: e.target.value }))} className={inputCls}>
               <option value="">Select province…</option>
               {SA_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
@@ -724,9 +776,12 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
           </div>
         </div>
 
-        {error && <p className="text-xs text-red-500 bg-red-50 rounded-2xl px-4 py-2.5">{error}</p>}
+        {error && <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-red-600">{error}</p>
+        </div>}
 
-        <button onClick={handleAddressNext} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98]" style={{ background: BTN }}>
+        <button onClick={handleAddressNext} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] duration-200 shadow-lg shadow-purple-900/20 hover:shadow-lg" style={{ background: BTN }}>
           Next — Sign Declaration →
         </button>
       </div>
@@ -737,47 +792,62 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
   if (answer === "different" && addressStep === "sign") {
     const fullAddr = [childAddress.line1, childAddress.suburb, childAddress.city, childAddress.province, childAddress.postalCode].filter(Boolean).join(", ");
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-bold tracking-widest uppercase" style={{ color: PURPLE }}>Address Declaration</p>
-            <p className="text-[19px] font-bold text-slate-900 leading-tight">Sign to confirm</p>
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl flex-shrink-0" style={{ background: P_CARD }}>
+              <Check className="h-5 w-5" style={{ color: PURPLE }} />
+            </div>
+            <div>
+              <p className="text-[11px] font-bold tracking-widest uppercase text-slate-400">Address Confirmation</p>
+              <p className="text-[18px] font-bold text-slate-900 leading-tight">Sign to confirm</p>
+            </div>
           </div>
-          <button onClick={() => { setAddressStep("form"); setError(""); diffPadRef.current = null; }} className="text-[11px] font-bold tracking-widest uppercase text-slate-400 hover:text-slate-600 transition">← Edit</button>
+          <button onClick={() => { setAddressStep("form"); setError(""); diffPadRef.current = null; }} className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-400 hover:bg-slate-200 transition">
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Declaration text */}
-        <div className="rounded-3xl bg-[#F5F3FF] px-4 py-4 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: PURPLE }}>Official Affirmation</p>
-          <p className="text-xs text-slate-700 leading-relaxed">
-            I, <strong>{parentName}</strong>
-            {parentAddress ? <span style={{ color: PURPLE }}> ({parentAddress})</span> : null}
+        <div className="rounded-3xl bg-white border border-slate-100 px-5 py-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Official Affirmation</p>
+          <p className="text-sm leading-relaxed text-slate-700 mb-3">
+            I, <strong className="text-slate-900">{parentName}</strong>
+            {parentAddress ? <span style={{ color: PURPLE }}> at {parentAddress}</span> : null}
             {coGuardianProfiles.length > 0 && (
-              <>{" "}and{" "}{coGuardianProfiles.map((cg, i) => {
+              <>{" "}and {coGuardianProfiles.map((cg, i) => {
                 const cgName = [cg.firstName, cg.lastName].filter(Boolean).join(" ") || "co-guardian";
-                return <span key={i}><strong>{cgName}</strong>{cg.address ? <span style={{ color: PURPLE }}> ({cg.address})</span> : null}{i < coGuardianProfiles.length - 1 ? ", " : ""}</span>;
+                return <span key={i}><strong className="text-slate-900">{cgName}</strong>{i < coGuardianProfiles.length - 1 ? ", " : ""}</span>;
               })}</>
             )}{" "}
-            hereby declare that <strong>{childName}</strong>
-            {childData?.date_of_birth ? ` (DOB: ${childData.date_of_birth})` : ""}
-            {childData?.id_number ? `, ID: ${childData.id_number}` : ""} currently resides at:
+            hereby declare that <strong className="text-slate-900">{childName}</strong> currently resides at:
           </p>
-          <p className="text-sm font-bold" style={{ color: PURPLE }}>{fullAddr}</p>
-          <p className="text-xs text-slate-500 leading-relaxed">{coGuardianProfiles.length > 0 ? "We undertake" : "I undertake"} to notify Mint within 14 days if this address changes.</p>
+          <div className="p-3 rounded-xl" style={{ background: P_BG }}>
+            <p className="text-sm font-bold" style={{ color: PURPLE }}>{fullAddr}</p>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed mt-3">{coGuardianProfiles.length > 0 ? "We undertake" : "I undertake"} to notify Mint within 14 days if this address changes.</p>
         </div>
 
         {/* Signature box */}
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest mb-2 ml-0.5" style={{ color: PURPLE }}>Sign here to declare</p>
-          <div className="rounded-2xl border-2 border-dashed border-[#C4B5FD] bg-white overflow-hidden" style={{ touchAction: "none" }}>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-2">
+            <div className="p-2 rounded-lg" style={{ background: P_CARD }}>
+              <PenTool className="h-4 w-4" style={{ color: PURPLE }} />
+            </div>
+            Sign here to declare
+          </p>
+          <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white overflow-hidden shadow-sm" style={{ touchAction: "none" }}>
             <canvas ref={diffCanvasRef} width={340} height={110} className="w-full" style={{ display: "block" }} />
           </div>
-          <button onClick={() => diffPadRef.current?.clear()} className="text-[10px] text-slate-400 hover:text-slate-600 mt-1.5 transition">Clear</button>
+          <button onClick={() => diffPadRef.current?.clear()} className="text-[11px] text-slate-400 hover:text-slate-600 mt-2.5 transition font-medium">↻ Clear signature</button>
         </div>
 
-        {error && <p className="text-xs text-red-500 bg-red-50 rounded-2xl px-4 py-2.5">{error}</p>}
+        {error && <div className="flex items-start gap-3 bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-red-600">{error}</p>
+        </div>}
 
-        <button onClick={handleDifferentSign} disabled={signing} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-50" style={{ background: BTN }}>
+        <button onClick={handleDifferentSign} disabled={signing} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60 duration-200 shadow-lg shadow-purple-900/20 hover:shadow-lg" style={{ background: BTN }}>
           {signing ? "Generating declaration…" : "Sign & Continue →"}
         </button>
       </div>

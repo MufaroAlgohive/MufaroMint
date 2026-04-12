@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useMemo, useEffect } from "react";
 import { ArrowLeft, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain, FileText, Loader2 } from "lucide-react";
 import { generateFuneralCoverPDF } from "../lib/generateFuneralCoverPDF";
@@ -74,7 +75,7 @@ let _depId = 0;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function FuneralCoverPage({ onBack, profile }) {
+export default function FuneralCoverPage({ onBack, profile, initialDependents = [] }) {
   const [step, setStep] = useState(1);
 
   // Step 1
@@ -119,6 +120,24 @@ export default function FuneralCoverPage({ onBack, profile }) {
     let cancelled = false;
     async function loadFamily() {
       try {
+        // If initialDependents were passed, use those
+        if (initialDependents && initialDependents.length > 0) {
+          const imported = initialDependents
+            .filter(m => m.relationship === "spouse" || m.relationship === "child")
+            .map(m => ({
+              id: ++_depId,
+              type: m.relationship === "spouse" ? "spouse" : "child",
+              firstName: m.first_name || "",
+              lastName:  m.last_name  || "",
+              dob:       m.date_of_birth || "",
+            }));
+          if (imported.length > 0) {
+            setDependents(imported);
+            setFamilyImportCount(imported.length);
+            return;
+          }
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
         const { data, error } = await supabase
@@ -143,7 +162,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
     }
     loadFamily();
     return () => { cancelled = true; };
-  }, []);
+  }, [initialDependents]);
 
   // Derived
   const age = useManualAge ? manualAge : (calcAge(dob) ?? manualAge);
@@ -190,6 +209,20 @@ export default function FuneralCoverPage({ onBack, profile }) {
       return { ...a, premium, available: premium > 0 };
     }).filter(a => a.available);
   }, [ageBand, coverAmount, isFamily]);
+
+  // Recommend plan based on dependents
+  const recommendedPlan = useMemo(() => {
+    if (dependents.length === 0) return null;
+    const hasSpouse = dependents.some(d => d.type === "spouse");
+    const hasChildren = dependents.some(d => d.type === "child");
+
+    if (hasSpouse && hasChildren) return "family";
+    if (hasSpouse) return "family";
+    if (hasChildren) return "single-parent";
+    return null;
+  }, [dependents]);
+
+  const shouldRecommendPlanChange = recommendedPlan && planType !== recommendedPlan && planType !== "stokvel";
 
   function toggleAddon(key) {
     const def = ADDONS.find(a => a.key === key);
@@ -323,12 +356,33 @@ export default function FuneralCoverPage({ onBack, profile }) {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto w-full max-w-sm md:max-w-md px-4 py-5 flex flex-col gap-4">
+      <div className="mx-auto w-full max-w-sm md:max-w-md px-4 py-5 flex flex-col gap-4 animate-in fade-in duration-300">
 
         {/* ── Step 1: Choose Plan ── */}
         {step === 1 && (
           <>
             <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Who are we covering?</p>
+
+            {familyImportCount > 0 && recommendedPlan && (
+              <div className="rounded-2xl bg-gradient-to-r from-purple-50 to-violet-50 border border-violet-200 p-4 flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-violet-600 text-white rounded-lg flex-shrink-0">
+                    <Shield className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-900">Recommended Plan</p>
+                    <p className="text-xs text-slate-600 mt-1">We detected {familyImportCount} family member{familyImportCount > 1 ? "s" : ""} in your profile. <strong>{PLAN_TYPES.find(p => p.key === recommendedPlan)?.label}</strong> is recommended for better coverage.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPlanType(recommendedPlan)}
+                  className="w-full py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 transition-all duration-200"
+                >
+                  Switch to {PLAN_TYPES.find(p => p.key === recommendedPlan)?.label}
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-col gap-3">
               {PLAN_TYPES.map(pt => {
                 const Icon = pt.icon;
@@ -337,10 +391,10 @@ export default function FuneralCoverPage({ onBack, profile }) {
                   <button
                     key={pt.key}
                     onClick={() => setPlanType(pt.key)}
-                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${
+                    className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-200 ${
                       selected
-                        ? "border-violet-500 bg-violet-50"
-                        : "border-slate-200 bg-white hover:border-slate-300"
+                        ? "border-violet-500 bg-violet-50 shadow-md"
+                        : "border-slate-200 bg-white hover:border-violet-300 hover:shadow-sm"
                     }`}
                   >
                     <div className={`p-2.5 rounded-xl flex-shrink-0 ${selected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>
@@ -364,13 +418,13 @@ export default function FuneralCoverPage({ onBack, profile }) {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Main Member</p>
             <div className="flex gap-3">
               <input
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
                 placeholder="First name"
                 value={firstName}
                 onChange={e => setFirstName(e.target.value)}
               />
               <input
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
                 placeholder="Surname"
                 value={lastName}
                 onChange={e => setLastName(e.target.value)}
@@ -397,7 +451,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
                     <label className="text-xs font-medium text-slate-500 mb-1.5 block">Date of Birth</label>
                     <input
                       type="date"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-400"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent transition-all duration-200"
                       value={dob}
                       onChange={e => setDob(e.target.value)}
                     />
@@ -461,6 +515,29 @@ export default function FuneralCoverPage({ onBack, profile }) {
               </div>
             )}
 
+            {shouldRecommendPlanChange && (
+              <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-amber-600 text-white rounded-lg flex-shrink-0 flex-shrink-0">
+                    <Shield className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-slate-900">Better Plan Available</p>
+                    <p className="text-xs text-slate-700 mt-1">You have {dependents.length} dependent{dependents.length > 1 ? "s" : ""} on this policy. <strong>{PLAN_TYPES.find(p => p.key === recommendedPlan)?.label}</strong> will provide better coverage at a potentially lower rate.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setPlanType(recommendedPlan);
+                    setStep(1);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition-all duration-200"
+                >
+                  Change to {PLAN_TYPES.find(p => p.key === recommendedPlan)?.label}
+                </button>
+              </div>
+            )}
+
             <p className="text-sm text-slate-400">
               {planType === "stokvel"
                 ? "Enter details for each society member. Ages affect premium calculations."
@@ -498,13 +575,13 @@ export default function FuneralCoverPage({ onBack, profile }) {
 
                     <div className="flex gap-2">
                       <input
-                        className="flex-1 rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white placeholder-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        className="flex-1 rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white placeholder-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200"
                         placeholder="First name"
                         value={dep.firstName}
                         onChange={e => updateDependent(dep.id, "firstName", e.target.value)}
                       />
                       <input
-                        className="flex-1 rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white placeholder-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        className="flex-1 rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white placeholder-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200"
                         placeholder="Surname"
                         value={dep.lastName}
                         onChange={e => updateDependent(dep.id, "lastName", e.target.value)}
@@ -515,7 +592,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
                       <p className="text-xs text-violet-300 mb-1">Date of Birth</p>
                       <input
                         type="date"
-                        className="w-full rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500"
+                        className="w-full rounded-xl bg-[#0e0520] border border-violet-800 px-3 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all duration-200"
                         value={dep.dob}
                         onChange={e => updateDependent(dep.id, "dob", e.target.value)}
                       />
@@ -592,8 +669,8 @@ export default function FuneralCoverPage({ onBack, profile }) {
                     <button
                       key={s}
                       onClick={() => { setSocietySize(s); setCoverAmount(null); }}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
-                        societySize === s ? "border-violet-500 bg-violet-50 text-violet-700" : "border-slate-200 bg-white text-slate-600"
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-bold border-2 transition-all duration-200 ${
+                        societySize === s ? "border-violet-500 bg-violet-50 text-violet-700 shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300"
                       }`}
                     >
                       {s}
@@ -617,10 +694,10 @@ export default function FuneralCoverPage({ onBack, profile }) {
                     <button
                       key={amt}
                       onClick={() => setCoverAmount(amt)}
-                      className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${
+                      className={`py-3 rounded-xl text-sm font-bold border-2 transition-all duration-200 ${
                         selected
-                          ? "border-violet-500 bg-violet-600 text-white"
-                          : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                          ? "border-violet-500 bg-violet-600 text-white shadow-lg shadow-violet-500/30"
+                          : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:shadow-sm"
                       }`}
                     >
                       {fmtCover(amt)}
@@ -643,14 +720,24 @@ export default function FuneralCoverPage({ onBack, profile }) {
         {/* ── Step 5: Add Benefits ── */}
         {step === 5 && (
           <>
-            <p className="text-sm text-slate-500">Enhance your cover with optional add-on benefits</p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 rounded-xl flex-shrink-0" style={{ background: "rgba(139,92,246,0.1)" }}>
+                <Zap className="h-5 w-5 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Enhanced Protection</p>
+                <p className="text-[16px] font-bold text-slate-900">Add Optional Benefits</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-4">Enhance your cover with optional add-on benefits for extra peace of mind</p>
 
             {groupedAddons.length === 0 ? (
-              <div className="rounded-xl bg-slate-100 px-4 py-6 text-center">
-                <p className="text-sm text-slate-500">No additional benefits available for your age band.</p>
+              <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 px-6 py-8 text-center">
+                <p className="text-sm text-slate-600 font-medium">No additional benefits available for your age band.</p>
+                <p className="text-xs text-slate-500 mt-2">Speak to our team to explore other options.</p>
               </div>
             ) : (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3.5">
                 {groupedAddons.map(([type, variants]) => {
                   const selectedKey = addons.find(k => variants.some(v => v.key === k));
                   const isGroupSelected = !!selectedKey;
@@ -664,12 +751,12 @@ export default function FuneralCoverPage({ onBack, profile }) {
                       <button
                         key={type}
                         onClick={() => toggleAddon(addon.key)}
-                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all ${
-                          selected ? "border-violet-500 bg-violet-50" : "border-slate-200 bg-white hover:border-slate-300"
+                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 text-left transition-all duration-200 ${
+                          selected ? "border-violet-500 bg-violet-50 shadow-md" : "border-slate-200 bg-white hover:border-violet-300 hover:shadow-sm"
                         }`}
                       >
-                        <div className={`p-2 rounded-xl flex-shrink-0 ${selected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>
-                          <Icon className="h-4 w-4" />
+                        <div className={`p-3 rounded-xl flex-shrink-0 ${selected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <Icon className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-bold ${selected ? "text-violet-700" : "text-slate-900"}`}>{addon.label}</p>
@@ -693,9 +780,9 @@ export default function FuneralCoverPage({ onBack, profile }) {
                         isGroupSelected ? "border-violet-500 bg-violet-50" : "border-slate-200 bg-white"
                       }`}
                     >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`p-2 rounded-xl flex-shrink-0 ${isGroupSelected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-500"}`}>
-                          <Icon className="h-4 w-4" />
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className={`p-3 rounded-xl flex-shrink-0 ${isGroupSelected ? "bg-violet-600 text-white" : "bg-slate-100 text-slate-600"}`}>
+                          <Icon className="h-5 w-5" />
                         </div>
                         <div className="flex-1">
                           <p className={`text-sm font-bold ${isGroupSelected ? "text-violet-700" : "text-slate-900"}`}>
@@ -712,13 +799,13 @@ export default function FuneralCoverPage({ onBack, profile }) {
                             <button
                               key={v.key}
                               onClick={() => toggleAddon(v.key)}
-                              className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-bold transition-all ${
+                              className={`flex-1 py-3 rounded-xl border-2 text-sm font-bold transition-all duration-200 ${
                                 sel
-                                  ? "border-violet-500 bg-violet-600 text-white"
-                                  : "border-slate-200 bg-white text-slate-700 hover:border-violet-300"
+                                  ? "border-violet-500 bg-violet-600 text-white shadow-md"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-violet-300 hover:bg-violet-50"
                               }`}
                             >
-                              <div>{fmtCover(v.benefit)}</div>
+                              <div className="font-bold">{fmtCover(v.benefit)}</div>
                               <div className={`text-xs font-semibold mt-0.5 ${sel ? "text-violet-200" : "text-emerald-600"}`}>
                                 +{fmtR(v.premium)}/mo
                               </div>
@@ -728,7 +815,7 @@ export default function FuneralCoverPage({ onBack, profile }) {
                         {isGroupSelected && (
                           <button
                             onClick={() => toggleAddon(selectedKey)}
-                            className="px-3 rounded-xl border-2 border-slate-200 text-slate-400 text-xs font-medium hover:border-red-200 hover:text-red-400 transition-all"
+                            className="px-3 rounded-xl border-2 border-slate-300 text-slate-600 text-xs font-medium hover:border-red-300 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
                           >
                             Remove
                           </button>
@@ -741,9 +828,12 @@ export default function FuneralCoverPage({ onBack, profile }) {
             )}
 
             {/* Running total */}
-            <div className="rounded-2xl bg-white border border-slate-100 shadow-md p-4 flex items-center justify-between">
-              <p className="text-sm font-medium text-slate-500">Total Monthly</p>
-              <p className="text-xl font-bold text-slate-900">{fmtR(totalMonthly)}</p>
+            <div className="rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-md p-5 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Monthly Premium Total</p>
+                <p className="text-sm text-slate-600 mt-0.5">All benefits included</p>
+              </div>
+              <p className="text-2xl font-bold text-violet-700">{fmtR(totalMonthly)}</p>
             </div>
           </>
         )}
@@ -752,56 +842,92 @@ export default function FuneralCoverPage({ onBack, profile }) {
         {step === 6 && (
           <>
             {/* Policy Summary */}
-            <div className="rounded-2xl bg-white border border-slate-100 shadow-md p-5">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Policy Summary</p>
-              <div className="flex flex-col gap-3">
+            <div className="rounded-2xl bg-gradient-to-br from-white to-slate-50 border border-slate-100 shadow-md p-6">
+              <div className="flex items-center gap-2 mb-5">
+                <Shield className="h-5 w-5 text-violet-600" />
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Your Policy Summary</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="rounded-xl p-3 bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-100">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-violet-600 mb-1">Plan Type</p>
+                  <p className="text-lg font-bold text-slate-900">{PLAN_TYPES.find(p=>p.key===planType)?.label || planType}</p>
+                </div>
+                <div className="rounded-xl p-3 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 mb-1">Cover Amount</p>
+                  <p className="text-lg font-bold text-slate-900">{fmtCover(coverAmount)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 border-t border-slate-100 pt-4">
                 {[
                   { label:"Policyholder", value:`${firstName} ${lastName}`.trim() },
-                  { label:"Plan Type", value: PLAN_TYPES.find(p=>p.key===planType)?.label || planType },
-                  { label:"Cover Amount", value: fmtCover(coverAmount) },
                   { label:"Age", value: `${age} years` },
                   { label:"Waiting Period", value: "6 months" },
-                  ...(dependents.length > 0 ? [{ label: "Covered Members", value: `${dependents.length} person${dependents.length>1?"s":""}` }] : []),
+                  ...(dependents.length > 0 ? [{ label: "Covered Family", value: `${dependents.length} member${dependents.length>1?"s":""}` }] : []),
                 ].map(row => (
-                  <div key={row.label} className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">{row.label}</span>
+                  <div key={row.label} className="flex items-center justify-between py-2">
+                    <span className="text-sm text-slate-600">{row.label}</span>
                     <span className="text-sm font-semibold text-slate-900">{row.value}</span>
                   </div>
                 ))}
+              </div>
+            </div>
 
-                <div className="border-t border-slate-100 pt-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-500">Base Premium</span>
-                    <span className="text-sm font-medium text-slate-900">{fmtR(basePremium)}</span>
+            {/* Premium Breakdown */}
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-md p-6">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-violet-600"></div>
+                Premium Breakdown
+              </p>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                  <div>
+                    <p className="text-sm text-slate-600">Base Premium</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{PLAN_TYPES.find(p=>p.key===planType)?.label} • {fmtCover(coverAmount)}</p>
                   </div>
-                  {addonDetails.map(a => (
-                    <div key={a.key} className="flex items-center justify-between">
-                      <span className="text-sm text-slate-500">{a.label}{a.sub ? ` (${a.sub.replace(" benefit","")})` : ""}</span>
-                      <span className="text-sm font-medium text-emerald-600">+{fmtR(a.premium)}</span>
-                    </div>
-                  ))}
+                  <p className="text-lg font-bold text-violet-600">{fmtR(basePremium)}</p>
                 </div>
 
-                <div className="border-t border-slate-200 pt-3 flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-900">Total Monthly</span>
-                  <span className="text-lg font-bold text-violet-600">{fmtR(totalMonthly)}</span>
+                {addonDetails.map(a => (
+                  <div key={a.key} className="flex items-center justify-between p-3 rounded-xl border border-emerald-100 bg-emerald-50">
+                    <div>
+                      <p className="text-sm text-slate-700 font-medium">{a.label}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{a.sub}</p>
+                    </div>
+                    <p className="text-lg font-bold text-emerald-600">+{fmtR(a.premium)}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-5 p-4 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.08), rgba(91,33,182,0.08))" }}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-slate-700">Monthly Premium</p>
+                    <p className="text-xs text-violet-600 font-medium mt-0.5">Deducted on your selected date</p>
+                  </div>
+                  <p className="text-2xl font-bold text-violet-700">{fmtR(totalMonthly)}</p>
                 </div>
               </div>
             </div>
 
             {/* Deduction Date */}
-            <div className="rounded-2xl bg-white border border-slate-100 shadow-md p-5">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Deduction Date</p>
-              <p className="text-xs text-slate-500 mb-4">Choose which day of the month your premium will be deducted</p>
-              <div className="flex flex-wrap gap-2">
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-md p-6">
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-violet-600"></div>
+                Deduction Date
+              </p>
+              <p className="text-sm text-slate-600 mb-4">Choose which day of the month your premium will be deducted</p>
+              <div className="flex flex-wrap gap-2.5">
                 {DEDUCTION_DATES.map(d => (
                   <button
                     key={d}
                     onClick={() => setDeductionDate(d)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
+                    className={`px-4 py-2.5 rounded-xl text-sm font-bold border-2 transition-all duration-200 ${
                       deductionDate === d
-                        ? "border-violet-500 bg-violet-600 text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        ? "border-violet-500 bg-violet-600 text-white shadow-md shadow-violet-500/20"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:bg-violet-50"
                     }`}
                   >
                     {d}
@@ -810,10 +936,14 @@ export default function FuneralCoverPage({ onBack, profile }) {
               </div>
             </div>
 
-            <div className="rounded-xl bg-amber-50 border border-amber-100 px-4 py-3">
-              <p className="text-xs text-amber-700">
-                <strong>Important:</strong> A 6-month waiting period applies. Benefits and product offerings may change from time to time. Terms and conditions apply. Mint FSP Number: 55118.
-              </p>
+            <div className="rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 px-5 py-4 flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-900 mb-1">Important information</p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  A 6-month waiting period applies from the policy start date. Benefits and product offerings may change from time to time. Full terms and conditions apply. Mint Financial Services (Pty) Ltd, FSP No. 55118.
+                </p>
+              </div>
             </div>
           </>
         )}
@@ -826,9 +956,9 @@ export default function FuneralCoverPage({ onBack, profile }) {
           <button
             onClick={step === TOTAL_STEPS ? handleGeneratePDF : handleContinue}
             disabled={!canProceed() || generating}
-            className={`w-full py-4 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98] disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+            className={`w-full py-4 rounded-2xl text-sm font-bold text-white transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
               canProceed() && !generating
-                ? "bg-gradient-to-r from-violet-700 to-purple-600 shadow-lg shadow-violet-900/30"
+                ? "bg-gradient-to-r from-violet-700 to-purple-600 shadow-lg shadow-violet-900/30 hover:shadow-xl hover:shadow-violet-900/40"
                 : "bg-slate-300"
             }`}
           >
