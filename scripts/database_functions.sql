@@ -74,7 +74,7 @@ BEGIN
       IF v_portfolio_value > 0 THEN
         INSERT INTO strategy_metrics (strategy_id, as_of_date, portfolio_value, holdings_live)
         VALUES (v_strategy_id, v_current_date, v_portfolio_value, v_holdings_snapshot)
-        ON CONFLICT (strategy_id, as_of_date)
+        ON CONFLICT ON CONSTRAINT strategy_metrics_pkey
         DO UPDATE SET
           portfolio_value = EXCLUDED.portfolio_value,
           holdings_live = EXCLUDED.holdings_live,
