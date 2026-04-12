@@ -6,7 +6,9 @@
 CREATE OR REPLACE FUNCTION public.backfill_strategy_metrics()
 RETURNS TABLE(strategy_id uuid, records_inserted integer) AS $$
 DECLARE
-  v_strategy RECORD;
+  v_strategy_id UUID;
+  v_strategy_name TEXT;
+  v_holdings JSONB;
   v_current_date DATE;
   v_earliest_date DATE;
   v_portfolio_value NUMERIC;
@@ -15,7 +17,7 @@ DECLARE
   v_today DATE := CURRENT_DATE;
 BEGIN
   -- Loop through all active strategies
-  FOR v_strategy IN
+  FOR v_strategy_id, v_strategy_name, v_holdings IN
     SELECT s.id, s.name, s.holdings
     FROM strategies s
     WHERE s.status = 'active'
@@ -28,10 +30,9 @@ BEGIN
     WHERE sp.security_id IN (
       SELECT DISTINCT sec.id
       FROM securities sec
-      WHERE sec.symbol IN (
-        SELECT (jsonb_array_elements(v_strategy.holdings)->>'ticker'
-                COALESCE jsonb_array_elements(v_strategy.holdings)->>'symbol')
-        FROM jsonb_array_elements(v_strategy.holdings)
+      WHERE UPPER(sec.symbol) IN (
+        SELECT UPPER(COALESCE(h->>'ticker', h->>'symbol'))
+        FROM jsonb_array_elements(v_holdings) h
       )
     );
 
@@ -45,40 +46,47 @@ BEGIN
     WHILE v_current_date <= v_today LOOP
 
       -- Calculate portfolio value for this date
+      WITH holdings_with_prices AS (
+        SELECT
+          COALESCE(h->>'ticker', h->>'symbol') AS symbol,
+          (COALESCE(h->>'shares', h->>'quantity', '1'))::NUMERIC AS shares,
+          sp.close_price,
+          ((COALESCE(h->>'shares', h->>'quantity', '1'))::NUMERIC * (sp.close_price / 100)) AS value
+        FROM jsonb_array_elements(v_holdings) h
+        JOIN securities s ON UPPER(s.symbol) = UPPER(COALESCE(h->>'ticker', h->>'symbol'))
+        JOIN security_prices sp ON sp.security_id = s.id AND sp.ts = v_current_date
+      )
       SELECT
-        COALESCE(SUM(holding_data->>'value'::NUMERIC), 0)::NUMERIC,
+        COALESCE(SUM(value), 0)::NUMERIC,
         jsonb_object_agg(
-          holding_data->>'symbol',
-          holding_data
+          symbol,
+          jsonb_build_object(
+            'symbol', symbol,
+            'shares', shares,
+            'price', close_price,
+            'value', value
+          )
         )
       INTO v_portfolio_value, v_holdings_snapshot
-      FROM (
-        SELECT
-          jsonb_build_object(
-            'symbol', h->>'ticker' COALESCE h->>'symbol',
-            'shares', (h->>'shares' COALESCE h->>'quantity')::NUMERIC,
-            'price', sp.close_price,
-            'value', ((h->>'shares' COALESCE h->>'quantity')::NUMERIC * (sp.close_price / 100))
-          ) AS holding_data
-        FROM jsonb_array_elements(v_strategy.holdings) h
-        JOIN securities s ON s.symbol = UPPER(TRIM(SPLIT_PART(h->>'ticker' COALESCE h->>'symbol', '.', 1)))
-        JOIN security_prices sp ON sp.security_id = s.id AND sp.ts = v_current_date
-      ) AS holdings_with_prices;
+      FROM holdings_with_prices;
 
-      -- Insert or update the snapshot
-      INSERT INTO strategy_metrics (strategy_id, as_of_date, portfolio_value, holdings_live)
-      VALUES (v_strategy.id, v_current_date, v_portfolio_value, v_holdings_snapshot)
-      ON CONFLICT (strategy_id, as_of_date)
-      DO UPDATE SET
-        portfolio_value = EXCLUDED.portfolio_value,
-        holdings_live = EXCLUDED.holdings_live,
-        updated_at = NOW();
+      -- Only insert if we have values
+      IF v_portfolio_value > 0 THEN
+        INSERT INTO strategy_metrics (strategy_id, as_of_date, portfolio_value, holdings_live)
+        VALUES (v_strategy_id, v_current_date, v_portfolio_value, v_holdings_snapshot)
+        ON CONFLICT (strategy_id, as_of_date)
+        DO UPDATE SET
+          portfolio_value = EXCLUDED.portfolio_value,
+          holdings_live = EXCLUDED.holdings_live,
+          updated_at = NOW();
 
-      v_insert_count := v_insert_count + 1;
+        v_insert_count := v_insert_count + 1;
+      END IF;
+
       v_current_date := v_current_date + INTERVAL '1 day';
     END LOOP;
 
-    RETURN QUERY SELECT v_strategy.id, v_insert_count;
+    RETURN QUERY SELECT v_strategy_id, v_insert_count;
   END LOOP;
 END;
 $$ LANGUAGE plpgsql;
@@ -97,7 +105,7 @@ DECLARE
   v_today_value NUMERIC;
   v_earliest_date DATE;
   v_earliest_value NUMERIC;
-  v_past_date DATE;
+  v_jan1_date DATE;
   v_past_value NUMERIC;
   v_r_1w NUMERIC;
   v_r_1m NUMERIC;
@@ -112,6 +120,16 @@ BEGIN
   FOR v_strategy_id IN
     SELECT DISTINCT strategy_id FROM strategy_metrics
   LOOP
+
+    -- Reset return values
+    v_r_1w := NULL;
+    v_r_1m := NULL;
+    v_r_3m := NULL;
+    v_r_6m := NULL;
+    v_r_1y := NULL;
+    v_r_3y := NULL;
+    v_r_ytd := NULL;
+    v_r_all_time := NULL;
 
     -- Get today's portfolio value
     SELECT portfolio_value INTO v_today_value
@@ -142,7 +160,8 @@ BEGIN
     SELECT portfolio_value INTO v_past_value
     FROM strategy_metrics
     WHERE strategy_id = v_strategy_id
-    AND as_of_date = v_today - INTERVAL '7 days';
+    AND as_of_date = v_today - INTERVAL '7 days'
+    LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
       v_r_1w := (v_today_value / v_past_value) - 1;
@@ -152,7 +171,8 @@ BEGIN
     SELECT portfolio_value INTO v_past_value
     FROM strategy_metrics
     WHERE strategy_id = v_strategy_id
-    AND as_of_date = v_today - INTERVAL '30 days';
+    AND as_of_date = v_today - INTERVAL '30 days'
+    LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
       v_r_1m := (v_today_value / v_past_value) - 1;
@@ -162,7 +182,8 @@ BEGIN
     SELECT portfolio_value INTO v_past_value
     FROM strategy_metrics
     WHERE strategy_id = v_strategy_id
-    AND as_of_date = v_today - INTERVAL '90 days';
+    AND as_of_date = v_today - INTERVAL '90 days'
+    LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
       v_r_3m := (v_today_value / v_past_value) - 1;
@@ -172,7 +193,8 @@ BEGIN
     SELECT portfolio_value INTO v_past_value
     FROM strategy_metrics
     WHERE strategy_id = v_strategy_id
-    AND as_of_date = v_today - INTERVAL '180 days';
+    AND as_of_date = v_today - INTERVAL '180 days'
+    LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
       v_r_6m := (v_today_value / v_past_value) - 1;
@@ -182,7 +204,8 @@ BEGIN
     SELECT portfolio_value INTO v_past_value
     FROM strategy_metrics
     WHERE strategy_id = v_strategy_id
-    AND as_of_date = v_today - INTERVAL '365 days';
+    AND as_of_date = v_today - INTERVAL '365 days'
+    LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
       v_r_1y := (v_today_value / v_past_value) - 1;
@@ -192,17 +215,22 @@ BEGIN
     SELECT portfolio_value INTO v_past_value
     FROM strategy_metrics
     WHERE strategy_id = v_strategy_id
-    AND as_of_date = v_today - INTERVAL '1095 days';
+    AND as_of_date = v_today - INTERVAL '1095 days'
+    LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
       v_r_3y := (v_today_value / v_past_value) - 1;
     END IF;
 
     -- Calculate YTD return (from Jan 1 of current year)
+    v_jan1_date := MAKE_DATE(EXTRACT(YEAR FROM v_today)::INTEGER, 1, 1);
+
     SELECT portfolio_value INTO v_past_value
     FROM strategy_metrics
     WHERE strategy_id = v_strategy_id
-    AND as_of_date = MAKE_DATE(EXTRACT(YEAR FROM v_today)::INTEGER, 1, 1);
+    AND as_of_date >= v_jan1_date
+    ORDER BY as_of_date ASC
+    LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
       v_r_ytd := (v_today_value / v_past_value) - 1;
