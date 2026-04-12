@@ -642,22 +642,15 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
               style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
             >
               {filteredStrategies.map((strategy) => {
-                // Use pre-calculated YTD from database (strategy_metrics),
-                // only calculate dynamically if database value not available
-                let ytdReturn = strategy.r_ytd;
-                if (ytdReturn === null || ytdReturn === undefined) {
-                  ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
-                }
-                const hasYtd = ytdReturn !== null && ytdReturn !== undefined;
+                // Calculate YTD from holdings - this is the primary source
+                const ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
+                const hasYtd = ytdReturn !== null && ytdReturn !== undefined && ytdReturn !== 0;
 
-                // Debug logging
-                if (hasYtd) {
-                  console.log(`📊 [UI] Displaying YTD for ${strategy.name}:`, {
-                    dbValue: strategy.r_ytd,
-                    displayValue: ytdReturn,
-                    formatted: formatChangePct(ytdReturn)
-                  });
-                }
+                console.log(`📊 [UI Render] ${strategy.name}:`, {
+                  ytdReturn,
+                  hasYtd,
+                  formatted: ytdReturn ? formatChangePct(ytdReturn) : 'N/A'
+                });
                 const holdings = getHoldingsArray(strategy);
                 
                 const calculatedMin = calculateMinInvestment(strategy, holdingsBySymbol);
