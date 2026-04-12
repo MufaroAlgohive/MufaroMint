@@ -649,6 +649,15 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                   ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
                 }
                 const hasYtd = ytdReturn !== null && ytdReturn !== undefined;
+
+                // Debug logging
+                if (hasYtd) {
+                  console.log(`📊 [UI] Displaying YTD for ${strategy.name}:`, {
+                    dbValue: strategy.r_ytd,
+                    displayValue: ytdReturn,
+                    formatted: formatChangePct(ytdReturn)
+                  });
+                }
                 const holdings = getHoldingsArray(strategy);
                 
                 const calculatedMin = calculateMinInvestment(strategy, holdingsBySymbol);
