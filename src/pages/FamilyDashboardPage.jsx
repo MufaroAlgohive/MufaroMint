@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -945,7 +946,7 @@ function MemberRow({ gradient, name, role, roleIcon, detail, onClick }) {
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboard }) {
+export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboard, onGetInsured }) {
   const { profile } = useProfile();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1270,6 +1271,29 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 style={{ background: `linear-gradient(135deg, ${P2}, ${P})` }}
               >
                 <Plus className="h-4 w-4" /> Add Child
+              </button>
+            </motion.div>
+          )}
+
+          {/* ── Get Insured Section ── */}
+          {(spouse || children.length > 0) && (
+            <motion.div
+              variants={item}
+              className="rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 p-6 text-center"
+            >
+              <div className="h-14 w-14 rounded-full mx-auto mb-4 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}>
+                <Shield className="h-7 w-7 text-white" />
+              </div>
+              <p className="text-[17px] font-bold text-slate-900">Protect Your Family</p>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed max-w-[260px] mx-auto">
+                Get funeral cover for you and your family members from just R{spouse || children.length > 2 ? "192" : "122"}/month.
+              </p>
+              <button
+                onClick={() => onGetInsured?.(members)}
+                className="mt-6 inline-flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-bold text-white transition active:scale-[0.98] shadow-lg hover:shadow-xl"
+                style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
+              >
+                <ShieldCheck className="h-4 w-4" /> Get Insured
               </button>
             </motion.div>
           )}

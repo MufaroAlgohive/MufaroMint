@@ -123,6 +123,7 @@ const App = () => {
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [selectedArticleId, setSelectedArticleId] = useState(null);
   const [selectedFamilyChild, setSelectedFamilyChild] = useState(null);
+  const [funeralCoverInitialDependents, setFuneralCoverInitialDependents] = useState([]);
   const [marketsInitialView, setMarketsInitialView] = useState(null);
   const [portfolioDeepLink, setPortfolioDeepLink] = useState(null);
   const [investmentAmount, setInvestmentAmount] = useState(0);
@@ -997,6 +998,12 @@ const App = () => {
             onOpenChildDashboard={(child) => {
               setSelectedFamilyChild(child);
               navigateTo('childDashboard');
+            }}
+            onGetInsured={(members) => {
+              setFuneralCoverInitialDependents(members);
+              navigateTo('funeralCover');
+            }}
+          />
             }}
           />
         );
@@ -1875,7 +1882,7 @@ const App = () => {
   if (currentPage === "funeralCover") {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <FuneralCoverPage onBack={goBack} userId={profile?.id} profile={profile} />
+        <FuneralCoverPage onBack={goBack} userId={profile?.id} profile={profile} initialDependents={funeralCoverInitialDependents} />
       </SwipeBackWrapper>
     );
   }
