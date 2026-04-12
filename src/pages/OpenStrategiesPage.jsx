@@ -258,7 +258,49 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   const formattedReturn = `${returnValue >= 0 ? "+" : ""}${returnValue.toFixed(2)}%`;
   const formattedAllTimeReturn = `${allTimeReturn >= 0 ? "+" : ""}${allTimeReturn.toFixed(2)}%`;
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const strategyData = strategies;
+
+  // Fetch and merge performance metrics from database
+  const [strategiesWithMetrics, setStrategiesWithMetrics] = useState(strategies);
+
+  useEffect(() => {
+    const fetchPerformanceMetrics = async () => {
+      if (!strategies || strategies.length === 0) {
+        setStrategiesWithMetrics(strategies);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/strategy-performance.js`);
+        if (!response.ok) throw new Error("Failed to fetch performance metrics");
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          // Create map of performance data by strategy_id
+          const performanceMap = {};
+          result.data.forEach(perf => {
+            performanceMap[perf.strategy_id] = perf.returns.ytd ? perf.returns.ytd / 100 : null;
+          });
+
+          // Merge performance data into strategies
+          const merged = strategies.map(strategy => ({
+            ...strategy,
+            r_ytd: performanceMap[strategy.id] ?? strategy.r_ytd,
+          }));
+
+          setStrategiesWithMetrics(merged);
+        } else {
+          setStrategiesWithMetrics(strategies);
+        }
+      } catch (error) {
+        console.error("Error fetching performance metrics:", error);
+        setStrategiesWithMetrics(strategies);
+      }
+    };
+
+    fetchPerformanceMetrics();
+  }, [strategies]);
+
+  const strategyData = strategiesWithMetrics;
   const holdingSuggestions = useMemo(() => {
     if (!normalizedQuery) return [];
     const suggestions = new Map();
@@ -600,8 +642,12 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
               style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
             >
               {filteredStrategies.map((strategy) => {
-                // Calculate live YTD return from holdings prices (falls back to strategy_metrics.r_ytd)
-                const ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
+                // Use pre-calculated YTD from database (strategy_metrics),
+                // only calculate dynamically if database value not available
+                let ytdReturn = strategy.r_ytd;
+                if (ytdReturn === null || ytdReturn === undefined) {
+                  ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
+                }
                 const hasYtd = ytdReturn !== null && ytdReturn !== undefined;
                 const holdings = getHoldingsArray(strategy);
                 
