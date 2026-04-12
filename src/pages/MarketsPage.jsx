@@ -300,42 +300,42 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     fetchPublicStrategies();
   }, []);
 
-  // Fetch YTD returns for OpenStrategies cards using the same source as Factsheet
+  // Fetch performance metrics for OpenStrategies cards
   useEffect(() => {
-    const fetchStrategyYtd = async () => {
+    const fetchPerformanceMetrics = async () => {
       if (!supabase || publicStrategies.length === 0) {
         setStrategyYtdById({});
         return;
       }
 
       try {
-        const strategyIds = [...new Set(publicStrategies.map((strategy) => strategy.id).filter(Boolean))];
-        if (strategyIds.length === 0) {
-          setStrategyYtdById({});
-          return;
+        const response = await fetch(`/api/strategy-performance.js`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("supabase_token") || ""}`,
+          },
+        });
+
+        if (!response.ok) throw new Error("Failed to fetch performance metrics");
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          // Create map of returns by strategy_id
+          const nextMap = {};
+          result.data.forEach(perf => {
+            nextMap[perf.strategy_id] = perf.returns.ytd; // Returns already in percentage format
+          });
+          setStrategyYtdById(nextMap);
+        } else {
+          throw new Error(result.error || "Failed to fetch metrics");
         }
-
-        const { data, error } = await supabase
-          .from("strategy_analytics")
-          .select("strategy_id, ytd_return, summary")
-          .in("strategy_id", strategyIds);
-
-        if (error) throw error;
-
-        const nextMap = (data || []).reduce((acc, row) => {
-          const summaryYtd = row?.summary?.ytd_return;
-          acc[row.strategy_id] = summaryYtd ?? row?.ytd_return ?? null;
-          return acc;
-        }, {});
-
-        setStrategyYtdById(nextMap);
       } catch (error) {
-        console.error("Error fetching strategy YTD analytics:", error);
+        console.error("Error fetching performance metrics:", error);
         setStrategyYtdById({});
       }
     };
 
-    fetchStrategyYtd();
+    fetchPerformanceMetrics();
   }, [publicStrategies]);
 
   // Fetch holdings securities for strategy cards (only if we have mock data)

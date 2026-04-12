@@ -151,6 +151,39 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
               setAnalyticsError(analyticsRow.error);
             }
           }
+
+          // Also fetch latest performance metrics from strategy_metrics table
+          try {
+            const perfResponse = await fetch(`/api/strategy-performance.js?strategyId=${resolvedId}`, {
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("supabase_token") || ""}`,
+              },
+            });
+
+            if (perfResponse.ok) {
+              const perfResult = await perfResponse.json();
+              if (perfResult.success && perfResult.data && perfResult.data[0]) {
+                const perfData = perfResult.data[0];
+                // Merge performance metrics into analytics
+                if (isMounted) {
+                  setAnalytics(prev => ({
+                    ...prev,
+                    r_1w: perfData.returns.one_week ? perfData.returns.one_week / 100 : null,
+                    r_1m: perfData.returns.one_month ? perfData.returns.one_month / 100 : null,
+                    r_3m: perfData.returns.three_month ? perfData.returns.three_month / 100 : null,
+                    r_6m: perfData.returns.six_month ? perfData.returns.six_month / 100 : null,
+                    r_ytd: perfData.returns.ytd ? perfData.returns.ytd / 100 : null,
+                    r_1y: perfData.returns.one_year ? perfData.returns.one_year / 100 : null,
+                    r_3y: perfData.returns.three_year ? perfData.returns.three_year / 100 : null,
+                    r_all_time: perfData.returns.all_time ? perfData.returns.all_time / 100 : null,
+                  }));
+                }
+              }
+            }
+          } catch (perfError) {
+            console.error("Error fetching performance metrics:", perfError);
+            // Continue without performance metrics - they're optional
+          }
         } else if (isMounted) {
           setAnalytics(null);
           setAnalyticsError("Strategy not found");
