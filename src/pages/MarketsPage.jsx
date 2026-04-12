@@ -321,9 +321,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
         if (result.success && result.data) {
           // Create map of returns by strategy_id
+          // Convert from percentage (0-100) to decimal (0-1) for formatChangePct
           const nextMap = {};
           result.data.forEach(perf => {
-            nextMap[perf.strategy_id] = perf.returns.ytd; // Returns already in percentage format
+            nextMap[perf.strategy_id] = perf.returns.ytd ? perf.returns.ytd / 100 : null;
           });
           setStrategyYtdById(nextMap);
         } else {
