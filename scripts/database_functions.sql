@@ -101,8 +101,8 @@ RETURNS TABLE(strategy_id uuid, ytd NUMERIC, one_week NUMERIC, one_month NUMERIC
               three_month NUMERIC, one_year NUMERIC, three_year NUMERIC, all_time NUMERIC) AS $$
 DECLARE
   v_strategy_id UUID;
-  v_today DATE := CURRENT_DATE;
-  v_today_value NUMERIC;
+  v_latest_date DATE;
+  v_latest_value NUMERIC;
   v_earliest_date DATE;
   v_earliest_value NUMERIC;
   v_jan1_date DATE;
@@ -131,13 +131,18 @@ BEGIN
     v_r_ytd := NULL;
     v_r_all_time := NULL;
 
-    -- Get today's portfolio value
-    SELECT sm.portfolio_value INTO v_today_value
+    -- Get the LATEST date for this strategy (not today, but whatever we have)
+    SELECT MAX(sm.as_of_date) INTO v_latest_date
+    FROM strategy_metrics sm
+    WHERE sm.strategy_id = v_strategy_id;
+
+    -- Get latest portfolio value
+    SELECT sm.portfolio_value INTO v_latest_value
     FROM strategy_metrics sm
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today;
+    AND sm.as_of_date = v_latest_date;
 
-    IF v_today_value IS NULL OR v_today_value <= 0 THEN
+    IF v_latest_value IS NULL OR v_latest_value <= 0 THEN
       CONTINUE;
     END IF;
 
@@ -153,77 +158,77 @@ BEGIN
     AND sm.as_of_date = v_earliest_date;
 
     IF v_earliest_value IS NOT NULL AND v_earliest_value > 0 THEN
-      v_r_all_time := (v_today_value / v_earliest_value) - 1;
+      v_r_all_time := (v_latest_value / v_earliest_value) - 1;
     END IF;
 
     -- Calculate 1-week return
     SELECT sm.portfolio_value INTO v_past_value
     FROM strategy_metrics sm
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today - INTERVAL '7 days'
+    AND sm.as_of_date = v_latest_date - INTERVAL '7 days'
     LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
-      v_r_1w := (v_today_value / v_past_value) - 1;
+      v_r_1w := (v_latest_value / v_past_value) - 1;
     END IF;
 
     -- Calculate 1-month return
     SELECT sm.portfolio_value INTO v_past_value
     FROM strategy_metrics sm
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today - INTERVAL '30 days'
+    AND sm.as_of_date = v_latest_date - INTERVAL '30 days'
     LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
-      v_r_1m := (v_today_value / v_past_value) - 1;
+      v_r_1m := (v_latest_value / v_past_value) - 1;
     END IF;
 
     -- Calculate 3-month return
     SELECT sm.portfolio_value INTO v_past_value
     FROM strategy_metrics sm
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today - INTERVAL '90 days'
+    AND sm.as_of_date = v_latest_date - INTERVAL '90 days'
     LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
-      v_r_3m := (v_today_value / v_past_value) - 1;
+      v_r_3m := (v_latest_value / v_past_value) - 1;
     END IF;
 
     -- Calculate 6-month return
     SELECT sm.portfolio_value INTO v_past_value
     FROM strategy_metrics sm
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today - INTERVAL '180 days'
+    AND sm.as_of_date = v_latest_date - INTERVAL '180 days'
     LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
-      v_r_6m := (v_today_value / v_past_value) - 1;
+      v_r_6m := (v_latest_value / v_past_value) - 1;
     END IF;
 
     -- Calculate 1-year return
     SELECT sm.portfolio_value INTO v_past_value
     FROM strategy_metrics sm
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today - INTERVAL '365 days'
+    AND sm.as_of_date = v_latest_date - INTERVAL '365 days'
     LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
-      v_r_1y := (v_today_value / v_past_value) - 1;
+      v_r_1y := (v_latest_value / v_past_value) - 1;
     END IF;
 
     -- Calculate 3-year return
     SELECT sm.portfolio_value INTO v_past_value
     FROM strategy_metrics sm
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today - INTERVAL '1095 days'
+    AND sm.as_of_date = v_latest_date - INTERVAL '1095 days'
     LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
-      v_r_3y := (v_today_value / v_past_value) - 1;
+      v_r_3y := (v_latest_value / v_past_value) - 1;
     END IF;
 
     -- Calculate YTD return (from Jan 1 of current year)
-    v_jan1_date := MAKE_DATE(EXTRACT(YEAR FROM v_today)::INTEGER, 1, 1);
+    v_jan1_date := MAKE_DATE(EXTRACT(YEAR FROM v_latest_date)::INTEGER, 1, 1);
 
     SELECT sm.portfolio_value INTO v_past_value
     FROM strategy_metrics sm
@@ -233,7 +238,7 @@ BEGIN
     LIMIT 1;
 
     IF v_past_value IS NOT NULL AND v_past_value > 0 THEN
-      v_r_ytd := (v_today_value / v_past_value) - 1;
+      v_r_ytd := (v_latest_value / v_past_value) - 1;
     END IF;
 
     -- Update strategy_metrics with calculated returns
@@ -249,7 +254,7 @@ BEGIN
       r_all_time = v_r_all_time,
       computed_at = NOW()
     WHERE sm.strategy_id = v_strategy_id
-    AND sm.as_of_date = v_today;
+    AND sm.as_of_date = v_latest_date;
 
     RETURN QUERY SELECT
       v_strategy_id,
