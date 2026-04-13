@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 import { useCreditCheck } from "../lib/useCreditCheck";
 import NotificationBell from "../components/NotificationBell";
 import CreditApplySkeleton from "../components/CreditApplySkeleton";
+import { ArrowLeft, AlertCircle, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain, FileText, Loader2 } from "lucide-react";
 
 const normalizeLoanType = (value, fallback = "unsecured") => {
    const normalized = String(value || "").trim().toLowerCase();
