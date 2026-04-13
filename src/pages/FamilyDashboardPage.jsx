@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, TrendingUp, TrendingDown, Heart, Users,
-  ShieldCheck, Crown, Baby, UserPlus, Mail, Upload, Check, FileText,
+  ShieldCheck, Shield, Crown, Baby, UserPlus, Mail, Upload, Check, FileText,
   ChevronDown, Clock, AlertCircle, Trash2
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
