@@ -23,20 +23,13 @@ export default async function handler(req, res) {
     const mandateJson = typeof mandate_data === "string" ? mandate_data : JSON.stringify(mandate_data);
 
     let onboardingId = existing_onboarding_id;
-    if (!onboardingId) {
-      const { data: latest } = await db
-        .from("user_onboarding")
-        .select("id")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (latest?.id) onboardingId = latest.id;
-    }
 
+    // Single query to get both ID and sumsub_raw — avoids redundant database hits
     const { data: currentRow } = onboardingId
-      ? await db.from("user_onboarding").select("sumsub_raw").eq("id", onboardingId).eq("user_id", user.id).maybeSingle()
-      : await db.from("user_onboarding").select("sumsub_raw").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      ? await db.from("user_onboarding").select("id,sumsub_raw").eq("id", onboardingId).eq("user_id", user.id).maybeSingle()
+      : await db.from("user_onboarding").select("id,sumsub_raw").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
+
+    if (currentRow?.id) onboardingId = currentRow.id;
 
     let existingRaw = {};
     if (currentRow?.sumsub_raw) {

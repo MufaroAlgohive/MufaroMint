@@ -40,6 +40,9 @@ import SignaturePad from "signature_pad";
 import jsPDF from "jspdf";
 import { supabase } from "../lib/supabase";
 
+// ─── Image cache (module-level) ────────────────────────────────────────────
+const imageCache = new Map();
+
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const MINT_LOGO_URL =
@@ -82,6 +85,13 @@ function todayParts() {
 // ─── PDF helpers ──────────────────────────────────────────────────────────────
 
 async function fetchImageBase64(url) {
+  if (!url) return null;
+
+  // Check cache first
+  if (imageCache.has(url)) {
+    return imageCache.get(url);
+  }
+
   try {
     const res = await fetch(url);
     const blob = await res.blob();
@@ -92,11 +102,23 @@ async function fetchImageBase64(url) {
     });
     return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => resolve({ data, width: img.width, height: img.height });
-      img.onerror = () => resolve({ data, width: 0, height: 0 });
+      img.onload = () => {
+        const result = { data, width: img.width, height: img.height };
+        imageCache.set(url, result); // Cache the result
+        resolve(result);
+      };
+      img.onerror = () => {
+        const result = { data, width: 0, height: 0 };
+        imageCache.set(url, result); // Cache even on error to avoid retries
+        resolve(result);
+      };
       img.src = data;
     });
-  } catch { return null; }
+  } catch {
+    const result = null;
+    imageCache.set(url, result); // Cache null result
+    return result;
+  }
 }
 
 function drawRow(doc, y, label, value, labelW, valueW, margin) {
@@ -631,10 +653,14 @@ export default function AccountAgreementStep({
       try {
         const token = session?.access_token;
         if (token) {
+          // Efficient base64 encoding (handles large PDFs safely with chunking)
           const uint8 = new Uint8Array(pdfBuffer);
-          let binary = "";
-          for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
-          const pdfBase64 = btoa(binary);
+          const chunkSize = 8192;
+          let binaryString = "";
+          for (let i = 0; i < uint8.length; i += chunkSize) {
+            binaryString += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
+          }
+          const pdfBase64 = btoa(binaryString);
           const uploadRes = await fetch("/api/onboarding/upload-agreement", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -659,14 +685,22 @@ export default function AccountAgreementStep({
       try {
         // Use the specific onboarding ID if available, fallback to latest for this user
         const recordId = existingOnboardingId;
-        const { data: records } = await supabase
-          .from("user_onboarding")
-          .select("id, sumsub_raw")
-          .eq(recordId ? "id" : "user_id", recordId || userId)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        
-        const existing = records?.[0];
+
+        // Try to use existing record if we have the ID to avoid SELECT query
+        let existing = null;
+        if (recordId) {
+          existing = { id: recordId };
+        } else {
+          // Only query if we don't have the ID
+          const { data: records } = await supabase
+            .from("user_onboarding")
+            .select("id, sumsub_raw")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(1);
+          existing = records?.[0];
+        }
+
         const targetId = existing?.id || recordId;
 
         let raw = {};

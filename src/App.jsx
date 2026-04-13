@@ -1004,8 +1004,6 @@ const App = () => {
               navigateTo('funeralCover');
             }}
           />
-            }}
-          />
         );
       case 'childDashboard':
         return (
