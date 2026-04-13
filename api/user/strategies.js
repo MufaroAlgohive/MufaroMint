@@ -67,6 +67,7 @@ export default async function handler(req, res) {
       .from("stock_holdings")
       .select("id, security_id, strategy_id, quantity, avg_fill")
       .eq("user_id", userId)
+      .eq("Status", "active")
       .not("strategy_id", "is", null);
 
     if (holdingsError) {
