@@ -60,6 +60,7 @@ import { isPinEnabled } from "./lib/usePin.js";
 import GoalLinkModal from "./components/GoalLinkModal.jsx";
 import { useOnboardingStatus } from "./lib/useOnboardingStatus.js";
 import { checkOnboardingComplete } from "./lib/checkOnboardingComplete.js";
+import MaintenanceModal from "./components/MaintenanceModal.jsx";
 
 const PERSISTENT_KEYS = [
   'mint_device_id',
@@ -141,6 +142,7 @@ const App = () => {
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications, reset: resetNotifications } = useNotificationsContext();
   const [showPinLock, setShowPinLock] = useState(false);
+  const [showOpenStrategiesMaintenance, setShowOpenStrategiesMaintenance] = useState(false);
 
   const isAuthenticated = !['welcome', 'auth', 'linkExpired'].includes(currentPage);
   const { profile, loading: profileLoading } = useProfile({ enabled: isAuthenticated });
@@ -1112,6 +1114,8 @@ const App = () => {
 
   if (currentPage === "home") {
     return (
+      <>
+      {showOpenStrategiesMaintenance && <MaintenanceModal onClose={() => setShowOpenStrategiesMaintenance(false)} />}
       <AppLayout
         activeTab="home"
         onTabChange={handleTabChange}
@@ -1135,7 +1139,7 @@ const App = () => {
           onOpenInvest={() => { setMarketsInitialView(null); navigateTo("markets"); }}
           onOpenWithdraw={handleWithdrawRequest}
           onOpenSettings={() => navigateTo("settings")}
-          onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
+          onOpenStrategies={() => setShowOpenStrategiesMaintenance(true)}
           onOpenMarkets={() => { setMarketsInitialView("invest"); navigateTo("markets"); }}
           onOpenDeposit={() => handleTabChange("deposit")}
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
@@ -1145,6 +1149,7 @@ const App = () => {
           onOpenInsure={() => navigateTo("funeralCover")}
         />
       </AppLayout>
+      </>
     );
   }
   if (currentPage === "credit") {
@@ -1254,6 +1259,8 @@ const App = () => {
 
   if (currentPage === "investments") {
     return (
+      <>
+      {showOpenStrategiesMaintenance && <MaintenanceModal onClose={() => setShowOpenStrategiesMaintenance(false)} />}
       <AppLayout
         activeTab="investments"
         onTabChange={handleTabChange}
@@ -1269,16 +1276,19 @@ const App = () => {
             navigateTo("notifications");
           }}
           onOpenInvest={() => navigateTo("markets")}
-          onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
+          onOpenStrategies={() => setShowOpenStrategiesMaintenance(true)}
           deepLink={portfolioDeepLink}
           onDeepLinkConsumed={() => setPortfolioDeepLink(null)}
         />
       </AppLayout>
+      </>
     );
   }
 
   if (currentPage === "invest") {
     return (
+      <>
+      {showOpenStrategiesMaintenance && <MaintenanceModal onClose={() => setShowOpenStrategiesMaintenance(false)} />}
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <AppLayout
           activeTab="home"
@@ -1290,11 +1300,12 @@ const App = () => {
         >
           <InvestPage
             onBack={goBack}
-            onOpenOpenStrategies={() => navigateTo("openStrategies")}
+            onOpenOpenStrategies={() => setShowOpenStrategiesMaintenance(true)}
             onOpenMarkets={() => navigateTo("markets")}
           />
         </AppLayout>
       </SwipeBackWrapper>
+      </>
     );
   }
 
@@ -1565,17 +1576,9 @@ const App = () => {
   }
 
   if (currentPage === "openStrategies") {
-    return (
-      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
-        <OpenStrategiesPage
-          onBack={goBack}
-          onOpenFactsheet={(strategy) => {
-            setSelectedStrategy(strategy);
-            navigateTo("factsheet");
-          }}
-        />
-      </SwipeBackWrapper>
-    );
+    goBack();
+    if (!showOpenStrategiesMaintenance) setShowOpenStrategiesMaintenance(true);
+    return null;
   }
 
   if (currentPage === "factsheet") {
