@@ -8,7 +8,7 @@ import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer } from "r
 import { supabase } from "../lib/supabase";
 import { getStrategiesWithMetrics, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
 import { formatCurrency } from "../lib/formatCurrency";
-import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment, calculateYtdReturn, getAdjustedShares } from "../lib/strategyUtils";
+import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment, getAdjustedShares } from "../lib/strategyUtils";
 
 const sortOptions = [
   "Recommended",
@@ -258,7 +258,50 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   const formattedReturn = `${returnValue >= 0 ? "+" : ""}${returnValue.toFixed(2)}%`;
   const formattedAllTimeReturn = `${allTimeReturn >= 0 ? "+" : ""}${allTimeReturn.toFixed(2)}%`;
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const strategyData = strategies;
+
+  // Fetch performance metrics from database (real portfolio values, not dynamic calculations)
+  const [strategiesWithMetrics, setStrategiesWithMetrics] = useState(strategies);
+
+  useEffect(() => {
+    const fetchPerformanceMetrics = async () => {
+      if (!strategies || strategies.length === 0) {
+        setStrategiesWithMetrics(strategies);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/strategy-performance.js`);
+        if (!response.ok) throw new Error("Failed to fetch performance metrics");
+
+        const result = await response.json();
+        if (result.success && result.data) {
+          // Create map of performance data by strategy_id
+          const performanceMap = {};
+          result.data.forEach(perf => {
+            performanceMap[perf.strategy_id] = perf.returns.ytd ? perf.returns.ytd / 100 : null;
+          });
+
+          // Merge performance data into strategies
+          const merged = strategies.map(strategy => ({
+            ...strategy,
+            r_ytd: performanceMap[strategy.id] ?? strategy.r_ytd,
+          }));
+
+          setStrategiesWithMetrics(merged);
+          console.log("[OpenStrategies] Merged performance metrics:", performanceMap);
+        } else {
+          setStrategiesWithMetrics(strategies);
+        }
+      } catch (error) {
+        console.error("Error fetching performance metrics:", error);
+        setStrategiesWithMetrics(strategies);
+      }
+    };
+
+    fetchPerformanceMetrics();
+  }, [strategies]);
+
+  const strategyData = strategiesWithMetrics;
   const holdingSuggestions = useMemo(() => {
     if (!normalizedQuery) return [];
     const suggestions = new Map();
@@ -600,9 +643,15 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
               style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
             >
               {filteredStrategies.map((strategy) => {
-                // Calculate live YTD return from holdings prices (falls back to strategy_metrics.r_ytd)
-                const ytdReturn = calculateYtdReturn(strategy, holdingsBySymbol);
-                const hasYtd = ytdReturn !== null && ytdReturn !== undefined;
+                // Use YTD from database (portfolio value today / portfolio value Jan 1)
+                const ytdReturn = strategy.r_ytd;
+                const hasYtd = ytdReturn !== null && ytdReturn !== undefined && ytdReturn !== 0;
+
+                console.log(`📊 [UI] ${strategy.name} YTD:`, {
+                  value: ytdReturn,
+                  hasYtd,
+                  formatted: hasYtd ? formatChangePct(ytdReturn) : 'N/A'
+                });
                 const holdings = getHoldingsArray(strategy);
                 
                 const calculatedMin = calculateMinInvestment(strategy, holdingsBySymbol);

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, useId } from "react";
 import { createPortal } from "react-dom";
+import MaintenanceModal from "../components/MaintenanceModal.jsx";
 import { supabase } from "../lib/supabase.js";
 import { getMarketsSecuritiesWithMetrics } from "../lib/marketData.js";
 import { getStrategiesWithMetrics, getPublicStrategies, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
@@ -137,11 +138,19 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [searchQuery, setSearchQuery] = useState("");
   const [strategiesSearchQuery, setStrategiesSearchQuery] = useState("");
   const [newsSearchQuery, setNewsSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState(initialViewMode || "invest"); // "openstrategies", "invest", "news"
+  const [showOpenStrategiesMaintenance, setShowOpenStrategiesMaintenance] = useState(false);
+  const [viewMode, setViewMode] = useState(
+    initialViewMode === "openstrategies" ? "invest" : (initialViewMode || "invest")
+  ); // "openstrategies", "invest", "news"
 
   useEffect(() => {
     if (initialViewMode && initialViewMode !== viewMode) {
-      setViewMode(initialViewMode);
+      if (initialViewMode === "openstrategies") {
+        setViewMode("invest");
+        setShowOpenStrategiesMaintenance(true);
+      } else {
+        setViewMode(initialViewMode);
+      }
     }
   }, [initialViewMode]);
 
@@ -300,42 +309,39 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     fetchPublicStrategies();
   }, []);
 
-  // Fetch YTD returns for OpenStrategies cards using the same source as Factsheet
+  // Fetch performance metrics for OpenStrategies cards
   useEffect(() => {
-    const fetchStrategyYtd = async () => {
+    const fetchPerformanceMetrics = async () => {
       if (!supabase || publicStrategies.length === 0) {
         setStrategyYtdById({});
         return;
       }
 
       try {
-        const strategyIds = [...new Set(publicStrategies.map((strategy) => strategy.id).filter(Boolean))];
-        if (strategyIds.length === 0) {
-          setStrategyYtdById({});
-          return;
+        const response = await fetch(`/api/strategy-performance.js`);
+
+        if (!response.ok) throw new Error("Failed to fetch performance metrics");
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          // Create map of returns by strategy_id
+          // Convert from percentage (0-100) to decimal (0-1) for formatChangePct
+          const nextMap = {};
+          result.data.forEach(perf => {
+            nextMap[perf.strategy_id] = perf.returns.ytd ? perf.returns.ytd / 100 : null;
+          });
+          setStrategyYtdById(nextMap);
+        } else {
+          throw new Error(result.error || "Failed to fetch metrics");
         }
-
-        const { data, error } = await supabase
-          .from("strategy_analytics")
-          .select("strategy_id, ytd_return, summary")
-          .in("strategy_id", strategyIds);
-
-        if (error) throw error;
-
-        const nextMap = (data || []).reduce((acc, row) => {
-          const summaryYtd = row?.summary?.ytd_return;
-          acc[row.strategy_id] = summaryYtd ?? row?.ytd_return ?? null;
-          return acc;
-        }, {});
-
-        setStrategyYtdById(nextMap);
       } catch (error) {
-        console.error("Error fetching strategy YTD analytics:", error);
+        console.error("Error fetching performance metrics:", error);
         setStrategyYtdById({});
       }
     };
 
-    fetchStrategyYtd();
+    fetchPerformanceMetrics();
   }, [publicStrategies]);
 
   // Fetch holdings securities for strategy cards (only if we have mock data)
@@ -507,7 +513,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
       return {
         ...publicStrategy,
-        r_ytd: strategyWithMetrics.r_ytd ?? analyticsYtd ?? strategyWithMetrics.latest_metric?.r_ytd ?? null,
+        r_ytd: analyticsYtd ?? strategyWithMetrics.r_ytd ?? strategyWithMetrics.latest_metric?.r_ytd ?? null,
       };
     });
   }, [publicStrategies, strategies, strategyYtdById]);
@@ -928,6 +934,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
+      {showOpenStrategiesMaintenance && <MaintenanceModal onClose={() => setShowOpenStrategiesMaintenance(false)} />}
       {/* Header */}
       <div className="rounded-b-[36px] bg-gradient-to-b from-[#111111] via-[#3b1b7a] to-[#5b21b6] px-4 pb-6 pt-12 text-white md:px-8">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
@@ -964,15 +971,8 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
           {/* Toggle between OpenStrategies, Invest, and News */}
           <div className="flex gap-2 rounded-2xl bg-white/10 p-1 backdrop-blur-sm">
             <button
-              onClick={() => {
-                setViewMode("openstrategies");
-                setActiveChips(buildChipsFromFilters({ risks: selectedRisks, exposure: selectedExposure, minInvestment: selectedMinInvestment, timeHorizon: selectedTimeHorizon, sectors: selectedStrategySectors }));
-              }}
-              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
-                viewMode === "openstrategies"
-                  ? "bg-white text-slate-900 shadow-md"
-                  : "text-white/70"
-              }`}
+              onClick={() => setShowOpenStrategiesMaintenance(true)}
+              className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all text-white/40 cursor-not-allowed opacity-60"
             >
               OpenStrategies
             </button>

@@ -1,6 +1,5 @@
 import { supabase } from "./supabase";
 import { getSecurityPrices, getMarketsSecuritiesWithMetrics } from "./marketData";
-import { buildHoldingsBySymbol, calculateYtdReturn } from "./strategyUtils";
 
 // Simple in-memory cache with timestamps
 const cache = {
@@ -64,15 +63,6 @@ export const getStrategiesWithMetrics = async () => {
       return [];
     }
 
-    // Fetch live securities data for YTD calculation
-    let securitiesMap = new Map();
-    try {
-      const securities = await getMarketsSecuritiesWithMetrics();
-      securitiesMap = buildHoldingsBySymbol(securities);
-    } catch (e) {
-      console.warn("⚠️ Failed to fetch live security data for dynamic YTD calculation");
-    }
-
     // Process strategies to get latest metrics
     const processedStrategies = strategies.map((strategy) => {
       // Get the most recent metric (they should be sorted by as_of_date desc in the query)
@@ -96,7 +86,7 @@ export const getStrategiesWithMetrics = async () => {
         r_1m: latestMetric?.r_1m || null,
         r_3m: latestMetric?.r_3m || null,
         r_6m: latestMetric?.r_6m || null,
-        r_ytd: calculateYtdReturn(strategy, securitiesMap),
+        r_ytd: latestMetric?.r_ytd || null,
         r_1y: latestMetric?.r_1y || null,
       };
     });
@@ -136,14 +126,22 @@ export const getPublicStrategies = async () => {
   try {
     console.log("🔍 Fetching public strategies from Supabase...");
 
-    // Fetch only active and public strategies
+    // Fetch only active and public strategies with their latest metrics
     const { data: strategies, error } = await supabase
       .from("strategies")
-      .select("id, slug, name, short_name, description, risk_level, objective, sector, tags, base_currency, min_investment, provider_name, benchmark_symbol, benchmark_name, fee_type, management_fee_bps, performance_fee_pct, high_water_mark, status, is_public, is_featured, icon_url, image_url, holdings, created_at, updated_at")
+      .select(`
+        id, slug, name, short_name, description, risk_level, objective, sector, tags, base_currency, min_investment, provider_name, benchmark_symbol, benchmark_name, fee_type, management_fee_bps, performance_fee_pct, high_water_mark, status, is_public, is_featured, icon_url, image_url, holdings, created_at, updated_at,
+        strategy_metrics!strategy_metrics_strategy_id_fkey(
+          as_of_date,
+          r_ytd
+        )
+      `)
       .eq("status", "active")
       .eq("is_public", true)
       .order("is_featured", { ascending: false })
-      .order("name", { ascending: true });
+      .order("name", { ascending: true })
+      .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
+      .limit(1, { foreignTable: "strategy_metrics" });
 
     if (error) {
       console.error("❌ Error fetching public strategies:", error);
@@ -155,20 +153,16 @@ export const getPublicStrategies = async () => {
       return [];
     }
 
-    // Fetch live securities data for YTD calculation
-    let securitiesMap = new Map();
-    try {
-      const securities = await getMarketsSecuritiesWithMetrics();
-      securitiesMap = buildHoldingsBySymbol(securities);
-    } catch (e) {
-      console.warn("⚠️ [getPublicStrategies] Failed to fetch live security data");
-    }
-
-    // Process strategies to add dynamic metrics
+    // Process strategies to use latest metrics from database
     const processedStrategies = (strategies || []).map((strategy) => {
+      const latestMetric = Array.isArray(strategy.strategy_metrics) && strategy.strategy_metrics.length > 0
+        ? strategy.strategy_metrics[0]
+        : null;
+
       return {
         ...strategy,
-        r_ytd: calculateYtdReturn(strategy, securitiesMap),
+        latest_metric: latestMetric,
+        r_ytd: latestMetric?.r_ytd || null,
       };
     });
 
@@ -230,15 +224,6 @@ export const getStrategyById = async (strategyId) => {
       ? strategy.strategy_metrics[0]
       : null;
 
-    // Fetch live securities data for YTD calculation
-    let securitiesMap = new Map();
-    try {
-      const securities = await getMarketsSecuritiesWithMetrics();
-      securitiesMap = buildHoldingsBySymbol(securities);
-    } catch (e) {
-      console.warn("⚠️ [getStrategyById] Failed to fetch live security data");
-    }
-
     return {
       ...strategy,
       metrics: strategy.strategy_metrics || [],
@@ -252,7 +237,7 @@ export const getStrategyById = async (strategyId) => {
       r_1m: latestMetric?.r_1m || null,
       r_3m: latestMetric?.r_3m || null,
       r_6m: latestMetric?.r_6m || null,
-      r_ytd: calculateYtdReturn(strategy, securitiesMap),
+      r_ytd: latestMetric?.r_ytd || null,
       r_1y: latestMetric?.r_1y || null,
     };
 
@@ -402,18 +387,7 @@ export const getStrategyPriceHistory = async (strategyId, timeframe = "6M") => {
         .single();
 
       if (metrics && metrics.last_close) {
-        // Dynamic YTD calculation to override stale DB metrics for the calendar sequence
-        const securities = await getMarketsSecuritiesWithMetrics();
-        const securitiesMap = new Map();
-        securities.forEach(s => securitiesMap.set(s.symbol, s));
-        const dynamicYtd = calculateYtdReturn(strategy, securitiesMap);
-        
-        const enrichedMetrics = { 
-          ...metrics, 
-          r_ytd: dynamicYtd !== null ? dynamicYtd : metrics.r_ytd 
-        };
-        
-        const result = generateSyntheticHistory(enrichedMetrics, timeframe, startDate, currentDate);
+        const result = generateSyntheticHistory(metrics, timeframe, startDate, currentDate);
         cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
         console.log(`✅ Generated ${result.length} synthetic NAV points for strategy ${strategyId} (${timeframe})`);
         return result;

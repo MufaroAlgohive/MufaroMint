@@ -1,8 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
-import { 
-  ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, Info, X, Shield, XCircle,
-  AlertCircle, Check, User, Users, Baby, Shirt, ShoppingCart, Mountain, FileText, Loader2
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldCheck, Landmark, CheckCircle2, UserPen, Zap, TrendingUp, Search, ChevronDown, ChevronUp, Briefcase, Info, X, Shield, XCircle, AlertCircle, Check, User, Users, Baby, Shirt, ShoppingCart, Mountain, FileText, Loader2 } from "lucide-react";
 import { MintGradientLayout } from "../components/credit/ui/MintGradientLayout";
 import { MintCard } from "../components/credit/ui/MintCard";
 import { MintRadarChart } from "../components/credit/ui/MintRadarChart";

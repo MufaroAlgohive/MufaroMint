@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 import { checkOnboardingComplete } from "../lib/checkOnboardingComplete";
 import { useOnboardingStatus } from "../lib/useOnboardingStatus";
 import { formatChangePct, getChangeColor } from "../lib/strategyData.js";
-import { buildHoldingsBySymbol, calculateMinInvestment, calculateYtdReturn, getAdjustedShares, computeExtendedSummary } from "../lib/strategyUtils";
+import { buildHoldingsBySymbol, calculateMinInvestment, getAdjustedShares, computeExtendedSummary } from "../lib/strategyUtils";
 import {
   Area,
   Line,
@@ -150,6 +150,35 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
             if (analyticsRow?.error) {
               setAnalyticsError(analyticsRow.error);
             }
+          }
+
+          // Also fetch latest performance metrics from strategy_metrics table
+          try {
+            const perfResponse = await fetch(`/api/strategy-performance.js?strategyId=${resolvedId}`);
+
+            if (perfResponse.ok) {
+              const perfResult = await perfResponse.json();
+              if (perfResult.success && perfResult.data && perfResult.data[0]) {
+                const perfData = perfResult.data[0];
+                // Merge performance metrics into analytics
+                if (isMounted) {
+                  setAnalytics(prev => ({
+                    ...prev,
+                    r_1w: perfData.returns.one_week ? perfData.returns.one_week / 100 : null,
+                    r_1m: perfData.returns.one_month ? perfData.returns.one_month / 100 : null,
+                    r_3m: perfData.returns.three_month ? perfData.returns.three_month / 100 : null,
+                    r_6m: perfData.returns.six_month ? perfData.returns.six_month / 100 : null,
+                    r_ytd: perfData.returns.ytd ? perfData.returns.ytd / 100 : null,
+                    r_1y: perfData.returns.one_year ? perfData.returns.one_year / 100 : null,
+                    r_3y: perfData.returns.three_year ? perfData.returns.three_year / 100 : null,
+                    r_all_time: perfData.returns.all_time ? perfData.returns.all_time / 100 : null,
+                  }));
+                }
+              }
+            }
+          } catch (perfError) {
+            console.error("Error fetching performance metrics:", perfError);
+            // Continue without performance metrics - they're optional
           }
         } else if (isMounted) {
           setAnalytics(null);
@@ -382,11 +411,6 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
   const performanceSummary = useMemo(() => {
     const summary = analytics?.summary || {};
-    const holdingsMap = buildHoldingsBySymbol(holdingsSecurities);
-    
-    // Prioritize dynamic calculation for YTD return
-    const dynamicYtd = calculateYtdReturn(currentStrategy, holdingsMap);
-    const displayYtd = dynamicYtd !== null ? dynamicYtd : (summary.ytd_return ?? analytics?.ytd_return);
 
     return [
       {
@@ -406,11 +430,11 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
       },
       {
         label: "YTD Return",
-        value: formatPercent(displayYtd),
+        value: formatPercent(analytics?.r_ytd ?? summary.ytd_return),
         description: "Year-to-date return for the strategy.",
       },
     ];
-  }, [analytics, currentStrategy, holdingsSecurities]);
+  }, [analytics]);
 
   // Auto-scroll removed to allow manual scrolling.
 
