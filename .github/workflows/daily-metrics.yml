@@ -2,8 +2,8 @@ name: Daily Strategy Metrics
 
 on:
   schedule:
-    # Run daily at 4:00 PM UTC (after market close)
-    - cron: '0 16 * * *'
+    # Run daily at 9:00 PM UTC (23:00 UTC+2)
+    - cron: '0 21 * * *'
   # Allow manual trigger
   workflow_dispatch:
 
