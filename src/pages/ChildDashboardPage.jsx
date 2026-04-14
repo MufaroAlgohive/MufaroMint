@@ -608,6 +608,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
   });
   const [idInput, setIdInput] = useState("");
   const [idError, setIdError] = useState("");
+  const [flowError, setFlowError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const childName =
@@ -633,6 +634,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
     const { ok, msg, clean } = verifyId(idInput);
     if (!ok) { setIdError(msg); return; }
     setSaving(true);
+    setFlowError("");
     try {
       await fetch(`/api/family-members/${child.id}`, {
         method: "PATCH",
@@ -649,8 +651,15 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
 
   async function handlePoaComplete({ livesWithParent, pdfBuffer, fileUpload, signedAt }) {
     setSaving(true);
+    setFlowError("");
     try {
       let poaUrl = null;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token && livesWithParent && pdfBuffer) {
+        throw new Error("Session expired. Please sign in again.");
+      }
+
       if (livesWithParent && pdfBuffer) {
         const uint8 = new Uint8Array(pdfBuffer);
         let bin = "";
@@ -658,60 +667,81 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
         const pdfBase64 = btoa(bin);
         const res = await fetch("/api/onboarding/upload-agreement", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ pdfBase64 }),
         });
         const j = await res.json();
-        if (res.ok && j.publicUrl) poaUrl = j.publicUrl;
+        if (!res.ok || !j.publicUrl) {
+          throw new Error(j?.error || "Failed to upload proof of address.");
+        }
+        poaUrl = j.publicUrl;
       } else if (!livesWithParent && fileUpload && supabase) {
         const safeName = fileUpload.name.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9._-]/g, "");
         const path = `poa/${child.id}/${Date.now()}-${safeName}`;
         const { error: upErr } = await supabase.storage
           .from("birth-certificates").upload(path, fileUpload, { upsert: true });
-        if (!upErr) poaUrl = `storage://birth-certificates/${path}`;
+        if (upErr) {
+          throw new Error(upErr.message || "Failed to upload proof document.");
+        }
+        poaUrl = `storage://birth-certificates/${path}`;
       }
       if (poaUrl) {
-        await fetch(`/api/family-members/${child.id}`, {
+        const patchRes = await fetch(`/api/family-members/${child.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ poa_declaration_url: poaUrl, poa_declaration_signed_at: signedAt }),
         });
+        if (!patchRes.ok) {
+          const patchJson = await patchRes.json().catch(() => ({}));
+          throw new Error(patchJson?.error || "Failed to save proof of address.");
+        }
         onUpdate({ ...child, poa_declaration_url: poaUrl });
       }
       if (!child.signed_agreement_url) { setStep("agreement"); }
       else { onClose(); }
     } catch (e) {
       console.error("[complete-poa]", e);
-      if (!child.signed_agreement_url) { setStep("agreement"); }
-      else { onClose(); }
+      setFlowError(e?.message || "Proof of address upload failed. Please try again.");
     } finally { setSaving(false); }
   }
 
   async function handleAgreementComplete({ pdfBuffer, signedAt }) {
     setSaving(true);
+    setFlowError("");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Session expired. Please sign in again.");
+
       const uint8 = new Uint8Array(pdfBuffer);
       let bin = "";
       for (let i = 0; i < uint8.length; i++) bin += String.fromCharCode(uint8[i]);
       const pdfBase64 = btoa(bin);
       const uploadRes = await fetch("/api/onboarding/upload-agreement", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ pdfBase64 }),
       });
       const uploadJson = await uploadRes.json();
-      if (uploadRes.ok && uploadJson.publicUrl) {
-        await fetch(`/api/family-members/${child.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ signed_agreement_url: uploadJson.publicUrl, signed_at: signedAt }),
-        });
-        onUpdate({ ...child, signed_agreement_url: uploadJson.publicUrl });
+      if (!uploadRes.ok || !uploadJson.publicUrl) {
+        throw new Error(uploadJson?.error || "Failed to upload signed agreement.");
       }
+
+      const patchRes = await fetch(`/api/family-members/${child.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signed_agreement_url: uploadJson.publicUrl, signed_at: signedAt }),
+      });
+      if (!patchRes.ok) {
+        const patchJson = await patchRes.json().catch(() => ({}));
+        throw new Error(patchJson?.error || "Failed to save signed agreement.");
+      }
+
+      onUpdate({ ...child, signed_agreement_url: uploadJson.publicUrl });
       onClose();
     } catch (e) {
       console.error("[complete-agreement]", e);
-      onClose();
+      setFlowError(e?.message || "Signing failed. Please try again.");
     } finally { setSaving(false); }
   }
 
@@ -754,6 +784,10 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
+
+          {flowError && (
+            <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mb-4">{flowError}</p>
+          )}
 
           {/* Step: ID number */}
           {step === "id" && (
@@ -836,6 +870,12 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   const parentName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "Parent";
   const parentMintNumber = profile?.mintNumber || "";
   const childBalance = child?.available_balance || 0;
+  const childKycStatus = String(child?.kyc_status || "pending").toLowerCase();
+  const childKycLabel = childKycStatus === "completed"
+    ? "KYC Completed"
+    : childKycStatus === "rejected"
+      ? "KYC Rejected"
+      : "KYC Pending";
 
   const missingItems = [
     !child?.id_number && "ID number",
@@ -988,9 +1028,18 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                 <Baby className="h-3.5 w-3.5" />
                 {age !== null ? `${age} yr${age !== 1 ? "s" : ""} old` : "Child"}
               </span>
-              {child?.mint_number && (
-                <span className="text-[11px] text-slate-600 font-mono">{child.mint_number}</span>
-              )}
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold tracking-wide border ${
+                  childKycStatus === "completed"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : childKycStatus === "rejected"
+                      ? "bg-red-50 text-red-700 border-red-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${childKycStatus === "pending" ? "animate-pulse" : ""}`} style={{ backgroundColor: "currentColor" }} />
+                {childKycLabel}
+              </span>
             </div>
             <div className="flex items-center gap-1.5 mt-2">
               <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
@@ -1195,6 +1244,21 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                     <span className="font-mono text-xs font-semibold text-slate-900">{parentMintNumber}</span>
                   </div>
                 )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">KYC Status</span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide border ${
+                      childKycStatus === "completed"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : childKycStatus === "rejected"
+                          ? "bg-red-50 text-red-700 border-red-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${childKycStatus === "pending" ? "animate-pulse" : ""}`} style={{ backgroundColor: "currentColor" }} />
+                    {childKycLabel}
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>

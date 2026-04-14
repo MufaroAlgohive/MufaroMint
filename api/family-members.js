@@ -13,8 +13,11 @@ function generateChildMintNumber(firstName, idNumber, dateOfBirth) {
   const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, "").padEnd(3, "X").substring(0, 3);
 
   let idPart = "0000";
-  if (idNumber && String(idNumber).length >= 10) {
-    idPart = String(idNumber).substring(6, 10);
+  const cleanId = String(idNumber || "").replace(/\D/g, "");
+  if (cleanId.length >= 10) {
+    idPart = cleanId.substring(6, 10);
+  } else if (cleanId.length >= 4) {
+    idPart = cleanId.slice(-4).padStart(4, "0");
   } else if (dateOfBirth) {
     const dob = new Date(dateOfBirth);
     if (!isNaN(dob.getTime())) {
