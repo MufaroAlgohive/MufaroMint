@@ -3,14 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, ArrowUpRight, ArrowDownLeft, X, TrendingUp, TrendingDown,
   ShieldCheck, Baby, Wallet, BarChart3, ChevronRight,
-  RefreshCw, Search, Star, AlertCircle, Check, ClipboardList, Download,
+  RefreshCw, Search, Star, AlertCircle, Check, ClipboardList,
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
 import MinorProofOfAddressDeclaration from "../components/MinorProofOfAddressDeclaration";
 import ChildResponsibilityAgreement from "../components/ChildResponsibilityAgreement";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -27,27 +25,6 @@ function getAge(dob) {
 function fmt(cents) {
   const val = (cents || 0) / 100;
   return `R\u202F${val.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatDate(value) {
-  if (!value) return "—";
-  try {
-    return new Date(value).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" });
-  } catch {
-    return "—";
-  }
-}
-
-function parseStorageUrl(input) {
-  if (!input || typeof input !== "string") return null;
-  if (!input.startsWith("storage://")) return null;
-  const raw = input.replace("storage://", "");
-  const slashIdx = raw.indexOf("/");
-  if (slashIdx <= 0) return null;
-  return {
-    bucket: raw.slice(0, slashIdx),
-    path: raw.slice(slashIdx + 1),
-  };
 }
 
 
@@ -601,15 +578,8 @@ function HoldingRow({ holding }) {
 // ─── TransactionRow ──────────────────────────────────────────────────────────
 
 function TransactionRow({ tx }) {
-  const isCredit =
-    tx.direction === "credit" ||
-    tx.type === "transfer_in" ||
-    tx.type === "allowance" ||
-    tx.type === "member_joined" ||
-    tx.type === "goal_funding";
+  const isCredit = tx.direction === "credit" || tx.type === "transfer_in";
   const date = tx.created_at ? new Date(tx.created_at).toLocaleDateString("en-ZA", { day: "numeric", month: "short" }) : "";
-  const amountCents = Math.abs(Number(tx.amount || 0));
-  const status = String(tx.status || "").toLowerCase();
   return (
     <div className="flex items-center gap-3.5 py-3.5">
       <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-purple-100">
@@ -619,26 +589,10 @@ function TransactionRow({ tx }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-slate-900 truncate">{tx.description || tx.type || "Transaction"}</p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <p className="text-[11px] text-slate-600">{date}</p>
-          {status && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide border ${
-                status === "completed"
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : status === "pending"
-                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                    : "bg-slate-100 text-slate-600 border-slate-200"
-              }`}
-            >
-              <span className={`h-1.5 w-1.5 rounded-full ${status === "pending" ? "animate-pulse" : ""}`} style={{ backgroundColor: "currentColor" }} />
-              {status}
-            </span>
-          )}
-        </div>
+        <p className="text-[11px] text-slate-600 mt-0.5">{date}</p>
       </div>
       <p className="text-sm font-bold tabular-nums text-purple-600">
-        {isCredit ? "+" : "-"}{fmt(amountCents)}
+        {isCredit ? "+" : "-"}{fmt(Math.abs(tx.amount || 0))}
       </p>
     </div>
   );
@@ -876,7 +830,6 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   const [openingTransfer, setOpeningTransfer] = useState(false);
   const [showInvest, setShowInvest] = useState(false);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
-  const [downloadingPack, setDownloadingPack] = useState(false);
 
   const childName = [child?.first_name, child?.last_name].filter(Boolean).join(" ") || "Child";
   const age = getAge(child?.date_of_birth);
@@ -964,143 +917,14 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   async function fetchTransactions() {
     try {
       if (!supabase) return;
-      const [walletRes, familyRes] = await Promise.all([
-        supabase
-          .from("transactions")
-          .select("id, type, direction, amount, description, created_at, status")
-          .eq("family_member_id", child.id)
-          .order("created_at", { ascending: false })
-          .limit(30),
-        supabase
-          .from("family_transactions")
-          .select("id, member_id, type, amount, description, strategy, status, created_at")
-          .eq("member_id", child.id)
-          .order("created_at", { ascending: false })
-          .limit(30),
-      ]);
-
-      const walletTx = (walletRes?.data || []).map((tx) => ({
-        id: `wallet-${tx.id}`,
-        type: tx.type,
-        direction: tx.direction,
-        amount: Number(tx.amount || 0),
-        description: tx.description,
-        status: tx.status || "completed",
-        created_at: tx.created_at,
-      }));
-
-      const familyTx = (familyRes?.data || []).map((tx) => {
-        const normalizedType = String(tx.type || "").toLowerCase();
-        const isCredit = normalizedType !== "investment";
-        const labelByType = {
-          allowance: "Allowance",
-          investment: "Investment",
-          member_joined: "Member Joined",
-          goal_funding: "Goal Funding",
-        };
-        return {
-          id: `family-${tx.id}`,
-          type: normalizedType,
-          direction: isCredit ? "credit" : "debit",
-          amount: Math.round(Number(tx.amount || 0) * 100),
-          description: tx.description || labelByType[normalizedType] || "Family Transaction",
-          status: tx.status || "completed",
-          created_at: tx.created_at,
-        };
-      });
-
-      const merged = [...walletTx, ...familyTx]
-        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-        .slice(0, 20);
-
-      if (isMounted.current) setTransactions(merged);
+      const { data } = await supabase
+        .from("transactions")
+        .select("id, type, direction, amount, description, created_at")
+        .eq("family_member_id", child.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (isMounted.current) setTransactions(data || []);
     } catch (e) { console.error("[child-dash] txns", e); }
-  }
-
-  async function resolveCertificateDownloadUrl(rawUrl) {
-    if (!rawUrl) return null;
-    if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) return rawUrl;
-    const parsed = parseStorageUrl(rawUrl);
-    if (!parsed || !supabase) return null;
-    const { data, error } = await supabase.storage
-      .from(parsed.bucket)
-      .createSignedUrl(parsed.path, 300);
-    if (error || !data?.signedUrl) return null;
-    return data.signedUrl;
-  }
-
-  function triggerBrowserDownload(url, fileName) {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.rel = "noopener";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  }
-
-  async function handleDownloadPack() {
-    if (!child) return;
-    setDownloadingPack(true);
-    try {
-      const doc = new jsPDF({ unit: "mm", format: "a4" });
-      const title = `${childName} — Child Account Pack`;
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(18);
-      doc.text(title, 14, 18);
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text(`Generated: ${new Date().toLocaleString("en-ZA")}`, 14, 25);
-
-      autoTable(doc, {
-        startY: 32,
-        head: [["Field", "Value"]],
-        body: [
-          ["Child Name", childName],
-          ["Relationship", "Child"],
-          ["Date of Birth", formatDate(child?.date_of_birth)],
-          ["Age", age !== null ? `${age}` : "—"],
-          ["Available Balance", fmt(childBalance)],
-          ["KYC Status", childKycLabel],
-          ["Parent", parentName],
-          ["Parent Mint #", parentMintNumber || "—"],
-          ["Child ID Number", child?.id_number || "—"],
-          ["Certificate Uploaded", child?.certificate_uploaded_at ? formatDate(child.certificate_uploaded_at) : "—"],
-        ],
-        styles: { fontSize: 10, cellPadding: 2.8 },
-        headStyles: { fillColor: [76, 29, 149] },
-        alternateRowStyles: { fillColor: [248, 245, 255] },
-        columnStyles: { 0: { cellWidth: 56 } },
-      });
-
-      autoTable(doc, {
-        startY: (doc.lastAutoTable?.finalY || 90) + 8,
-        head: [["Date", "Description", "Type", "Status", "Amount"]],
-        body: transactions.slice(0, 12).map((tx) => [
-          formatDate(tx.created_at),
-          tx.description || tx.type || "Transaction",
-          tx.direction === "credit" ? "Credit" : "Debit",
-          String(tx.status || "completed"),
-          `${tx.direction === "credit" ? "+" : "-"}${fmt(Math.abs(Number(tx.amount || 0)))}`,
-        ]),
-        styles: { fontSize: 9, cellPadding: 2.2 },
-        headStyles: { fillColor: [124, 58, 237] },
-        alternateRowStyles: { fillColor: [250, 250, 252] },
-      });
-
-      doc.save(`${childName.replace(/\s+/g, "-").toLowerCase()}-details.pdf`);
-
-      const certUrl = await resolveCertificateDownloadUrl(child?.certificate_url);
-      if (certUrl) {
-        const certFileName = `${childName.replace(/\s+/g, "-").toLowerCase()}-certificate`;
-        triggerBrowserDownload(certUrl, certFileName);
-      }
-    } catch (e) {
-      console.error("[child-dash] download-pack", e);
-    } finally {
-      setDownloadingPack(false);
-    }
   }
 
   function handleTransferDone(result) {
@@ -1327,7 +1151,6 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
             <div className="flex items-center gap-2 mb-3 px-1">
               <div className="h-2 w-2 rounded-full bg-slate-300" />
               <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">Recent Activity</p>
-              <span className="text-[10px] text-slate-400 ml-auto">{transactions.length} record{transactions.length !== 1 ? "s" : ""}</span>
             </div>
 
             {transactions.length > 0 ? (
@@ -1401,16 +1224,6 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                     <span className={`h-1.5 w-1.5 rounded-full ${childKycStatus === "pending" ? "animate-pulse" : ""}`} style={{ backgroundColor: "currentColor" }} />
                     {childKycLabel}
                   </span>
-                </div>
-                <div className="pt-1">
-                  <button
-                    onClick={handleDownloadPack}
-                    disabled={downloadingPack}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition disabled:opacity-60"
-                  >
-                    <Download className="h-4 w-4" />
-                    {downloadingPack ? "Preparing pack…" : "Download Child Pack"}
-                  </button>
                 </div>
               </div>
             </div>
