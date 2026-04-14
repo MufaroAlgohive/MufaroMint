@@ -8,20 +8,16 @@ function isValidUuid(str) {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 }
 
-function generateChildMintNumber(firstName, idNumber, dateOfBirth) {
+function generateChildMintNumber(firstName, idNumber, _dateOfBirth) {
   const normalized = (firstName || "CHD").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const namePart = normalized.toUpperCase().replace(/[^A-Z]/g, "").padEnd(3, "X").substring(0, 3);
 
   let idPart = "0000";
-  if (idNumber && String(idNumber).length >= 10) {
-    idPart = String(idNumber).substring(6, 10);
-  } else if (dateOfBirth) {
-    const dob = new Date(dateOfBirth);
-    if (!isNaN(dob.getTime())) {
-      const mm = String(dob.getMonth() + 1).padStart(2, "0");
-      const yy = String(dob.getFullYear()).slice(-2);
-      idPart = mm + yy;
-    }
+  const cleanId = String(idNumber || "").replace(/\D/g, "");
+  if (cleanId.length >= 10) {
+    idPart = cleanId.substring(6, 10);
+  } else if (cleanId.length >= 4) {
+    idPart = cleanId.slice(-4).padStart(4, "0");
   }
 
   const now = new Date();
