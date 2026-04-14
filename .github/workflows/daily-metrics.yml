@@ -1,0 +1,35 @@
+name: Daily Strategy Metrics
+
+on:
+  schedule:
+    # Run daily at 4:00 PM UTC (after market close)
+    - cron: '0 16 * * *'
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  calculate-metrics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Calculate daily metrics
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # Install psql
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+          # Run the calculation
+          psql "$DATABASE_URL" -c "SELECT calculate_daily_strategy_metrics(CURRENT_DATE - INTERVAL '1 day');"
+
+      - name: Log result
+        if: success()
+        run: echo "✅ Daily metrics calculated successfully"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Daily metrics calculation failed"
