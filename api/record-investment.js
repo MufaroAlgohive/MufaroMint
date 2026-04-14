@@ -92,7 +92,7 @@ function displayNameFor(assetName, assetSymbol, strategyName) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -121,7 +121,7 @@ export default async function handler(req, res) {
     // amount = total charged including fees (used for transaction records)
     const investAmount = (baseAmount && baseAmount > 0) ? baseAmount : amount;
 
-    if ((!securityId && !strategyId) || !amount || !paymentReference) {
+    if ((!securityId && !strategyId) || !amount || Number(amount) <= 0 || !paymentReference) {
       return res.status(400).json({ success: false, error: "Missing required fields: securityId or strategyId, amount, paymentReference" });
     }
 
@@ -158,14 +158,17 @@ export default async function handler(req, res) {
       }
 
       newWalletBalance = originalWalletBalance - amount;
-      const { error: deductError } = await db
+      const { data: updatedWallet, error: deductError } = await db
         .from("wallets")
         .update({ balance: newWalletBalance })
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .eq("balance", originalWalletBalance)
+        .select("balance")
+        .maybeSingle();
 
-      if (deductError) {
-        console.error("[record-investment] WALLET DEDUCTION ERROR:", deductError.message);
-        return res.status(500).json({ success: false, error: "Failed to deduct wallet balance" });
+      if (deductError || !updatedWallet) {
+        console.error("[record-investment] WALLET DEDUCTION ERROR:", deductError?.message || "balance changed concurrently");
+        return res.status(409).json({ success: false, error: deductError ? "Failed to deduct wallet balance" : "Wallet balance changed — please retry" });
       }
       
       deductionSuccessful = true;
@@ -341,12 +344,13 @@ export default async function handler(req, res) {
 
       if (existingUS) {
         const newInvested = (existingUS.invested_amount || 0) + investmentAmountCents;
-        await db
+        const { error: usUpdateErr } = await db
           .from("user_strategies")
           .update({ invested_amount: newInvested, updated_at: nowTs })
           .eq("id", existingUS.id);
+        if (usUpdateErr) console.warn("[record-investment] user_strategies update failed:", usUpdateErr.message);
       } else {
-        await db
+        const { error: usInsertErr } = await db
           .from("user_strategies")
           .insert({
             user_id: userId,
@@ -356,6 +360,7 @@ export default async function handler(req, res) {
             created_at: nowTs,
             updated_at: nowTs,
           });
+        if (usInsertErr) console.warn("[record-investment] user_strategies insert failed:", usInsertErr.message);
       }
 
       holdingResult = { data: { strategyHoldingsRecorded: insertedHoldings.length, skipped: skippedSymbols }, error: null };

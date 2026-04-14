@@ -56,7 +56,8 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
   console.log("🔍 Initial security prop:", {
     symbol: initialSecurity?.symbol,
     currentPrice: initialSecurity?.currentPrice,
-    change_price: initialSecurity?.change_price,
+    changeAbs: initialSecurity?.changeAbs,
+    change_abs: initialSecurity?.change_abs,
     changePct: initialSecurity?.changePct
   });
 
@@ -70,7 +71,8 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
         if (updatedSecurity) {
           console.log("📊 Updated security data:", {
             currentPrice: updatedSecurity.currentPrice,
-              change_price: updatedSecurity.change_price,
+            changeAbs: updatedSecurity.changeAbs,
+            change_abs: updatedSecurity.change_abs,
             changePct: updatedSecurity.changePct
           });
           setSecurity(updatedSecurity);
@@ -107,19 +109,20 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
   
   console.log("💰 Display data:", {
     currentPrice: displaySecurity?.currentPrice,
-      change_price: displaySecurity?.change_price,
+    changeAbs: displaySecurity?.changeAbs,
+    change_abs: displaySecurity?.change_abs,
     changePct: displaySecurity?.changePct,
     hasCurrentPrice: displaySecurity?.currentPrice != null,
-      hasChangePrice: displaySecurity?.change_price != null
+    hasChangeAbs: displaySecurity?.changeAbs != null,
   });
   
   const currentPrice = displaySecurity?.currentPrice != null 
     ? Number(displaySecurity.currentPrice).toFixed(2)
     : "—";
-    // change_price is in cents, convert to Rands
-    const priceChange = displaySecurity?.change_price != null 
-      ? (displaySecurity.change_price >= 0 ? '+' : '') + (Number(displaySecurity.change_price) / 100).toFixed(2)
-    : "—";
+    // changeAbs is already in Rands from processSecurity()
+    const priceChange = displaySecurity?.changeAbs != null
+      ? (Number(displaySecurity.changeAbs) >= 0 ? '+' : '') + Number(displaySecurity.changeAbs).toFixed(2)
+      : "—";
   const rawPercentChange = displaySecurity?.change_percentage != null
     ? Number(displaySecurity.change_percentage)
     : displaySecurity?.change_percent != null
@@ -147,12 +150,12 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, onNavig
   const getSelectedPeriodReturn = () => {
     if (!displaySecurity?.returns) return null;
     const periodMap = {
-      '1W': displaySecurity.returns.r_1w,
-      '1M': displaySecurity.returns.r_1m,
-      '3M': displaySecurity.returns.r_3m,
-      '6M': displaySecurity.returns.r_6m,
-      'YTD': displaySecurity.returns.r_ytd,
-      '1Y': displaySecurity.returns.r_1y
+      '1W': displaySecurity.returns.w1,
+      '1M': displaySecurity.returns.m1,
+      '3M': displaySecurity.returns.m3,
+      '6M': displaySecurity.returns.m6,
+      'YTD': displaySecurity.returns.ytd,
+      '1Y': displaySecurity.returns.y1
     };
     return periodMap[selectedPeriod];
   };

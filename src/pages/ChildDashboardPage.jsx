@@ -690,13 +690,18 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
   async function handleAgreementComplete({ pdfBuffer, signedAt }) {
     setSaving(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       const uint8 = new Uint8Array(pdfBuffer);
+      const CHUNK = 0x8000;
       let bin = "";
-      for (let i = 0; i < uint8.length; i++) bin += String.fromCharCode(uint8[i]);
+      for (let i = 0; i < uint8.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK));
+      }
       const pdfBase64 = btoa(bin);
       const uploadRes = await fetch("/api/onboarding/upload-agreement", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ pdfBase64 }),
       });
       const uploadJson = await uploadRes.json();

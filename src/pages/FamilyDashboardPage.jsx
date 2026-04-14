@@ -252,14 +252,20 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       let poaUrl = null;
 
       if (pdfBuffer) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
         const uint8 = new Uint8Array(pdfBuffer);
+        const CHUNK = 0x8000;
         let binary = "";
-        for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+        for (let i = 0; i < uint8.length; i += CHUNK) {
+          binary += String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK));
+        }
         const pdfBase64 = btoa(binary);
 
         const uploadRes = await fetch("/api/onboarding/upload-agreement", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           body: JSON.stringify({ pdfBase64 }),
         });
         const uploadJson = await uploadRes.json();
@@ -446,8 +452,11 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
 
       // 1. Upload PDF
       const uint8 = new Uint8Array(pdfBuffer);
+      const CHUNK = 0x8000;
       let binary = "";
-      for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+      for (let i = 0; i < uint8.length; i += CHUNK) {
+        binary += String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK));
+      }
       const pdfBase64 = btoa(binary);
 
       const uploadRes = await fetch("/api/onboarding/upload-agreement", {
