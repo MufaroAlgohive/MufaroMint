@@ -601,9 +601,12 @@ function TransactionRow({ tx }) {
 // ─── CompleteProfileModal ────────────────────────────────────────────────────
 
 function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
+  // Derive initial step — check both URL and signed_at so a successful
+  // signing that failed to upload still skips the POA step.
+  const poaComplete = !!(child.poa_declaration_url || child.poa_declaration_signed_at);
   const [step, setStep] = useState(() => {
     if (!child.id_number) return "id";
-    if (!child.poa_declaration_url) return "poa";
+    if (!poaComplete) return "poa";
     return "agreement";
   });
   const [idInput, setIdInput] = useState("");
@@ -651,6 +654,8 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
     setSaving(true);
     try {
       let poaUrl = null;
+
+      // ── Attempt to upload the signed PDF ──
       if (livesWithParent && pdfBuffer) {
         const uint8 = new Uint8Array(pdfBuffer);
         let bin = "";
@@ -670,18 +675,30 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
           .from("birth-certificates").upload(path, fileUpload, { upsert: true });
         if (!upErr) poaUrl = `storage://birth-certificates/${path}`;
       }
-      if (poaUrl) {
-        await fetch(`/api/family-members/${child.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ poa_declaration_url: poaUrl, poa_declaration_signed_at: signedAt }),
-        });
-        onUpdate({ ...child, poa_declaration_url: poaUrl });
-      }
+
+      // ── Always persist the signed_at timestamp so we never re-ask ──
+      const patchBody = { poa_declaration_signed_at: signedAt };
+      if (poaUrl) patchBody.poa_declaration_url = poaUrl;
+
+      await fetch(`/api/family-members/${child.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patchBody),
+      }).catch((e) => console.warn("[poa] PATCH failed (non-fatal):", e.message));
+
+      // ── Update parent state so the banner disappears immediately ──
+      onUpdate({
+        ...child,
+        poa_declaration_signed_at: signedAt,
+        ...(poaUrl ? { poa_declaration_url: poaUrl } : {}),
+      });
+
       if (!child.signed_agreement_url) { setStep("agreement"); }
       else { onClose(); }
     } catch (e) {
       console.error("[complete-poa]", e);
+      // Even on error, mark signed_at to prevent re-asking in this session
+      onUpdate({ ...child, poa_declaration_signed_at: signedAt || new Date().toISOString() });
       if (!child.signed_agreement_url) { setStep("agreement"); }
       else { onClose(); }
     } finally { setSaving(false); }
@@ -842,9 +859,12 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   const parentMintNumber = profile?.mintNumber || "";
   const childBalance = child?.available_balance || 0;
 
+  // POA is considered complete if either the URL was stored OR the declaration was signed
+  // (the URL upload may fail silently, but signed_at is always set on success)
+  const poaDone = !!(child?.poa_declaration_url || child?.poa_declaration_signed_at);
   const missingItems = [
     !child?.id_number && "ID number",
-    !child?.poa_declaration_url && "proof of address",
+    !poaDone && "proof of address",
     !child?.signed_agreement_url && "responsibility agreement",
   ].filter(Boolean);
   const isProfileIncomplete = missingItems.length > 0;

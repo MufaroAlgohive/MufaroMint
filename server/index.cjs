@@ -3875,13 +3875,21 @@ app.get("/api/user/strategies", async (req, res) => {
           as_of_date, last_close, change_pct, r_1w, r_1m, r_3m, r_ytd, r_1y
         )
       `)
-      .eq("status", "active")
-      .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
-      .limit(1, { foreignTable: "strategy_metrics" });
+      .eq("status", "active");
 
     if (stratErr) {
       console.error("[user/strategies] Error fetching strategies:", stratErr);
       return res.status(500).json({ success: false, error: stratErr.message });
+    }
+
+    // Sort each strategy's metrics by date descending and keep only the latest row
+    for (const strategy of (allStrategies || [])) {
+      if (Array.isArray(strategy.strategy_metrics) && strategy.strategy_metrics.length > 1) {
+        strategy.strategy_metrics.sort((a, b) =>
+          (b.as_of_date || "").localeCompare(a.as_of_date || "")
+        );
+        strategy.strategy_metrics = [strategy.strategy_metrics[0]];
+      }
     }
 
     // Get securities for logos
@@ -6697,6 +6705,8 @@ app.post('/api/family-members', async (req, res) => {
         const recipientName = matchedProfile.first_name || '';
 
         const resendKey = process.env.RESEND_API_KEY;
+        let emailSent = false;
+
         if (!resendKey) {
           console.warn('[family] RESEND_API_KEY not set — pairing code email NOT sent. Code:', pairingCode);
         } else {
@@ -6714,6 +6724,7 @@ app.post('/api/family-members', async (req, res) => {
             if (resp.error) {
               console.error('[family] Pairing code email send error:', resp.error);
             } else {
+              emailSent = true;
               console.log(`[family] Pairing code email sent to ${normalizedEmail}, id: ${resp.data?.id}`);
             }
           } catch (emailErr) {
@@ -6721,7 +6732,17 @@ app.post('/api/family-members', async (req, res) => {
           }
         }
 
-        return res.status(200).json({ pairing_sent: true, member_id: member.id, masked_email: masked });
+        // Return email_sent status so the frontend can warn the user if needed.
+        // Include the raw code ONLY when email could not be sent (dev/no-key fallback).
+        const responsePayload = {
+          pairing_sent: true,
+          email_sent: emailSent,
+          member_id: member.id,
+          masked_email: masked,
+        };
+        if (!emailSent) responsePayload.fallback_code = pairingCode;
+
+        return res.status(200).json(responsePayload);
       }
 
       /* ── MODE: invite (not on Mint yet) ── */
@@ -7041,6 +7062,122 @@ app.delete('/api/family-members', async (req, res) => {
   }
 });
 
+// ── Funeral Cover Policy Save ─────────────────────────────────────────────
+app.post("/api/insurance/save-policy", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) return res.status(401).json({ success: false, error: "Missing token" });
+
+    const authClient = supabaseAdmin || supabase;
+    const { data: { user }, error: authErr } = await authClient.auth.getUser(token);
+    if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
+
+    const {
+      policyNo, planType, planLabel, coverAmount, basePremium,
+      totalMonthly, deductionDate, firstName, lastName, age,
+      addonDetails = [], dependents = [], pdfBase64,
+    } = req.body || {};
+
+    if (!policyNo) return res.status(400).json({ success: false, error: "policyNo required" });
+
+    const db = supabaseAdmin || supabase;
+
+    // ── Ensure insurance_policies table exists ──────────────────────────────
+    if (pgPool) {
+      try {
+        await pgPool.connect().then(async client => {
+          try {
+            await client.query(`
+              CREATE TABLE IF NOT EXISTS insurance_policies (
+                id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                user_id UUID NOT NULL,
+                policy_no TEXT NOT NULL,
+                plan_type TEXT,
+                plan_label TEXT,
+                cover_amount NUMERIC,
+                base_premium NUMERIC,
+                total_monthly NUMERIC,
+                deduction_date TEXT,
+                status TEXT DEFAULT 'active',
+                pdf_url TEXT,
+                addon_details JSONB,
+                dependents JSONB,
+                first_name TEXT,
+                last_name TEXT,
+                age INTEGER,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+              );
+              CREATE INDEX IF NOT EXISTS idx_insurance_policies_user ON insurance_policies(user_id);
+            `);
+          } finally { client.release(); }
+        });
+      } catch (tblErr) {
+        console.warn("[insurance] Table ensure failed (non-fatal):", tblErr.message);
+      }
+    }
+
+    // ── Upload PDF if provided ──────────────────────────────────────────────
+    let pdfUrl = null;
+    if (pdfBase64) {
+      try {
+        const pdfBuffer = Buffer.from(pdfBase64, "base64");
+        const fileName = `${user.id}/funeral-cover-${policyNo}.pdf`;
+        const { error: upErr } = await db.storage
+          .from("signed-agreements")
+          .upload(fileName, pdfBuffer, { contentType: "application/pdf", upsert: true });
+        if (!upErr) {
+          const { data: urlData } = db.storage.from("signed-agreements").getPublicUrl(fileName);
+          pdfUrl = urlData?.publicUrl || null;
+        } else {
+          console.warn("[insurance] PDF upload failed:", upErr.message);
+        }
+      } catch (uploadErr) {
+        console.warn("[insurance] PDF upload error:", uploadErr.message);
+      }
+    }
+
+    // ── Insert policy record ────────────────────────────────────────────────
+    const record = {
+      user_id: user.id,
+      policy_no: policyNo,
+      plan_type: planType || null,
+      plan_label: planLabel || null,
+      cover_amount: coverAmount || null,
+      base_premium: basePremium || null,
+      total_monthly: totalMonthly || null,
+      deduction_date: deductionDate || null,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      age: age || null,
+      pdf_url: pdfUrl,
+      addon_details: JSON.stringify(addonDetails),
+      dependents: JSON.stringify(dependents),
+      status: "active",
+      created_at: new Date().toISOString(),
+    };
+
+    if (pgPool) {
+      const keys = Object.keys(record);
+      const vals = Object.values(record);
+      const placeholders = keys.map((_, i) => `$${i + 1}`).join(", ");
+      await fmQuery(
+        `INSERT INTO insurance_policies (${keys.join(", ")}) VALUES (${placeholders})`,
+        vals
+      ).catch(e => console.warn("[insurance] Insert failed:", e.message));
+    } else {
+      const { error: insertErr } = await db.from("insurance_policies").insert(record);
+      if (insertErr) console.warn("[insurance] Insert failed:", insertErr.message);
+    }
+
+    console.log(`[insurance] Policy ${policyNo} saved for user ${user.id}. PDF: ${pdfUrl ? "uploaded" : "none"}`);
+    return res.json({ success: true, policyNo, pdfUrl });
+  } catch (e) {
+    console.error("[insurance] save-policy error:", e.message);
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ── Funeral Cover Policy Email ─────────────────────────────────────────────
 app.post("/api/insurance/send-policy-email", async (req, res) => {
   try {
@@ -7068,11 +7205,13 @@ app.post("/api/insurance/send-policy-email", async (req, res) => {
       basePremium, addonDetails, totalMonthly, deductionDate, dateStr,
     });
 
+    if (!process.env.RESEND_API_KEY) {
+      console.warn("[insurance/send-policy-email] RESEND_API_KEY not set — skipping email");
+      return res.status(200).json({ success: true, email_sent: false, reason: "Email service not configured" });
+    }
+
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
-    if (!resend) {
-      return res.status(503).json({ success: false, error: "Email service not configured" });
-    }
 
     const toEmail = user.email;
     const resp = await resend.emails.send({

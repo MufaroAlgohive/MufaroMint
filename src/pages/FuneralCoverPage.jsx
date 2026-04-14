@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useMemo, useEffect } from "react";
-import { ArrowLeft, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain, FileText, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Shield, User, Users, Baby, Landmark, Zap, Shirt, ShoppingCart, Mountain, FileText, Loader2, AlertCircle } from "lucide-react";
 import { generateFuneralCoverPDF } from "../lib/generateFuneralCoverPDF";
 import { supabase } from "../lib/supabase";
 
@@ -36,6 +36,21 @@ function parseDobLocal(dob) {
   const parts = dob.split("-").map(Number);
   if (parts.length === 3) return new Date(parts[0], parts[1] - 1, parts[2]);
   return new Date(dob);
+}
+
+// Derive YYYY-MM-DD date of birth from a 13-digit SA ID number
+function dobFromSaId(idNumber) {
+  const clean = String(idNumber || "").replace(/\D/g, "");
+  if (clean.length < 13) return null;
+  const yy = parseInt(clean.substring(0, 2), 10);
+  const mm = clean.substring(2, 4);
+  const dd = clean.substring(4, 6);
+  const currentYY = new Date().getFullYear() % 100;
+  // IDs with yy <= current 2-digit year are 20xx, otherwise 19xx
+  const fullYear = yy <= currentYY ? `20${String(yy).padStart(2, "0")}` : `19${String(yy).padStart(2, "0")}`;
+  const date = new Date(`${fullYear}-${mm}-${dd}`);
+  if (isNaN(date.getTime())) return null;
+  return `${fullYear}-${mm}-${dd}`;
 }
 function calcAge(dob) {
   if (!dob) return null;
@@ -81,10 +96,10 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
   // Step 1
   const [planType, setPlanType] = useState("individual");
 
-  // Step 2
+  // Step 2 — derive DOB from profile: prefer dateOfBirth, fall back to ID number
   const [firstName, setFirstName] = useState(profile?.firstName || "");
   const [lastName, setLastName]   = useState(profile?.lastName  || "");
-  const profileDob = profile?.dateOfBirth || "";
+  const profileDob = profile?.dateOfBirth || dobFromSaId(profile?.idNumber) || "";
   const [dob, setDob]             = useState(profileDob);
   const [manualAge, setManualAge] = useState(35);
   const [useManualAge, setUseManualAge] = useState(!profileDob);
@@ -143,7 +158,7 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
         const { data, error } = await supabase
           .from("family_members")
           .select("first_name, last_name, date_of_birth, relationship")
-          .eq("user_id", session.user.id);
+          .eq("primary_user_id", session.user.id);
         if (error || !data || cancelled) return;
         const imported = data
           .filter(m => m.relationship === "spouse" || m.relationship === "child")
@@ -224,6 +239,8 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
 
   const shouldRecommendPlanChange = recommendedPlan && planType !== recommendedPlan && planType !== "stokvel";
 
+  const MAX_ADDONS = 3;
+
   function toggleAddon(key) {
     const def = ADDONS.find(a => a.key === key);
     setAddons(prev => {
@@ -232,7 +249,10 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
       const sameType = def
         ? ADDONS.filter(a => a.type === def.type && a.key !== key).map(a => a.key)
         : [];
-      return [...prev.filter(k => !sameType.includes(k)), key];
+      const next = prev.filter(k => !sameType.includes(k));
+      // Enforce max-3 cap (count unique types after dedup)
+      if (next.length >= MAX_ADDONS) return prev;
+      return [...next, key];
     });
   }
 
@@ -247,27 +267,95 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
   }, [availableAddons]);
 
   async function handleGeneratePDF() {
+    // Open the print window SYNCHRONOUSLY before any awaits — popup blockers
+    // kill window.open() if it's called after an async operation.
+    const printWin = window.open("", "_blank");
+    if (printWin) {
+      printWin.document.write("<html><body style='font-family:sans-serif;padding:40px;color:#555'><p>Preparing your policy document…</p></body></html>");
+      printWin.document.close();
+    }
+
     setGenerating(true);
     try {
       const planLabel = PLAN_TYPES.find(p => p.key === planType)?.label || planType;
 
+      // ── 1. Generate a storable PDF (jsPDF) and save to DB ─────────────────
+      let savedPolicyNo = null;
+      try {
+        const { jsPDF } = await import("jspdf");
+        const doc = new jsPDF({ unit: "mm", format: "a4" });
+        const now = new Date();
+        const dateStr = now.toLocaleDateString("en-ZA", { day: "2-digit", month: "long", year: "numeric" });
+        const policyNo = `MNT${Math.floor(100000 + Math.random() * 899999)}`;
+        savedPolicyNo = policyNo;
+
+        // Build simple text summary to embed
+        doc.setFontSize(20); doc.text("Mint Funeral Cover Policy", 20, 25);
+        doc.setFontSize(11);
+        doc.text(`Policy No: ${policyNo}`, 20, 38);
+        doc.text(`Date: ${dateStr}`, 20, 45);
+        doc.text(`Policyholder: ${firstName} ${lastName}`, 20, 55);
+        doc.text(`Age: ${age}`, 20, 62);
+        doc.text(`Plan: ${planLabel}`, 20, 69);
+        doc.text(`Cover Amount: R${Number(coverAmount).toLocaleString("en-ZA")}`, 20, 76);
+        doc.text(`Base Premium: R${Number(basePremium).toFixed(2)}/month`, 20, 83);
+        if (addonDetails.length > 0) {
+          doc.text("Optional Benefits:", 20, 93);
+          addonDetails.forEach((a, i) => {
+            doc.text(`  ${a.label}: +R${Number(a.premium).toFixed(2)}/month`, 20, 100 + i * 7);
+          });
+        }
+        doc.text(`Total Monthly Premium: R${Number(totalMonthly).toFixed(2)}`, 20, 110 + addonDetails.length * 7);
+        doc.text(`Deduction Date: ${deductionDate} of each month`, 20, 118 + addonDetails.length * 7);
+        doc.text("Waiting period: 6 months. Underwritten by GuardRisk Life Ltd (FSP 76).", 20, 128 + addonDetails.length * 7);
+        doc.text("Mint Financial Services (Pty) Ltd — FSP 55118 — www.mymint.co.za", 20, 136 + addonDetails.length * 7);
+
+        const pdfBase64 = doc.output("datauristring").split(",")[1];
+
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess?.session?.access_token;
+
+        if (token) {
+          await fetch("/api/insurance/save-policy", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              policyNo, planType, planLabel, coverAmount, basePremium,
+              totalMonthly, deductionDate, firstName, lastName, age,
+              addonDetails, dependents, pdfBase64,
+            }),
+          });
+        }
+      } catch (saveErr) {
+        console.warn("[funeral-cover] PDF save failed (non-fatal):", saveErr.message);
+      }
+
+      // ── 2. Build and display the policy document ──────────────────────────
       const result = await generateFuneralCoverPDF({
-        firstName,
-        lastName,
-        age,
-        ageBand,
-        planType,
-        planLabel,
-        coverAmount,
-        basePremium,
-        addonDetails,
-        totalMonthly,
-        deductionDate,
+        firstName, lastName, age, ageBand, planType, planLabel,
+        coverAmount, basePremium, addonDetails, totalMonthly, deductionDate,
         societySize: planType === "stokvel" ? societySize : null,
-        dependents,
+        dependents, overridePolicyNo: savedPolicyNo,
       });
 
-      // Send confirmation email to client
+      // Navigate the pre-opened window to the policy HTML via a Blob URL
+      // (more reliable than document.write — works in Safari/WebKit after async)
+      if (result?.fullHtml) {
+        const blob = new Blob([result.fullHtml], { type: "text/html" });
+        const url  = URL.createObjectURL(blob);
+        if (printWin && !printWin.closed) {
+          printWin.location.href = url;
+        } else {
+          // Fallback: open a new window (may be blocked, but we tried)
+          window.open(url, "_blank");
+        }
+        // Auto-print after fonts have loaded
+        setTimeout(() => {
+          try { if (printWin && !printWin.closed) printWin.print(); } catch (_) {}
+        }, 2000);
+      }
+
+      // ── 3. Send confirmation email ────────────────────────────────────────
       try {
         const { data: sess } = await supabase.auth.getSession();
         const token = sess?.session?.access_token;
@@ -729,7 +817,22 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
                 <p className="text-[16px] font-bold text-slate-900">Add Optional Benefits</p>
               </div>
             </div>
-            <p className="text-sm text-slate-600 mb-4">Enhance your cover with optional add-on benefits for extra peace of mind</p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-slate-600">Enhance your cover with optional add-on benefits</p>
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                addons.length >= MAX_ADDONS
+                  ? "bg-violet-600 border-violet-600 text-white"
+                  : "bg-violet-50 border-violet-200 text-violet-700"
+              }`}>
+                {addons.length}/{MAX_ADDONS}
+              </div>
+            </div>
+            {addons.length >= MAX_ADDONS && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 mb-4 flex items-center gap-2">
+                <span className="text-amber-600 text-sm">⚠️</span>
+                <p className="text-xs text-amber-700 font-medium">Maximum of {MAX_ADDONS} benefits selected. Remove one to choose a different benefit.</p>
+              </div>
+            )}
 
             {groupedAddons.length === 0 ? (
               <div className="rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 px-6 py-8 text-center">
@@ -864,7 +967,7 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
                   { label:"Policyholder", value:`${firstName} ${lastName}`.trim() },
                   { label:"Age", value: `${age} years` },
                   { label:"Waiting Period", value: "6 months" },
-                  ...(dependents.length > 0 ? [{ label: "Covered Family", value: `${dependents.length} member${dependents.length>1?"s":""}` }] : []),
+                  ...(dependents.length > 0 && planType !== "individual" ? [{ label: "Covered Family", value: `${dependents.length} member${dependents.length>1?"s":""}` }] : []),
                 ].map(row => (
                   <div key={row.label} className="flex items-center justify-between py-2">
                     <span className="text-sm text-slate-600">{row.label}</span>
@@ -876,10 +979,10 @@ export default function FuneralCoverPage({ onBack, profile, initialDependents = 
 
             {/* Premium Breakdown */}
             <div className="rounded-2xl bg-white border border-slate-100 shadow-md p-6">
-              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-violet-600"></div>
                 Premium Breakdown
-              </p>
+              </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50">

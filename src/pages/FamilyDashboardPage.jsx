@@ -137,7 +137,14 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error || "Could not send pairing request."); return; }
-      setSpousePending({ member_id: json.member_id, masked_email: json.masked_email });
+      setSpousePending({
+        member_id: json.member_id,
+        masked_email: json.masked_email,
+        email_sent: json.email_sent !== false, // treat missing as true (legacy)
+        fallback_code: json.fallback_code || null,
+      });
+      // Auto-fill the code input when email wasn't sent so the user can share it manually
+      if (json.fallback_code) setSpousePairingCode(json.fallback_code);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -633,10 +640,23 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
           {/* ── Link mode: step 2 — enter code ── */}
           {isSpouse && !spouseResult && spouseMode === "link" && spousePending && (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-4">
-                <p className="text-sm font-semibold text-emerald-800 mb-1">Pairing code sent!</p>
-                <p className="text-xs text-emerald-700 leading-relaxed">A 6-digit code was emailed to <strong>{spousePending.masked_email}</strong>. Ask your partner to share the code with you.</p>
-              </div>
+              {/* Email sent vs fallback warning */}
+              {spousePending.email_sent !== false ? (
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-4">
+                  <p className="text-sm font-semibold text-emerald-800 mb-1">Pairing code sent!</p>
+                  <p className="text-xs text-emerald-700 leading-relaxed">A 6-digit code was emailed to <strong>{spousePending.masked_email}</strong>. Ask your partner to share the code with you.</p>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-amber-50 border border-amber-200 px-4 py-4">
+                  <p className="text-sm font-semibold text-amber-800 mb-1">⚠️ Email not sent — share the code manually</p>
+                  <p className="text-xs text-amber-700 leading-relaxed mb-3">Email delivery is not configured. Share the code below directly with <strong>{spousePending.masked_email}</strong> so they can confirm the link.</p>
+                  {spousePending.fallback_code && (
+                    <div className="flex items-center justify-center rounded-xl bg-white border border-amber-200 py-3">
+                      <p className="text-2xl font-bold tracking-[0.5em] text-amber-800 select-all">{spousePending.fallback_code}</p>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="rounded-3xl bg-[#F5F3FF] p-4">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Enter 6-digit code</p>
                 <input type="text" inputMode="numeric" maxLength={6} value={spousePairingCode} onChange={(e) => { setSpousePairingCode(e.target.value.replace(/\D/g, "")); setError(""); }} placeholder="000 000" autoComplete="off" className={`${inputCls} text-center text-2xl tracking-[0.5em] font-bold`} />
