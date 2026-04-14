@@ -644,7 +644,16 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       onUpdate({ ...child, id_number: clean });
       if (!child.poa_declaration_url) { setStep("poa"); }
       else if (!child.signed_agreement_url) { setStep("agreement"); }
-      else { onClose(); }
+      else {
+        // All steps already done — mark address_completed
+        await fetch(`/api/family-members/${child.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address_completed: true }),
+        });
+        onUpdate({ ...child, id_number: clean, address_completed: true });
+        onClose();
+      }
     } catch { setIdError("Save failed. Please try again."); }
     finally { setSaving(false); }
   }
@@ -698,7 +707,16 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
         onUpdate({ ...child, poa_declaration_url: poaUrl });
       }
       if (!child.signed_agreement_url) { setStep("agreement"); }
-      else { onClose(); }
+      else {
+        // All steps done — mark address_completed
+        await fetch(`/api/family-members/${child.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address_completed: true }),
+        });
+        onUpdate({ ...child, poa_declaration_url: poaUrl, address_completed: true });
+        onClose();
+      }
     } catch (e) {
       console.error("[complete-poa]", e);
       setFlowError(e?.message || "Proof of address upload failed. Please try again.");
@@ -730,14 +748,14 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       const patchRes = await fetch(`/api/family-members/${child.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ signed_agreement_url: uploadJson.publicUrl, signed_at: signedAt }),
+        body: JSON.stringify({ signed_agreement_url: uploadJson.publicUrl, signed_at: signedAt, address_completed: true }),
       });
       if (!patchRes.ok) {
         const patchJson = await patchRes.json().catch(() => ({}));
         throw new Error(patchJson?.error || "Failed to save signed agreement.");
       }
 
-      onUpdate({ ...child, signed_agreement_url: uploadJson.publicUrl });
+      onUpdate({ ...child, signed_agreement_url: uploadJson.publicUrl, address_completed: true });
       onClose();
     } catch (e) {
       console.error("[complete-agreement]", e);
@@ -882,7 +900,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
     !child?.poa_declaration_url && "proof of address",
     !child?.signed_agreement_url && "responsibility agreement",
   ].filter(Boolean);
-  const isProfileIncomplete = missingItems.length > 0;
+  const isProfileIncomplete = !child?.address_completed;
 
   useEffect(() => {
     isMounted.current = true;
