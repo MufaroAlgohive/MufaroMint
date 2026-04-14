@@ -71,7 +71,7 @@ function extractSalaryPaymentDate(transactions) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", process.env.CORS_ORIGIN || "");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
@@ -189,14 +189,16 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (existingAction) {
-      await supabaseAdmin
+      const { error: actionErr } = await supabaseAdmin
         .from("required_actions")
         .update({ bank_linked: true, bank_in_review: false })
         .eq("user_id", user.id);
+      if (actionErr) console.warn("[banking/capture] required_actions update failed:", actionErr.message);
     } else {
-      await supabaseAdmin
+      const { error: actionErr } = await supabaseAdmin
         .from("required_actions")
         .insert({ user_id: user.id, bank_linked: true, bank_in_review: false });
+      if (actionErr) console.warn("[banking/capture] required_actions insert failed:", actionErr.message);
     }
 
     return res.json({ success: true, snapshot: savedSnapshot, truidRaw: data });

@@ -2,9 +2,56 @@ import { supabase } from "./supabase";
 
 // Simple in-memory cache with timestamps
 const cache = {
-  markets: { data: null, timestamp: 0, ttl: 60000 }, // 60 seconds
-  priceHistory: new Map(), // key: `${security_id}_${timeframe}`, value: { data, timestamp, ttl }
+  markets: { data: null, timestamp: 0, ttl: 60000 },
+  priceHistory: new Map(),
 };
+
+// Map UI timeframe strings to the reference price columns in security_metrics
+const TIMEFRAME_REF_COLS = {
+  "1D":  { date: "1W_Date",  price: "1W_Price"  }, // no intraday — use 1W anchor
+  "1W":  { date: "1W_Date",  price: "1W_Price"  },
+  "WTD": { date: "WTD_Date", price: "WTD_Price" },
+  "1M":  { date: "1M_Date",  price: "1M_Price"  },
+  "3M":  { date: "3M_Date",  price: "3M_Price"  },
+  "6M":  { date: "YTD_Date", price: "YTD_Price" }, // use YTD as closest anchor
+  "YTD": { date: "YTD_Date", price: "YTD_Price" },
+  "1Y":  { date: "YTD_Date", price: "YTD_Price" }, // use YTD as closest anchor
+};
+
+/**
+ * Normalise a raw security_metrics row into the shape the UI expects.
+ * Prices are in Rands (no /100 needed). Returns are decimals (×100 for %).
+ */
+const processSecurity = (security) => ({
+  ...security,
+  // Ensure id always points to the securities PK so getSecurityPrices FK works
+  id: security.security_id,
+  // close_price alias already set by the view (last_close → close_price)
+  currentPrice: security.close_price != null ? Number(security.close_price) : null,
+  changePct: security.change_pct != null ? Number(security.change_pct) * 100 : null,
+  // Prefer DB value; fall back to close_price - prev_close if null
+  changeAbs: security.change_abs != null
+    ? Number(security.change_abs)
+    : (security.close_price != null && security.prev_close != null
+        ? Number(security.close_price) - Number(security.prev_close)
+        : null),
+  returns: {
+    d1:  security.r_1d  != null ? Number(security.r_1d)  * 100 : null,
+    wtd: security.r_wtd != null ? Number(security.r_wtd) * 100 : null,
+    w1:  security.r_1w  != null ? Number(security.r_1w)  * 100 : null,
+    m1:  security.r_1m  != null ? Number(security.r_1m)  * 100 : null,
+    m3:  security.r_3m  != null ? Number(security.r_3m)  * 100 : null,
+    m6:  security.r_6m  != null ? Number(security.r_6m)  * 100 : null,
+    ytd: security.r_ytd != null ? Number(security.r_ytd) * 100 : null,
+    y1:  security.r_1y  != null ? Number(security.r_1y)  * 100 : null,
+  },
+  volatility: security.volatility_30d != null ? Number(security.volatility_30d) : null,
+  avgVolume:  security.avg_volume_30d  != null ? Number(security.avg_volume_30d)  : null,
+  // Legacy fields for backward compatibility
+  last_price:        security.close_price,
+  ytd_performance:   security.r_ytd != null ? Number(security.r_ytd) * 100 : null,
+  change_percentage: security.change_pct != null ? Number(security.change_pct) * 100 : null,
+});
 
 /**
  * Get all securities with their latest metrics from Supabase
@@ -12,8 +59,7 @@ const cache = {
  */
 export const getMarketsSecuritiesWithMetrics = async () => {
   const now = Date.now();
-  
-  // Check cache
+
   if (cache.markets.data && (now - cache.markets.timestamp) < cache.markets.ttl) {
     console.log("📦 Using cached markets data");
     return cache.markets.data;
@@ -25,45 +71,39 @@ export const getMarketsSecuritiesWithMetrics = async () => {
   }
 
   try {
-    console.log("🔍 Fetching securities with metrics from Supabase...");
-    
-    // Fetch securities - last_price and change_percentage are directly on securities table
+    console.log("🔍 Fetching rich market data from v_latest_security_metrics...");
+
     const { data: securities, error: securitiesError } = await supabase
-      .from("securities")
-      .select(`
-        *
-      `)
-      .eq("is_active", true)
+      .from("v_latest_security_metrics")
+      .select("*")
       .order("market_cap", { ascending: false, nullsFirst: false });
 
     if (securitiesError) {
-      console.error("❌ Error fetching securities:", securitiesError);
-      throw securitiesError;
+      console.error("❌ Error fetching securities from view:", securitiesError);
+
+      // Fallback to basic securities table if view fails
+      console.log("⚠️ Falling back to basic securities table...");
+      const { data: fallbackSecurities, error: fallbackError } = await supabase
+        .from("securities")
+        .select("*")
+        .eq("is_active", true)
+        .order("market_cap", { ascending: false, nullsFirst: false });
+
+      if (fallbackError) throw fallbackError;
+      return (fallbackSecurities || []).map(s => ({
+        ...s,
+        currentPrice: s.last_price ? Number(s.last_price) : null,
+        changePct: Number(s.change_percentage || s.change_percent || 0),
+      }));
     }
 
-    console.log("🔍 Raw securities sample:", securities?.[0]);
+    const processedSecurities = (securities || []).map(processSecurity);
 
-    // Process securities - convert last_price from cents to Rands
-    const processedSecurities = (securities || []).map(security => {
-      return {
-        ...security,
-        // Convert last_price from cents to Rands by dividing by 100
-        currentPrice: security.last_price ? Number(security.last_price) / 100 : null,
-        // Use change_percentage directly without division
-        changePct: security.change_percentage != null
-          ? Number(security.change_percentage)
-          : security.change_percent != null
-            ? Number(security.change_percent)
-            : null,
-      };
-    });
+    console.log(`✅ Fetched ${processedSecurities.length} securities with rich metrics`);
 
-    console.log(`✅ Fetched ${processedSecurities.length} securities with metrics`);
-    
-    // Update cache
     cache.markets.data = processedSecurities;
     cache.markets.timestamp = now;
-    
+
     return processedSecurities;
   } catch (error) {
     console.error("💥 Exception while fetching securities with metrics:", error);
@@ -84,13 +124,11 @@ export const getSecurityBySymbol = async (symbol) => {
 
   try {
     console.log(`🔍 Fetching security ${symbol}...`);
-    
-    // First, fetch the security
+
     const { data: security, error: securityError } = await supabase
-      .from("securities")
+      .from("v_latest_security_metrics")
       .select("*")
       .eq("symbol", symbol)
-      .eq("is_active", true)
       .single();
 
     if (securityError) {
@@ -103,23 +141,8 @@ export const getSecurityBySymbol = async (symbol) => {
       return null;
     }
 
-    console.log(`✅ Found security ${symbol}, id: ${security.id}`);
-    
-    const processedSecurity = {
-      ...security,
-      // Convert last_price from cents to Rands by dividing by 100
-      currentPrice: security.last_price ? Number(security.last_price) / 100 : null,
-        // change_price is already in cents, keep it as is for flexibility
-        change_price: security.change_price != null ? Number(security.change_price) : null,
-      // Use change_percentage or change_percent directly without division
-      changePct: security.change_percentage != null
-        ? Number(security.change_percentage)
-        : security.change_percent != null
-          ? Number(security.change_percent)
-          : null,
-    };
-
-    console.log(`✅ Processed ${symbol} with currentPrice: ${processedSecurity.currentPrice}, changeAbs: ${processedSecurity.changeAbs}`);
+    const processedSecurity = processSecurity(security);
+    console.log(`✅ Processed ${symbol} — price: ${processedSecurity.currentPrice}, changePct: ${processedSecurity.changePct}`);
     return processedSecurity;
   } catch (error) {
     console.error(`💥 Exception while fetching security ${symbol}:`, error);
@@ -128,10 +151,18 @@ export const getSecurityBySymbol = async (symbol) => {
 };
 
 /**
- * Get price history for a security based on timeframe
- * @param {string} securityId - The security ID
- * @param {string} timeframe - One of: "1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "5Y"
- * @returns {Promise<Array>} Array of {ts, close} objects
+ * Get price history for a security based on timeframe.
+ *
+ * Strategy:
+ *   1. Query security_metrics for all daily rows within the date range.
+ *      This grows naturally as the nightly script runs each day.
+ *   2. If fewer than 2 rows exist (data still bootstrapping), fall back to a
+ *      2-point chart using the reference anchor price already embedded in the
+ *      latest security_metrics row (e.g. "1W_Price"/"1W_Date" → last_close/as_of_date).
+ *
+ * @param {string} securityId - The security UUID (securities.id)
+ * @param {string} timeframe  - One of: "1D", "1W", "1M", "3M", "6M", "YTD", "1Y"
+ * @returns {Promise<Array>} Array of {ts, close} objects (close in Rands)
  */
 export const getSecurityPrices = async (securityId, timeframe = "1M") => {
   if (!supabase || !securityId) {
@@ -139,95 +170,78 @@ export const getSecurityPrices = async (securityId, timeframe = "1M") => {
     return [];
   }
 
-  // Check cache
   const cacheKey = `${securityId}_${timeframe}`;
   const cached = cache.priceHistory.get(cacheKey);
   const now = Date.now();
-  
-  if (cached && (now - cached.timestamp) < 60000) { // 60 second TTL
+
+  if (cached && (now - cached.timestamp) < 60000) {
     console.log(`📦 Using cached price history for ${cacheKey}`);
     return cached.data;
   }
 
   try {
-    console.log(`🔍 Fetching price history for security ${securityId}, timeframe ${timeframe}...`);
-    
-    // Calculate how many days to fetch based on timeframe
-    let daysToFetch = 30;
-    let dateFilter = null;
-    
-    switch (timeframe) {
-      case "1D":
-        // Since we don't have intraday data yet, fetch last 30 days and display as "1M" style
-        daysToFetch = 30;
-        break;
-      case "1W":
-        daysToFetch = 10; // ~2 weeks of trading days to get 7-10 days
-        break;
-      case "1M":
-        daysToFetch = 45; // ~30 trading days
-        break;
-      case "3M":
-        daysToFetch = 110; // ~90 trading days
-        break;
-      case "6M":
-        daysToFetch = 220; // ~180 trading days
-        break;
-      case "YTD":
-        // Get from Jan 1 of current year
-        const currentYear = new Date().getFullYear();
-        dateFilter = new Date(currentYear, 0, 1).toISOString();
-        break;
-      case "1Y":
-        daysToFetch = 420; // ~365 trading days
-        break;
-      case "5Y":
-        daysToFetch = 1825; // ~5 years
-        break;
-      case "ALL":
-        daysToFetch = 1825; // ~5 years max
-        break;
-      default:
-        daysToFetch = 45;
-    }
+    console.log(`🔍 Fetching price history for ${securityId}, timeframe ${timeframe}...`);
 
-    let query = supabase
-      .from("security_prices")
-        .select("ts, close_price")
-      .eq("security_id", securityId)
-      .order("ts", { ascending: true });
-
-    if (dateFilter) {
-      // YTD filter
-      query = query.gte("ts", dateFilter);
+    // ── Step 1: date range for historical query ──────────────────
+    let cutoffDate;
+    if (timeframe === "YTD") {
+      cutoffDate = `${new Date().getFullYear()}-01-01`;
     } else {
-      // Fetch last N days
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysToFetch);
-      query = query.gte("ts", cutoffDate.toISOString());
+      const daysMap = { "1D": 30, "1W": 10, "1M": 45, "3M": 110, "6M": 220, "1Y": 420 };
+      const days = daysMap[timeframe] ?? 45;
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      cutoffDate = d.toISOString().split("T")[0];
     }
 
-    const { data, error } = await query;
+    const { data: historicalRows, error } = await supabase
+      .from("security_metrics")
+      .select("as_of_date, last_close")
+      .eq("security_id", securityId)
+      .gte("as_of_date", cutoffDate)
+      .order("as_of_date", { ascending: true });
 
     if (error) {
       console.error(`❌ Error fetching price history:`, error);
       throw error;
     }
 
-    const prices = (data || []).map(row => ({
-      ts: row.ts,
-        // close_price is in cents, convert to Rands
-        close: row.close_price ? Number(row.close_price) / 100 : null,
-    }));
+    let prices = [];
 
-    console.log(`✅ Fetched ${prices.length} price points for ${timeframe}`);
-    
-    // Cache the result
-    cache.priceHistory.set(cacheKey, {
-      data: prices,
-      timestamp: now,
-    });
-    
+    if (historicalRows && historicalRows.length >= 2) {
+      // ── Enough daily history — use it directly ───────────────
+      prices = historicalRows.map(row => ({
+        ts: row.as_of_date,
+        close: row.last_close != null ? Number(row.last_close) : null,
+      }));
+      console.log(`✅ Fetched ${prices.length} historical rows for ${timeframe}`);
+    } else {
+      // ── Fallback: 2-point chart from embedded reference prices ─
+      console.log(`⚠️ Insufficient history (${historicalRows?.length ?? 0} rows) — building 2-point chart from reference prices`);
+
+      const refCols = TIMEFRAME_REF_COLS[timeframe] ?? TIMEFRAME_REF_COLS["1M"];
+      const selectCols = `as_of_date, last_close, "${refCols.date}", "${refCols.price}"`;
+
+      const { data: refRow, error: refError } = await supabase
+        .from("security_metrics")
+        .select(selectCols)
+        .eq("security_id", securityId)
+        .order("as_of_date", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!refError && refRow && refRow[refCols.date] && refRow[refCols.price]) {
+        prices = [
+          { ts: refRow[refCols.date],  close: Number(refRow[refCols.price]) },
+          { ts: refRow.as_of_date,     close: Number(refRow.last_close)     },
+        ];
+        console.log(`✅ Built 2-point chart: ${prices[0].ts} → ${prices[1].ts}`);
+      } else {
+        console.warn(`⚠️ No reference price data available for ${securityId}`);
+      }
+    }
+
+    cache.priceHistory.set(cacheKey, { data: prices, timestamp: now });
     return prices;
   } catch (error) {
     console.error(`💥 Exception while fetching price history:`, error);
@@ -242,10 +256,10 @@ export const getSecurityPrices = async (securityId, timeframe = "1M") => {
  */
 export const normalizePriceSeries = (prices) => {
   if (!prices || prices.length === 0) return [];
-  
+
   const firstClose = prices[0].close;
   if (!firstClose || firstClose === 0) return prices;
-  
+
   return prices.map(point => ({
     ...point,
     normalized: (point.close / firstClose) * 100,

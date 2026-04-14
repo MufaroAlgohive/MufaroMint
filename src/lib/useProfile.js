@@ -143,6 +143,7 @@ export const useProfile = ({ enabled = true } = {}) => {
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
             await loadProfile();
           } else if (event === 'SIGNED_OUT') {
+            globalProfileCache = null;
             setProfile(emptyProfile);
             setLoading(false);
           }

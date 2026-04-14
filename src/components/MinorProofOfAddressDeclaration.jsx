@@ -3,15 +3,29 @@ import SignaturePad from "signature_pad";
 import jsPDF from "jspdf";
 import { Check, Home, Navigation, MapPin, Users, X, AlertCircle, PenTool } from "lucide-react";
 
-const MINT_PURPLE = [91, 33, 182];
+// ─── Brand tokens ─────────────────────────────────────────────────────────────
+const MINT_PURPLE   = [91, 33, 182];       // #5B21B6
+const MINT_MID      = [109, 40, 217];      // #6D28D9
+const MINT_LIGHT    = [167, 139, 250];     // #A78BFA
+const MINT_FAINT    = [237, 233, 254];     // #EDE9FE
+const DARK_INK      = [30, 27, 75];        // near-black navy
+const BODY_TEXT     = [55, 48, 90];        // body prose
+const LABEL_TEXT    = [130, 100, 170];     // soft purple labels
+const BORDER_CLR    = [220, 212, 245];
+const WHITE         = [255, 255, 255];
+
 const MINT_LOGO_URL =
   "https://mfxnghmuccevsxwcetej.supabase.co/storage/v1/object/public/Mint%20Assets/tMOmeIOo4KE20Yh1bIuk8PFMlFHZ421rVESa2dcn.jpg";
 const CEO_SIGNATURE_URL = "/assets/ceo-signature.png";
-const PAGE_W = 210;
-const PAGE_H = 297;
-const MARGIN = 15;
-const COL1 = 65;
-const COL2 = PAGE_W - MARGIN * 2 - COL1;
+
+const PAGE_W  = 210;
+const PAGE_H  = 297;
+const MARGIN  = 14;
+const COL1    = 62;
+const COL2    = PAGE_W - MARGIN * 2 - COL1;
+
+// Header band height
+const HEADER_H = 38;
 
 function formatDateLong(iso) {
   if (!iso) return "—";
@@ -44,42 +58,123 @@ async function fetchImageBase64(url) {
   }
 }
 
-function drawRow(doc, y, label, value) {
-  const px = 3, py = 2.5, lh = 5.5;
+// ─── Striped data row ─────────────────────────────────────────────────────────
+function drawRow(doc, y, label, value, evenRow = false) {
+  const px = 3.5, py = 2.5, lh = 5.5;
   const valLines = doc.splitTextToSize(String(value || "—"), COL2 - px * 2);
   const rowH = Math.max(valLines.length * lh + py * 2, 10);
-  doc.setDrawColor(220, 220, 230);
-  doc.setLineWidth(0.25);
-  doc.setFillColor(248, 246, 255);
+
+  // label cell
+  doc.setDrawColor(...BORDER_CLR);
+  doc.setLineWidth(0.2);
+  doc.setFillColor(...(evenRow ? [243, 240, 255] : MINT_FAINT));
   doc.rect(MARGIN, y, COL1, rowH, "FD");
-  doc.setFillColor(255, 255, 255);
+  // value cell
+  doc.setFillColor(...(evenRow ? WHITE : [250, 249, 255]));
   doc.rect(MARGIN + COL1, y, COL2, rowH, "FD");
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7.5);
-  doc.setTextColor(120, 100, 160);
-  doc.text(label.toUpperCase(), MARGIN + px, y + py + 3.5);
+
+  // left accent strip on label
+  doc.setFillColor(...MINT_LIGHT);
+  doc.rect(MARGIN, y, 1.5, rowH, "F");
+
+  // label text
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...LABEL_TEXT);
+  doc.text(label.toUpperCase(), MARGIN + 4, y + py + 3.5);
+
+  // value text
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.setTextColor(30, 27, 75);
+  doc.setTextColor(...DARK_INK);
   valLines.forEach((l, i) => doc.text(l, MARGIN + COL1 + px, y + py + 3.5 + i * lh));
   return y + rowH;
 }
 
+// ─── Section heading pill ─────────────────────────────────────────────────────
+function drawSectionHeading(doc, y, title) {
+  const pillH = 7.5;
+  doc.setFillColor(...MINT_PURPLE);
+  doc.roundedRect(MARGIN, y, PAGE_W - MARGIN * 2, pillH, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...WHITE);
+  doc.text(title, MARGIN + 4, y + 5);
+  return y + pillH + 2;
+}
+
+// ─── Rich branded header ──────────────────────────────────────────────────────
 function addPageHeader(doc, logoB64, pageNum, totalPages) {
-  doc.setFillColor(255, 255, 255);
+  // White background
+  doc.setFillColor(...WHITE);
   doc.rect(0, 0, PAGE_W, PAGE_H, "F");
+
+  // ── Top purple band ──
+  doc.setFillColor(...MINT_PURPLE);
+  doc.rect(0, 0, PAGE_W, HEADER_H, "F");
+
+  // Lighter accent strip at bottom of band
+  doc.setFillColor(...MINT_MID);
+  doc.rect(0, HEADER_H - 2.5, PAGE_W, 2.5, "F");
+
+  // Decorative circles (glassmorphism feel)
+  doc.setFillColor(255, 255, 255);
+  doc.setGState(doc.GState({ opacity: 0.06 }));
+  doc.circle(PAGE_W - 22, -8, 28, "F");
+  doc.circle(PAGE_W - 45, 10, 18, "F");
+  doc.circle(18, 5, 22, "F");
+  doc.setGState(doc.GState({ opacity: 1 }));
+
+  // ── Mint logo, centred vertically in band ──
   if (logoB64?.data) {
     const aspect = logoB64.width / logoB64.height;
-    const h = 10, w = h * aspect;
-    doc.addImage(logoB64.data, "JPEG", PAGE_W - MARGIN - w, MARGIN - 2, w, h, undefined, "FAST");
+    const lh = 14, lw = lh * aspect;
+    const lx = MARGIN;
+    const ly = (HEADER_H - lh) / 2;
+    doc.addImage(logoB64.data, "JPEG", lx, ly, lw, lh, undefined, "FAST");
   }
-  doc.setFillColor(...MINT_PURPLE);
-  doc.rect(MARGIN, MARGIN + 12, PAGE_W - MARGIN * 2, 1.5, "F");
+
+  // Company name next to logo
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(...WHITE);
+  doc.text("Mint", MARGIN + 26, HEADER_H / 2 - 1);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(160, 160, 160);
-  if (totalPages > 1) doc.text(`Page ${pageNum} of ${totalPages}`, PAGE_W - MARGIN, PAGE_H - MARGIN, { align: "right" });
-  doc.text("CONFIDENTIAL — Mint Platforms (Pty) Ltd", MARGIN, PAGE_H - MARGIN);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...MINT_LIGHT);
+  doc.text("Financial Services (Pty) Ltd  ·  FSP No. 55118", MARGIN + 26, HEADER_H / 2 + 5);
+
+  // "CONFIDENTIAL" badge top-right
+  doc.setFillColor(255, 255, 255);
+  doc.setGState(doc.GState({ opacity: 0.15 }));
+  doc.roundedRect(PAGE_W - MARGIN - 34, 5, 34, 8, 2, 2, "F");
+  doc.setGState(doc.GState({ opacity: 1 }));
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...WHITE);
+  doc.text("CONFIDENTIAL", PAGE_W - MARGIN - 32, 10.5);
+
+  // ── Thin gold accent line below header ──
+  doc.setDrawColor(...MINT_LIGHT);
+  doc.setLineWidth(0.4);
+  doc.line(0, HEADER_H, PAGE_W, HEADER_H);
+
+  // ── Footer bar ──
+  doc.setFillColor(...MINT_FAINT);
+  doc.rect(0, PAGE_H - 12, PAGE_W, 12, "F");
+  doc.setDrawColor(...MINT_LIGHT);
+  doc.setLineWidth(0.3);
+  doc.line(0, PAGE_H - 12, PAGE_W, PAGE_H - 12);
+
+  // footer left
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...LABEL_TEXT);
+  doc.text("support@mymint.co.za  ·  www.mymint.co.za", MARGIN, PAGE_H - 4.5);
+
+  // footer right
+  const pageLabel = totalPages > 1 ? `Page ${pageNum} of ${totalPages}` : " ";
+  doc.text(pageLabel, PAGE_W - MARGIN, PAGE_H - 4.5, { align: "right" });
 }
 
 function addCeoSignature(doc, ceoSigB64, y) {
@@ -140,59 +235,54 @@ async function buildSameAddressPdf({ parentProfile, coGuardianProfiles, childDat
 
   addPageHeader(doc, logoB64, 1, 1);
 
-  let y = MARGIN + 20;
+  let y = HEADER_H + 9;
+
+  // Document title block
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...MINT_PURPLE);
+  doc.setFontSize(13);
+  doc.setTextColor(...DARK_INK);
   doc.text("MINOR PROOF OF RESIDENCE DECLARATION", MARGIN, y);
-  y += 6;
-  doc.setFontSize(8);
+  y += 5.5;
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(130, 100, 170);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...LABEL_TEXT);
   doc.text("Financial Intelligence Centre Act 38 of 2001 (FICA) — Minor Account Compliance", MARGIN, y);
   y += 4;
   doc.text("Scenario: Minor resides with parent / guardian at registered address", MARGIN, y);
-  y += 10;
+  y += 7;
+  // thin separator
+  doc.setDrawColor(...BORDER_CLR);
+  doc.setLineWidth(0.4);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 6;
 
-  // Primary guardian
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 27, 75);
-  doc.text("PRIMARY GUARDIAN", MARGIN, y);
-  y += 4;
-  y = drawRow(doc, y, "Name", parentName);
-  y = drawRow(doc, y, "Identity Number", parentId);
-  y = drawRow(doc, y, "Registered Address", parentAddress);
-  y += 4;
+  // Primary guardian section
+  y = drawSectionHeading(doc, y, "PRIMARY GUARDIAN");
+  y = drawRow(doc, y, "Full Name",         parentName,    false);
+  y = drawRow(doc, y, "Identity Number",   parentId,      true);
+  y = drawRow(doc, y, "Registered Address",parentAddress,  false);
+  y += 5;
 
   // Co-guardians
   coGuardianProfiles.forEach((cg, idx) => {
-    const cgName = [cg.firstName, cg.lastName].filter(Boolean).join(" ") || "—";
-    const cgId = cg.idNumber || "—";
+    const cgName    = [cg.firstName, cg.lastName].filter(Boolean).join(" ") || "—";
+    const cgId      = cg.idNumber || "—";
     const cgAddress = cg.address || "Registered address on file with Mint";
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(30, 27, 75);
-    doc.text(`CO-GUARDIAN ${coGuardianProfiles.length > 1 ? idx + 1 : ""}`.trim(), MARGIN, y);
-    y += 4;
-    y = drawRow(doc, y, "Name", cgName);
-    y = drawRow(doc, y, "Identity Number", cgId);
-    y = drawRow(doc, y, "Registered Address", cgAddress);
-    y += 4;
+    y = drawSectionHeading(doc, y, `CO-GUARDIAN${coGuardianProfiles.length > 1 ? " " + (idx + 1) : ""}`);
+    y = drawRow(doc, y, "Full Name",          cgName,    false);
+    y = drawRow(doc, y, "Identity Number",    cgId,      true);
+    y = drawRow(doc, y, "Registered Address", cgAddress, false);
+    y += 5;
   });
 
-  // Child
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 27, 75);
-  doc.text("MINOR (CHILD)", MARGIN, y);
-  y += 4;
-  y = drawRow(doc, y, "Name", childName);
-  y = drawRow(doc, y, "Date of Birth", childDob);
-  y = drawRow(doc, y, "Identity Number", childId);
-  y = drawRow(doc, y, "Residential Address", parentAddress);
-  y = drawRow(doc, y, "Declaration Date", signedDateLong);
-  y += 10;
+  // Minor section
+  y = drawSectionHeading(doc, y, "MINOR (CHILD)");
+  y = drawRow(doc, y, "Full Name",            childName,     false);
+  y = drawRow(doc, y, "Date of Birth",        childDob,      true);
+  y = drawRow(doc, y, "Identity Number",      childId,       false);
+  y = drawRow(doc, y, "Residential Address",  parentAddress, true);
+  y = drawRow(doc, y, "Declaration Date",     signedDateLong,false);
+  y += 8;
 
   const writePara = (text, bold = false) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
@@ -203,11 +293,8 @@ async function buildSameAddressPdf({ parentProfile, coGuardianProfiles, childDat
     y += 2;
   };
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(30, 27, 75);
-  doc.text("DECLARATION BY PARENT / LEGAL GUARDIAN", MARGIN, y);
-  y += 8;
+  y = drawSectionHeading(doc, y, "DECLARATION BY PARENT / LEGAL GUARDIAN");
+  y += 3;
 
   const guardianParty = coGuardianProfiles.length > 0
     ? `We, ${allGuardianNames},`
@@ -267,18 +354,19 @@ async function buildSameAddressPdf({ parentProfile, coGuardianProfiles, childDat
   y = addCeoSignature(doc, ceoSigB64, y);
   y += 6;
 
-  doc.setDrawColor(200, 190, 220);
+  // Legal note
+  doc.setDrawColor(...BORDER_CLR);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(150, 130, 170);
-  const footer = doc.splitTextToSize(
-    "This declaration was completed electronically via Mint App. Mint Financial Services (Pty) Ltd | FSP No. 55118 | support@mymint.co.za | www.mymint.co.za",
+  y += 4;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...LABEL_TEXT);
+  const legalNote = doc.splitTextToSize(
+    "This declaration was completed electronically via the Mint App and is legally binding. Mint Financial Services (Pty) Ltd | FSP No. 55118",
     PAGE_W - MARGIN * 2
   );
-  footer.forEach((l) => { doc.text(l, MARGIN, y); y += 4; });
+  legalNote.forEach((l) => { doc.text(l, MARGIN, y); y += 3.8; });
 
   return doc.output("arraybuffer");
 }
@@ -305,59 +393,53 @@ async function buildDifferentAddressPdf({ parentProfile, coGuardianProfiles, chi
 
   addPageHeader(doc, logoB64, 1, 1);
 
-  let y = MARGIN + 20;
+  let y = HEADER_H + 9;
+
+  // Document title block
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...MINT_PURPLE);
+  doc.setFontSize(13);
+  doc.setTextColor(...DARK_INK);
   doc.text("MINOR PROOF OF RESIDENCE DECLARATION", MARGIN, y);
-  y += 6;
-  doc.setFontSize(8);
+  y += 5.5;
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(130, 100, 170);
+  doc.setFontSize(7.5);
+  doc.setTextColor(...LABEL_TEXT);
   doc.text("Financial Intelligence Centre Act 38 of 2001 (FICA) — Minor Account Compliance", MARGIN, y);
   y += 4;
   doc.text("Scenario: Minor resides at a separate address from parent / guardian", MARGIN, y);
-  y += 10;
+  y += 7;
+  doc.setDrawColor(...BORDER_CLR);
+  doc.setLineWidth(0.4);
+  doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+  y += 6;
 
-  // Primary guardian
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 27, 75);
-  doc.text("PRIMARY GUARDIAN", MARGIN, y);
-  y += 4;
-  y = drawRow(doc, y, "Name", parentName);
-  y = drawRow(doc, y, "Identity Number", parentId);
-  y = drawRow(doc, y, "Guardian's Address", parentAddress);
-  y += 4;
+  // Primary guardian section
+  y = drawSectionHeading(doc, y, "PRIMARY GUARDIAN");
+  y = drawRow(doc, y, "Full Name",         parentName,   false);
+  y = drawRow(doc, y, "Identity Number",   parentId,     true);
+  y = drawRow(doc, y, "Guardian's Address",parentAddress, false);
+  y += 5;
 
   // Co-guardians
   coGuardianProfiles.forEach((cg, idx) => {
-    const cgName = [cg.firstName, cg.lastName].filter(Boolean).join(" ") || "—";
-    const cgId = cg.idNumber || "—";
+    const cgName    = [cg.firstName, cg.lastName].filter(Boolean).join(" ") || "—";
+    const cgId      = cg.idNumber || "—";
     const cgAddress = cg.address || "Registered address on file with Mint";
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
-    doc.setTextColor(30, 27, 75);
-    doc.text(`CO-GUARDIAN ${coGuardianProfiles.length > 1 ? idx + 1 : ""}`.trim(), MARGIN, y);
-    y += 4;
-    y = drawRow(doc, y, "Name", cgName);
-    y = drawRow(doc, y, "Identity Number", cgId);
-    y = drawRow(doc, y, "Guardian's Address", cgAddress);
-    y += 4;
+    y = drawSectionHeading(doc, y, `CO-GUARDIAN${coGuardianProfiles.length > 1 ? " " + (idx + 1) : ""}`);
+    y = drawRow(doc, y, "Full Name",          cgName,    false);
+    y = drawRow(doc, y, "Identity Number",    cgId,      true);
+    y = drawRow(doc, y, "Guardian's Address", cgAddress, false);
+    y += 5;
   });
 
-  // Child
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(30, 27, 75);
-  doc.text("MINOR (CHILD)", MARGIN, y);
-  y += 4;
-  y = drawRow(doc, y, "Name", childName);
-  y = drawRow(doc, y, "Date of Birth", childDob);
-  y = drawRow(doc, y, "Identity Number", childId);
-  y = drawRow(doc, y, "Minor's Residential Address", fullChildAddress || "—");
-  y = drawRow(doc, y, "Declaration Date", signedDateLong);
-  y += 10;
+  // Minor section
+  y = drawSectionHeading(doc, y, "MINOR (CHILD)");
+  y = drawRow(doc, y, "Full Name",                   childName,              false);
+  y = drawRow(doc, y, "Date of Birth",               childDob,               true);
+  y = drawRow(doc, y, "Identity Number",             childId,                false);
+  y = drawRow(doc, y, "Minor's Residential Address", fullChildAddress || "—",true);
+  y = drawRow(doc, y, "Declaration Date",            signedDateLong,         false);
+  y += 8;
 
   const writePara = (text, bold = false) => {
     doc.setFont("helvetica", bold ? "bold" : "normal");
@@ -368,11 +450,8 @@ async function buildDifferentAddressPdf({ parentProfile, coGuardianProfiles, chi
     y += 2;
   };
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(30, 27, 75);
-  doc.text("DECLARATION BY PARENT / LEGAL GUARDIAN", MARGIN, y);
-  y += 8;
+  y = drawSectionHeading(doc, y, "DECLARATION BY PARENT / LEGAL GUARDIAN");
+  y += 3;
 
   const guardianParty = coGuardianProfiles.length > 0
     ? `We, ${allGuardianNames},`
@@ -426,18 +505,19 @@ async function buildDifferentAddressPdf({ parentProfile, coGuardianProfiles, chi
   y = addCeoSignature(doc, ceoSigB64, y);
   y += 6;
 
-  doc.setDrawColor(200, 190, 220);
+  // Legal note
+  doc.setDrawColor(...BORDER_CLR);
   doc.setLineWidth(0.3);
   doc.line(MARGIN, y, PAGE_W - MARGIN, y);
-  y += 5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(7);
-  doc.setTextColor(150, 130, 170);
-  const footer = doc.splitTextToSize(
-    "This declaration was completed electronically via Mint App. Mint Financial Services (Pty) Ltd | FSP No. 55118 | support@mymint.co.za | www.mymint.co.za",
+  y += 4;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6.5);
+  doc.setTextColor(...LABEL_TEXT);
+  const legalNote2 = doc.splitTextToSize(
+    "This declaration was completed electronically via the Mint App and is legally binding. Mint Financial Services (Pty) Ltd | FSP No. 55118",
     PAGE_W - MARGIN * 2
   );
-  footer.forEach((l) => { doc.text(l, MARGIN, y); y += 4; });
+  legalNote2.forEach((l) => { doc.text(l, MARGIN, y); y += 3.8; });
 
   return doc.output("arraybuffer");
 }

@@ -601,9 +601,12 @@ function TransactionRow({ tx }) {
 // ─── CompleteProfileModal ────────────────────────────────────────────────────
 
 function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
+  // Derive initial step — check both URL and signed_at so a successful
+  // signing that failed to upload still skips the POA step.
+  const poaComplete = !!(child.poa_declaration_url || child.poa_declaration_signed_at);
   const [step, setStep] = useState(() => {
     if (!child.id_number) return "id";
-    if (!child.poa_declaration_url) return "poa";
+    if (!poaComplete) return "poa";
     return "agreement";
   });
   const [idInput, setIdInput] = useState("");
@@ -732,8 +735,11 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       if (!token) throw new Error("Session expired. Please sign in again.");
 
       const uint8 = new Uint8Array(pdfBuffer);
+      const CHUNK = 0x8000;
       let bin = "";
-      for (let i = 0; i < uint8.length; i++) bin += String.fromCharCode(uint8[i]);
+      for (let i = 0; i < uint8.length; i += CHUNK) {
+        bin += String.fromCharCode.apply(null, uint8.subarray(i, i + CHUNK));
+      }
       const pdfBase64 = btoa(bin);
       const uploadRes = await fetch("/api/onboarding/upload-agreement", {
         method: "POST",
@@ -895,9 +901,12 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
       ? "KYC Rejected"
       : "KYC Pending";
 
+  // POA is considered complete if either the URL was stored OR the declaration was signed
+  // (the URL upload may fail silently, but signed_at is always set on success)
+  const poaDone = !!(child?.poa_declaration_url || child?.poa_declaration_signed_at);
   const missingItems = [
     !child?.id_number && "ID number",
-    !child?.poa_declaration_url && "proof of address",
+    !poaDone && "proof of address",
     !child?.signed_agreement_url && "responsibility agreement",
   ].filter(Boolean);
   const isProfileIncomplete = !child?.address_completed;

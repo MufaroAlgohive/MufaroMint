@@ -139,10 +139,9 @@ const NewsArticlePage = ({ onBack, articleId }) => {
           {/* Body Text */}
           {article.body_text && (
             <div className="prose prose-slate max-w-none">
-              <div
-                className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700"
-                dangerouslySetInnerHTML={{ __html: article.body_text }}
-              />
+              <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+                {article.body_text}
+              </div>
             </div>
           )}
 

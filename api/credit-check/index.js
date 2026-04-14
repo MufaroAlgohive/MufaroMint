@@ -67,16 +67,15 @@ function normalizeCreditScore(result) {
   return 0;
 }
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
-const ALLOW_UNAUTH = process.env.ALLOW_UNAUTH !== 'false';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
 
 const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null;
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -96,22 +95,20 @@ export default async function handler(req, res) {
     ? authHeader.slice('Bearer '.length).trim()
     : null;
 
-  let userId = null;
-  if (accessToken) {
-    if (!supabase) {
-      return res.status(500).json({ error: 'Supabase not configured on server' });
-    }
-    const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
-    if (!userError && userData?.user?.id) {
-      userId = userData.user.id;
-    } else if (!ALLOW_UNAUTH) {
-      return res.status(401).json({ error: 'Invalid or expired session', details: userError?.message });
-    }
-  } else if (!ALLOW_UNAUTH) {
+  if (!accessToken) {
     return res.status(401).json({ error: 'Missing bearer token' });
   }
 
-  if (!userId) userId = 'anon-dev';
+  if (!supabase) {
+    return res.status(500).json({ error: 'Supabase not configured on server' });
+  }
+
+  const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
+  if (userError || !userData?.user?.id) {
+    return res.status(401).json({ error: 'Invalid or expired session', details: userError?.message });
+  }
+
+  const userId = userData.user.id;
 
   let loanApplicationId = body.loanApplicationId || body.loan_application_id || null;
   const applicationId = body.applicationId || loanApplicationId || `app_${Date.now()}`;
@@ -123,7 +120,7 @@ export default async function handler(req, res) {
     forename: overrides?.forename || overrides?.first_name || overrides?.firstName,
     date_of_birth: overrides?.date_of_birth || overrides?.dateOfBirth,
     address1: overrides?.address1 || overrides?.address,
-    postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code || '0152',
+    postal_code: overrides?.postal_code || overrides?.postalCode || overrides?.postcode || overrides?.zip || overrides?.zip_code,
     contract_type: overrides?.contract_type || overrides?.contractType
   };
 
@@ -156,7 +153,7 @@ export default async function handler(req, res) {
   }
 
   let truidSnapshot = null;
-  if (supabase && userId && userId !== 'anon-dev') {
+  if (supabase && userId) {
     try {
       const dbClient = accessToken
         ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -183,7 +180,7 @@ export default async function handler(req, res) {
   }
 
   // ── PRIMARY ENRICHMENT: Sumsub pack_details (KYC-verified address/identity) ──
-  if (supabase && userId && userId !== 'anon-dev') {
+  if (supabase && userId) {
     try {
       const dbClient = accessToken
         ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -261,7 +258,7 @@ export default async function handler(req, res) {
   }
 
   // Profile enrichment — secondary source, fill only still-missing fields
-  if (supabase && userId && userId !== 'anon-dev') {
+  if (supabase && userId) {
     try {
       const dbClient = accessToken
         ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -290,7 +287,7 @@ export default async function handler(req, res) {
   }
 
   // Enrich from onboarding if employment fields missing
-  if (supabase && userId && userId !== 'anon-dev') {
+  if (supabase && userId) {
     try {
       const dbClient = accessToken
         ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -321,10 +318,13 @@ export default async function handler(req, res) {
   }
 
   const userPayload = buildUserData(normalizedOverrides);
+  if (!userPayload.postal_code) {
+    console.warn('[credit-check] postal_code missing after all enrichment — falling back to default 0152');
+  }
   userPayload.postal_code = String(userPayload.postal_code || '0152').trim() || '0152';
   userPayload.user_id = overrides?.user_id || userId;
 
-  if (!loanApplicationId && supabase && userId && userId !== 'anon-dev') {
+  if (!loanApplicationId && supabase && userId) {
     try {
       const dbClient = accessToken
         ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -465,7 +465,7 @@ export default async function handler(req, res) {
     const success = result?.success === true;
     const ok = success;
 
-    if (supabase && userId && userId !== 'anon-dev') {
+    if (supabase && userId) {
       try {
         const dbClient = accessToken
           ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -547,19 +547,13 @@ export default async function handler(req, res) {
       cpaAccounts: result?.cpaAccounts || [],
       deviceFingerprint,
       raw: result,
-      debug: {
-        source: 'api/credit-check',
-        mockModeEnv,
-        mockModeReturned: result?.mockMode,
-        experianEndpoint: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
-        hasPostalCode: Boolean(userPayload?.postal_code),
-        postalCode: userPayload?.postal_code || null,
-        hasAddress1: Boolean(userPayload?.address1),
-        gender: userPayload?.gender || null,
-        dob: userPayload?.date_of_birth || null,
-        zipDataLength,
-        retdataPreview: zipDataLength > 0 ? String(result?.zipData || '').slice(0, 200) : null
-      }
+      ...(process.env.DEBUG_RESPONSES === 'true' ? {
+        debug: {
+          source: 'api/credit-check',
+          mockModeEnv,
+          mockModeReturned: result?.mockMode,
+        }
+      } : {})
     });
   } catch (error) {
     console.error('Credit check API error:', error);

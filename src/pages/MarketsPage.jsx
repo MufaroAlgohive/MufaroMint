@@ -15,7 +15,7 @@ import { Area, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip,
 import { formatCurrency } from "../lib/formatCurrency";
 import { normalizeSymbol, getHoldingsArray, getHoldingSymbol, buildHoldingsBySymbol, getStrategyHoldingsSnapshot, calculateMinInvestment, getAdjustedShares } from "../lib/strategyUtils";
 
-const sortOptions = ["Market Cap", "Dividend Yield", "P/E Ratio"];
+const sortOptions = ["Market Cap", "Dividend Yield", "P/E Ratio", "1M Performance", "YTD Performance"];
 
 const MIN_ASSET_VALUE_DISPLAY = 1000;
 
@@ -473,6 +473,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       filtered.sort((a, b) => (a.pe || Infinity) - (b.pe || Infinity));
     } else if (selectedSort === "Beta") {
       filtered.sort((a, b) => (b.beta || 0) - (a.beta || 0));
+    } else if (selectedSort === "1M Performance") {
+      filtered.sort((a, b) => (b.returns?.m1 || 0) - (a.returns?.m1 || 0));
+    } else if (selectedSort === "YTD Performance") {
+      filtered.sort((a, b) => (b.returns?.ytd || 0) - (a.returns?.ytd || 0));
     }
 
     return filtered;
@@ -587,15 +591,9 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   ]);
 
   const gainers = useMemo(() => {
-    // Generate mock percentage gains for now (will be replaced with real data)
     return filteredSecurities
-      .filter((s) => s.market_cap)
-      .map((s) => ({
-        ...s,
-        // Mock gain calculation based on some metrics
-        percentGain: s.dividend_yield ? Number(s.dividend_yield) * 2 + Math.random() * 10 : Math.random() * 15 + 5
-      }))
-      .sort((a, b) => b.percentGain - a.percentGain)
+      .filter((s) => s.changePct != null)
+      .sort((a, b) => (b.changePct || 0) - (a.changePct || 0))
       .slice(0, 10);
   }, [filteredSecurities]);
 
@@ -1433,8 +1431,8 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                             <p className="text-xs text-slate-500">No pricing data</p>
                           )}
                         </div>
-                        <p className="mt-1 text-xs font-semibold text-emerald-600">
-                          +{security.percentGain.toFixed(2)}%
+                        <p className={`mt-1 text-xs font-semibold ${security.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {security.changePct >= 0 ? '+' : ''}{security.changePct?.toFixed(2)}%
                         </p>
                       </div>
                     </div>
@@ -1512,6 +1510,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           {security.pe && (
                             <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-700">
                               P/E {Number(security.pe).toFixed(2)}
+                            </span>
+                          )}
+                          {security.returns?.ytd != null && (
+                            <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+                              security.returns.ytd >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+                            }`}>
+                              YTD {formatChangePct(security.returns.ytd)}
                             </span>
                           )}
                         </div>

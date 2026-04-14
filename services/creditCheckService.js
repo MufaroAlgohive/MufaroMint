@@ -14,8 +14,8 @@ const DATA_FILE = path.join(DATA_DIR, 'credit-checks.json');
 // Experian API Configuration
 const EXPERIAN_CONFIG = {
     url: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
-    username: process.env.EXPERIAN_USERNAME || '32389-api',
-    password: process.env.EXPERIAN_PASSWORD || '9N=v@ZQapik1',
+    username: process.env.EXPERIAN_USERNAME,
+    password: process.env.EXPERIAN_PASSWORD,
     version: process.env.EXPERIAN_VERSION || '1.0',
     origin: process.env.EXPERIAN_ORIGIN || 'Zwane',
     origin_version: process.env.EXPERIAN_ORIGIN_VERSION || '0.0.1',
@@ -736,7 +736,7 @@ async function performCreditCheck(userData, applicationId, authToken = null) {
         console.log('[experian] Starting credit check for application:', applicationId);
         console.log('[experian] Endpoint:', EXPERIAN_CONFIG.url);
         console.log('[experian] Mock mode:', EXPERIAN_CONFIG.mockMode);
-        console.log('[experian] Credentials present — username:', Boolean(EXPERIAN_CONFIG.username && EXPERIAN_CONFIG.username !== '32389-api'), 'password:', Boolean(EXPERIAN_CONFIG.password && EXPERIAN_CONFIG.password !== '9N=v@ZQapik1'));
+        console.log('[experian] Credentials present — username:', Boolean(EXPERIAN_CONFIG.username), 'password:', Boolean(EXPERIAN_CONFIG.password));
 
         if (EXPERIAN_CONFIG.mockMode) {
             console.log('Experian mock mode enabled - returning synthetic payload');
