@@ -1187,6 +1187,12 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                   const certVerified = certStatus === "verified";
                   const certIdMatched = certStatus === "id_matched_pending_review";
                   const certPending = !certVerified && !!child.certificate_url;
+                  const childKycStatus = String(child?.kyc_status || "pending").toLowerCase();
+                  const childKycLabel = childKycStatus === "completed"
+                    ? "KYC Completed"
+                    : childKycStatus === "rejected"
+                      ? "KYC Rejected"
+                      : "KYC Pending";
                   return (
                     <motion.div key={child.id} variants={item} className="rounded-2xl bg-white overflow-hidden" style={{ boxShadow: "0 1px 8px rgba(91,33,182,0.07)" }}>
                       <div className="flex items-center gap-4 px-5 py-4">
@@ -1199,7 +1205,18 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                                 <Baby className="h-3 w-3" />Child
                               </span>
                               {age !== null && <span className="text-[11px] text-slate-400">{age} yr{age !== 1 ? "s" : ""}</span>}
-                              {child.mint_number && <span className="text-[11px] text-slate-400">· #{child.mint_number}</span>}
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide border ${
+                                  childKycStatus === "completed"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : childKycStatus === "rejected"
+                                      ? "bg-red-50 text-red-700 border-red-200"
+                                      : "bg-amber-50 text-amber-700 border-amber-200"
+                                }`}
+                              >
+                                <span className={`h-1.5 w-1.5 rounded-full ${childKycStatus === "pending" ? "animate-pulse" : ""}`} style={{ backgroundColor: "currentColor" }} />
+                                {childKycLabel}
+                              </span>
                               {certVerified && (
                                 <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-600">
                                   <ShieldCheck className="h-2.5 w-2.5" />Verified

@@ -836,6 +836,12 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   const parentName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "Parent";
   const parentMintNumber = profile?.mintNumber || "";
   const childBalance = child?.available_balance || 0;
+  const childKycStatus = String(child?.kyc_status || "pending").toLowerCase();
+  const childKycLabel = childKycStatus === "completed"
+    ? "KYC Completed"
+    : childKycStatus === "rejected"
+      ? "KYC Rejected"
+      : "KYC Pending";
 
   const missingItems = [
     !child?.id_number && "ID number",
@@ -988,9 +994,18 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                 <Baby className="h-3.5 w-3.5" />
                 {age !== null ? `${age} yr${age !== 1 ? "s" : ""} old` : "Child"}
               </span>
-              {child?.mint_number && (
-                <span className="text-[11px] text-slate-600 font-mono">{child.mint_number}</span>
-              )}
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold tracking-wide border ${
+                  childKycStatus === "completed"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : childKycStatus === "rejected"
+                      ? "bg-red-50 text-red-700 border-red-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${childKycStatus === "pending" ? "animate-pulse" : ""}`} style={{ backgroundColor: "currentColor" }} />
+                {childKycLabel}
+              </span>
             </div>
             <div className="flex items-center gap-1.5 mt-2">
               <ShieldCheck className="h-3.5 w-3.5 text-slate-500" />
@@ -1195,6 +1210,21 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
                     <span className="font-mono text-xs font-semibold text-slate-900">{parentMintNumber}</span>
                   </div>
                 )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">KYC Status</span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide border ${
+                      childKycStatus === "completed"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : childKycStatus === "rejected"
+                          ? "bg-red-50 text-red-700 border-red-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${childKycStatus === "pending" ? "animate-pulse" : ""}`} style={{ backgroundColor: "currentColor" }} />
+                    {childKycLabel}
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>
