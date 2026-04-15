@@ -879,6 +879,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
   const { profile } = useProfile();
   const isMounted = useRef(true);
   const [child, setChild] = useState(initialChild);
+  const [hasBucketProfileDocs, setHasBucketProfileDocs] = useState(false);
   const [holdings, setHoldings] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [parentBalance, setParentBalance] = useState(null);
@@ -909,7 +910,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
     !poaDone && "proof of address",
     !child?.signed_agreement_url && "responsibility agreement",
   ].filter(Boolean);
-  const isProfileIncomplete = !child?.address_completed;
+  const isProfileIncomplete = !child?.address_completed && !hasBucketProfileDocs;
 
   useEffect(() => {
     isMounted.current = true;
@@ -919,8 +920,63 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
 
   async function fetchAll() {
     setLoading(true);
-    await Promise.all([fetchHoldings(), fetchParentWallet(), fetchTransactions(), fetchChildBalance()]);
+    await Promise.all([
+      fetchHoldings(),
+      fetchParentWallet(),
+      fetchTransactions(),
+      fetchChildBalance(),
+      syncAddressCompletionFromBuckets(),
+    ]);
     if (isMounted.current) setLoading(false);
+  }
+
+  async function hasAnyProfileDocsInBuckets() {
+    try {
+      if (!supabase || !child?.id) return false;
+
+      const [poaRes, userRes] = await Promise.all([
+        supabase.storage.from("birth-certificates").list(`poa/${child.id}`, { limit: 1 }),
+        supabase.auth.getUser(),
+      ]);
+
+      const poaFiles = poaRes?.data || [];
+      const hasPoaFile = poaFiles.some((file) => file?.name && !file.name.endsWith("/"));
+
+      const userId = userRes?.data?.user?.id;
+      let hasSignedAgreement = false;
+      if (userId) {
+        const { data: agreementFiles } = await supabase.storage
+          .from("signed-agreements")
+          .list(userId, { limit: 1 });
+        hasSignedAgreement = (agreementFiles || []).some((file) => file?.name && !file.name.endsWith("/"));
+      }
+
+      return hasPoaFile || hasSignedAgreement;
+    } catch (e) {
+      console.error("[child-dash] bucket check", e);
+      return false;
+    }
+  }
+
+  async function syncAddressCompletionFromBuckets() {
+    const hasBucketDocs = await hasAnyProfileDocsInBuckets();
+    if (isMounted.current) setHasBucketProfileDocs(hasBucketDocs);
+
+    if (!hasBucketDocs || child?.address_completed) return;
+
+    if (isMounted.current) {
+      setChild((prev) => ({ ...prev, address_completed: true }));
+    }
+
+    try {
+      await fetch(`/api/family-members/${child.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address_completed: true }),
+      });
+    } catch (e) {
+      console.error("[child-dash] sync address_completed", e);
+    }
   }
 
   async function fetchChildBalance() {
