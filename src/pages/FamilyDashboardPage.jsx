@@ -297,7 +297,6 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       }
 
       const patchBody = {
-        poa_declaration_signed_at: signedAt,
         lives_with_parent: livesWithParent,
       };
       if (poaUrl) patchBody.poa_declaration_url = poaUrl;
@@ -311,7 +310,6 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       setNewChildMember(prev => ({
         ...prev,
         ...(poaUrl ? { poa_declaration_url: poaUrl } : {}),
-        poa_declaration_signed_at: signedAt,
         lives_with_parent: livesWithParent,
         ...(resolvedAddress ? { address: resolvedAddress } : {}),
       }));

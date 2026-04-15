@@ -601,9 +601,7 @@ function TransactionRow({ tx }) {
 // ─── CompleteProfileModal ────────────────────────────────────────────────────
 
 function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
-  // Derive initial step — check both URL and signed_at so a successful
-  // signing that failed to upload still skips the POA step.
-  const poaComplete = !!(child.poa_declaration_url || child.poa_declaration_signed_at);
+  const poaComplete = !!child.poa_declaration_url;
   const [step, setStep] = useState(() => {
     if (!child.id_number) return "id";
     if (!poaComplete) return "poa";
@@ -703,7 +701,6 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             poa_declaration_url: poaUrl,
-            poa_declaration_signed_at: signedAt,
             address_completed: true,
           }),
         });
@@ -895,9 +892,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
       ? "KYC Rejected"
       : "KYC Pending";
 
-  // POA is considered complete if either the URL was stored OR the declaration was signed
-  // (the URL upload may fail silently, but signed_at is always set on success)
-  const poaDone = !!(child?.poa_declaration_url || child?.poa_declaration_signed_at);
+  const poaDone = !!child?.poa_declaration_url;
   const missingItems = [
     !child?.id_number && "ID number",
     !poaDone && "proof of address",
