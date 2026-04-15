@@ -542,7 +542,7 @@ const SA_PROVINCES = [
   "Limpopo", "Mpumalanga", "Northern Cape", "North West", "Western Cape",
 ];
 
-export default function MinorProofOfAddressDeclaration({ childData, parentProfile, coGuardians = [], onComplete, onBack }) {
+export default function MinorProofOfAddressDeclaration({ childData, parentProfile, coGuardians = [], onComplete, onBack, saving = false }) {
   const [answer, setAnswer] = useState(null); // null | "same" | "different"
   const [signing, setSigning] = useState(false);
   const [error, setError] = useState("");
@@ -616,10 +616,10 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
       const pdfBuffer = await buildSameAddressPdf({ parentProfile, coGuardianProfiles, childData, signatureDataUrl, signedAt });
       const safeName = (childData?.first_name || "minor").toLowerCase().replace(/\s+/g, "-");
       downloadPdf(pdfBuffer, `mint-address-declaration-${safeName}.pdf`);
-      onComplete({ livesWithParent: true, pdfBuffer, signedAt });
+      await onComplete({ livesWithParent: true, pdfBuffer, signedAt });
     } catch (e) {
       console.error("[poa]", e);
-      setError("Failed to generate declaration. Please try again.");
+      setError(e?.message || "Failed to generate declaration. Please try again.");
     } finally { setSigning(false); }
   }
 
@@ -641,12 +641,14 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
       const pdfBuffer = await buildDifferentAddressPdf({ parentProfile, coGuardianProfiles, childData, childAddress, signatureDataUrl, signedAt });
       const safeName = (childData?.first_name || "minor").toLowerCase().replace(/\s+/g, "-");
       downloadPdf(pdfBuffer, `mint-address-declaration-${safeName}.pdf`);
-      onComplete({ livesWithParent: false, childAddress, pdfBuffer, signedAt });
+      await onComplete({ livesWithParent: false, childAddress, pdfBuffer, signedAt });
     } catch (e) {
       console.error("[poa]", e);
-      setError("Failed to generate declaration. Please try again.");
+      setError(e?.message || "Failed to generate declaration. Please try again.");
     } finally { setSigning(false); }
   }
+
+  const busy = signing || saving;
 
   const PURPLE = "#5B21B6";
   const P2 = "#7C3AED";
@@ -789,8 +791,17 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
           <p className="text-xs text-red-600">{error}</p>
         </div>}
 
-        <button onClick={handleSameSign} disabled={signing} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60 duration-200 shadow-lg shadow-purple-900/20 hover:shadow-lg" style={{ background: BTN }}>
-          {signing ? "Generating declaration…" : "Sign & Continue →"}
+        {error && !busy && (
+          <button
+            onClick={handleSameSign}
+            className="w-full rounded-2xl py-3 text-xs font-bold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 transition"
+          >
+            Retry Upload
+          </button>
+        )}
+
+        <button onClick={handleSameSign} disabled={busy} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60 duration-200 shadow-lg shadow-purple-900/20 hover:shadow-lg" style={{ background: BTN }}>
+          {signing ? "Generating declaration…" : saving ? "Finalising…" : "Sign & Continue →"}
         </button>
       </div>
     );
@@ -927,8 +938,17 @@ export default function MinorProofOfAddressDeclaration({ childData, parentProfil
           <p className="text-xs text-red-600">{error}</p>
         </div>}
 
-        <button onClick={handleDifferentSign} disabled={signing} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60 duration-200 shadow-lg shadow-purple-900/20 hover:shadow-lg" style={{ background: BTN }}>
-          {signing ? "Generating declaration…" : "Sign & Continue →"}
+        {error && !busy && (
+          <button
+            onClick={handleDifferentSign}
+            className="w-full rounded-2xl py-3 text-xs font-bold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 transition"
+          >
+            Retry Upload
+          </button>
+        )}
+
+        <button onClick={handleDifferentSign} disabled={busy} className="w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98] disabled:opacity-60 duration-200 shadow-lg shadow-purple-900/20 hover:shadow-lg" style={{ background: BTN }}>
+          {signing ? "Generating declaration…" : saving ? "Finalising…" : "Sign & Continue →"}
         </button>
       </div>
     );

@@ -421,9 +421,9 @@ export default function ChildResponsibilityAgreement({
         // Download failing shouldn't block the save flow
       }
 
-      onComplete({ pdfBuffer, signedAt: now, signatureDataUrl: sigUrl });
-    } catch {
-      setError("Failed to generate agreement PDF. Please try again.");
+      await onComplete({ pdfBuffer, signedAt: now, signatureDataUrl: sigUrl });
+    } catch (e) {
+      setError(e?.message || "Failed to generate agreement PDF. Please try again.");
     }
   };
 

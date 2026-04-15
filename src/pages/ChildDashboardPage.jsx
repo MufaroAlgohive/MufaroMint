@@ -713,7 +713,9 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       onClose();
     } catch (e) {
       console.error("[complete-poa]", e);
-      setFlowError(e?.message || "Proof of address upload failed. Please try again.");
+      const message = e?.message || "Proof of address upload failed. Please try again.";
+      setFlowError(message);
+      throw new Error(message);
     } finally { setSaving(false); }
   }
 
@@ -756,7 +758,9 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       onClose();
     } catch (e) {
       console.error("[complete-agreement]", e);
-      setFlowError(e?.message || "Signing failed. Please try again.");
+      const message = e?.message || "Signing failed. Please try again.";
+      setFlowError(message);
+      throw new Error(message);
     } finally { setSaving(false); }
   }
 
@@ -767,7 +771,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { if (!saving) onClose(); }} />
       <motion.div
         className="relative w-full max-w-md bg-white rounded-t-3xl shadow-2xl pb-[env(safe-area-inset-bottom)]"
         initial={{ y: "100%" }}
@@ -795,7 +799,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
                 </p>
               </div>
             </div>
-            <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition">
+            <button onClick={onClose} disabled={saving} className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition disabled:opacity-50">
               <X className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -838,6 +842,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
             <MinorProofOfAddressDeclaration
               childData={child}
               parentProfile={parentProfile}
+              saving={saving}
               onComplete={handlePoaComplete}
               onBack={() => {
                 if (!child.id_number) setStep("id");
