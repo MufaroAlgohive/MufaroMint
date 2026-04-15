@@ -30,11 +30,15 @@ export default async function handler(req, res) {
     if (!pdfBase64 || typeof pdfBase64 !== "string") {
       return res.status(400).json({ success: false, error: "Missing pdfBase64 in request body" });
     }
+    const normalizedBase64 = pdfBase64.includes(",") ? pdfBase64.split(",").pop() : pdfBase64;
+    if (!normalizedBase64) {
+      return res.status(400).json({ success: false, error: "Invalid base64 data" });
+    }
 
     // ── Decode base64 → Buffer ────────────────────────────────────────────
     let pdfBuffer;
     try {
-      pdfBuffer = Buffer.from(pdfBase64, "base64");
+      pdfBuffer = Buffer.from(normalizedBase64, "base64");
     } catch (decodeErr) {
       return res.status(400).json({ success: false, error: "Invalid base64 data" });
     }

@@ -276,10 +276,14 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ pdfBase64, subjectId: newChildMember.id }),
         });
-        const uploadJson = await uploadRes.json();
-        if (uploadRes.ok && uploadJson.publicUrl) {
-          poaUrl = uploadJson.publicUrl;
+        const uploadJson = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok) {
+          throw new Error(uploadJson?.error || `Proof of address upload failed (${uploadRes.status}).`);
         }
+        if (!uploadJson?.publicUrl) {
+          throw new Error("Proof of address upload failed: no file URL returned.");
+        }
+        poaUrl = uploadJson.publicUrl;
       }
 
       // Build address string to store — child's own address or parent's registered address
@@ -302,11 +306,16 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       if (poaUrl) patchBody.poa_declaration_url = poaUrl;
       if (resolvedAddress) patchBody.address = resolvedAddress;
 
-      await fetch(`/api/family-members/${newChildMember.id}`, {
+      const patchRes = await fetch(`/api/family-members/${newChildMember.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patchBody),
       });
+      if (!patchRes.ok) {
+        const patchJson = await patchRes.json().catch(() => ({}));
+        throw new Error(patchJson?.error || `Failed to save child address details (${patchRes.status}).`);
+      }
+
       setNewChildMember(prev => ({
         ...prev,
         ...(poaUrl ? { poa_declaration_url: poaUrl } : {}),
@@ -318,9 +327,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       setChildStep(3);
     } catch (e) {
       console.error("[poa]", e);
-      setError("POA upload failed — you can complete this from your child's profile later.");
-      setSlideDir(1);
-      setChildStep(3);
+      throw new Error(e?.message || "POA upload failed.");
     } finally {
       setSaving(false);
     }
@@ -910,6 +917,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
                         childData={newChildMember}
                         parentProfile={profile}
                         coGuardians={coGuardians}
+                        saving={saving}
                         onComplete={handlePoaComplete}
                         onBack={handleChildBack}
                       />
