@@ -148,7 +148,7 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
   y += 5;
 
   y = drawRow(doc, y, "Service Provider", "Mint Platforms (Pty) Ltd (FSP Licence Pending)", COL1, COL2, MARGIN);
-  y = drawRow(doc, y, "Custodian / Nominee", "Computershare Nominees (Pty) Ltd (Reg. 1999/008543/07)", COL1, COL2, MARGIN);
+  y = drawRow(doc, y, "Custodian / Nominee", "Appointed nominee custodian", COL1, COL2, MARGIN);
   y = drawRow(doc, y, "The Minor (Client)", childName, COL1, COL2, MARGIN);
   y = drawRow(doc, y, "Minor Mint Account ID", childMint, COL1, COL2, MARGIN);
   y = drawRow(doc, y, "Minor Date of Birth", `${childDob} (${childAge})`, COL1, COL2, MARGIN);
@@ -187,7 +187,7 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
   };
 
   writePara("A. Mint Platforms (Pty) Ltd ('the Platform') facilitates the investment of client funds in JSE-listed securities through its platform. The Platform acts as an authorised Financial Services Provider (FSP) pursuant to the Financial Advisory and Intermediary Services Act 37 of 2002 ('FAIS Act').");
-  writePara("B. Securities purchased by or on behalf of clients are held through Computershare Nominees (Pty) Ltd, Rosebank Towers, 15 Biermann Avenue, Rosebank, Johannesburg ('Computershare'), acting as nominee and custodian. Client assets are fully segregated from the Platform's own assets at all times.");
+  writePara("B. Securities purchased by or on behalf of clients are held through an appointed third-party nominee custodian acting as nominee and custodian. Client assets are fully segregated from the Platform's own assets at all times.");
   writePara("C. The Guardian wishes to open and operate an investment account on behalf of the Minor, and the Platform is willing to provide such services subject to the terms and conditions set out herein.");
 
   y += 4;
@@ -205,12 +205,12 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(30, 27, 75);
-  doc.text("4. APPOINTMENT OF PLATFORM AND COMPUTERSHARE", MARGIN, y);
+  doc.text("4. APPOINTMENT OF PLATFORM AND CUSTODIAN", MARGIN, y);
   y += 5;
 
   writePara("4.1  The Guardian, acting for and on behalf of the Minor, hereby appoints the Platform as its nominee administrator to manage the Minor's securities and investment account ('the Account').");
-  writePara("4.2  The Guardian further authorises the Platform to facilitate the opening and maintenance of the Account in the Minor's name with Computershare Nominees (Pty) Ltd, or its affiliated companies, acting as nominee and custodian, for the purpose of holding and administering securities on behalf of the Minor.");
-  writePara("4.3  The Platform is specifically authorised to:\n  4.3.1  Facilitate the opening and administration of the Minor's securities account with Computershare, including the submission of all required documentation and client information.\n  4.3.2  Execute buy and sell orders in JSE-listed securities as instructed by the Guardian on behalf of the Minor.\n  4.3.3  Hold cash balances in a trust account pending investment or withdrawal.\n  4.3.4  Provide relevant client and investment information, instructions, and documentation to Strate, Computershare, and any related service providers for securities settlement, custody administration, and registry maintenance.");
+  writePara("4.2  The Guardian further authorises the Platform to facilitate the opening and maintenance of the Account in the Minor's name with an appointed nominee custodian, or its affiliated companies, acting as nominee and custodian, for the purpose of holding and administering securities on behalf of the Minor.");
+  writePara("4.3  The Platform is specifically authorised to:\n  4.3.1  Facilitate the opening and administration of the Minor's securities account with the appointed nominee custodian, including the submission of all required documentation and client information.\n  4.3.2  Execute buy and sell orders in JSE-listed securities as instructed by the Guardian on behalf of the Minor.\n  4.3.3  Hold cash balances in a trust account pending investment or withdrawal.\n  4.3.4  Provide relevant client and investment information, instructions, and documentation to Strate, the appointed nominee custodian, and any related service providers for securities settlement, custody administration, and registry maintenance.");
 
   y += 4;
   doc.setFont("helvetica", "bold");
@@ -220,7 +220,7 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
   y += 5;
 
   writePara("5.1  The Guardian accepts full and exclusive legal, financial, and fiduciary responsibility for all activity in the Account, including all buy, sell, and transfer instructions provided to the Platform on the Minor's behalf.");
-  writePara("5.2  The Guardian hereby indemnifies the Platform, Computershare, and their respective directors, officers, and employees from and against any and all claims, losses, damages, costs, or expenses (including legal costs) arising from or in connection with:\n  (a) the operation of the Account;\n  (b) any instruction given by the Guardian;\n  (c) any claim made by the Minor upon reaching the age of majority;\n  (d) any breach by the Guardian of any warranty or representation in this Agreement.");
+  writePara("5.2  The Guardian hereby indemnifies the Platform, the appointed nominee custodian, and their respective directors, officers, and employees from and against any and all claims, losses, damages, costs, or expenses (including legal costs) arising from or in connection with:\n  (a) the operation of the Account;\n  (b) any instruction given by the Guardian;\n  (c) any claim made by the Minor upon reaching the age of majority;\n  (d) any breach by the Guardian of any warranty or representation in this Agreement.");
   writePara("5.3  The Guardian acknowledges responsibility for all platform fees, brokerage charges, securities transfer tax, dividends withholding tax, and any other charges or tax liabilities arising from or associated with the Account.");
   writePara("5.4  The Guardian agrees to promptly notify the Platform of any change in their legal guardianship status over the Minor.");
 
@@ -344,7 +344,7 @@ async function buildChildAgreementPdf({ parentProfile, childData, signatureDataU
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(100, 90, 140);
-    const disclaimer = "Securities held on behalf of clients by Computershare Nominees (Pty) Ltd (Reg. 1999/008543/07), Rosebank Towers, 15 Biermann Avenue, Rosebank, Johannesburg. Client assets are segregated from Platform assets. This Agreement is binding upon signature and forms part of the Platform's standard terms of service. Mint Platforms (Pty) Ltd — FSP Licence Pending — FAIS Compliant.";
+    const disclaimer = "Securities are held on behalf of clients by an appointed nominee custodian. Client assets are segregated from Platform assets. This Agreement is binding upon signature and forms part of the Platform's standard terms of service. Mint Platforms (Pty) Ltd — FSP Licence Pending — FAIS Compliant.";
     const dLines = doc.splitTextToSize(disclaimer, PAGE_W - MARGIN * 2 - 8);
     dLines.forEach((line, i) => doc.text(line, MARGIN + 4, y + 5 + i * 4));
   }
@@ -450,7 +450,7 @@ export default function ChildResponsibilityAgreement({
             </div>
             <div className="flex justify-between items-start py-1 border-b border-slate-100">
               <span className="text-slate-500 shrink-0 pr-3">Custodian / Nominee</span>
-              <span className="text-slate-800 font-semibold text-right">Computershare Nominees (Pty) Ltd</span>
+              <span className="text-slate-800 font-semibold text-right">Appointed nominee custodian</span>
             </div>
             <div className="flex justify-between items-start py-1 border-b border-slate-100">
               <span className="text-slate-500 shrink-0 pr-3">Legal Guardian</span>
@@ -471,13 +471,13 @@ export default function ChildResponsibilityAgreement({
           <div className="rounded-xl bg-purple-50 border border-purple-100 p-3 space-y-2">
             <p className="font-bold text-slate-800 text-[11px]">Key Terms You Are Agreeing To:</p>
             <p className="leading-relaxed">
-              <strong>Custodial Authority:</strong> Securities are held by Computershare Nominees (Pty) Ltd, fully segregated from Mint's assets.
+              <strong>Custodial Authority:</strong> Securities are held by an appointed nominee custodian, fully segregated from Mint's assets.
             </p>
             <p className="leading-relaxed">
               <strong>Guardian Responsibility:</strong> You accept full legal and financial responsibility for all account activity, including all buy, sell, and transfer instructions.
             </p>
             <p className="leading-relaxed">
-              <strong>Indemnity:</strong> You indemnify Mint and Computershare against any claim arising from the account, including any future claim by the Minor.
+              <strong>Indemnity:</strong> You indemnify Mint and the appointed nominee custodian against any claim arising from the account, including any future claim by the Minor.
             </p>
             <p className="leading-relaxed">
               <strong>Transition at 18:</strong> Upon the Minor reaching majority (18 years), all authority automatically vests in the Minor, who must complete their own onboarding.

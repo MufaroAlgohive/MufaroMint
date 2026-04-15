@@ -339,12 +339,12 @@ async function buildPDF({ profile, onboardingData, packDetail, signatureDataUrl,
 
   writeHeading("1. APPOINTMENT");
   writePara(`The Client hereby appoints Mint Platforms (Pty) Ltd, trading as Mint ("Mint"), to act as its authorised securities administrator for purposes of facilitating the custody, administration and record-keeping of securities held by the Client.`);
-  writePara(`The Client further authorises Mint to facilitate the opening and maintenance of an account in the Client's name with Computershare Nominees (Pty) Ltd, or its affiliated companies, acting as nominee and custodian, for the purpose of holding and administering securities on behalf of the Client.`);
+  writePara(`The Client further authorises Mint to facilitate the opening and maintenance of an account in the Client's name with an appointed nominee custodian, or its affiliated companies, acting as nominee and custodian, for the purpose of holding and administering securities on behalf of the Client.`);
   writePara("Mint is authorised to:");
-  writePara("1.1  Facilitate the opening and administration of the Client's securities account with Computershare Nominees (Pty) Ltd, including the submission of all required documentation and client information.", 4);
+  writePara("1.1  Facilitate the opening and administration of the Client's securities account with the appointed nominee custodian, including the submission of all required documentation and client information.", 4);
   writePara("1.2  Administer, record, and facilitate the holding of securities beneficially owned by the Client through the nominee and custody structure.", 4);
   writePara("1.3  Interface and communicate with relevant transfer secretaries, custodians, central securities depositories, settlement agents, and registry service providers in order to give effect to the Client's investment holdings.", 4);
-  writePara("1.4  Provide relevant client and investment information, instructions, and documentation to Strate, Computershare Limited, and any related service providers for the purposes of securities settlement, custody administration, and registry maintenance.", 4);
+  writePara("1.4  Provide relevant client and investment information, instructions, and documentation to Strate, the appointed nominee custodian, and any related service providers for the purposes of securities settlement, custody administration, and registry maintenance.", 4);
 
   writeHeading("2. NOMINEE AND UNDERLYING ACCOUNT ARRANGEMENTS");
   writePara("2.1  The Client acknowledges that securities acquired through Mint may be held through:", 4);
@@ -1007,12 +1007,12 @@ export default function AccountAgreementStep({
 
             <p><strong style={{ color: purple }}>1. APPOINTMENT</strong></p>
             <p>The Client hereby appoints <strong>Mint Platforms (Pty) Ltd, trading as Mint (&quot;Mint&quot;)</strong>, to act as its authorised securities administrator for purposes of facilitating the custody, administration and record-keeping of securities held by the Client.</p>
-            <p>The Client further authorises Mint to facilitate the opening and maintenance of an account in the Client&apos;s name with <strong>Computershare Nominees (Pty) Ltd</strong>, or its affiliated companies, acting as nominee and custodian, for the purpose of holding and administering securities on behalf of the Client.</p>
+            <p>The Client further authorises Mint to facilitate the opening and maintenance of an account in the Client&apos;s name with <strong>an appointed nominee custodian</strong>, or its affiliated companies, acting as nominee and custodian, for the purpose of holding and administering securities on behalf of the Client.</p>
             <p>Mint is authorised to:</p>
-            <p style={{ paddingLeft: 16 }}><strong>1.1</strong> Facilitate the opening and administration of the Client&apos;s securities account with <strong>Computershare Nominees (Pty) Ltd</strong>, including the submission of all required documentation and client information.</p>
+            <p style={{ paddingLeft: 16 }}><strong>1.1</strong> Facilitate the opening and administration of the Client&apos;s securities account with <strong>the appointed nominee custodian</strong>, including the submission of all required documentation and client information.</p>
             <p style={{ paddingLeft: 16 }}><strong>1.2</strong> Administer, record, and facilitate the holding of securities beneficially owned by the Client through the nominee and custody structure.</p>
             <p style={{ paddingLeft: 16 }}><strong>1.3</strong> Interface and communicate with relevant transfer secretaries, custodians, central securities depositories, settlement agents, and registry service providers in order to give effect to the Client&apos;s investment holdings.</p>
-            <p style={{ paddingLeft: 16 }}><strong>1.4</strong> Provide relevant client and investment information, instructions, and documentation to <strong>Strate</strong>, <strong>Computershare Limited</strong>, and any related service providers for the purposes of securities settlement, custody administration, and registry maintenance.</p>
+            <p style={{ paddingLeft: 16 }}><strong>1.4</strong> Provide relevant client and investment information, instructions, and documentation to <strong>Strate</strong>, <strong>the appointed nominee custodian</strong>, and any related service providers for the purposes of securities settlement, custody administration, and registry maintenance.</p>
 
             <p><strong style={{ color: purple }}>2. NOMINEE AND UNDERLYING ACCOUNT ARRANGEMENTS</strong></p>
             <p style={{ paddingLeft: 16 }}><strong>2.1</strong> The Client acknowledges that securities acquired through Mint may be held through:</p>
