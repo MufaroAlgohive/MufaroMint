@@ -359,9 +359,12 @@ export default async function handler(req, res) {
         const cleanChildId = id_number ? String(id_number).replace(/\D/g, "") : null;
         const mint_number = generateChildMintNumber(first_name.trim(), cleanChildId, date_of_birth);
         const verificationStatus = certificate_verification_status || "pending_review";
+        const { user: authUser } = await authenticateUser(req);
+        const parentIdForChild = authUser?.id || primary_user_id;
 
         const basePayload = {
           primary_user_id,
+          parent_id: parentIdForChild,
           relationship: "child",
           first_name: first_name.trim(),
           last_name: (last_name || "").trim(),
