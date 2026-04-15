@@ -601,9 +601,7 @@ function TransactionRow({ tx }) {
 // ─── CompleteProfileModal ────────────────────────────────────────────────────
 
 function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
-  // Derive initial step — check both URL and signed_at so a successful
-  // signing that failed to upload still skips the POA step.
-  const poaComplete = !!(child.poa_declaration_url || child.poa_declaration_signed_at);
+  const poaComplete = !!child.poa_declaration_url;
   const [step, setStep] = useState(() => {
     if (!child.id_number) return "id";
     if (!poaComplete) return "poa";
@@ -680,7 +678,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
         const res = await fetch("/api/onboarding/upload-agreement", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ pdfBase64 }),
+          body: JSON.stringify({ pdfBase64, subjectId: child.id }),
         });
         const j = await res.json();
         if (!res.ok || !j.publicUrl) {
@@ -701,25 +699,18 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
         const patchRes = await fetch(`/api/family-members/${child.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ poa_declaration_url: poaUrl, poa_declaration_signed_at: signedAt }),
+          body: JSON.stringify({
+            poa_declaration_url: poaUrl,
+            address_completed: true,
+          }),
         });
         if (!patchRes.ok) {
           const patchJson = await patchRes.json().catch(() => ({}));
           throw new Error(patchJson?.error || "Failed to save proof of address.");
         }
-        onUpdate({ ...child, poa_declaration_url: poaUrl });
-      }
-      if (!child.signed_agreement_url) { setStep("agreement"); }
-      else {
-        // All steps done — mark address_completed
-        await fetch(`/api/family-members/${child.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address_completed: true }),
-        });
         onUpdate({ ...child, poa_declaration_url: poaUrl, address_completed: true });
-        onClose();
       }
+      onClose();
     } catch (e) {
       console.error("[complete-poa]", e);
       setFlowError(e?.message || "Proof of address upload failed. Please try again.");
@@ -744,7 +735,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       const uploadRes = await fetch("/api/onboarding/upload-agreement", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ pdfBase64 }),
+        body: JSON.stringify({ pdfBase64, subjectId: child.id }),
       });
       const uploadJson = await uploadRes.json();
       if (!uploadRes.ok || !uploadJson.publicUrl) {
@@ -901,9 +892,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
       ? "KYC Rejected"
       : "KYC Pending";
 
-  // POA is considered complete if either the URL was stored OR the declaration was signed
-  // (the URL upload may fail silently, but signed_at is always set on success)
-  const poaDone = !!(child?.poa_declaration_url || child?.poa_declaration_signed_at);
+  const poaDone = !!child?.poa_declaration_url;
   const missingItems = [
     !child?.id_number && "ID number",
     !poaDone && "proof of address",
@@ -919,7 +908,12 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
 
   async function fetchAll() {
     setLoading(true);
-    await Promise.all([fetchHoldings(), fetchParentWallet(), fetchTransactions(), fetchChildBalance()]);
+    await Promise.all([
+      fetchHoldings(),
+      fetchParentWallet(),
+      fetchTransactions(),
+      fetchChildBalance(),
+    ]);
     if (isMounted.current) setLoading(false);
   }
 

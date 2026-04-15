@@ -26,7 +26,7 @@ export default async function handler(req, res) {
     if (authErr || !user) return res.status(401).json({ success: false, error: "Invalid session" });
 
     // ── Validate body ─────────────────────────────────────────────────────
-    const { pdfBase64 } = req.body || {};
+    const { pdfBase64, subjectId } = req.body || {};
     if (!pdfBase64 || typeof pdfBase64 !== "string") {
       return res.status(400).json({ success: false, error: "Missing pdfBase64 in request body" });
     }
@@ -44,8 +44,26 @@ export default async function handler(req, res) {
     }
 
     // ── Build storage path ────────────────────────────────────────────────
+    let storageSubjectId = user.id;
+    if (subjectId) {
+      const { data: ownedMember, error: memberErr } = await db
+        .from("family_members")
+        .select("id")
+        .eq("id", subjectId)
+        .eq("primary_user_id", user.id)
+        .maybeSingle();
+
+      if (memberErr) {
+        return res.status(500).json({ success: false, error: memberErr.message || "Failed to validate subject" });
+      }
+      if (!ownedMember) {
+        return res.status(403).json({ success: false, error: "Not authorized for this subjectId" });
+      }
+      storageSubjectId = subjectId;
+    }
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const filePath = `${user.id}/agreement-${timestamp}.pdf`;
+    const filePath = `${storageSubjectId}/agreement-${timestamp}.pdf`;
     const bucketName = "signed-agreements";
 
     // ── Upload to Supabase Storage ────────────────────────────────────────
@@ -73,7 +91,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ success: false, error: "Failed to get public URL after upload" });
     }
 
-    console.log(`[upload-agreement] Uploaded for user ${user.id}: ${publicUrl}`);
+    console.log(`[upload-agreement] Uploaded for user ${user.id}, subject ${storageSubjectId}: ${publicUrl}`);
     return res.status(200).json({ success: true, publicUrl });
   } catch (error) {
     console.error("[upload-agreement] Unexpected error:", error);

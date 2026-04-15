@@ -261,6 +261,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       if (pdfBuffer) {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
+        if (!token) throw new Error("Session expired.");
 
         const uint8 = new Uint8Array(pdfBuffer);
         const CHUNK = 0x8000;
@@ -272,8 +273,8 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
 
         const uploadRes = await fetch("/api/onboarding/upload-agreement", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ pdfBase64 }),
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ pdfBase64, subjectId: newChildMember.id }),
         });
         const uploadJson = await uploadRes.json();
         if (uploadRes.ok && uploadJson.publicUrl) {
@@ -296,7 +297,6 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       }
 
       const patchBody = {
-        poa_declaration_signed_at: signedAt,
         lives_with_parent: livesWithParent,
       };
       if (poaUrl) patchBody.poa_declaration_url = poaUrl;
@@ -310,7 +310,6 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       setNewChildMember(prev => ({
         ...prev,
         ...(poaUrl ? { poa_declaration_url: poaUrl } : {}),
-        poa_declaration_signed_at: signedAt,
         lives_with_parent: livesWithParent,
         ...(resolvedAddress ? { address: resolvedAddress } : {}),
       }));
@@ -469,7 +468,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       const uploadRes = await fetch("/api/onboarding/upload-agreement", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ pdfBase64 }),
+        body: JSON.stringify({ pdfBase64, subjectId: newChildMember.id }),
       });
       const uploadJson = await uploadRes.json();
       if (!uploadRes.ok || !uploadJson.publicUrl) {
