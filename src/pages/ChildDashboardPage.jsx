@@ -680,7 +680,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
         const res = await fetch("/api/onboarding/upload-agreement", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ pdfBase64 }),
+          body: JSON.stringify({ pdfBase64, subjectId: child.id }),
         });
         const j = await res.json();
         if (!res.ok || !j.publicUrl) {
@@ -744,7 +744,7 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
       const uploadRes = await fetch("/api/onboarding/upload-agreement", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ pdfBase64 }),
+        body: JSON.stringify({ pdfBase64, subjectId: child.id }),
       });
       const uploadJson = await uploadRes.json();
       if (!uploadRes.ok || !uploadJson.publicUrl) {
@@ -943,13 +943,15 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
       const hasPoaFile = poaFiles.some((file) => file?.name && !file.name.endsWith("/"));
 
       const userId = userRes?.data?.user?.id;
-      let hasSignedAgreement = false;
-      if (userId) {
-        const { data: agreementFiles } = await supabase.storage
-          .from("signed-agreements")
-          .list(userId, { limit: 1 });
-        hasSignedAgreement = (agreementFiles || []).some((file) => file?.name && !file.name.endsWith("/"));
-      }
+      const [childAgreementRes, parentAgreementRes] = await Promise.all([
+        supabase.storage.from("signed-agreements").list(child.id, { limit: 1 }),
+        userId ? supabase.storage.from("signed-agreements").list(userId, { limit: 1 }) : Promise.resolve({ data: [] }),
+      ]);
+
+      const hasSignedAgreement = [
+        ...(childAgreementRes?.data || []),
+        ...(parentAgreementRes?.data || []),
+      ].some((file) => file?.name && !file.name.endsWith("/"));
 
       return hasPoaFile || hasSignedAgreement;
     } catch (e) {
