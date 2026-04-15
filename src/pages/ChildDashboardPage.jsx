@@ -701,25 +701,19 @@ function CompleteProfileModal({ child, parentProfile, onUpdate, onClose }) {
         const patchRes = await fetch(`/api/family-members/${child.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ poa_declaration_url: poaUrl, poa_declaration_signed_at: signedAt }),
+          body: JSON.stringify({
+            poa_declaration_url: poaUrl,
+            poa_declaration_signed_at: signedAt,
+            address_completed: true,
+          }),
         });
         if (!patchRes.ok) {
           const patchJson = await patchRes.json().catch(() => ({}));
           throw new Error(patchJson?.error || "Failed to save proof of address.");
         }
-        onUpdate({ ...child, poa_declaration_url: poaUrl });
-      }
-      if (!child.signed_agreement_url) { setStep("agreement"); }
-      else {
-        // All steps done — mark address_completed
-        await fetch(`/api/family-members/${child.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ address_completed: true }),
-        });
         onUpdate({ ...child, poa_declaration_url: poaUrl, address_completed: true });
-        onClose();
       }
+      onClose();
     } catch (e) {
       console.error("[complete-poa]", e);
       setFlowError(e?.message || "Proof of address upload failed. Please try again.");
