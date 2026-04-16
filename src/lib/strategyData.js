@@ -34,19 +34,7 @@ export const getStrategiesWithMetrics = async () => {
       .from("strategies")
       .select(`
         *,
-        strategy_metrics!strategy_metrics_strategy_id_fkey(
-          as_of_date,
-          last_close,
-          prev_close,
-          change_abs,
-          change_pct,
-          r_1w,
-          r_1m,
-          r_3m,
-          r_6m,
-          r_ytd,
-          r_1y
-        )
+        strategy_metrics!strategy_metrics_strategy_id_fkey(*)
       `)
       .eq("status", "active")
       .order("name", { ascending: true })
@@ -195,19 +183,7 @@ export const getStrategyById = async (strategyId) => {
       .from("strategies")
       .select(`
         *,
-        strategy_metrics!strategy_metrics_strategy_id_fkey(
-          as_of_date,
-          last_close,
-          prev_close,
-          change_abs,
-          change_pct,
-          r_1w,
-          r_1m,
-          r_3m,
-          r_6m,
-          r_ytd,
-          r_1y
-        )
+        strategy_metrics!strategy_metrics_strategy_id_fkey(*)
       `)
       .eq("id", strategyId)
       .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })

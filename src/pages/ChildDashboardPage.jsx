@@ -257,7 +257,7 @@ function InvestModal({ child, onInvest, onClose }) {
       if (!supabase) return;
       const { data } = await supabase
         .from("strategies")
-        .select("id, name, description, risk_level, min_investment, is_featured, strategy_metrics(change_pct, r_1y)")
+        .select("id, name, description, risk_level, min_investment, is_featured, strategy_metrics(*)")
         .eq("is_active", true)
         .order("is_featured", { ascending: false })
         .order("name")

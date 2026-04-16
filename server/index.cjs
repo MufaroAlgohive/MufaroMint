@@ -3872,7 +3872,7 @@ app.get("/api/user/strategies", async (req, res) => {
       .select(`
         id, name, short_name, description, risk_level, sector, icon_url, image_url, holdings, status,
         strategy_metrics (
-          as_of_date, last_close, change_pct, r_1w, r_1m, r_3m, r_ytd, r_1y
+          *
         )
       `)
       .eq("status", "active");

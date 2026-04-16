@@ -183,7 +183,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
         }
 
         const { data: strategies, error } = await supabase
-          .select("id, name, short_name, description, risk_level, holdings, strategy_metrics(as_of_date, last_close, change_pct, r_1m, r_1w, r_3m, r_6m, r_ytd, r_1y, change_abs, prev_close)")
+          .select("id, name, short_name, description, risk_level, holdings, strategy_metrics(*)")
           .in("id", userStrats.map((s) => s.id))
           .eq("status", "active")
           .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
