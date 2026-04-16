@@ -45,6 +45,8 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [investChecking, setInvestChecking] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [performanceData, setPerformanceData] = useState({});
+  const [calendarReturns, setCalendarReturns] = useState({});
 
   const strategyId = strategy?.id || strategy?.strategy_id || strategyData?.id || null;
   const strategySlug = strategy?.slug || strategyData?.slug || null;
@@ -324,6 +326,72 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
     };
   }, [strategyId, timeframe]);
 
+  // Fetch performance summary and calendar returns
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchPerformanceData = async () => {
+      if (!supabase || !strategyId) return;
+
+      try {
+        const yearStart = `${calendarYear}-01-01`;
+        const yearEnd = `${calendarYear}-12-31`;
+
+        // Fetch all daily returns for the year
+        const { data: dailyReturns, error: dailyError } = await supabase
+          .from("strategies_returns_c")
+          .select("strategy_id, as_of_date, \"1d_pct\", ytd_pct")
+          .eq("strategy_id", strategyId)
+          .gte("as_of_date", yearStart)
+          .lte("as_of_date", yearEnd)
+          .order("as_of_date", { ascending: true });
+
+        if (dailyError) throw dailyError;
+
+        if (dailyReturns && dailyReturns.length > 0 && isMounted) {
+          // Calculate performance summary
+          const dailyPcts = dailyReturns.map(d => d["1d_pct"] || 0);
+          const bestDay = Math.max(...dailyPcts);
+          const worstDay = Math.min(...dailyPcts);
+          const avgDaily = dailyPcts.length > 0 ? dailyPcts.reduce((a, b) => a + b, 0) / dailyPcts.length : 0;
+          const ytdReturn = dailyReturns[dailyReturns.length - 1]?.ytd_pct || 0;
+
+          setPerformanceData({
+            bestDay: bestDay / 100,
+            worstDay: worstDay / 100,
+            avgDaily: avgDaily / 100,
+            ytdReturn: ytdReturn / 100
+          });
+
+          // Build calendar returns (monthly)
+          const monthlyReturns = {};
+          const lastDayOfMonth = {};
+
+          dailyReturns.forEach((day) => {
+            const date = day.as_of_date;
+            const yearMonth = date.slice(0, 7); // YYYY-MM
+            lastDayOfMonth[yearMonth] = day; // Keep updating to get the last day
+          });
+
+          Object.entries(lastDayOfMonth).forEach(([yearMonth, dayData]) => {
+            const month = parseInt(yearMonth.split("-")[1]);
+            monthlyReturns[month] = dayData["1m_pct"] ? dayData["1m_pct"] / 100 : 0;
+          });
+
+          setCalendarReturns(monthlyReturns);
+        }
+      } catch (error) {
+        console.error("Error fetching performance data:", error);
+      }
+    };
+
+    fetchPerformanceData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [strategyId, calendarYear]);
+
   // Generate chart data from analytics curves (index levels)
   const { data, yDomain, baseIndexValue } = useMemo(() => {
     const curves = analytics?.curves || {};
@@ -378,25 +446,26 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
   // Calculate cumulative returns for calendar
   const calendarData = useMemo(() => {
-    const returns = Array.isArray(analytics?.calendar_returns) ? analytics.calendar_returns : [];
-    return returns.reduce((acc, entry) => {
-      if (!entry?.month) return acc;
-      const [year, month] = entry.month.split("-");
-      if (!acc[year]) acc[year] = {};
-      acc[year][month] = entry.return;
-      return acc;
-    }, {});
-  }, [analytics]);
+    const result = {};
+    result[calendarYear] = {};
+
+    Object.entries(calendarReturns).forEach(([month, returnValue]) => {
+      const monthKey = String(month).padStart(2, "0");
+      result[calendarYear][monthKey] = returnValue;
+    });
+
+    return result;
+  }, [calendarReturns, calendarYear]);
 
   const availableCalendarYears = useMemo(
-    () => Object.keys(calendarData).sort(),
-    [calendarData],
+    () => [String(calendarYear)],
+    [calendarYear],
   );
 
   useEffect(() => {
-    if (!availableCalendarYears.length) return;
-    const latestYear = Number(availableCalendarYears[availableCalendarYears.length - 1]);
-    setCalendarYear((prev) => (availableCalendarYears.includes(String(prev)) ? prev : latestYear));
+    if (!Object.keys(calendarReturns).length && calendarYear !== new Date().getFullYear()) {
+      setCalendarYear(new Date().getFullYear());
+    }
   }, [availableCalendarYears]);
 
   const minimumInvestmentAmount = useMemo(() => {
@@ -462,31 +531,29 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
   }, [currentStrategy.holdings, currentStrategy?.base_currency, holdingsSecurities, cashHoldingAmount]);
 
   const performanceSummary = useMemo(() => {
-    const summary = analytics?.summary || {};
-
     return [
       {
         label: "Best Day",
-        value: formatPercent(summary.best_day),
+        value: formatPercent(performanceData.bestDay),
         description: "The highest daily return this strategy has achieved.",
       },
       {
         label: "Worst Day",
-        value: formatPercent(summary.worst_day),
+        value: formatPercent(performanceData.worstDay),
         description: "The lowest daily return (most negative) this strategy has experienced.",
       },
       {
         label: "Avg Daily Return",
-        value: formatPercent(summary.avg_day),
+        value: formatPercent(performanceData.avgDaily),
         description: "The average daily percentage change across all trading days.",
       },
       {
         label: "YTD Return",
-        value: formatPercent(analytics?.r_ytd ?? summary.ytd_return),
+        value: formatPercent(performanceData.ytdReturn),
         description: "Year-to-date return for the strategy.",
       },
     ];
-  }, [analytics]);
+  }, [performanceData]);
 
   // Auto-scroll removed to allow manual scrolling.
 
