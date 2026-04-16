@@ -657,15 +657,47 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
           return;
         }
 
-        const { data, error } = await supabase
-          .from("strategy_analytics")
-          .select("strategy_id, as_of_date, base_currency, latest_value, curves, computed_at, error")
+        // Fetch daily returns from strategies_returns_c for YTD cumulative calculation
+        const currentYear = new Date().getFullYear();
+        const yearStart = `${currentYear}-01-01`;
+
+        const { data: dailyReturns, error } = await supabase
+          .from("strategies_returns_c")
+          .select("strategy_id, as_of_date, d1_pct")
           .eq("strategy_id", strategyId)
-          .maybeSingle();
+          .gte("as_of_date", yearStart)
+          .order("as_of_date", { ascending: true });
 
         if (error) throw error;
+
+        if (!dailyReturns || dailyReturns.length === 0) {
+          if (isMounted) {
+            setSelectedStrategyAnalytics(null);
+          }
+          return;
+        }
+
+        // Calculate cumulative returns
+        const cumulativeData = [];
+        let cumulative = 0;
+
+        dailyReturns.forEach((day) => {
+          const dailyReturn = day.d1_pct ? day.d1_pct / 100 : 0; // Convert percentage to decimal
+          cumulative += dailyReturn;
+          cumulativeData.push({
+            d: day.as_of_date,
+            v: Number((cumulative * 100).toFixed(2)) // Convert back to percentage for display
+          });
+        });
+
         if (isMounted) {
-          setSelectedStrategyAnalytics(data || null);
+          setSelectedStrategyAnalytics({
+            strategy_id: strategyId,
+            as_of_date: dailyReturns[dailyReturns.length - 1].as_of_date,
+            curves: {
+              YTD: cumulativeData
+            }
+          });
         }
       } catch (error) {
         if (isMounted) {
