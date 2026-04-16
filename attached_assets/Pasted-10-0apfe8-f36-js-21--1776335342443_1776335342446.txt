@@ -1,0 +1,366 @@
+10-0apfe8~f36.js:21 
+      /////////////////////
+   ///////////////////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////        Curious and driven?
+  ///////////////@@@@@@@///////        Work with us!
+  ///////////////@@@@@@@///////
+  ///////////////@@@@@@@///////        https://join.replit.com/hack.with.us
+  ////////@@@@@@@//////////////
+  ////////@@@@@@@//////////////
+  ////////@@@@@@#//////////////
+   ///////////////////////////
+      /////////////////////
+      
+10-0apfe8~f36.js:21 Download the Apollo DevTools for a better development experience: https://chrome.google.com/webstore/detail/apollo-client-developer-t/jdkknkkbebbapilgoeccciglkfbmbnfm
+10-0apfe8~f36.js:21 [LaunchDarkly] LaunchDarkly client initialized
+stallwart.build.js:1 stallwart: failed ping 1
+mint:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+ WebSocket connection to 'wss://eval.kirk.platform.replit.com/wsv2/v2.public.Q2dZSTJPTDV6Z1lTQmdqMy92bk9CaUlFYTJseWF6QUFPdWtCQ2lSbFlqTTROMkU1T1MwMFl6TmlMVFE1WWpZdE9HUTNZUzB3WWpWaVlXTTJObUkzWTJNU0EyNXBlQm9XY21Wd2JHbDBMWEpsY0d3dFptbHNaWE10YTJseWF5SUViV2x1ZENvT2JXRnpaV05vWVdKaGJXRnBiR1ZDVGdvWGNtVndiR2wwTFhKbGNHd3RZbXh2WTJ0ekxXdHBjbXNTRlhKbGNHeHBkQzF5WlhCc0xXMWxkR0V0YTJseWF4b2NjbVZ3YkdsMExXMWhjbWRoY21sdVpTMWliRzlqYTNNdGEybHlhMG9IQ1B5SWtCc1FBVkFBZUFDQ0FSVmpiMjV1WldOMGIzSnpMbkpsY0d4cGRDNWpiMjJLQVJnS0VFUlBYMU5GUTFWU1NWUlpYMU5EUVU0U0JIUnlkV1ZTSlFnQkVJQ0FnSUFnR1FBQUFBQUFBQkJBSVFBQUFBQUFBQkJBS0lDQWdJRElBVEFDT0FCZ0FHb1ZDUHlJa0JzU0RtMWhjMlZqYUdGaVlXMWhhV3hsbWdFS0NnZ3dMakF1TlRVMU42QUJBQT09dvPElfU9cC3nMboqX9cyM-cQMJlMy7B-JZ_kVtJMfWPu-yaXloEagtkPDirBBsC-xmKMnoXpJn2PMtFdf5mnBg.Q2dad2NtOWtPak1pQ25KbGNHeHBkQzVqYjIwPQ' failed: 
+connect @ 0bjk6bl3a5c0o.js:2
+graphql:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+/data/repls/eb387a99-4c3b-49b6-8d7a-0b5bac66b7cc/get_connection_metadata:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0qvpm_0fogrps.js:8
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 15fnu32n49~5s.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0ovt_3t_qci.y.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0ovt_3t_qci.y.js:2
+/data/repls/eb387a99-4c3b-49b6-8d7a-0b5bac66b7cc/get_connection_metadata:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 15fnu32n49~5s.js:2
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0qvpm_0fogrps.js:8
+graphql:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+ WebSocket connection to 'wss://eval.kirk.platform.replit.com/wsv2/v2.public.Q2dZSTJPTDV6Z1lTQmdqMy92bk9CaUlFYTJseWF6QUFPdWtCQ2lSbFlqTTROMkU1T1MwMFl6TmlMVFE1WWpZdE9HUTNZUzB3WWpWaVlXTTJObUkzWTJNU0EyNXBlQm9XY21Wd2JHbDBMWEpsY0d3dFptbHNaWE10YTJseWF5SUViV2x1ZENvT2JXRnpaV05vWVdKaGJXRnBiR1ZDVGdvWGNtVndiR2wwTFhKbGNHd3RZbXh2WTJ0ekxXdHBjbXNTRlhKbGNHeHBkQzF5WlhCc0xXMWxkR0V0YTJseWF4b2NjbVZ3YkdsMExXMWhjbWRoY21sdVpTMWliRzlqYTNNdGEybHlhMG9IQ1B5SWtCc1FBVkFBZUFDQ0FSVmpiMjV1WldOMGIzSnpMbkpsY0d4cGRDNWpiMjJLQVJnS0VFUlBYMU5GUTFWU1NWUlpYMU5EUVU0U0JIUnlkV1ZTSlFnQkVJQ0FnSUFnR1FBQUFBQUFBQkJBSVFBQUFBQUFBQkJBS0lDQWdJRElBVEFDT0FCZ0FHb1ZDUHlJa0JzU0RtMWhjMlZqYUdGaVlXMWhhV3hsbWdFS0NnZ3dMakF1TlRVMU42QUJBQT09dvPElfU9cC3nMboqX9cyM-cQMJlMy7B-JZ_kVtJMfWPu-yaXloEagtkPDirBBsC-xmKMnoXpJn2PMtFdf5mnBg.Q2dad2NtOWtPak1pQ25KbGNHeHBkQzVqYjIwPQ' failed: 
+connect @ 0bjk6bl3a5c0o.js:2
+ WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 0x5ejax6_es3h.js:2
+/data/repls/eb387a99-4c3b-49b6-8d7a-0b5bac66b7cc/get_connection_metadata:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0ovt_3t_qci.y.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 15fnu32n49~5s.js:2
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0qvpm_0fogrps.js:8
+ WebSocket connection to 'wss://eval.kirk.platform.replit.com/wsv2/v2.public.Q2dZSTJPTDV6Z1lTQmdqMy92bk9CaUlFYTJseWF6QUFPdWtCQ2lSbFlqTTROMkU1T1MwMFl6TmlMVFE1WWpZdE9HUTNZUzB3WWpWaVlXTTJObUkzWTJNU0EyNXBlQm9XY21Wd2JHbDBMWEpsY0d3dFptbHNaWE10YTJseWF5SUViV2x1ZENvT2JXRnpaV05vWVdKaGJXRnBiR1ZDVGdvWGNtVndiR2wwTFhKbGNHd3RZbXh2WTJ0ekxXdHBjbXNTRlhKbGNHeHBkQzF5WlhCc0xXMWxkR0V0YTJseWF4b2NjbVZ3YkdsMExXMWhjbWRoY21sdVpTMWliRzlqYTNNdGEybHlhMG9IQ1B5SWtCc1FBVkFBZUFDQ0FSVmpiMjV1WldOMGIzSnpMbkpsY0d4cGRDNWpiMjJLQVJnS0VFUlBYMU5GUTFWU1NWUlpYMU5EUVU0U0JIUnlkV1ZTSlFnQkVJQ0FnSUFnR1FBQUFBQUFBQkJBSVFBQUFBQUFBQkJBS0lDQWdJRElBVEFDT0FCZ0FHb1ZDUHlJa0JzU0RtMWhjMlZqYUdGaVlXMWhhV3hsbWdFS0NnZ3dMakF1TlRVMU42QUJBQT09dvPElfU9cC3nMboqX9cyM-cQMJlMy7B-JZ_kVtJMfWPu-yaXloEagtkPDirBBsC-xmKMnoXpJn2PMtFdf5mnBg.Q2dad2NtOWtPak1pQ25KbGNHeHBkQzVqYjIwPQ' failed: 
+connect @ 0bjk6bl3a5c0o.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0ovt_3t_qci.y.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 15fnu32n49~5s.js:2
+ WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 0x5ejax6_es3h.js:2
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0qvpm_0fogrps.js:8
+/data/repls/eb387a99-4c3b-49b6-8d7a-0b5bac66b7cc/get_connection_metadata:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+securetoken.googleapis.com/v1/token?key=AIzaSyARAzVTWc_KOBojIholLo2wzwNOQ6VKcB8:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+graphql:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED
+o1151714.ingest.sentry.io/api/6318792/envelope/?sentry_key=8aa91189a4274b5a8c9b7b01d46ea360&sentry_version=7&sentry_client=sentry.javascript.browser%2F7.120.4:1  Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED
+ WebSocket connection to 'wss://eval.kirk.platform.replit.com/wsv2/v2.public.Q2dZSTJPTDV6Z1lTQmdqMy92bk9CaUlFYTJseWF6QUFPdWtCQ2lSbFlqTTROMkU1T1MwMFl6TmlMVFE1WWpZdE9HUTNZUzB3WWpWaVlXTTJObUkzWTJNU0EyNXBlQm9XY21Wd2JHbDBMWEpsY0d3dFptbHNaWE10YTJseWF5SUViV2x1ZENvT2JXRnpaV05vWVdKaGJXRnBiR1ZDVGdvWGNtVndiR2wwTFhKbGNHd3RZbXh2WTJ0ekxXdHBjbXNTRlhKbGNHeHBkQzF5WlhCc0xXMWxkR0V0YTJseWF4b2NjbVZ3YkdsMExXMWhjbWRoY21sdVpTMWliRzlqYTNNdGEybHlhMG9IQ1B5SWtCc1FBVkFBZUFDQ0FSVmpiMjV1WldOMGIzSnpMbkpsY0d4cGRDNWpiMjJLQVJnS0VFUlBYMU5GUTFWU1NWUlpYMU5EUVU0U0JIUnlkV1ZTSlFnQkVJQ0FnSUFnR1FBQUFBQUFBQkJBSVFBQUFBQUFBQkJBS0lDQWdJRElBVEFDT0FCZ0FHb1ZDUHlJa0JzU0RtMWhjMlZqYUdGaVlXMWhhV3hsbWdFS0NnZ3dMakF1TlRVMU42QUJBQT09dvPElfU9cC3nMboqX9cyM-cQMJlMy7B-JZ_kVtJMfWPu-yaXloEagtkPDirBBsC-xmKMnoXpJn2PMtFdf5mnBg.Q2dad2NtOWtPak1pQ25KbGNHeHBkQzVqYjIwPQ' failed: WebSocket is closed before the connection is established.
+cleanupSocket @ 0bjk6bl3a5c0o.js:2
+ stallwart: failed ping 1
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 15fnu32n49~5s.js:2
+ WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 0x5ejax6_es3h.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0ovt_3t_qci.y.js:2
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0qvpm_0fogrps.js:8
+graphql:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+/data/repls/eb387a99-4c3b-49b6-8d7a-0b5bac66b7cc/get_connection_metadata:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+graphql:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+securetoken.googleapis.com/v1/token?key=AIzaSyARAzVTWc_KOBojIholLo2wzwNOQ6VKcB8:1  Failed to load resource: net::ERR_INTERNET_DISCONNECTED
+ WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 0x5ejax6_es3h.js:2
+graphql:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+/data/repls/eb387a99-4c3b-49b6-8d7a-0b5bac66b7cc/get_connection_metadata:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0ovt_3t_qci.y.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 15fnu32n49~5s.js:2
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0qvpm_0fogrps.js:8
+ stallwart: failed ping 1
+stallwart.build.js:1 stallwart: failed ping 2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river-chat' failed: 
+(anonymous) @ 0ovt_3t_qci.y.js:2
+ WebSocket connection to 'wss://production-chort.replit.com/api/river' failed: 
+(anonymous) @ 15fnu32n49~5s.js:2
+ WebSocket connection to 'wss://production-taskman.replit.com/api/river' failed: 
+(anonymous) @ 0qvpm_0fogrps.js:8
+ WebSocket connection to 'wss://replit.com/graphql_subscriptions' failed: 
+(anonymous) @ 0x5ejax6_es3h.js:2
+/data/repls/eb387a99-4c3b-49b6-8d7a-0b5bac66b7cc/get_connection_metadata:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+securetoken.googleapis.com/v1/token?key=AIzaSyARAzVTWc_KOBojIholLo2wzwNOQ6VKcB8:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+graphql:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_ADDRESS_UNREACHABLE
+events.launchdarkly.com/events/diagnostic/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NETWORK_CHANGED
+events.launchdarkly.com/events/bulk/62b35a865152ab14c5942820:1  Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+10-0apfe8~f36.js:21 Cache data may be lost when replacing the authorizations field of a Customer object.
+
+This could cause additional (usually avoidable) network requests to fetch data that were otherwise cached.
+
+To address this problem (which is not a bug in Apollo Client), either ensure all objects of type CustomerAuthorizations have an ID or a custom merge function, or define a custom merge function for the Customer.authorizations field, so InMemoryCache can safely merge these objects:
+
+  existing: {"__typename":"CustomerAuthorizations","createWorkspace":{"__typename":"CustomerAuthorization","isAuthorized":true,"code":"authorized"}}
+  incoming: {"__typename":"CustomerAuthorizations","viewSubscription":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view the subscription."},"viewSeats":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view seats."},"viewUsage":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to view usage."},"editUsageLimit":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to edit the usage limit."},"editSettings":{"__typename":"CustomerAuthorization","isAuthorized":true,"message":"You are able to edit the settings."},"enableScim":{"__typename":"CustomerAuthorization","isAuthorized":false,"message":"This feature requires an enterprise plan. Contact the sales team to enable SCIM provisioning."}}
+
+For more information about these options, please refer to the documentation:
+
+  * Ensuring entity objects have IDs: https://go.apollo.dev/c/generating-unique-identifiers
+  * Defining custom merge functions: https://go.apollo.dev/c/merging-non-normalized-objects
+
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Cache data may be lost when replacing the caps field of a CustomerSeats object.
+
+This could cause additional (usually avoidable) network requests to fetch data that were otherwise cached.
+
+To address this problem (which is not a bug in Apollo Client), either ensure all objects of type CustomerSeatsCaps have an ID or a custom merge function, or define a custom merge function for the CustomerSeats.caps field, so InMemoryCache can safely merge these objects:
+
+  existing: {"__typename":"CustomerSeatsCaps","members":5,"viewers":0}
+  incoming: {"__typename":"CustomerSeatsCaps","viewers":0}
+
+For more information about these options, please refer to the documentation:
+
+  * Ensuring entity objects have IDs: https://go.apollo.dev/c/generating-unique-identifiers
+  * Defining custom merge functions: https://go.apollo.dev/c/merging-non-normalized-objects
+
+(anonymous) @ 10-0apfe8~f36.js:21
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+ Unrecognized feature: 'ambient-light-sensor'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'battery'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'execution-while-not-rendered'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'execution-while-out-of-viewport'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'layout-animations'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'legacy-image-formats'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'navigation-override'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'oversized-images'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'publickey-credentials'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'speaker-selection'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'unoptimized-images'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'unsized-media'.
+C @ 0i8wy8tbht2ow.js:2
+ Unrecognized feature: 'pointer-lock'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Allow attribute will take precedence over 'allowfullscreen'.
+C @ 0i8wy8tbht2ow.js:2
+0i8wy8tbht2ow.js:2 Allow attribute will take precedence over 'allowpaymentrequest'.
+C @ 0i8wy8tbht2ow.js:2
+gravatar.com/avatar/bfb34bef3fe269271bf4f4b32344bb22?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/bfb34bef3fe269271bf4f4b32344bb22?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/bfb34bef3fe269271bf4f4b32344bb22?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/bfb34bef3fe269271bf4f4b32344bb22?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/bfb34bef3fe269271bf4f4b32344bb22?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+gravatar.com/avatar/bfb34bef3fe269271bf4f4b32344bb22?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+10-0apfe8~f36.js:21 Haven't heard from the server in a while, resetting connection...
+(anonymous) @ 10-0apfe8~f36.js:21
+d8a94b5cc0c9cb55961335f7f82da717:1  Failed to load resource: the server responded with a status of 404 ()
+c1ac7f72505675160a705250d71272f2:1  Failed to load resource: the server responded with a status of 404 ()
+bceb5b07e37b1b7118e70f350de29143:1  Failed to load resource: the server responded with a status of 404 ()
+316ece743b93b01a5381a4d8876114a9:1  Failed to load resource: the server responded with a status of 404 ()
+d8a94b5cc0c9cb55961335f7f82da717:1  Failed to load resource: the server responded with a status of 404 ()
+bceb5b07e37b1b7118e70f350de29143:1  Failed to load resource: the server responded with a status of 404 ()
+c1ac7f72505675160a705250d71272f2:1  Failed to load resource: the server responded with a status of 404 ()
+316ece743b93b01a5381a4d8876114a9:1  Failed to load resource: the server responded with a status of 404 ()
+stallwart.build.js:1 stallwart: failed ping 1
+316ece743b93b01a5381a4d8876114a9:1  Failed to load resource: the server responded with a status of 404 ()
+stallwart.build.js:1 stallwart: failed ping 1
+bceb5b07e37b1b7118e70f350de29143:1  Failed to load resource: the server responded with a status of 404 ()
+d8a94b5cc0c9cb55961335f7f82da717:1  Failed to load resource: the server responded with a status of 404 ()
+316ece743b93b01a5381a4d8876114a9:1  Failed to load resource: the server responded with a status of 404 ()
+c1ac7f72505675160a705250d71272f2:1  Failed to load resource: the server responded with a status of 404 ()
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'ambient-light-sensor'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'battery'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'execution-while-not-rendered'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'execution-while-out-of-viewport'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'layout-animations'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'legacy-image-formats'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'navigation-override'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'oversized-images'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'publickey-credentials'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'speaker-selection'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'unoptimized-images'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Unrecognized feature: 'unsized-media'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Allow attribute will take precedence over 'allowfullscreen'.
+workspace_iframe.html?initialPath=%2F&id=default-start-application:32 Allow attribute will take precedence over 'allowpaymentrequest'.
+injected.js:37 [realtime-prices] Setting up singleton subscription
+injected.js:37 Setting up SINGLETON notifications subscription
+injected.js:37 [realtime-prices] Subscription status: SUBSCRIBED
+injected.js:37 Notifications singleton status: SUBSCRIBED
+injected.js:37 [useOnboardingStatus] Total Onboarding Status: COMPLETE ✅ Object
+injected.js:37 KYC status check: stored="verified" current="verified"
+injected.js:37 Setting up SINGLETON real-time subscription: required-actions-singleton
+injected.js:37 Singleton subscription status: SUBSCRIBED
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/securities?select=id%2Csymbol%2Cname%2Clogo_url%2Clast_price&id=in.%28573935c4-b9ac-4779-822a-d15e6bd853c2%2C35b7cce7-a9d3-4a1b-971c-8635bca7f4a0%2C7715c7a6-1a77-43f3-a073-c8fd425476ad%2C4b445d81-e2f4-4b22-b3f3-a6001d4d521f%2Cacef61ef-6108-45d0-bbec-a32d347ee7c7%2Ccb4fce85-b246-4a68-87f9-646f82570712%29:1  Failed to load resource: the server responded with a status of 404 ()
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/securities?select=id%2Csymbol%2Clogo_url%2Cname&symbol=in.%28NED.JO%2CNED%2CSUI.JO%2CSUI%2CDIB.JO%2CDIB%2CCLI.JO%2CCLI%2CEXX.JO%2CEXX%2CABG.JO%2CABG%29:1  Failed to load resource: the server responded with a status of 404 ()
+injected.js:37 Error fetching holdings securities chunk: Object
+(anonymous) @ injected.js:37
+await in (anonymous)
+(anonymous) @ HomePage.jsx:468
+commitHookEffectListMount @ chunk-IEWVK4NL.js?v=7874f789:16963
+commitPassiveMountOnFiber @ chunk-IEWVK4NL.js?v=7874f789:18206
+commitPassiveMountEffects_complete @ chunk-IEWVK4NL.js?v=7874f789:18179
+commitPassiveMountEffects_begin @ chunk-IEWVK4NL.js?v=7874f789:18169
+commitPassiveMountEffects @ chunk-IEWVK4NL.js?v=7874f789:18159
+flushPassiveEffectsImpl @ chunk-IEWVK4NL.js?v=7874f789:19543
+flushPassiveEffects @ chunk-IEWVK4NL.js?v=7874f789:19500
+(anonymous) @ chunk-IEWVK4NL.js?v=7874f789:19381
+workLoop @ chunk-IEWVK4NL.js?v=7874f789:197
+flushWork @ chunk-IEWVK4NL.js?v=7874f789:176
+performWorkUntilDeadline @ chunk-IEWVK4NL.js?v=7874f789:384
+injected.js:37 🔍 Computing price history from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (3M)...
+mfxnghmuccevsxwcetej.supabase.co/rest/v1/securities?select=id%2Csymbol&symbol=in.%28NED.JO%2CSUI.JO%2CDIB.JO%2CCLI.JO%2CEXX.JO%2CABG.JO%29:1  Failed to load resource: the server responded with a status of 404 ()
+injected.js:37 ❌ Error fetching securities for holdings: Object
+(anonymous) @ injected.js:37
+await in (anonymous)
+fetchChartPrices @ SwipeableBalanceCard.jsx:315
+(anonymous) @ SwipeableBalanceCard.jsx:482
+commitHookEffectListMount @ chunk-IEWVK4NL.js?v=7874f789:16963
+commitPassiveMountOnFiber @ chunk-IEWVK4NL.js?v=7874f789:18206
+commitPassiveMountEffects_complete @ chunk-IEWVK4NL.js?v=7874f789:18179
+commitPassiveMountEffects_begin @ chunk-IEWVK4NL.js?v=7874f789:18169
+commitPassiveMountEffects @ chunk-IEWVK4NL.js?v=7874f789:18159
+flushPassiveEffectsImpl @ chunk-IEWVK4NL.js?v=7874f789:19543
+flushPassiveEffects @ chunk-IEWVK4NL.js?v=7874f789:19500
+(anonymous) @ chunk-IEWVK4NL.js?v=7874f789:19381
+workLoop @ chunk-IEWVK4NL.js?v=7874f789:197
+flushWork @ chunk-IEWVK4NL.js?v=7874f789:176
+performWorkUntilDeadline @ chunk-IEWVK4NL.js?v=7874f789:384
+injected.js:37 🔍 Computing price history from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (3M)...
+injected.js:37 🔍 Computing price history from holdings for strategy 640dcffb-dc23-4099-9772-0f72ed9688de (3M)...
+injected.js:37 @supabase/gotrue-js: Lock "lock:sb-mfxnghmuccevsxwcetej-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmount (e.g., React Strict Mode). Forcefully acquiring the lock to recover.
+(anonymous) @ injected.js:37
+await in (anonymous)
+_acquireLock @ @supabase_supabase-js.js?v=7874f789:16979
+getSession @ @supabase_supabase-js.js?v=7874f789:16952
+await in getSession
+_getAccessToken @ @supabase_supabase-js.js?v=7874f789:19887
+(anonymous) @ @supabase_supabase-js.js?v=7874f789:19493
+executeWithRetry @ @supabase_supabase-js.js?v=7874f789:595
+then @ @supabase_supabase-js.js?v=7874f789:624
+injected.js:37 @supabase/gotrue-js: Lock "lock:sb-mfxnghmuccevsxwcetej-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmount (e.g., React Strict Mode). Forcefully acquiring the lock to recover.
+(anonymous) @ injected.js:37
+await in (anonymous)
+_acquireLock @ @supabase_supabase-js.js?v=7874f789:16979
+getSession @ @supabase_supabase-js.js?v=7874f789:16952
+await in getSession
+_getAccessToken @ @supabase_supabase-js.js?v=7874f789:19887
+(anonymous) @ @supabase_supabase-js.js?v=7874f789:19493
+executeWithRetry @ @supabase_supabase-js.js?v=7874f789:595
+then @ @supabase_supabase-js.js?v=7874f789:624
+injected.js:37 @supabase/gotrue-js: Lock "lock:sb-mfxnghmuccevsxwcetej-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmount (e.g., React Strict Mode). Forcefully acquiring the lock to recover.
+(anonymous) @ injected.js:37
+await in (anonymous)
+_acquireLock @ @supabase_supabase-js.js?v=7874f789:16979
+getSession @ @supabase_supabase-js.js?v=7874f789:16952
+await in getSession
+_getAccessToken @ @supabase_supabase-js.js?v=7874f789:19887
+(anonymous) @ @supabase_supabase-js.js?v=7874f789:19493
+executeWithRetry @ @supabase_supabase-js.js?v=7874f789:595
+then @ @supabase_supabase-js.js?v=7874f789:624
+injected.js:37 ❌ Error fetching strategy holdings: Object
+(anonymous) @ injected.js:37
+await in (anonymous)
+fetchChartPrices @ SwipeableBalanceCard.jsx:315
+(anonymous) @ SwipeableBalanceCard.jsx:482
+commitHookEffectListMount @ chunk-IEWVK4NL.js?v=7874f789:16963
+commitPassiveMountOnFiber @ chunk-IEWVK4NL.js?v=7874f789:18206
+commitPassiveMountEffects_complete @ chunk-IEWVK4NL.js?v=7874f789:18179
+commitPassiveMountEffects_begin @ chunk-IEWVK4NL.js?v=7874f789:18169
+commitPassiveMountEffects @ chunk-IEWVK4NL.js?v=7874f789:18159
+flushPassiveEffectsImpl @ chunk-IEWVK4NL.js?v=7874f789:19543
+flushPassiveEffects @ chunk-IEWVK4NL.js?v=7874f789:19500
+(anonymous) @ chunk-IEWVK4NL.js?v=7874f789:19381
+workLoop @ chunk-IEWVK4NL.js?v=7874f789:197
+flushWork @ chunk-IEWVK4NL.js?v=7874f789:176
+performWorkUntilDeadline @ chunk-IEWVK4NL.js?v=7874f789:384
+injected.js:37 @supabase/gotrue-js: Lock "lock:sb-mfxnghmuccevsxwcetej-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmount (e.g., React Strict Mode). Forcefully acquiring the lock to recover.
+(anonymous) @ injected.js:37
+await in (anonymous)
+_acquireLock @ @supabase_supabase-js.js?v=7874f789:16979
+getSession @ @supabase_supabase-js.js?v=7874f789:16952
+await in getSession
+_getAccessToken @ @supabase_supabase-js.js?v=7874f789:19887
+(anonymous) @ @supabase_supabase-js.js?v=7874f789:19493
+executeWithRetry @ @supabase_supabase-js.js?v=7874f789:595
+then @ @supabase_supabase-js.js?v=7874f789:624
+stallwart.build.js:1 stallwart: failed ping 1
+stallwart.build.js:1 stallwart: failed ping 2
+injected.js:37 Polling Sumsub status...
+bceb5b07e37b1b7118e70f350de29143:1  GET https://gravatar.com/avatar/bceb5b07e37b1b7118e70f350de29143?d=404 404 (Not Found)
+316ece743b93b01a5381a4d8876114a9:1  GET https://gravatar.com/avatar/316ece743b93b01a5381a4d8876114a9?d=404 404 (Not Found)
+injected.js:37 KYC status check: stored="verified" current="verified"

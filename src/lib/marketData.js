@@ -84,7 +84,7 @@ export const getMarketsSecuritiesWithMetrics = async () => {
       // Fallback to basic securities table if view fails
       console.log("⚠️ Falling back to basic securities table...");
       const { data: fallbackSecurities, error: fallbackError } = await supabase
-        .from("securities")
+        .from("securities_c")
         .select("*")
         .eq("is_active", true)
         .order("market_cap", { ascending: false, nullsFirst: false });
@@ -195,7 +195,7 @@ export const getSecurityPrices = async (securityId, timeframe = "1M") => {
     }
 
     const { data: historicalRows, error } = await supabase
-      .from("security_metrics")
+      .from("security_metrics_c")
       .select("as_of_date, last_close")
       .eq("security_id", securityId)
       .gte("as_of_date", cutoffDate)
@@ -223,7 +223,7 @@ export const getSecurityPrices = async (securityId, timeframe = "1M") => {
       const selectCols = `as_of_date, last_close, "${refCols.date}", "${refCols.price}"`;
 
       const { data: refRow, error: refError } = await supabase
-        .from("security_metrics")
+        .from("security_metrics_c")
         .select(selectCols)
         .eq("security_id", securityId)
         .order("as_of_date", { ascending: false })
