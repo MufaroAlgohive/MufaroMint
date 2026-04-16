@@ -193,7 +193,7 @@ export default async function handler(req, res) {
     const isStrategyInvestment = !!strategyId;
 
     const { data: securityCheck } = await db
-      .from("securities")
+      .from("securities_c")
       .select("id")
       .eq("id", securityId)
       .maybeSingle();
@@ -218,7 +218,7 @@ export default async function handler(req, res) {
       const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
 
       const { data: securitiesData, error: secLookupError } = await db
-        .from("securities")
+        .from("securities_c")
         .select("id, symbol, last_price")
         .in("symbol", symbols);
 
@@ -368,7 +368,7 @@ export default async function handler(req, res) {
 
     if (securityCheck && !isStrategyInvestment) {
       const { data: securityData, error: secError } = await db
-        .from("securities")
+        .from("securities_c")
         .select("last_price")
         .eq("id", securityId)
         .maybeSingle();

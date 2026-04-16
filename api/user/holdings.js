@@ -58,7 +58,7 @@ export default async function handler(req, res) {
 
     if (securityIds.length > 0) {
       const [secResult, pricesResult] = await Promise.all([
-        db.from("securities")
+        db.from("securities_c")
           .select("id, symbol, name, logo_url, last_price, change_price, change_percent, sector, exchange")
           .in("id", securityIds),
         db.from("security_prices")

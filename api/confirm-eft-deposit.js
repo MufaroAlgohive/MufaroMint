@@ -127,7 +127,7 @@ export default async function handler(req, res) {
         const strategyHoldings = strategyData.holdings;
         const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
         const { data: securitiesData } = await db
-          .from("securities")
+          .from("securities_c")
           .select("id, symbol, last_price")
           .in("symbol", symbols);
 
@@ -192,7 +192,7 @@ export default async function handler(req, res) {
       }
     } else if (securityId && !isStrategyInvestment) {
       const { data: securityData } = await db
-        .from("securities")
+        .from("securities_c")
         .select("last_price")
         .eq("id", securityId)
         .maybeSingle();

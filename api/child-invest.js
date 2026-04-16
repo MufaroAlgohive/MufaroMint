@@ -99,7 +99,7 @@ export default async function handler(req, res) {
       // Fetch security prices
       const symbols = holdings.map(h => h.symbol).filter(Boolean);
       const { data: securities } = await db
-        .from("securities")
+        .from("securities_c")
         .select("id, symbol, name, last_price")
         .in("symbol", symbols);
 
