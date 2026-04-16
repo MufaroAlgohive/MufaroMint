@@ -139,18 +139,11 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [strategiesSearchQuery, setStrategiesSearchQuery] = useState("");
   const [newsSearchQuery, setNewsSearchQuery] = useState("");
   const [showOpenStrategiesMaintenance, setShowOpenStrategiesMaintenance] = useState(false);
-  const [viewMode, setViewMode] = useState(
-    initialViewMode === "openstrategies" ? "invest" : (initialViewMode || "invest")
-  ); // "openstrategies", "invest", "news"
+  const [viewMode, setViewMode] = useState(initialViewMode || "invest"); // "openstrategies", "invest", "news"
 
   useEffect(() => {
     if (initialViewMode && initialViewMode !== viewMode) {
-      if (initialViewMode === "openstrategies") {
-        setViewMode("invest");
-        setShowOpenStrategiesMaintenance(true);
-      } else {
-        setViewMode(initialViewMode);
-      }
+      setViewMode(initialViewMode);
     }
   }, [initialViewMode]);
 
@@ -971,8 +964,15 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
           {/* Toggle between OpenStrategies, Invest, and News */}
           <div className="flex gap-2 rounded-2xl bg-white/10 p-1 backdrop-blur-sm">
             <button
-              onClick={() => setShowOpenStrategiesMaintenance(true)}
-              className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all text-white/40 cursor-not-allowed opacity-60"
+              onClick={() => {
+                setViewMode("openstrategies");
+                setActiveChips(buildChipsFromFilters(_savedStrat));
+              }}
+              className={`flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                viewMode === "openstrategies"
+                  ? "bg-white text-slate-900 shadow-md"
+                  : "text-white/70"
+              }`}
             >
               OpenStrategies
             </button>
