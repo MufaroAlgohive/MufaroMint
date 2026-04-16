@@ -701,10 +701,6 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
           <div className="mt-4 flex flex-wrap gap-2">
             {timeframeOptions.map((option) => {
-              const returnValue = timeframeReturns[option.key];
-              const formattedReturn = returnValue != null
-                ? `${returnValue >= 0 ? "+" : ""}${(returnValue * 100).toFixed(2)}%`
-                : "—";
               return (
                 <button
                   key={option.key}
@@ -716,7 +712,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
                       : "border border-slate-200 bg-white text-slate-600"
                   }`}
                 >
-                  {option.label} {formattedReturn}
+                  {option.label}
                 </button>
               );
             })}
