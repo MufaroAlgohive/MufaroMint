@@ -663,7 +663,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
         const { data: dailyReturns, error } = await supabase
           .from("strategies_returns_c")
-          .select("strategy_id, as_of_date, d1_pct")
+          .select("strategy_id, as_of_date, \"1d_pct\"")
           .eq("strategy_id", strategyId)
           .gte("as_of_date", yearStart)
           .order("as_of_date", { ascending: true });
@@ -682,7 +682,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         let cumulative = 0;
 
         dailyReturns.forEach((day) => {
-          const dailyReturn = day.d1_pct ? day.d1_pct / 100 : 0; // Convert percentage to decimal
+          const dailyReturn = day["1d_pct"] ? day["1d_pct"] / 100 : 0; // Convert percentage to decimal
           cumulative += dailyReturn;
           cumulativeData.push({
             d: day.as_of_date,
