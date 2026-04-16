@@ -6,16 +6,16 @@ const cache = {
   priceHistory: new Map(),
 };
 
-// Map UI timeframe strings to the reference price columns in security_metrics
+// Map UI timeframe strings to the reference price columns in v_latest_security_metrics
 const TIMEFRAME_REF_COLS = {
-  "1D":  { date: "1W_Date",  price: "1W_Price"  }, // no intraday — use 1W anchor
-  "1W":  { date: "1W_Date",  price: "1W_Price"  },
-  "WTD": { date: "WTD_Date", price: "WTD_Price" },
-  "1M":  { date: "1M_Date",  price: "1M_Price"  },
-  "3M":  { date: "3M_Date",  price: "3M_Price"  },
-  "6M":  { date: "YTD_Date", price: "YTD_Price" }, // use YTD as closest anchor
-  "YTD": { date: "YTD_Date", price: "YTD_Price" },
-  "1Y":  { date: "YTD_Date", price: "YTD_Price" }, // use YTD as closest anchor
+  "1D":  { date: "ref_1w_date",  price: "ref_1w_price"  },
+  "1W":  { date: "ref_1w_date",  price: "ref_1w_price"  },
+  "WTD": { date: "ref_wtd_date", price: "ref_wtd_price" },
+  "1M":  { date: "ref_1m_date",  price: "ref_1m_price"  },
+  "3M":  { date: "ref_3m_date",  price: "ref_3m_price"  },
+  "6M":  { date: "ref_ytd_date", price: "ref_ytd_price" },
+  "YTD": { date: "ref_ytd_date", price: "ref_ytd_price" },
+  "1Y":  { date: "ref_ytd_date", price: "ref_ytd_price" },
 };
 
 /**
@@ -216,24 +216,23 @@ export const getSecurityPrices = async (securityId, timeframe = "1M") => {
       }));
       console.log(`✅ Fetched ${prices.length} historical rows for ${timeframe}`);
     } else {
-      // ── Fallback: 2-point chart from embedded reference prices ─
+      // ── Fallback: 2-point chart from reference prices in the view ─
       console.log(`⚠️ Insufficient history (${historicalRows?.length ?? 0} rows) — building 2-point chart from reference prices`);
 
       const refCols = TIMEFRAME_REF_COLS[timeframe] ?? TIMEFRAME_REF_COLS["1M"];
-      const selectCols = `as_of_date, last_close, "${refCols.date}", "${refCols.price}"`;
+      const selectCols = `as_of_date, close_price, ${refCols.date}, ${refCols.price}`;
 
       const { data: refRow, error: refError } = await supabase
-        .from("security_metrics_c")
+        .from("v_latest_security_metrics")
         .select(selectCols)
         .eq("security_id", securityId)
-        .order("as_of_date", { ascending: false })
         .limit(1)
         .single();
 
       if (!refError && refRow && refRow[refCols.date] && refRow[refCols.price]) {
         prices = [
           { ts: refRow[refCols.date],  close: Number(refRow[refCols.price]) },
-          { ts: refRow.as_of_date,     close: Number(refRow.last_close)     },
+          { ts: refRow.as_of_date,     close: Number(refRow.close_price)    },
         ];
         console.log(`✅ Built 2-point chart: ${prices[0].ts} → ${prices[1].ts}`);
       } else {
