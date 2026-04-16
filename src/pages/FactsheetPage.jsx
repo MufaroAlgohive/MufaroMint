@@ -239,7 +239,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
         const tickers = currentStrategy.holdings.map((h) => h.ticker || h.symbol || h);
 
         const { data, error } = await supabase
-          .from("securities")
+          .from("securities_c")
           .select("symbol, name, logo_url, last_price, change_percent, sector, isin")
           .in("symbol", tickers);
 

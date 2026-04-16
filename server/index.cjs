@@ -94,7 +94,7 @@ async function sendOrderFillEmail(db, { transactionId, holdingId }) {
     }
 
     if (holdingData?.security_id) {
-      const { data: sec } = await db.from("securities").select("name, symbol").eq("id", holdingData.security_id).maybeSingle();
+      const { data: sec } = await db.from("securities_c").select("name, symbol").eq("id", holdingData.security_id).maybeSingle();
       if (sec) { assetName = sec.name; assetSymbol = sec.symbol; }
     }
 
@@ -2638,7 +2638,7 @@ app.post("/api/reconcile-payments", async (req, res) => {
       console.log("[reconcile] Verified & recovering:", ref, "R" + paidAmount, assetName);
 
       const { data: securityCheck } = await db
-        .from("securities")
+        .from("securities_c")
         .select("id, last_price")
         .eq("id", securityId)
         .maybeSingle();
@@ -2854,7 +2854,7 @@ app.post("/api/record-investment", async (req, res) => {
       const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
 
       const { data: securitiesData, error: secLookupError } = await db
-        .from("securities")
+        .from("securities_c")
         .select("id, symbol, last_price")
         .in("symbol", symbols);
 
@@ -2972,7 +2972,7 @@ app.post("/api/record-investment", async (req, res) => {
 
     console.log("[record-investment] Checking if securityId exists in securities table:", securityId);
     const { data: securityCheck, error: secCheckError } = await db
-      .from("securities")
+      .from("securities_c")
       .select("id")
       .eq("id", securityId)
       .maybeSingle();
@@ -2985,7 +2985,7 @@ app.post("/api/record-investment", async (req, res) => {
     if (securityCheck && !isStrategyInvestment) {
       console.log("[record-investment] Security exists - will create/update stock_holdings");
       const { data: securityData, error: secError } = await db
-        .from("securities")
+        .from("securities_c")
         .select("last_price")
         .eq("id", securityId)
         .maybeSingle();
@@ -3329,7 +3329,7 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
       const { data: strategyData } = await db.from("strategies").select("holdings").eq("id", strategyId).maybeSingle();
       if (strategyData?.holdings?.length) {
         const symbols = strategyData.holdings.map(h => h.symbol).filter(Boolean);
-        const { data: securitiesData } = await db.from("securities").select("id, symbol, last_price").in("symbol", symbols);
+        const { data: securitiesData } = await db.from("securities_c").select("id, symbol, last_price").in("symbol", symbols);
         const secBySymbol = {};
         (securitiesData || []).forEach(s => { secBySymbol[s.symbol] = s; });
         let totalBasketCostRands = 0;
@@ -3371,7 +3371,7 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
         }
       }
     } else if (securityId && !isStrategyInvestment) {
-      const { data: secData } = await db.from("securities").select("last_price").eq("id", securityId).maybeSingle();
+      const { data: secData } = await db.from("securities_c").select("last_price").eq("id", securityId).maybeSingle();
       currentPriceCents = secData?.last_price ? Number(secData.last_price) : null;
       if (!currentPriceCents) {
         const { data: priceData } = await db.from("security_prices").select("close_price").eq("security_id", securityId).order("price_date", { ascending: false }).limit(1).maybeSingle();
@@ -3660,7 +3660,7 @@ app.get("/api/user/holdings", async (req, res) => {
 
     if (securityIds.length > 0) {
       const [secResult, pricesResult] = await Promise.all([
-        db.from("securities")
+        db.from("securities_c")
           .select("id, symbol, name, logo_url, last_price, change_price, change_percent, sector, exchange")
           .in("id", securityIds),
         db.from("security_prices")
@@ -3844,7 +3844,7 @@ app.get("/api/user/strategies", async (req, res) => {
     const symbolPnlMap = {};
     if (stratSecIds.length > 0) {
       const { data: stratSecs } = await db
-        .from("securities")
+        .from("securities_c")
         .select("id, symbol, last_price")
         .in("id", stratSecIds);
       (stratSecs || []).forEach(s => { stratLivePriceMap[s.id] = s.last_price || 0; });
@@ -3904,7 +3904,7 @@ app.get("/api/user/strategies", async (req, res) => {
     let securitiesMap = {};
     if (allHoldingSymbols.size > 0) {
       const { data: secs } = await db
-        .from("securities")
+        .from("securities_c")
         .select("symbol, logo_url, name, last_price, ytd_performance")
         .in("symbol", Array.from(allHoldingSymbols));
       if (secs) {
@@ -4054,7 +4054,7 @@ app.get("/api/user/transactions", async (req, res) => {
 
     if (extractedNames.size > 0) {
       const { data: allSecs } = await db
-        .from("securities")
+        .from("securities_c")
         .select("name, symbol, logo_url");
       if (allSecs) {
         for (const sec of allSecs) {
@@ -6111,7 +6111,7 @@ app.post("/api/ozow/record-success", async (req, res) => {
     if (strategyHoldings.length > 0) {
       const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
       const { data: securitiesData } = await db
-        .from("securities")
+        .from("securities_c")
         .select("id, symbol, last_price")
         .in("symbol", symbols);
 
@@ -6302,7 +6302,7 @@ app.post("/api/ozow/notify", async (req, res) => {
       if (strategyHoldings.length > 0) {
         const symbols = strategyHoldings.map(h => h.symbol).filter(Boolean);
         const { data: securitiesData } = await db
-          .from("securities")
+          .from("securities_c")
           .select("id, symbol, last_price")
           .in("symbol", symbols);
 

@@ -252,7 +252,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
 
         const chunks = Array.from(
           { length: Math.ceil(tickers.length / 50) },
-          (_, i) => supabase.from("securities").select("id, symbol, logo_url, name, last_price").in("symbol", tickers.slice(i * 50, (i + 1) * 50))
+          (_, i) => supabase.from("securities_c").select("id, symbol, logo_url, name, last_price").in("symbol", tickers.slice(i * 50, (i + 1) * 50))
         );
 
         const results = await Promise.all(chunks);

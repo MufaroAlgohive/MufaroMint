@@ -136,8 +136,8 @@ const HomePage = ({
         let metricsMap = {};
         if (securityIds.length > 0) {
           const [secResult, metResult] = await Promise.all([
-            supabase.from('securities').select('id, symbol, name, logo_url, last_price').in('id', securityIds),
-            supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
+            supabase.from('securities_c').select('id, symbol, name, logo_url, last_price').in('id', securityIds),
+            supabase.from('security_metrics_c').select('security_id, change_pct').in('security_id', securityIds),
           ]);
           if (secResult.data) {
             secResult.data.forEach(s => { securitiesMap[s.id] = s; });
@@ -204,8 +204,8 @@ const HomePage = ({
         let metricsMap = {};
         if (securityIds.length > 0) {
           const [secResult, metResult] = await Promise.all([
-            supabase.from('securities').select('id, symbol, name, logo_url').in('id', securityIds),
-            supabase.from('security_metrics').select('security_id, change_pct').in('security_id', securityIds),
+            supabase.from('securities_c').select('id, symbol, name, logo_url').in('id', securityIds),
+            supabase.from('security_metrics_c').select('security_id, change_pct').in('security_id', securityIds),
           ]);
           if (secResult.data) {
             secResult.data.forEach(s => { securitiesMap[s.id] = s; });
@@ -442,7 +442,7 @@ const HomePage = ({
         const results = await Promise.all(
           chunks.map((symbols) =>
             supabase
-              .from("securities")
+              .from("securities_c")
               .select("id, symbol, logo_url, name")
               .in("symbol", symbols)
           )

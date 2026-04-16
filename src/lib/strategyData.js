@@ -373,7 +373,7 @@ export const getStrategyPriceHistory = async (strategyId, timeframe = "6M") => {
 
     const symbols = holdings.map((h) => h.symbol);
     const { data: securities, error: secError } = await supabase
-      .from("securities")
+      .from("securities_c")
       .select("id, symbol")
       .in("symbol", symbols);
 
@@ -545,7 +545,7 @@ export const getMonthlyReturns = async (strategyId, startDate = null, actualPnlP
     const symbols = holdings.map(h => h.symbol);
 
     const { data: securities, error: secError } = await supabase
-      .from("securities")
+      .from("securities_c")
       .select("id, symbol")
       .in("symbol", symbols);
 
