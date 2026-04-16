@@ -714,7 +714,6 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
           <div className="mt-4 flex flex-wrap gap-2">
             {timeframeOptions.map((option) => {
-              const isDisabled = !availableTimeframes.includes(option.key);
               const returnValue = timeframeReturns[option.key];
               const formattedReturn = returnValue != null
                 ? `${returnValue >= 0 ? "+" : ""}${(returnValue * 100).toFixed(2)}%`
@@ -724,12 +723,11 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
                   key={option.key}
                   type="button"
                   onClick={() => setTimeframe(option.key)}
-                  disabled={isDisabled}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                     timeframe === option.key
                       ? "bg-slate-900 text-white"
                       : "border border-slate-200 bg-white text-slate-600"
-                  } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                  }`}
                 >
                   {option.label} {formattedReturn}
                 </button>
