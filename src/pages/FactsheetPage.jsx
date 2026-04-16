@@ -340,7 +340,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
         // Fetch all daily returns for the year
         const { data: dailyReturns, error: dailyError } = await supabase
           .from("strategies_returns_c")
-          .select("strategy_id, as_of_date, \"1d_pct\", ytd_pct")
+          .select("strategy_id, as_of_date, \"1d_pct\", ytd_pct, \"1m_pct\"")
           .eq("strategy_id", strategyId)
           .gte("as_of_date", yearStart)
           .lte("as_of_date", yearEnd)
@@ -357,13 +357,13 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
           const ytdReturn = dailyReturns[dailyReturns.length - 1]?.ytd_pct || 0;
 
           setPerformanceData({
-            bestDay: bestDay / 100,
-            worstDay: worstDay / 100,
-            avgDaily: avgDaily / 100,
-            ytdReturn: ytdReturn / 100
+            bestDay: bestDay,
+            worstDay: worstDay,
+            avgDaily: avgDaily,
+            ytdReturn: ytdReturn
           });
 
-          // Build calendar returns (monthly)
+          // Build calendar returns (monthly) - use 1m_pct directly from last day of month
           const monthlyReturns = {};
           const lastDayOfMonth = {};
 
@@ -375,7 +375,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
           Object.entries(lastDayOfMonth).forEach(([yearMonth, dayData]) => {
             const month = parseInt(yearMonth.split("-")[1]);
-            monthlyReturns[month] = dayData["1m_pct"] ? dayData["1m_pct"] / 100 : 0;
+            monthlyReturns[month] = dayData["1m_pct"] || 0;
           });
 
           setCalendarReturns(monthlyReturns);
@@ -457,16 +457,15 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
     return result;
   }, [calendarReturns, calendarYear]);
 
-  const availableCalendarYears = useMemo(
-    () => [String(calendarYear)],
-    [calendarYear],
-  );
-
-  useEffect(() => {
-    if (!Object.keys(calendarReturns).length && calendarYear !== new Date().getFullYear()) {
-      setCalendarYear(new Date().getFullYear());
+  const availableCalendarYears = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    // Show current year and previous 4 years
+    const years = [];
+    for (let i = 0; i < 5; i++) {
+      years.push(String(currentYear - i));
     }
-  }, [availableCalendarYears]);
+    return years.sort();
+  }, []);
 
   const minimumInvestmentAmount = useMemo(() => {
     const holdingsMap = buildHoldingsBySymbol(holdingsSecurities);
@@ -1039,7 +1038,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
                     >
                       <p className="text-[11px] font-semibold text-slate-600">{label}</p>
                       <p className="mt-1 text-sm text-slate-900">
-                        {value == null ? "—" : `${(Number(value) * 100).toFixed(2)}%`}
+                        {value == null ? "—" : `${Number(value).toFixed(2)}%`}
                       </p>
                     </div>
                   );
