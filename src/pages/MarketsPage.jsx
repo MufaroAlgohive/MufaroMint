@@ -1918,9 +1918,16 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
               <div className="mb-5">
                 <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500">
                   <span>{selectedStrategyTimeframe} return</span>
-                  <span className={previewPeriodReturn > 0 ? "text-emerald-600" : previewPeriodReturn < 0 ? "text-rose-600" : "text-slate-500"}>
-                    {previewPeriodReturn != null ? `${previewPeriodReturn >= 0 ? "+" : ""}${previewPeriodReturn.toFixed(2)}%` : "—"}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={previewPeriodReturn > 0 ? "text-emerald-600" : previewPeriodReturn < 0 ? "text-rose-600" : "text-slate-500"}>
+                      {previewPeriodReturn != null ? `${previewPeriodReturn >= 0 ? "+" : ""}${previewPeriodReturn.toFixed(2)}%` : "—"}
+                    </span>
+                    {selectedStrategyTimeframe === "YTD" && selectedStrategy?.ytd_as_of_date && (
+                      <span className="text-[10px] text-slate-400">
+                        {new Date(selectedStrategy.ytd_as_of_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="h-44 w-full">
                   {selectedStrategyAnalyticsLoading ? (
