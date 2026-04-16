@@ -116,7 +116,7 @@ export const getPublicStrategies = async () => {
 
     // Fetch only active and public strategies with their latest metrics
     const { data: strategies, error } = await supabase
-      .from("strategies")
+      .from("strategies_c")
       .select(`
         id, slug, name, short_name, description, risk_level, objective, sector, tags, base_currency, min_investment, provider_name, benchmark_symbol, benchmark_name, fee_type, management_fee_bps, performance_fee_pct, high_water_mark, status, is_public, is_featured, icon_url, image_url, holdings, created_at, updated_at,
         strategy_metrics!strategy_metrics_strategy_id_fkey(
