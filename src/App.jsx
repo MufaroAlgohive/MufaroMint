@@ -1139,7 +1139,7 @@ const App = () => {
           onOpenInvest={() => { setMarketsInitialView(null); navigateTo("markets"); }}
           onOpenWithdraw={handleWithdrawRequest}
           onOpenSettings={() => navigateTo("settings")}
-          onOpenStrategies={() => setShowOpenStrategiesMaintenance(true)}
+          onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
           onOpenMarkets={() => { setMarketsInitialView("invest"); navigateTo("markets"); }}
           onOpenDeposit={() => handleTabChange("deposit")}
           onOpenNews={() => { setMarketsInitialView("news"); navigateTo("markets"); }}
@@ -1276,7 +1276,7 @@ const App = () => {
             navigateTo("notifications");
           }}
           onOpenInvest={() => navigateTo("markets")}
-          onOpenStrategies={() => setShowOpenStrategiesMaintenance(true)}
+          onOpenStrategies={() => { setMarketsInitialView("openstrategies"); navigateTo("markets"); }}
           deepLink={portfolioDeepLink}
           onDeepLinkConsumed={() => setPortfolioDeepLink(null)}
         />
