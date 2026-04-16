@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, X, TrendingUp, TrendingDown, Heart, Users,
   ShieldCheck, Shield, Crown, Baby, UserPlus, Mail, Upload, Check, FileText,
-  ChevronDown, Clock, AlertCircle, Trash2
+  ChevronDown, Clock, AlertCircle, Trash2, Loader2
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { supabase } from "../lib/supabase";
@@ -108,6 +108,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
   const [certFile, setCertFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [newChildMember, setNewChildMember] = useState(null);
+  const [childComplete, setChildComplete] = useState(null); // null | { member }
 
   /* ── Shared ── */
   const [saving, setSaving] = useState(false);
@@ -244,6 +245,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
     setError("");
     setSlideDir(-1);
     if (childStep === 3) {
+      setRetryPayload(null);
       setChildStep(2);
     } else {
       setChildStep(0);
@@ -453,10 +455,12 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
     }
   }
 
-  async function handleAgreementComplete({ pdfBuffer, signedAt }) {
+  async function handleAgreementComplete(payload) {
+    const { pdfBuffer, signedAt } = payload;
     if (!newChildMember) return;
     setSaving(true);
     setError("");
+    setRetryPayload(payload); // keep for retry on failure
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -509,12 +513,20 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
         signed_agreement_url: uploadJson.publicUrl, 
         signed_at: signedAt 
       };
-      onSave(finalMember);
+      setChildComplete({ member: finalMember });
     } catch (err) {
-      setError(err.message || "Finalization failed.");
+      console.error("[agreement]", err);
+      setError(err.message || "Finalization failed. Please try again.");
     } finally {
       setSaving(false);
     }
+  }
+
+  /* ── Retry the agreement upload after a failure ── */
+  const [retryPayload, setRetryPayload] = useState(null);
+  async function handleAgreementRetry() {
+    if (!retryPayload) return;
+    await handleAgreementComplete(retryPayload);
   }
 
   /* ── input classes (shared) ── */
@@ -530,7 +542,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
       transition={{ duration: 0.2 }}
     >
       {/* Backdrop */}
-      <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={saving ? undefined : onClose} />
 
       {/* Sheet */}
       <motion.div
@@ -745,11 +757,11 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
           )}
 
           {/* ═══════════════ CHILD: multi-step ═══════════════ */}
-          {!isSpouse && (
+          {!isSpouse && !childComplete && (
             <>
               {/* Header */}
               <div className="flex items-center gap-3 mb-1">
-                {childStep >= 1 && childStep <= 2 && (
+                {childStep >= 1 && childStep <= 2 && !saving && (
                   <button onClick={handleChildBack} className="h-9 w-9 flex items-center justify-center rounded-full bg-[#F5F3FF] text-slate-600 hover:bg-[#EDE9FE] transition active:scale-95">
                     <ArrowLeft className="h-4 w-4" />
                   </button>
@@ -762,7 +774,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
                     {childStep === 0 ? "Add Child" : childStep === 1 ? "Birth Certificate" : childStep === 2 ? "Proof of Address" : "Responsibility Agreement"}
                   </p>
                 </div>
-                <button onClick={onClose} className="h-9 w-9 flex items-center justify-center rounded-full bg-[#F5F3FF] text-slate-400 hover:bg-[#EDE9FE] transition">
+                <button onClick={saving ? undefined : onClose} className={`h-9 w-9 flex items-center justify-center rounded-full bg-[#F5F3FF] text-slate-400 hover:bg-[#EDE9FE] transition ${saving ? 'opacity-40 cursor-not-allowed' : ''}`}>
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -924,7 +936,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
                     </motion.div>
                   )}
 
-                  {/* Step 3 — Computershare Responsibility Agreement */}
+                  {/* Step 3 — Responsibility Agreement */}
                   {childStep === 3 && (
                     <motion.div
                       key="child-agreement"
@@ -935,18 +947,87 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
                       exit="exit"
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     >
-                      <ChildResponsibilityAgreement
-                        parentProfile={profile}
-                        childData={newChildMember}
-                        saving={saving}
-                        onBack={handleChildBack}
-                        onComplete={handleAgreementComplete}
-                      />
+                      {/* Uploading state — shown while agreement is being saved */}
+                      {saving && retryPayload && (
+                        <div className="py-12 text-center">
+                          <div className="h-14 w-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${P2}, ${P})` }}>
+                            <Loader2 className="h-7 w-7 text-white animate-spin" />
+                          </div>
+                          <p className="text-lg font-bold text-slate-900">Setting up account…</p>
+                          <p className="text-sm text-slate-500 mt-2 leading-relaxed">Uploading agreement and finalising details.</p>
+                        </div>
+                      )}
+
+                      {/* Error state — retry without re-signing */}
+                      {!saving && error && retryPayload && (
+                        <div className="py-8 text-center">
+                          <div className="h-14 w-14 rounded-full mx-auto mb-5 flex items-center justify-center bg-red-100">
+                            <AlertCircle className="h-7 w-7 text-red-500" />
+                          </div>
+                          <p className="text-lg font-bold text-slate-900">Upload Failed</p>
+                          <p className="text-sm text-red-500 mt-2 leading-relaxed max-w-[260px] mx-auto">{error}</p>
+                          <button
+                            onClick={handleAgreementRetry}
+                            className="mt-6 w-full rounded-2xl py-4 text-sm font-bold text-white transition active:scale-[0.98]"
+                            style={{ background: `linear-gradient(135deg, ${P2}, ${P})` }}
+                          >
+                            Retry
+                          </button>
+                          <button
+                            onClick={onClose}
+                            className="mt-3 w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 transition"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Normal agreement UI — first-time signing */}
+                      {!retryPayload && (
+                        <ChildResponsibilityAgreement
+                          parentProfile={profile}
+                          childData={newChildMember}
+                          saving={saving}
+                          onBack={handleChildBack}
+                          onComplete={handleAgreementComplete}
+                        />
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             </>
+          )}
+
+          {/* ═══════════════ CHILD: success screen ═══════════════ */}
+          {!isSpouse && childComplete && (
+            <motion.div
+              className="text-center py-6"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
+              <div className="h-16 w-16 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${P2}, ${P})` }}>
+                <Check className="h-8 w-8 text-white" />
+              </div>
+              <p className="text-xl font-bold text-slate-900">Account Created!</p>
+              <p className="text-sm text-slate-500 mt-2 leading-relaxed max-w-[260px] mx-auto">
+                {childComplete.member?.first_name
+                  ? `${childComplete.member.first_name}'s`
+                  : "Your child's"}{" "}
+                investment account has been set up successfully.
+              </p>
+              {childComplete.member?.mint_number && (
+                <p className="text-xs text-slate-400 mt-1">Mint # {childComplete.member.mint_number}</p>
+              )}
+              <button
+                onClick={() => onSave(childComplete.member)}
+                className="mt-7 w-full rounded-2xl py-4 text-sm font-bold text-white active:scale-[0.98]"
+                style={{ background: `linear-gradient(135deg, ${P2}, ${P})` }}
+              >
+                Continue
+              </button>
+            </motion.div>
           )}
         </div>
       </motion.div>
