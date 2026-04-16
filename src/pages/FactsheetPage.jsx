@@ -625,7 +625,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
           </div>
 
           <div className="mt-4 h-48 w-full">
-            {analyticsUnavailable || data.length === 0 ? (
+            {analyticsError ? (
               <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
                 <div className="text-center">
                   <p className="text-sm text-slate-500">{analyticsMessage}</p>
@@ -735,11 +735,6 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
                 </button>
               );
             })}
-            <span
-              className={`rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold ${allTimeTextClass}`}
-            >
-              All-time {formattedAllTimeReturn}
-            </span>
           </div>
 
           <div className="mt-4 flex items-center gap-3 text-[11px] font-semibold text-slate-400">
