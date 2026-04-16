@@ -65,17 +65,17 @@ export const getStrategiesWithMetrics = async () => {
         // Flatten the latest metric to top level for easy access
         latest_metric: latestMetric,
         // Helper fields for display
-        last_close: latestMetric?.last_close || null,
+        last_close: latestMetric?.portfolio_value || null,
         prev_close: latestMetric?.prev_close || null,
         change_abs: latestMetric?.change_abs || null,
-        change_pct: latestMetric?.change_pct || null,
+        change_pct: latestMetric?.r_1d_pct || null,
         as_of_date: latestMetric?.as_of_date || null,
-        r_1w: latestMetric?.r_1w || null,
-        r_1m: latestMetric?.r_1m || null,
-        r_3m: latestMetric?.r_3m || null,
-        r_6m: latestMetric?.r_6m || null,
-        r_ytd: latestMetric?.r_ytd || null,
-        r_1y: latestMetric?.r_1y || null,
+        r_1w: latestMetric?.r_1w_pct || null,
+        r_1m: latestMetric?.r_1m_pct || null,
+        r_3m: latestMetric?.r_3m_pct || null,
+        r_6m: latestMetric?.r_6m_pct || null,
+        r_ytd: latestMetric?.r_ytd_pct || null,
+        r_1y: latestMetric?.r_1y_pct || null,
       };
     });
 
@@ -121,7 +121,7 @@ export const getPublicStrategies = async () => {
         id, slug, name, short_name, description, risk_level, objective, sector, tags, base_currency, min_investment, provider_name, benchmark_symbol, benchmark_name, fee_type, management_fee_bps, performance_fee_pct, high_water_mark, status, is_public, is_featured, icon_url, image_url, holdings, created_at, updated_at,
         strategy_metrics!strategy_metrics_strategy_id_fkey(
           as_of_date,
-          r_ytd
+          r_ytd_pct
         )
       `)
       .eq("status", "active")
@@ -150,7 +150,7 @@ export const getPublicStrategies = async () => {
       return {
         ...strategy,
         latest_metric: latestMetric,
-        r_ytd: latestMetric?.r_ytd || null,
+        r_ytd: latestMetric?.r_ytd_pct || null,
       };
     });
 
@@ -204,17 +204,17 @@ export const getStrategyById = async (strategyId) => {
       ...strategy,
       metrics: strategy.strategy_metrics || [],
       latest_metric: latestMetric,
-      last_close: latestMetric?.last_close || null,
+      last_close: latestMetric?.portfolio_value || null,
       prev_close: latestMetric?.prev_close || null,
       change_abs: latestMetric?.change_abs || null,
-      change_pct: latestMetric?.change_pct || null,
+      change_pct: latestMetric?.r_1d_pct || null,
       as_of_date: latestMetric?.as_of_date || null,
-      r_1w: latestMetric?.r_1w || null,
-      r_1m: latestMetric?.r_1m || null,
-      r_3m: latestMetric?.r_3m || null,
-      r_6m: latestMetric?.r_6m || null,
-      r_ytd: latestMetric?.r_ytd || null,
-      r_1y: latestMetric?.r_1y || null,
+      r_1w: latestMetric?.r_1w_pct || null,
+      r_1m: latestMetric?.r_1m_pct || null,
+      r_3m: latestMetric?.r_3m_pct || null,
+      r_6m: latestMetric?.r_6m_pct || null,
+      r_ytd: latestMetric?.r_ytd_pct || null,
+      r_1y: latestMetric?.r_1y_pct || null,
     };
 
   } catch (error) {
@@ -228,7 +228,13 @@ export const getStrategyById = async (strategyId) => {
  * Uses known return rates to back-calculate historical NAV values
  */
 function generateSyntheticHistory(metrics, timeframe, startDate, endDate) {
-  const { last_close, r_1w, r_1m, r_3m, r_6m, r_ytd, r_1y } = metrics;
+  const r_1w = metrics.r_1w_pct ?? metrics.r_1w ?? null;
+  const r_1m = metrics.r_1m_pct ?? metrics.r_1m ?? null;
+  const r_3m = metrics.r_3m_pct ?? metrics.r_3m ?? null;
+  const r_6m = metrics.r_6m_pct ?? metrics.r_6m ?? null;
+  const r_ytd = metrics.r_ytd_pct ?? metrics.r_ytd ?? null;
+  const r_1y = metrics.r_1y_pct ?? metrics.r_1y ?? null;
+  const nav_close = metrics.portfolio_value || metrics.last_close || 100;
 
   let totalReturn;
   switch (timeframe) {
@@ -242,7 +248,7 @@ function generateSyntheticHistory(metrics, timeframe, startDate, endDate) {
     default: totalReturn = r_1m || 0.01;
   }
 
-  const startNav = last_close / (1 + totalReturn);
+  const startNav = nav_close / (1 + totalReturn);
   const tradingDays = [];
   const d = new Date(startDate);
   while (d <= endDate) {
@@ -258,7 +264,7 @@ function generateSyntheticHistory(metrics, timeframe, startDate, endDate) {
   const n = tradingDays.length;
   const dailyReturn = Math.pow(1 + totalReturn, 1 / n) - 1;
 
-  const seed = Array.from(String(Math.round(last_close * 1000))).reduce((a, c) => a + c.charCodeAt(0), 0);
+  const seed = Array.from(String(Math.round(nav_close * 1000))).reduce((a, c) => a + c.charCodeAt(0), 0);
   const seededRandom = (i) => {
     const x = Math.sin(seed + i * 127.1) * 43758.5453;
     return x - Math.floor(x);
@@ -273,7 +279,7 @@ function generateSyntheticHistory(metrics, timeframe, startDate, endDate) {
     currentNav = currentNav * (1 + dayReturn);
 
     if (i === n - 1) {
-      currentNav = last_close;
+      currentNav = nav_close;
     }
 
     result.push({
@@ -358,11 +364,13 @@ export const getStrategyPriceHistory = async (strategyId, timeframe = "6M") => {
       console.warn(`⚠️ Strategy ${strategyId} has no holdings, generating from metrics...`);
       const { data: metrics } = await supabase
         .from("strategy_metrics")
-        .select("last_close, r_1w, r_1m, r_3m, r_6m, r_ytd, r_1y")
+        .select("portfolio_value, r_1w_pct, r_1m_pct, r_3m_pct, r_6m_pct, r_ytd_pct, r_1y_pct")
         .eq("strategy_id", strategyId)
+        .order("as_of_date", { ascending: false })
+        .limit(1)
         .single();
 
-      if (metrics && metrics.last_close) {
+      if (metrics && metrics.portfolio_value) {
         const result = generateSyntheticHistory(metrics, timeframe, startDate, currentDate);
         cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
         console.log(`✅ Generated ${result.length} synthetic NAV points for strategy ${strategyId} (${timeframe})`);

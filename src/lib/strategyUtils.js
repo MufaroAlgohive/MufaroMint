@@ -117,7 +117,7 @@ export const getStrategyHoldingsSnapshot = (strategy, holdingsBySymbol) => {
 export const getStrategyCurrentValue = (investedAmount, metrics) => {
   if (!investedAmount || investedAmount <= 0) return 0;
   if (!metrics) return investedAmount;
-  const raw = metrics.r_ytd ?? metrics.r_1y ?? metrics.r_3m ?? metrics.r_1m ?? 0;
+  const raw = metrics.r_ytd ?? metrics.r_ytd_pct ?? metrics.r_1y ?? metrics.r_1y_pct ?? metrics.r_3m ?? metrics.r_3m_pct ?? metrics.r_1m ?? metrics.r_1m_pct ?? 0;
   // Sanity check: returns must be a decimal fraction (e.g. 0.10 = 10%).
   // If the value is stored as a whole-number percentage (e.g. 10 instead of 0.10),
   // or is otherwise corrupted, cap to a safe range to prevent absurd portfolio values.
@@ -129,7 +129,7 @@ export const getStrategyCurrentValue = (investedAmount, metrics) => {
 
 export const getStrategyReturnPct = (metrics) => {
   if (!metrics) return 0;
-  const raw = metrics.r_ytd ?? metrics.r_1y ?? metrics.r_3m ?? metrics.r_1m ?? 0;
+  const raw = metrics.r_ytd ?? metrics.r_ytd_pct ?? metrics.r_1y ?? metrics.r_1y_pct ?? metrics.r_3m ?? metrics.r_3m_pct ?? metrics.r_1m ?? metrics.r_1m_pct ?? 0;
   const bestReturn = (typeof raw === "number" && isFinite(raw) && raw > -1 && raw < 5)
     ? raw
     : 0;
@@ -233,5 +233,5 @@ export const calculateYtdReturn = (strategy, holdingsBySymbol) => {
   }
 
   // Fallback to existing r_ytd metric from strategy if calculation isn't possible
-  return strategy.strategy_metrics?.[0]?.r_ytd || 0;
+  return strategy.strategy_metrics?.[0]?.r_ytd_pct ?? strategy.strategy_metrics?.[0]?.r_ytd ?? 0;
 };

@@ -3947,7 +3947,22 @@ app.get("/api/user/strategies", async (req, res) => {
         let investedAmount = 0;
         let currentMarketValue = 0;
         const allPending = stratHoldings.length > 0 && stratHoldings.every(h => !h.avg_fill);
-        if (!allPending) {
+        if (stratHoldings.length === 0) {
+          // No holdings allocated yet — compute invested amount from transactions
+          for (const tx of (transactions || [])) {
+            const txName = (tx.name || "").trim();
+            let txStratName = null;
+            if (txName.startsWith("Strategy Investment: ")) txStratName = txName.replace("Strategy Investment: ", "").trim();
+            else if (txName.startsWith("Purchased ")) txStratName = txName.replace("Purchased ", "").trim();
+            if (txStratName && (
+              txStratName.toLowerCase() === (strategy.name || "").toLowerCase() ||
+              txStratName.toLowerCase() === (strategy.short_name || "").toLowerCase()
+            )) {
+              investedAmount += Number(tx.amount || 0) / 100;
+            }
+          }
+          currentMarketValue = investedAmount;
+        } else if (!allPending) {
           for (const h of stratHoldings) {
             const qty = Number(h.quantity || 0);
             const avgFill = Number(h.avg_fill || 0);
@@ -3959,7 +3974,7 @@ app.get("/api/user/strategies", async (req, res) => {
         }
 
         // Calculate dynamic YTD if utility is available
-        let rytd = latestMetric?.r_ytd || 0;
+        let rytd = latestMetric?.r_ytd_pct ?? latestMetric?.r_ytd ?? 0;
         if (calculateYtdReturn) {
           const matchedHoldingsMap = new Map();
           Object.entries(securitiesMap).forEach(([sym, sec]) => matchedHoldingsMap.set(sym, sec));
