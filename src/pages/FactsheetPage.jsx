@@ -18,11 +18,10 @@ import {
 } from "recharts";
 
 const timeframeOptions = [
-  { key: "1W", label: "1W", points: 28 },
-  { key: "1M", label: "1M", points: 120 },
-  { key: "3M", label: "3M", points: 240 },
-  { key: "6M", label: "6M", points: 480 },
-  { key: "YTD", label: "YTD", points: 360 },
+  { key: "5D", label: "5D", field: "5d_pct" },
+  { key: "1M", label: "1M", field: "1m_pct" },
+  { key: "6M", label: "6M", field: "6m_pct" },
+  { key: "YTD", label: "YTD", field: "ytd_pct" },
 ];
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -40,6 +39,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [analyticsError, setAnalyticsError] = useState(null);
+  const [timeframeReturns, setTimeframeReturns] = useState({});
   const marqueeRef = useRef(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -106,8 +106,8 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
         if (!resolvedId && strategySlug) {
           const { data, error } = await supabase
-            .from("strategies")
-            .select("id, slug, name, short_name, description, objective, risk_level, sector, tags, base_currency, icon_url, image_url, holdings, management_fee_bps, fee_type, benchmark_name, benchmark_symbol, min_investment, provider_name, created_at")
+            .from("strategies_c")
+            .select("id, slug, name, short_name, description, objective, risk_level, sector, tags, base_currency, icon_url, image_url, holdings, management_fee_bps, fee_type, benchmark_name, benchmark_symbol, min_investment, created_at")
             .eq("slug", strategySlug)
             .maybeSingle();
 
@@ -123,8 +123,8 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
         if (resolvedId) {
           const { data, error } = await supabase
-            .from("strategies")
-            .select("id, slug, name, short_name, description, objective, risk_level, sector, tags, base_currency, icon_url, image_url, holdings, management_fee_bps, fee_type, benchmark_name, benchmark_symbol, min_investment, provider_name, created_at")
+            .from("strategies_c")
+            .select("id, slug, name, short_name, description, objective, risk_level, sector, tags, base_currency, icon_url, image_url, holdings, management_fee_bps, fee_type, benchmark_name, benchmark_symbol, min_investment, created_at")
             .eq("id", resolvedId)
             .maybeSingle();
 
@@ -134,51 +134,30 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
             setStrategyData(data);
           }
 
-          const { data: analyticsRow, error: analyticsFetchError } = await supabase
-            .from("strategy_analytics")
-            .select("strategy_id, as_of_date, base_currency, latest_value, ytd_return, summary, curves, calendar_returns, computed_at, error")
+          // Fetch latest returns data from strategies_returns_c
+          const { data: returnsData, error: returnsError } = await supabase
+            .from("strategies_returns_c")
+            .select("strategy_id, as_of_date, \"5d_pct\", \"1m_pct\", \"6m_pct\", ytd_pct")
             .eq("strategy_id", resolvedId)
+            .order("as_of_date", { ascending: false })
+            .limit(1)
             .maybeSingle();
 
-          if (analyticsFetchError) {
+          if (returnsError) {
             if (isMounted) {
-              setAnalytics(null);
-              setAnalyticsError(analyticsFetchError.message);
+              setAnalyticsError(returnsError.message);
             }
-          } else if (isMounted) {
-            setAnalytics(analyticsRow || null);
-            if (analyticsRow?.error) {
-              setAnalyticsError(analyticsRow.error);
-            }
-          }
-
-          // Also fetch latest performance metrics from strategy_metrics table
-          try {
-            const perfResponse = await fetch(`/api/strategy-performance.js?strategyId=${resolvedId}`);
-
-            if (perfResponse.ok) {
-              const perfResult = await perfResponse.json();
-              if (perfResult.success && perfResult.data && perfResult.data[0]) {
-                const perfData = perfResult.data[0];
-                // Merge performance metrics into analytics
-                if (isMounted) {
-                  setAnalytics(prev => ({
-                    ...prev,
-                    r_1w: perfData.returns.one_week ? perfData.returns.one_week / 100 : null,
-                    r_1m: perfData.returns.one_month ? perfData.returns.one_month / 100 : null,
-                    r_3m: perfData.returns.three_month ? perfData.returns.three_month / 100 : null,
-                    r_6m: perfData.returns.six_month ? perfData.returns.six_month / 100 : null,
-                    r_ytd: perfData.returns.ytd ? perfData.returns.ytd / 100 : null,
-                    r_1y: perfData.returns.one_year ? perfData.returns.one_year / 100 : null,
-                    r_3y: perfData.returns.three_year ? perfData.returns.three_year / 100 : null,
-                    r_all_time: perfData.returns.all_time ? perfData.returns.all_time / 100 : null,
-                  }));
-                }
-              }
-            }
-          } catch (perfError) {
-            console.error("Error fetching performance metrics:", perfError);
-            // Continue without performance metrics - they're optional
+          } else if (returnsData && isMounted) {
+            setTimeframeReturns({
+              "5D": returnsData["5d_pct"] ? returnsData["5d_pct"] / 100 : null,
+              "1M": returnsData["1m_pct"] ? returnsData["1m_pct"] / 100 : null,
+              "6M": returnsData["6m_pct"] ? returnsData["6m_pct"] / 100 : null,
+              "YTD": returnsData.ytd_pct ? returnsData.ytd_pct / 100 : null,
+            });
+            setAnalytics({
+              as_of_date: returnsData.as_of_date,
+              curves: {}
+            });
           }
         } else if (isMounted) {
           setAnalytics(null);
@@ -258,6 +237,92 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
       isMounted = false;
     };
   }, [currentStrategy]);
+
+  // Fetch cumulative chart data for selected timeframe
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchCumulativeData = async () => {
+      if (!supabase || !strategyId) return;
+
+      try {
+        let startDate;
+        const today = new Date();
+
+        switch (timeframe) {
+          case "5D":
+            startDate = new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000);
+            break;
+          case "1M":
+            startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+          case "6M":
+            startDate = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000);
+            break;
+          case "YTD":
+            startDate = new Date(today.getFullYear(), 0, 1);
+            break;
+          default:
+            return;
+        }
+
+        const startDateStr = startDate.toISOString().split("T")[0];
+
+        const { data: dailyReturns, error } = await supabase
+          .from("strategies_returns_c")
+          .select("strategy_id, as_of_date, \"1d_pct\"")
+          .eq("strategy_id", strategyId)
+          .gte("as_of_date", startDateStr)
+          .order("as_of_date", { ascending: true });
+
+        if (error) throw error;
+
+        if (!dailyReturns || dailyReturns.length === 0) {
+          if (isMounted) {
+            setAnalytics(prev => ({
+              ...prev,
+              curves: {
+                ...prev?.curves,
+                [timeframe]: []
+              }
+            }));
+          }
+          return;
+        }
+
+        // Calculate cumulative returns
+        const cumulativeData = [];
+        let cumulative = 0;
+
+        dailyReturns.forEach((day) => {
+          const dailyReturn = day["1d_pct"] ? day["1d_pct"] / 100 : 0;
+          cumulative += dailyReturn;
+          cumulativeData.push({
+            d: day.as_of_date,
+            v: Number((cumulative * 100).toFixed(2))
+          });
+        });
+
+        if (isMounted) {
+          setAnalytics(prev => ({
+            ...prev,
+            curves: {
+              ...prev?.curves,
+              [timeframe]: cumulativeData
+            }
+          }));
+        }
+      } catch (error) {
+        console.error("Error fetching cumulative data:", error);
+      }
+    };
+
+    fetchCumulativeData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [strategyId, timeframe]);
 
   // Generate chart data from analytics curves (index levels)
   const { data, yDomain, baseIndexValue } = useMemo(() => {
@@ -650,6 +715,10 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
           <div className="mt-4 flex flex-wrap gap-2">
             {timeframeOptions.map((option) => {
               const isDisabled = !availableTimeframes.includes(option.key);
+              const returnValue = timeframeReturns[option.key];
+              const formattedReturn = returnValue != null
+                ? `${returnValue >= 0 ? "+" : ""}${(returnValue * 100).toFixed(2)}%`
+                : "—";
               return (
                 <button
                   key={option.key}
@@ -662,7 +731,7 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
                       : "border border-slate-200 bg-white text-slate-600"
                   } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
-                  {option.label}
+                  {option.label} {formattedReturn}
                 </button>
               );
             })}
