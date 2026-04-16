@@ -311,23 +311,28 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       }
 
       try {
-        const response = await fetch(`/api/strategy-performance.js`);
+        const strategyIds = publicStrategies.map(s => s.id);
 
-        if (!response.ok) throw new Error("Failed to fetch performance metrics");
+        // Fetch latest returns for each strategy from strategies_returns_c
+        const { data: returns, error } = await supabase
+          .from("strategies_returns_c")
+          .select("strategy_id, ytd_pct, as_of_date")
+          .in("strategy_id", strategyIds)
+          .order("as_of_date", { ascending: false });
 
-        const result = await response.json();
+        if (error) throw error;
 
-        if (result.success && result.data) {
-          // Create map of returns by strategy_id
-          // Convert from percentage (0-100) to decimal (0-1) for formatChangePct
-          const nextMap = {};
-          result.data.forEach(perf => {
-            nextMap[perf.strategy_id] = perf.returns.ytd ? perf.returns.ytd / 100 : null;
-          });
-          setStrategyYtdById(nextMap);
-        } else {
-          throw new Error(result.error || "Failed to fetch metrics");
-        }
+        // Create map with ytd_pct and as_of_date for each strategy
+        const nextMap = {};
+        (returns || []).forEach(ret => {
+          if (!nextMap[ret.strategy_id]) {
+            nextMap[ret.strategy_id] = {
+              ytd: ret.ytd_pct ? ret.ytd_pct / 100 : null,
+              as_of_date: ret.as_of_date
+            };
+          }
+        });
+        setStrategyYtdById(nextMap);
       } catch (error) {
         console.error("Error fetching performance metrics:", error);
         setStrategyYtdById({});
@@ -496,17 +501,19 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
     return publicStrategies.map((publicStrategy) => {
       const strategyWithMetrics = strategiesById.get(publicStrategy.id);
-      const analyticsYtd = strategyYtdById[publicStrategy.id];
+      const analyticsData = strategyYtdById[publicStrategy.id];
       if (!strategyWithMetrics) {
         return {
           ...publicStrategy,
-          r_ytd: analyticsYtd ?? null,
+          r_ytd: analyticsData?.ytd ?? null,
+          ytd_as_of_date: analyticsData?.as_of_date ?? null,
         };
       }
 
       return {
         ...publicStrategy,
-        r_ytd: analyticsYtd ?? strategyWithMetrics.r_ytd ?? strategyWithMetrics.latest_metric?.r_ytd ?? null,
+        r_ytd: analyticsData?.ytd ?? strategyWithMetrics.r_ytd ?? strategyWithMetrics.latest_metric?.r_ytd ?? null,
+        ytd_as_of_date: analyticsData?.as_of_date ?? null,
       };
     });
   }, [publicStrategies, strategies, strategyYtdById]);
@@ -1713,9 +1720,16 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
                         <div className="mt-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
                           <span className="text-xs font-semibold text-slate-600">YTD return</span>
-                          <span className={`text-xs font-semibold ${getChangeColor(strategy.r_ytd)}`}>
-                            {formatChangePct(strategy.r_ytd)}
-                          </span>
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`text-xs font-semibold ${getChangeColor(strategy.r_ytd)}`}>
+                              {formatChangePct(strategy.r_ytd)}
+                            </span>
+                            {strategy.ytd_as_of_date && (
+                              <span className="text-[10px] text-slate-500">
+                                {new Date(strategy.ytd_as_of_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         {holdingsSnapshot.length > 0 && (
