@@ -830,9 +830,9 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const previewPeriodReturn = previewChartData.length > 1 && previewFirstValue
     ? ((previewLastValue - previewFirstValue) / previewFirstValue) * 100
     : null;
-  const previewChartLineColor = previewPeriodReturn > 0
+  const previewChartLineColor = (selectedStrategy?.r_ytd ?? previewPeriodReturn ?? 0) > 0
     ? "#16a34a"
-    : previewPeriodReturn < 0
+    : (selectedStrategy?.r_ytd ?? previewPeriodReturn ?? 0) < 0
       ? "#dc2626"
       : "#94a3b8";
 
