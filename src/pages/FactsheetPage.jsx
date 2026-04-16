@@ -56,6 +56,11 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
     return `${(Number(value) * 100).toFixed(2)}%`;
   };
 
+  const formatPercentDirect = (value) => {
+    if (value == null || Number.isNaN(value)) return "N/A";
+    return `${Number(value).toFixed(2)}%`;
+  };
+
   const formatCurrencyAmount = (amount, currencyCode = "ZAR") => {
     const numericAmount = Number(amount);
     if (!Number.isFinite(numericAmount)) return null;
@@ -533,22 +538,22 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
     return [
       {
         label: "Best Day",
-        value: formatPercent(performanceData.bestDay),
+        value: formatPercentDirect(performanceData.bestDay),
         description: "The highest daily return this strategy has achieved.",
       },
       {
         label: "Worst Day",
-        value: formatPercent(performanceData.worstDay),
+        value: formatPercentDirect(performanceData.worstDay),
         description: "The lowest daily return (most negative) this strategy has experienced.",
       },
       {
         label: "Avg Daily Return",
-        value: formatPercent(performanceData.avgDaily),
+        value: formatPercentDirect(performanceData.avgDaily),
         description: "The average daily percentage change across all trading days.",
       },
       {
         label: "YTD Return",
-        value: formatPercent(performanceData.ytdReturn),
+        value: formatPercentDirect(performanceData.ytdReturn),
         description: "Year-to-date return for the strategy.",
       },
     ];
