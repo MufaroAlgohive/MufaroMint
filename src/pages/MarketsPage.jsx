@@ -1748,13 +1748,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                             <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
                           </div>
                         )}
-
-                        {strategy.provider_name && (
-                        <div className="mt-3 flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Provider:</span>
-                          <span className="text-xs font-semibold text-slate-700">{strategy.provider_name}</span>
-                        </div>
-                        )}
                       </button>
                       );
                     })}
