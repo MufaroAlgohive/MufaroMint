@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     let symbolMap = {};
     if (allSecurityIds.length > 0) {
       const { data: secs } = await db
-        .from("securities")
+        .from("securities_c")
         .select("id, symbol, last_price")
         .in("id", allSecurityIds);
       (secs || []).forEach(s => {
@@ -115,12 +115,10 @@ export default async function handler(req, res) {
       db.from("strategies").select(`
         id, name, short_name, description, risk_level, sector, icon_url, image_url, holdings, status,
         strategy_metrics (
-          as_of_date, last_close, change_pct, r_1w, r_1m, r_3m, r_ytd, r_1y
+          *
         )
       `)
-      .eq("status", "active")
-      .order("as_of_date", { foreignTable: "strategy_metrics", ascending: false })
-      .limit(1, { foreignTable: "strategy_metrics" }),
+      .eq("status", "active"),
     ]);
 
     const allStrategies = allStrategiesResult.data || [];
@@ -129,6 +127,16 @@ export default async function handler(req, res) {
     if (stratErr) {
       console.error("[user/strategies] Error fetching strategies:", stratErr);
       return res.status(500).json({ success: false, error: stratErr.message });
+    }
+
+    // Sort each strategy's metrics by date descending and keep only the latest row
+    for (const strategy of allStrategies) {
+      if (Array.isArray(strategy.strategy_metrics) && strategy.strategy_metrics.length > 1) {
+        strategy.strategy_metrics.sort((a, b) =>
+          (b.as_of_date || "").localeCompare(a.as_of_date || "")
+        );
+        strategy.strategy_metrics = [strategy.strategy_metrics[0]];
+      }
     }
 
     const allHoldingSymbols = new Set();
@@ -142,7 +150,7 @@ export default async function handler(req, res) {
     let securitiesMap = {};
     if (allHoldingSymbols.size > 0) {
       const { data: secs } = await db
-        .from("securities")
+        .from("securities_c")
         .select("symbol, logo_url, name")
         .in("symbol", Array.from(allHoldingSymbols));
       if (secs) {

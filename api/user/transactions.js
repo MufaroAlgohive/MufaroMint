@@ -56,7 +56,7 @@ export default async function handler(req, res) {
 
     if (extractedNames.size > 0) {
       const { data: allSecs } = await db
-        .from("securities")
+        .from("securities_c")
         .select("name, symbol, logo_url");
       if (allSecs) {
         for (const sec of allSecs) {

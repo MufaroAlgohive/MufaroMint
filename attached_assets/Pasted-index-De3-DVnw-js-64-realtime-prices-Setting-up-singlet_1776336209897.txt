@@ -1,0 +1,52 @@
+index-De3-DVnw.js:64 [realtime-prices] Setting up singleton subscription
+index-De3-DVnw.js:64 Setting up SINGLETON notifications subscription
+index-De3-DVnw.js:64 [realtime-prices] Subscription status: SUBSCRIBED
+index-De3-DVnw.js:64 Notifications singleton status: SUBSCRIBED
+index-De3-DVnw.js:64 KYC status check: stored="verified" current="verified"
+index-De3-DVnw.js:64 [useOnboardingStatus] Total Onboarding Status: COMPLETE ✅ Object
+index-De3-DVnw.js:64 Setting up SINGLETON real-time subscription: required-actions-singleton
+index-De3-DVnw.js:64 Singleton subscription status: SUBSCRIBED
+/api/user/strategies:1  Failed to load resource: the server responded with a status of 500 ()
+/api/user/strategies:1  Failed to load resource: the server responded with a status of 500 ()
+index-De3-DVnw.js:116 [HomePage] Failed to fetch user strategies: 500
+(anonymous) @ index-De3-DVnw.js:116
+/api/user/strategies:1  Failed to load resource: the server responded with a status of 500 ()
+index-De3-DVnw.js:35 @supabase/gotrue-js: Lock "lock:sb-mfxnghmuccevsxwcetej-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmount (e.g., React Strict Mode). Forcefully acquiring the lock to recover.
+KX @ index-De3-DVnw.js:35
+index-De3-DVnw.js:35 @supabase/gotrue-js: Lock "lock:sb-mfxnghmuccevsxwcetej-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmount (e.g., React Strict Mode). Forcefully acquiring the lock to recover.
+KX @ index-De3-DVnw.js:35
+index-De3-DVnw.js:35 @supabase/gotrue-js: Lock "lock:sb-mfxnghmuccevsxwcetej-auth-token" was not released within 5000ms. This may indicate an orphaned lock from a component unmount (e.g., React Strict Mode). Forcefully acquiring the lock to recover.
+KX @ index-De3-DVnw.js:35
+index-De3-DVnw.js:64 Polling Sumsub status...
+index-De3-DVnw.js:64 KYC status check: stored="verified" current="verified"
+index-De3-DVnw.js:260 Native haptics only
+index-De3-DVnw.js:64 [realtime-prices] Tearing down subscription
+index-De3-DVnw.js:64 [realtime-prices] Subscription status: CLOSED
+index-De3-DVnw.js:64 [realtime-prices] Setting up singleton subscription
+index-De3-DVnw.js:96 🔍 Fetching rich market data from v_latest_security_metrics...
+index-De3-DVnw.js:64 [realtime-prices] Subscription status: SUBSCRIBED
+index-De3-DVnw.js:96 ✅ Fetched 245 securities with rich metrics
+index-De3-DVnw.js:96 🔍 Fetching price history for cdb08821-d07a-4198-8ce8-b195f46a404f, timeframe 1W...
+index-De3-DVnw.js:96 ✅ Fetched 5 historical rows for 1W
+index-De3-DVnw.js:220  GET https://mint-henna.vercel.app/api/user/strategies 500 (Internal Server Error)
+(anonymous) @ index-De3-DVnw.js:220
+await in (anonymous)
+(anonymous) @ index-De3-DVnw.js:220
+Sv @ index-De3-DVnw.js:8
+Bp @ index-De3-DVnw.js:8
+xY @ index-De3-DVnw.js:8
+qf @ index-De3-DVnw.js:8
+EE @ index-De3-DVnw.js:8
+q @ index-De3-DVnw.js:6
+(anonymous) @ index-De3-DVnw.js:8
+index-De3-DVnw.js:220 [useUserStrategies] API error: 500 {success: false, error: 'column strategy_metrics_1.last_close does not exist'}
+(anonymous) @ index-De3-DVnw.js:220
+await in (anonymous)
+(anonymous) @ index-De3-DVnw.js:220
+Sv @ index-De3-DVnw.js:8
+Bp @ index-De3-DVnw.js:8
+xY @ index-De3-DVnw.js:8
+qf @ index-De3-DVnw.js:8
+EE @ index-De3-DVnw.js:8
+q @ index-De3-DVnw.js:6
+(anonymous) @ index-De3-DVnw.js:8
