@@ -368,19 +368,25 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
             ytdReturn: ytdReturn
           });
 
-          // Build calendar returns (monthly) - use 1m_pct directly from last day of month
+          // Build calendar returns (monthly) - sum all daily returns for each month
           const monthlyReturns = {};
-          const lastDayOfMonth = {};
+          const monthlyDailyReturns = {};
 
           dailyReturns.forEach((day) => {
             const date = day.as_of_date;
             const yearMonth = date.slice(0, 7); // YYYY-MM
-            lastDayOfMonth[yearMonth] = day; // Keep updating to get the last day
+            const month = parseInt(yearMonth.split("-")[1]);
+
+            if (!monthlyDailyReturns[month]) {
+              monthlyDailyReturns[month] = [];
+            }
+            monthlyDailyReturns[month].push(day["1d_pct"] || 0);
           });
 
-          Object.entries(lastDayOfMonth).forEach(([yearMonth, dayData]) => {
-            const month = parseInt(yearMonth.split("-")[1]);
-            monthlyReturns[month] = dayData["1m_pct"] || 0;
+          // Sum the daily returns for each month
+          Object.entries(monthlyDailyReturns).forEach(([month, dailyPcts]) => {
+            const monthlyReturn = dailyPcts.reduce((sum, pct) => sum + pct, 0);
+            monthlyReturns[month] = monthlyReturn;
           });
 
           setCalendarReturns(monthlyReturns);
