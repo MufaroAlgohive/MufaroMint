@@ -1917,12 +1917,12 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
               <div className="mb-5">
                 <div className="mb-2 flex items-center justify-between text-xs font-semibold text-slate-500">
-                  <span>{selectedStrategyTimeframe} return</span>
+                  <span>YTD return</span>
                   <div className="flex flex-col items-end gap-1">
-                    <span className={previewPeriodReturn > 0 ? "text-emerald-600" : previewPeriodReturn < 0 ? "text-rose-600" : "text-slate-500"}>
-                      {previewPeriodReturn != null ? `${previewPeriodReturn >= 0 ? "+" : ""}${previewPeriodReturn.toFixed(2)}%` : "—"}
+                    <span className={selectedStrategy?.r_ytd > 0 ? "text-emerald-600" : selectedStrategy?.r_ytd < 0 ? "text-rose-600" : "text-slate-500"}>
+                      {selectedStrategy?.r_ytd != null ? `${selectedStrategy.r_ytd >= 0 ? "+" : ""}${(selectedStrategy.r_ytd * 100).toFixed(2)}%` : "—"}
                     </span>
-                    {selectedStrategyTimeframe === "YTD" && selectedStrategy?.ytd_as_of_date && (
+                    {selectedStrategy?.ytd_as_of_date && (
                       <span className="text-[10px] text-slate-400">
                         {new Date(selectedStrategy.ytd_as_of_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
@@ -2011,28 +2011,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                     </ResponsiveContainer>
                   )}
                 </div>
-                {availablePreviewTimeframes.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {strategyTimeframeOptions.map((option) => {
-                      const isDisabled = !availablePreviewTimeframes.includes(option.key);
-                      return (
-                        <button
-                          key={option.key}
-                          type="button"
-                          onClick={() => setSelectedStrategyTimeframe(option.key)}
-                          disabled={isDisabled}
-                          className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                            selectedStrategyTimeframe === option.key
-                              ? "bg-slate-900 text-white"
-                              : "border border-slate-200 bg-white text-slate-600"
-                          } ${isDisabled ? "opacity-40 cursor-not-allowed" : ""}`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
               
               <div className="flex flex-wrap gap-2 mb-6">
