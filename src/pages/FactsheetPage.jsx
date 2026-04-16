@@ -359,26 +359,13 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
   const lastIndex = data.length - 1;
   const lastValue = data[lastIndex]?.returnPct ?? null;
   const firstValue = baseIndexValue;
-  const periodReturn = data.length > 1 && firstValue
-    ? ((lastValue - firstValue) / firstValue) * 100
-    : null;
+  const periodReturn = timeframeReturns[timeframe];
   const formattedReturn = periodReturn != null
-    ? `${periodReturn >= 0 ? "+" : ""}${periodReturn.toFixed(2)}%`
-    : "—";
-  const allTimeReturn = analytics?.latest_value != null
-    ? (Number(analytics.latest_value) / 100 - 1)
-    : null;
-  const formattedAllTimeReturn = allTimeReturn != null
-    ? `${allTimeReturn >= 0 ? "+" : ""}${(allTimeReturn * 100).toFixed(2)}%`
+    ? `${periodReturn >= 0 ? "+" : ""}${(periodReturn * 100).toFixed(2)}%`
     : "—";
   const returnTextClass = periodReturn > 0
     ? "text-emerald-600"
     : periodReturn < 0
-      ? "text-rose-600"
-      : "text-slate-500";
-  const allTimeTextClass = allTimeReturn > 0
-    ? "text-emerald-600"
-    : allTimeReturn < 0
       ? "text-rose-600"
       : "text-slate-500";
   const chartLineColor = periodReturn > 0
