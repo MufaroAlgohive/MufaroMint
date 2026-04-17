@@ -1012,23 +1012,18 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
         <section className="mt-6 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4 mb-4">
             <h2 className="text-sm font-semibold text-slate-900">Calendar Returns</h2>
-            {availableCalendarYears.length > 1 ? (
-              <div className="flex flex-wrap gap-2">
+            {availableCalendarYears.length > 0 ? (
+              <select
+                value={calendarYear}
+                onChange={(e) => setCalendarYear(Number(e.target.value))}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
+              >
                 {availableCalendarYears.map((year) => (
-                  <button
-                    key={year}
-                    type="button"
-                    onClick={() => setCalendarYear(Number(year))}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      Number(year) === Number(calendarYear)
-                        ? "bg-slate-900 text-white"
-                        : "border border-slate-200 bg-white text-slate-600"
-                    }`}
-                  >
+                  <option key={year} value={year}>
                     {year}
-                  </button>
+                  </option>
                 ))}
-              </div>
+              </select>
             ) : null}
           </div>
           {analyticsUnavailable || !availableCalendarYears.length ? (
