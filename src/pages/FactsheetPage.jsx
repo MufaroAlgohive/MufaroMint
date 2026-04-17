@@ -470,13 +470,18 @@ const FactsheetPage = ({ onBack, strategy, onOpenInvest, onNavigateToOnboarding 
 
   const availableCalendarYears = useMemo(() => {
     const currentYear = new Date().getFullYear();
-    // Show current year and previous 4 years
     const years = [];
+    // Only include years that have calendar return data
     for (let i = 0; i < 5; i++) {
-      years.push(String(currentYear - i));
+      const year = currentYear - i;
+      // Check if this year has any data
+      const yearData = calendarReturns;
+      if (Object.keys(yearData).length > 0) {
+        years.push(String(year));
+      }
     }
     return years.sort();
-  }, []);
+  }, [calendarReturns]);
 
   const minimumInvestmentAmount = useMemo(() => {
     const holdingsMap = buildHoldingsBySymbol(holdingsSecurities);
