@@ -272,7 +272,7 @@ export default async function handler(req, res) {
         }
 
         const { data: existing, error: lookupErr } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .select("id, quantity, avg_fill")
           .eq("user_id", userId)
           .eq("security_id", sec.id)
@@ -292,7 +292,7 @@ export default async function handler(req, res) {
             ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty
             : priceCents;
 
-          const { error: updateErr } = await db.from("stock_holdings").update({
+          const { error: updateErr } = await db.from("stock_holdings_c").update({
             quantity: newQty,
             avg_fill: Math.round(newAvgFill),
             market_value: Math.round(newQty * priceCents),
@@ -305,7 +305,7 @@ export default async function handler(req, res) {
             return res.status(500).json({ success: false, error: `Failed to update holding for ${holding.symbol}` });
           }
         } else {
-          const { error: insertErr } = await db.from("stock_holdings").insert({
+          const { error: insertErr } = await db.from("stock_holdings_c").insert({
             user_id: userId,
             security_id: sec.id,
             strategy_id: strategyId,
@@ -401,7 +401,7 @@ export default async function handler(req, res) {
       const marketValueCents = Math.round(quantity * (currentPriceCents || investAmount * 100));
 
       const { data: existing, error: fetchError } = await db
-        .from("stock_holdings")
+        .from("stock_holdings_c")
         .select("id, quantity, avg_fill, market_value")
         .eq("user_id", userId)
         .eq("security_id", securityId)
@@ -418,7 +418,7 @@ export default async function handler(req, res) {
         const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (avgFillCents * quantity)) / newQty : avgFillCents;
         const newMarketValue = Math.round(newQty * (currentPriceCents || newAvgFill));
         const { data, error } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .update({
             quantity: newQty,
             avg_fill: Math.round(newAvgFill),
@@ -431,7 +431,7 @@ export default async function handler(req, res) {
         holdingResult = { data, error };
       } else {
         const { data, error } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .insert({
             user_id: userId,
             security_id: securityId,

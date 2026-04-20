@@ -1100,7 +1100,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
     if (!userId) return;
     try {
       const [holdingsRes, walletRes] = await Promise.all([
-        supabase.from("stock_holdings").select("market_value, unrealized_pnl").eq("user_id", userId),
+        supabase.from("stock_holdings_c").select("market_value, unrealized_pnl").eq("user_id", userId),
         supabase.from("wallets").select("balance").eq("user_id", userId).maybeSingle(),
       ]);
       const holdings = holdingsRes.data || [];

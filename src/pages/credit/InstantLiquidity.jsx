@@ -92,7 +92,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       try {
         // 1. Fetch Eligible Collateral
         const { data, error } = await supabase
-          .from('stock_holdings')
+          .from('stock_holdings_c')
           .select(`
           quantity,
           securities!inner (

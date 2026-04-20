@@ -369,7 +369,7 @@ const StatementsPage = ({ onOpenNotifications }) => {
         .filter(Boolean);
       if (!updates.length) return;
       await Promise.all(updates.map((u) =>
-        supabase.from("stock_holdings").update({ market_value: u.market_value }).eq("id", u.id)
+        supabase.from("stock_holdings_c").update({ market_value: u.market_value }).eq("id", u.id)
       ));
     };
     update();

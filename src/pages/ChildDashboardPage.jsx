@@ -936,7 +936,7 @@ export default function ChildDashboardPage({ child: initialChild, onBack }) {
     try {
       if (!supabase) return;
       const { data } = await supabase
-        .from("stock_holdings")
+        .from("stock_holdings_c")
         .select("id, security_id, quantity, avg_fill, market_value, unrealized_pnl, strategy_id, securities(symbol, name)")
         .eq("family_member_id", child.id)
         .order("market_value", { ascending: false });

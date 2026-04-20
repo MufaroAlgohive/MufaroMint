@@ -3292,7 +3292,7 @@
     const loadTopHoldings = async () => {
       const { data: holdingsRows, error: holdingsError } =
         await supabaseClient
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .select("security_id, user_id, quantity");
       if (holdingsError) {
         console.error("Holdings load error:", holdingsError);

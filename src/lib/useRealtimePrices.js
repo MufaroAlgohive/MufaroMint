@@ -83,7 +83,7 @@ export function setupRealtimePrices() {
       {
         event: "UPDATE",
         schema: "public",
-        table: "stock_holdings",
+        table: "stock_holdings_c",
       },
       (payload) => {
         console.log("[realtime-prices] Holding updated:", payload.new?.id);

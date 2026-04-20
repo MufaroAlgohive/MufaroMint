@@ -64,7 +64,7 @@ export default async function handler(req, res) {
     }
 
     const { data: userHoldings, error: holdingsError } = await db
-      .from("stock_holdings")
+      .from("stock_holdings_c")
       .select("id, security_id, strategy_id, quantity, avg_fill")
       .eq("user_id", userId)
       .eq("Status", "active")

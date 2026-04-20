@@ -72,7 +72,7 @@ export default function MemberPortfolioPage({ member, onBack }) {
     try {
       if (!supabase) return;
       const { data } = await supabase
-        .from("stock_holdings")
+        .from("stock_holdings_c")
         .select("id, symbol, name, quantity, average_cost, market_value, unrealized_pnl, logo_url")
         .eq("user_id", member.id);
       const h = data || [];
