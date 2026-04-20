@@ -12,7 +12,7 @@
 --
 -- Returns are stored as decimals (e.g. 0.0512 = +5.12%).
 -- Prices are stored in ZAR cents (consistent with security_prices
--- and stock_holdings.avg_fill).
+-- and stock_holdings_c.avg_fill).
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS security_metrics (

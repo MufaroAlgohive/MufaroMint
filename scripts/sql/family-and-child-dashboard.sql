@@ -90,21 +90,21 @@ CREATE INDEX IF NOT EXISTS idx_family_members_linked_user_id ON family_members(l
 CREATE INDEX IF NOT EXISTS idx_family_members_relationship ON family_members(relationship);
 CREATE INDEX IF NOT EXISTS idx_family_members_spouse_email ON family_members(spouse_email);
 
--- ─── 6. family_member_id on stock_holdings ──────────────────────────────────
+-- ─── 6. family_member_id on stock_holdings_c ──────────────────────────────────
 
 DO $$ BEGIN
-  ALTER TABLE stock_holdings ADD COLUMN family_member_id uuid;
+  ALTER TABLE stock_holdings_c ADD COLUMN family_member_id uuid;
 EXCEPTION WHEN duplicate_column THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  ALTER TABLE stock_holdings
-    ADD CONSTRAINT stock_holdings_family_member_id_fkey
+  ALTER TABLE stock_holdings_c
+    ADD CONSTRAINT stock_holdings_c_family_member_id_fkey
     FOREIGN KEY (family_member_id) REFERENCES family_members(id) ON DELETE SET NULL NOT VALID;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_stock_holdings_family_member_id ON stock_holdings(family_member_id);
+CREATE INDEX IF NOT EXISTS idx_stock_holdings_c_family_member_id ON stock_holdings_c(family_member_id);
 
 -- ─── 7. family_member_id on transactions ────────────────────────────────────
 
@@ -344,7 +344,7 @@ COMMIT;
 -- Done! Summary of changes:
 -- • family_members: linked_user_id, spouse_email, certificate_url,
 --   certificate_uploaded_at, available_balance columns
--- • stock_holdings: family_member_id column (for child investments)
+-- • stock_holdings_c: family_member_id column (for child investments)
 -- • transactions: family_member_id column (for child transactions)
 -- • user_strategies: family_member_id column (if table exists)
 -- • birth-certificates storage bucket (private, 10MB, PDF/JPG/PNG/HEIC)

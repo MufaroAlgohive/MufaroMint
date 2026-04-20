@@ -148,7 +148,7 @@ describe('record-investment API', () => {
           ],
           error: null
         });
-      } else if (table === 'stock_holdings') {
+      } else if (table === 'stock_holdings_c') {
         chain.maybeSingle.mockResolvedValue({ data: null, error: null }); // Simulate no prior holdings
       }
       
@@ -173,8 +173,8 @@ describe('record-investment API', () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ success: true, holding: null });
     
-    // It should have interacted with the stock_holdings table twice (once for AAPL, once for MSFT)
-    const stockHoldingsCalls = fromMock.mock.calls.filter(call => call[0] === 'stock_holdings');
+    // It should have interacted with the stock_holdings_c table twice (once for AAPL, once for MSFT)
+    const stockHoldingsCalls = fromMock.mock.calls.filter(call => call[0] === 'stock_holdings_c');
     expect(stockHoldingsCalls.length).toBeGreaterThan(0);
   });
 });

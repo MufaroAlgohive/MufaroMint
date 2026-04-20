@@ -73,7 +73,7 @@ async function sendOrderFillEmail(db, { transactionId, holdingId }) {
       if (data) { txData = data; userId = data.user_id; }
     }
     if (holdingId) {
-      const { data } = await db.from("stock_holdings").select("user_id, security_id, quantity, avg_fill, market_value").eq("id", holdingId).maybeSingle();
+      const { data } = await db.from("stock_holdings_c").select("user_id, security_id, quantity, avg_fill, market_value").eq("id", holdingId).maybeSingle();
       if (data) { holdingData = data; if (!userId) userId = data.user_id; }
     }
     if (!userId) return;
@@ -434,7 +434,7 @@ async function cleanupInvalidHoldings() {
   const db = supabaseAdmin || supabase;
   if (!db) return;
   try {
-    const { data: holdings } = await db.from('stock_holdings').select('id, security_id');
+    const { data: holdings } = await db.from('stock_holdings_c').select('id, security_id');
     if (!holdings || holdings.length === 0) return;
     const secIds = holdings.map(h => h.security_id).filter(Boolean);
     const { data: strategies } = await db.from('strategies').select('id').in('id', secIds);
@@ -442,7 +442,7 @@ async function cleanupInvalidHoldings() {
     for (const h of holdings) {
       if (strategyIds.has(h.security_id)) {
         console.log('[cleanup] Deleting invalid stock_holding', h.id, 'security_id is a strategy');
-        await db.from('stock_holdings').delete().eq('id', h.id);
+        await db.from('stock_holdings_c').delete().eq('id', h.id);
       }
     }
   } catch (e) {
@@ -508,33 +508,33 @@ async function runSettlementMigration() {
 
   try {
     const { data: testH } = await db
-      .from('stock_holdings')
+      .from('stock_holdings_c')
       .select('settlement_status')
       .limit(1);
 
     if (testH !== null) {
-      console.log('[settlement] settlement_status column already exists on stock_holdings');
+      console.log('[settlement] settlement_status column already exists on stock_holdings_c');
     }
   } catch (e) {
     if (e.message?.includes('settlement_status') || e.code === '42703') {
-      console.log('[settlement] Adding settlement_status column to stock_holdings...');
+      console.log('[settlement] Adding settlement_status column to stock_holdings_c...');
       try {
         const { error } = await db.rpc('exec_sql', {
-          query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS settlement_status TEXT DEFAULT 'pending_csdp'"
+          query: "ALTER TABLE stock_holdings_c ADD COLUMN IF NOT EXISTS settlement_status TEXT DEFAULT 'pending_csdp'"
         });
         if (error) {
           console.log('[settlement] Could not add column via RPC:', error.message);
         }
       } catch (rpcErr) {
-        console.log('[settlement] RPC not available for stock_holdings');
+        console.log('[settlement] RPC not available for stock_holdings_c');
       }
     }
   }
 
   // Add is_active and exit_price columns if not present
   try {
-    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true" });
-    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings ADD COLUMN IF NOT EXISTS exit_price BIGINT" });
+    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings_c ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true" });
+    await db.rpc('exec_sql', { query: "ALTER TABLE stock_holdings_c ADD COLUMN IF NOT EXISTS exit_price BIGINT" });
     console.log('[holdings] is_active and exit_price columns ensured');
   } catch (e) {
     console.log('[holdings] Could not add is_active/exit_price columns (may already exist)');
@@ -2332,7 +2332,7 @@ app.post("/api/account/reset", async (req, res) => {
       { name: "loan_application", action: "delete" },
       { name: "investment_goals", action: "delete" },
       { name: "notifications", action: "delete" },
-      { name: "stock_holdings", action: "delete" },
+      { name: "stock_holdings_c", action: "delete" },
       { name: "allocations", action: "delete" },
     ];
 
@@ -2673,7 +2673,7 @@ app.post("/api/reconcile-payments", async (req, res) => {
         const marketValueCents = quantity * currentPriceCents;
 
         const { data: existing } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .select("*")
           .eq("user_id", userId)
           .eq("security_id", securityId)
@@ -2683,11 +2683,11 @@ app.post("/api/reconcile-payments", async (req, res) => {
           const newQty = existing.quantity + quantity;
           const newMarketValue = newQty * currentPriceCents;
           await db
-            .from("stock_holdings")
+            .from("stock_holdings_c")
             .update({ quantity: newQty, market_value: newMarketValue, as_of_date: new Date().toISOString().split("T")[0] })
             .eq("id", existing.id);
         } else {
-          await db.from("stock_holdings").insert({
+          await db.from("stock_holdings_c").insert({
             user_id: userId,
             security_id: securityId,
             quantity,
@@ -2908,7 +2908,7 @@ app.post("/api/record-investment", async (req, res) => {
         }
 
         const { data: existing, error: lookupErr } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .select("id, quantity, avg_fill")
           .eq("user_id", userId)
           .eq("security_id", sec.id)
@@ -2928,7 +2928,7 @@ app.post("/api/record-investment", async (req, res) => {
             ? Math.round((oldAvgFill * oldQty + priceCents * holdingQty) / newQty)
             : priceCents;
 
-          const { error: updateErr } = await db.from("stock_holdings").update({
+          const { error: updateErr } = await db.from("stock_holdings_c").update({
             quantity: newQty,
             avg_fill: newAvgFill,
             market_value: Math.round(newQty * priceCents),
@@ -2942,7 +2942,7 @@ app.post("/api/record-investment", async (req, res) => {
           }
           console.log("[record-investment] Updated holding:", holding.symbol, "qty:", newQty, "avg_fill:", newAvgFill);
         } else {
-          const { error: insertErr } = await db.from("stock_holdings").insert({
+          const { error: insertErr } = await db.from("stock_holdings_c").insert({
             user_id: userId,
             security_id: sec.id,
             strategy_id: strategyId,
@@ -2983,7 +2983,7 @@ app.post("/api/record-investment", async (req, res) => {
     let calcQuantity = null;
 
     if (securityCheck && !isStrategyInvestment) {
-      console.log("[record-investment] Security exists - will create/update stock_holdings");
+      console.log("[record-investment] Security exists - will create/update stock_holdings_c");
       const { data: securityData, error: secError } = await db
         .from("securities_c")
         .select("last_price")
@@ -3018,7 +3018,7 @@ app.post("/api/record-investment", async (req, res) => {
       console.log("[record-investment] Calculated - currentPriceRands:", currentPriceRands, "rawQuantity:", rawQuantity, "quantity:", quantity);
 
       const { data: existing, error: fetchError } = await db
-        .from("stock_holdings")
+        .from("stock_holdings_c")
         .select("id, quantity, avg_fill, market_value")
         .eq("user_id", userId)
         .eq("security_id", securityId)
@@ -3035,7 +3035,7 @@ app.post("/api/record-investment", async (req, res) => {
         const newQty = Math.round(oldQty + quantity);
         console.log("[record-investment] New qty:", newQty);
         const { data, error } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .update({
             quantity: newQty,
             as_of_date: new Date().toISOString().split("T")[0],
@@ -3057,7 +3057,7 @@ app.post("/api/record-investment", async (req, res) => {
         };
         console.log("[record-investment] Insert data:", JSON.stringify(holdingData));
         const { data, error } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .insert(holdingData)
           .select();
         holdingResult = { data, error };
@@ -3349,14 +3349,14 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
           const holdingQty = rawQty * scalingRatio;
           const pc = Number(sec.last_price || 0);
           if (pc <= 0) continue;
-          const { data: existing } = await db.from("stock_holdings").select("id, quantity, avg_fill").eq("user_id", userId).eq("security_id", sec.id).eq("strategy_id", strategyId).maybeSingle();
+          const { data: existing } = await db.from("stock_holdings_c").select("id, quantity, avg_fill").eq("user_id", userId).eq("security_id", sec.id).eq("strategy_id", strategyId).maybeSingle();
           if (existing) {
             const oldQty = Number(existing.quantity || 0);
             const newQty = oldQty + holdingQty;
             const newAvg = newQty > 0 ? ((Number(existing.avg_fill || 0) * oldQty) + (pc * holdingQty)) / newQty : pc;
-            await db.from("stock_holdings").update({ quantity: newQty, avg_fill: Math.round(newAvg), market_value: Math.round(newQty * pc), as_of_date: today, updated_at: now }).eq("id", existing.id);
+            await db.from("stock_holdings_c").update({ quantity: newQty, avg_fill: Math.round(newAvg), market_value: Math.round(newQty * pc), as_of_date: today, updated_at: now }).eq("id", existing.id);
           } else {
-            await db.from("stock_holdings").insert({ user_id: userId, security_id: sec.id, strategy_id: strategyId, quantity: holdingQty, avg_fill: pc, market_value: Math.round(holdingQty * pc), unrealized_pnl: 0, as_of_date: today, Status: "active" });
+            await db.from("stock_holdings_c").insert({ user_id: userId, security_id: sec.id, strategy_id: strategyId, quantity: holdingQty, avg_fill: pc, market_value: Math.round(holdingQty * pc), unrealized_pnl: 0, as_of_date: today, Status: "active" });
           }
         }
 
@@ -3380,14 +3380,14 @@ app.post("/api/confirm-eft-deposit", async (req, res) => {
       const priceRands = currentPriceCents ? currentPriceCents / 100 : investAmount;
       quantity = priceRands > 0 ? investAmount / priceRands : 1;
       const avgFill = currentPriceCents || Math.round(investAmount * 100);
-      const { data: existing } = await db.from("stock_holdings").select("id, quantity, avg_fill").eq("user_id", userId).eq("security_id", securityId).maybeSingle();
+      const { data: existing } = await db.from("stock_holdings_c").select("id, quantity, avg_fill").eq("user_id", userId).eq("security_id", securityId).maybeSingle();
       if (existing) {
         const oldQty = Number(existing.quantity || 0);
         const newQty = oldQty + quantity;
         const newAvg = newQty > 0 ? ((Number(existing.avg_fill || 0) * oldQty) + (avgFill * quantity)) / newQty : avgFill;
-        await db.from("stock_holdings").update({ quantity: newQty, avg_fill: Math.round(newAvg), market_value: Math.round(newQty * (currentPriceCents || Math.round(newAvg))), as_of_date: today, updated_at: now }).eq("id", existing.id);
+        await db.from("stock_holdings_c").update({ quantity: newQty, avg_fill: Math.round(newAvg), market_value: Math.round(newQty * (currentPriceCents || Math.round(newAvg))), as_of_date: today, updated_at: now }).eq("id", existing.id);
       } else {
-        await db.from("stock_holdings").insert({ user_id: userId, security_id: securityId, quantity, avg_fill: avgFill, market_value: Math.round(quantity * (currentPriceCents || avgFill)), unrealized_pnl: 0, as_of_date: today, Status: "active", strategy_id: strategyId || null });
+        await db.from("stock_holdings_c").insert({ user_id: userId, security_id: securityId, quantity, avg_fill: avgFill, market_value: Math.round(quantity * (currentPriceCents || avgFill)), unrealized_pnl: 0, as_of_date: today, Status: "active", strategy_id: strategyId || null });
       }
     }
 
@@ -3614,7 +3614,7 @@ app.get("/api/user/holdings", async (req, res) => {
 
     // Attempt queries with progressively fewer optional columns to handle missing DB columns
     const holdingsFull = await db
-      .from("stock_holdings")
+      .from("stock_holdings_c")
       .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, settlement_status, is_active, exit_price")
       .eq("user_id", userId);
 
@@ -3624,7 +3624,7 @@ app.get("/api/user/holdings", async (req, res) => {
     } else if (holdingsFull.error.code === "42703") {
       // One or more optional columns missing — try without settlement_status
       const noSettlement = await db
-        .from("stock_holdings")
+        .from("stock_holdings_c")
         .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status, is_active, exit_price")
         .eq("user_id", userId);
 
@@ -3634,7 +3634,7 @@ app.get("/api/user/holdings", async (req, res) => {
       } else if (noSettlement.error.code === "42703") {
         // Try without is_active and exit_price too
         const noExtras = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .select("id, user_id, security_id, strategy_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, Status")
           .eq("user_id", userId);
         holdings = (noExtras.data || []).map(h => ({ ...h, is_active: true, exit_price: null }));
@@ -3827,7 +3827,7 @@ app.get("/api/user/strategies", async (req, res) => {
 
     // Fetch user's holdings with strategy_id to compute cost basis and live value
     const { data: userStratHoldings } = await db
-      .from("stock_holdings")
+      .from("stock_holdings_c")
       .select("id, security_id, strategy_id, quantity, avg_fill")
       .eq("user_id", userId)
       .not("strategy_id", "is", null);
@@ -4163,7 +4163,7 @@ app.get("/api/debug/user-investments", async (req, res) => {
     const userId = user.id;
 
     const [holdingsResult, transactionsResult] = await Promise.all([
-      db.from("stock_holdings").select("*").eq("user_id", userId),
+      db.from("stock_holdings_c").select("*").eq("user_id", userId),
       db.from("transactions").select("id, direction, name, description, amount, store_reference, status, transaction_date").eq("user_id", userId).order("transaction_date", { ascending: false }).limit(20),
     ]);
 
@@ -5726,7 +5726,7 @@ app.post("/api/webhooks/csdp", async (req, res) => {
         await db.from("transactions").update({ settlement_status: newStatus }).eq("id", transactionId);
       }
       if (holdingId) {
-        await db.from("stock_holdings").update({ settlement_status: newStatus }).eq("id", holdingId);
+        await db.from("stock_holdings_c").update({ settlement_status: newStatus }).eq("id", holdingId);
       }
 
       console.log(`[CSDP Webhook] Updated settlement_status to ${newStatus} for tx:${transactionId} holding:${holdingId}`);
@@ -5739,7 +5739,7 @@ app.post("/api/webhooks/csdp", async (req, res) => {
         await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", transactionId);
       }
       if (holdingId) {
-        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
+        await db.from("stock_holdings_c").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
       }
       console.log(`[CSDP Webhook] Settlement FAILED for tx:${transactionId} holding:${holdingId}`);
     }
@@ -5782,10 +5782,10 @@ app.post("/api/webhooks/broker", async (req, res) => {
           updateData.quantity = executionQuantity;
           updateData.market_value = Math.round(executionQuantity * executionPrice * 100);
         }
-        await db.from("stock_holdings").update(updateData).eq("id", holdingId);
+        await db.from("stock_holdings_c").update(updateData).eq("id", holdingId);
         console.log(`[Broker Webhook] Updated holding ${holdingId} with broker price: R${executionPrice}`);
       } else if (holdingId) {
-        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.CONFIRMED }).eq("id", holdingId);
+        await db.from("stock_holdings_c").update({ settlement_status: SETTLEMENT_STATUSES.CONFIRMED }).eq("id", holdingId);
       }
 
       console.log(`[Broker Webhook] Settlement CONFIRMED for tx:${transactionId} holding:${holdingId}`);
@@ -5795,7 +5795,7 @@ app.post("/api/webhooks/broker", async (req, res) => {
         await db.from("transactions").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", transactionId);
       }
       if (holdingId) {
-        await db.from("stock_holdings").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
+        await db.from("stock_holdings_c").update({ settlement_status: SETTLEMENT_STATUSES.FAILED }).eq("id", holdingId);
       }
       console.log(`[Broker Webhook] Settlement FAILED for tx:${transactionId} holding:${holdingId}`);
     }
@@ -6157,7 +6157,7 @@ app.post("/api/ozow/record-success", async (req, res) => {
         const holdingQty = rawQty * scalingRatio;
 
         const { data: existing } = await db
-          .from("stock_holdings")
+          .from("stock_holdings_c")
           .select("id, quantity, avg_fill")
           .eq("user_id", userId)
           .eq("security_id", sec.id)
@@ -6169,7 +6169,7 @@ app.post("/api/ozow/record-success", async (req, res) => {
           const oldAvgFill = Number(existing.avg_fill || 0);
           const newQty = oldQty + holdingQty;
           const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty : priceCents;
-          await db.from("stock_holdings").update({
+          await db.from("stock_holdings_c").update({
             quantity: newQty,
             avg_fill: Math.round(newAvgFill),
             market_value: Math.round(newQty * priceCents),
@@ -6177,7 +6177,7 @@ app.post("/api/ozow/record-success", async (req, res) => {
             updated_at: now,
           }).eq("id", existing.id);
         } else {
-          await db.from("stock_holdings").insert({
+          await db.from("stock_holdings_c").insert({
             user_id: userId,
             security_id: sec.id,
             strategy_id: strategyId,
@@ -6349,7 +6349,7 @@ app.post("/api/ozow/notify", async (req, res) => {
           const holdingQty = rawQty * scalingRatio;
 
           const { data: existing } = await db
-            .from("stock_holdings")
+            .from("stock_holdings_c")
             .select("id, quantity, avg_fill")
             .eq("user_id", userId)
             .eq("security_id", sec.id)
@@ -6361,7 +6361,7 @@ app.post("/api/ozow/notify", async (req, res) => {
             const oldAvgFill = Number(existing.avg_fill || 0);
             const newQty = oldQty + holdingQty;
             const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (priceCents * holdingQty)) / newQty : priceCents;
-            await db.from("stock_holdings").update({
+            await db.from("stock_holdings_c").update({
               quantity: newQty,
               avg_fill: Math.round(newAvgFill),
               market_value: Math.round(newQty * priceCents),
@@ -6370,7 +6370,7 @@ app.post("/api/ozow/notify", async (req, res) => {
             }).eq("id", existing.id);
             console.log(`[ozow/notify] Updated holding ${holding.symbol} qty=${newQty}`);
           } else {
-            await db.from("stock_holdings").insert({
+            await db.from("stock_holdings_c").insert({
               user_id: userId,
               security_id: sec.id,
               strategy_id: strategyId,

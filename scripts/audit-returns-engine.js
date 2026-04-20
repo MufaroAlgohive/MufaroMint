@@ -74,7 +74,7 @@ const SPREADSHEET_TABLES = {
   security_prices:  ['security_id', 'close_price', 'ts'],
   strategies:       ['id', 'name', 'holdings', 'status'],
   strategy_metrics: ['strategy_id', 'as_of_date', 'last_close', 'prev_close', 'change_abs', 'change_pct', 'r_1w', 'r_1m', 'r_3m', 'r_6m', 'r_ytd', 'r_1y'],
-  stock_holdings:   ['user_id', 'security_id', 'strategy_id', 'quantity', 'avg_fill', 'market_value', 'unrealized_pnl', 'as_of_date'],
+  stock_holdings_c:   ['user_id', 'security_id', 'strategy_id', 'quantity', 'avg_fill', 'market_value', 'unrealized_pnl', 'as_of_date'],
   user_strategies:  ['user_id', 'strategy_id', 'invested_amount', 'status'],
 };
 
@@ -445,13 +445,13 @@ async function main() {
   const totalUserStrats = await count('user_strategies');
   console.log(info(`user_strategies rows: ${fmt(totalUserStrats)}`));
 
-  // 3f. stock_holdings
-  console.log(h2('stock_holdings'));
-  const totalHoldings = await count('stock_holdings');
-  const stratHoldings = await count('stock_holdings'); // strategy-linked
+  // 3f. stock_holdings_c
+  console.log(h2('stock_holdings_c'));
+  const totalHoldings = await count('stock_holdings_c');
+  const stratHoldings = await count('stock_holdings_c'); // strategy-linked
 
   const { data: holdingsSample } = await supabase
-    .from('stock_holdings')
+    .from('stock_holdings_c')
     .select('quantity, avg_fill, market_value, Status')
     .limit(200);
 
@@ -683,7 +683,7 @@ ALTER TABLE strategy_metrics
       effort: 'Trivial',
       sql: `COMMENT ON COLUMN securities.last_price        IS 'Price in ZAR cents';
 COMMENT ON COLUMN security_prices.close_price   IS 'Price in ZAR cents';
-COMMENT ON COLUMN stock_holdings.avg_fill       IS 'Average fill price in ZAR cents';
+COMMENT ON COLUMN stock_holdings_c.avg_fill       IS 'Average fill price in ZAR cents';
 COMMENT ON COLUMN transactions.amount           IS 'Amount in ZAR cents';
 COMMENT ON COLUMN wallets.balance               IS 'Balance in ZAR (NOT cents)';`,
     },

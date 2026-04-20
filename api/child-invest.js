@@ -7,7 +7,7 @@ import { supabase, supabaseAdmin, authenticateUser } from "./_lib/supabase.js";
  * body: { family_member_id, strategy_id, amount }
  *   → amount is in cents
  *   → deducts from child's available_balance
- *   → places strategy investment creating stock_holdings with family_member_id
+ *   → places strategy investment creating stock_holdings_c with family_member_id
  */
 
 export default async function handler(req, res) {
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
           // Upsert stock_holding for child
           try {
             const { data: existing } = await db
-              .from("stock_holdings")
+              .from("stock_holdings_c")
               .select("id, quantity, avg_fill")
               .eq("family_member_id", family_member_id)
               .eq("security_id", sec.id)
@@ -145,7 +145,7 @@ export default async function handler(req, res) {
                 : sec.last_price;
 
               await db
-                .from("stock_holdings")
+                .from("stock_holdings_c")
                 .update({
                   quantity: newQty,
                   avg_fill: Math.round(newAvgFill),
@@ -157,7 +157,7 @@ export default async function handler(req, res) {
                 .eq("id", existing.id);
             } else {
               await db
-                .from("stock_holdings")
+                .from("stock_holdings_c")
                 .insert({
                   user_id: parentUserId,
                   family_member_id: family_member_id,

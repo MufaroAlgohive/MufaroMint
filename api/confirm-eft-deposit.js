@@ -154,7 +154,7 @@ export default async function handler(req, res) {
           if (priceCentsVal <= 0) continue;
 
           const { data: existing } = await db
-            .from("stock_holdings")
+            .from("stock_holdings_c")
             .select("id, quantity, avg_fill")
             .eq("user_id", userId)
             .eq("security_id", sec.id)
@@ -168,7 +168,7 @@ export default async function handler(req, res) {
             const newAvgFill = newQty > 0
               ? ((oldAvgFill * oldQty) + (priceCentsVal * holdingQty)) / newQty
               : priceCentsVal;
-            await db.from("stock_holdings").update({
+            await db.from("stock_holdings_c").update({
               quantity: newQty,
               avg_fill: Math.round(newAvgFill),
               market_value: Math.round(newQty * priceCentsVal),
@@ -176,7 +176,7 @@ export default async function handler(req, res) {
               updated_at: now,
             }).eq("id", existing.id);
           } else {
-            await db.from("stock_holdings").insert({
+            await db.from("stock_holdings_c").insert({
               user_id: userId,
               security_id: sec.id,
               strategy_id: strategyId,
@@ -216,7 +216,7 @@ export default async function handler(req, res) {
       const marketValueCents = Math.round(quantity * (currentPriceCents || investAmount * 100));
 
       const { data: existing } = await db
-        .from("stock_holdings")
+        .from("stock_holdings_c")
         .select("id, quantity, avg_fill, market_value")
         .eq("user_id", userId)
         .eq("security_id", securityId)
@@ -227,7 +227,7 @@ export default async function handler(req, res) {
         const oldAvgFill = Number(existing.avg_fill || 0);
         const newQty = oldQty + quantity;
         const newAvgFill = newQty > 0 ? ((oldAvgFill * oldQty) + (avgFillCents * quantity)) / newQty : avgFillCents;
-        await db.from("stock_holdings").update({
+        await db.from("stock_holdings_c").update({
           quantity: newQty,
           avg_fill: Math.round(newAvgFill),
           market_value: Math.round(newQty * (currentPriceCents || Math.round(newAvgFill))),
@@ -235,7 +235,7 @@ export default async function handler(req, res) {
           updated_at: now,
         }).eq("id", existing.id);
       } else {
-        await db.from("stock_holdings").insert({
+        await db.from("stock_holdings_c").insert({
           user_id: userId,
           security_id: securityId,
           quantity,

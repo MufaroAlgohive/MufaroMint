@@ -122,7 +122,7 @@ const HomePage = ({
     if (!profile?.id) return;
     try {
       const { data: holdings, error: holdingsError } = await supabase
-        .from('stock_holdings')
+        .from('stock_holdings_c')
         .select('id, security_id, quantity, avg_fill, market_value, unrealized_pnl, Status')
         .eq('user_id', profile.id)
         .eq('Status', 'active');
