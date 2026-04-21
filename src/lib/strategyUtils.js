@@ -63,7 +63,7 @@ export const calculateMinInvestment = (strategy, holdingsBySymbol) => {
     const normalizedSym = normalizeSymbol(rawSymbol);
     const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSym);
     if (security?.last_price != null) {
-      const pricePerShare = Number(security.last_price) / 100;
+      const pricePerShare = Number(security.last_price);
       if (!pricePerShare || pricePerShare <= 0 || !isFinite(pricePerShare)) continue;
       const shares = Number(holding.shares || holding.quantity || 1);
       total += shares * pricePerShare;
