@@ -18,7 +18,7 @@ const normalizeLoanType = (value, fallback = "unsecured") => {
 // --- Subcomponents for Stages ---
 
 // Stage 1: TruID Connect (in-app iframe)
-const ConnectionStage = ({ onComplete, onError }) => {
+const ConnectionStage = ({ onComplete, onError, autoStart = false }) => {
    const [status, setStatus] = useState("idle");
    const [message, setMessage] = useState("");
    const [consumerUrl, setConsumerUrl] = useState(null);
@@ -70,6 +70,12 @@ const ConnectionStage = ({ onComplete, onError }) => {
          onError(err.message);
       }
    };
+
+   useEffect(() => {
+      if (autoStart && status === "idle") {
+         startSession();
+      }
+   }, [autoStart, status]);
 
    const handleCancel = useCallback(() => {
       if (pollingRef.current) {
@@ -1413,6 +1419,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    const [loanApplications, setLoanApplications] = useState([]);
    const [loadingLoans, setLoadingLoans] = useState(true);
    const [showDetails, setShowDetails] = useState(false);
+   const [isCheckingTruIDRecords, setIsCheckingTruIDRecords] = useState(false);
+   const [autoStartTruID, setAutoStartTruID] = useState(false);
    const autoAdvanceTimerRef = useRef(null);
 
    // Real Hook Integration
@@ -1589,8 +1597,47 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       loadLoanApplications().finally(() => setLoadingLoans(false));
    }, []);
 
-   const handleStart = () => {
-      setStep(1);
+   const handleStart = async () => {
+      setIsCheckingTruIDRecords(true);
+      setAutoStartTruID(false);
+
+      try {
+         if (!supabase) {
+            setStep(1);
+            setAutoStartTruID(true);
+            return;
+         }
+
+         const { data: sessionData } = await supabase.auth.getSession();
+         const userId = sessionData?.session?.user?.id;
+
+         if (!userId) {
+            setStep(1);
+            setAutoStartTruID(true);
+            return;
+         }
+
+         const { data: existingSnapshot } = await supabase
+            .from("truid_bank_snapshots")
+            .select("id")
+            .eq("user_id", userId)
+            .order("captured_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+         if (existingSnapshot?.id) {
+            setStep(2);
+         } else {
+            setStep(1);
+            setAutoStartTruID(true);
+         }
+      } catch (error) {
+         console.warn("TruID snapshot check failed:", error?.message || error);
+         setStep(1);
+         setAutoStartTruID(true);
+      } finally {
+         setIsCheckingTruIDRecords(false);
+      }
    };
 
    const handleWizardBack = useCallback(() => {
@@ -2031,12 +2078,21 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                      </div>
                   )}
 
-                  <button
-                     onClick={handleStart}
-                     className="w-full py-4 bg-[#160d2a] text-white rounded-full text-sm font-bold uppercase tracking-widest shadow-xl shadow-violet-950/30 active:scale-95 transition-all mt-4"
-                  >
-                     Initiate Application
-                  </button>
+                  {isCheckingTruIDRecords ? (
+                     <div className="w-full mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 flex items-center justify-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse" />
+                        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-700">
+                           Checking TruID records...
+                        </p>
+                     </div>
+                  ) : (
+                     <button
+                        onClick={handleStart}
+                        className="w-full py-4 bg-[#160d2a] text-white rounded-full text-sm font-bold uppercase tracking-widest shadow-xl shadow-violet-950/30 active:scale-95 transition-all mt-4"
+                     >
+                        Initiate Application
+                     </button>
+                  )}
 
                   <footer className="mt-8 text-center opacity-40">
                      <p className="text-[8px] uppercase tracking-tighter text-slate-500 max-w-[340px] mx-auto leading-relaxed">
@@ -2047,7 +2103,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                </div>
             );
          case 1:
-            return <ConnectionStage onComplete={handleConnectionComplete} onError={() => { }} />;
+            return <ConnectionStage onComplete={handleConnectionComplete} onError={() => { }} autoStart={autoStartTruID} />;
          case 2:
             return <EnrichmentStage
                defaultValues={enrichmentDefaults}
