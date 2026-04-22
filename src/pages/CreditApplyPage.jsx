@@ -1531,8 +1531,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
             return;
          }
 
-         // 4. If checkpoint says step 2, or bank is linked, check employment too
-         if (checkpointStep >= 2 || snapshot || bankLinked) {
+         // 4. If checkpoint says step 2, check whether employment details were already captured
+         if (checkpointStep >= 2) {
             const { data: empSnap } = await supabase
                .from("loan_engine_score")
                .select("years_current_employer,contract_type,is_new_borrower,employment_sector,employer_name")
@@ -1609,11 +1609,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    }, []);
 
    const handleStart = () => {
-      if (snapshot || bankLinked) {
-         setStep(2);
-      } else {
-         setStep(1);
-      }
+      setStep(1);
    };
 
    const handleConnectionComplete = (collectionId, snapshotData) => {
