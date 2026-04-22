@@ -1655,15 +1655,27 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    };
 
    const handleWizardBack = useCallback(() => {
+      const navigateBackInApp = () => {
+         if (onBack) {
+            onBack();
+            return;
+         }
+
+         if (typeof onTabChange === "function") {
+            onTabChange("home");
+            return;
+         }
+
+         window.dispatchEvent(new CustomEvent("navigate-within-app", { detail: { page: "home" } }));
+      };
+
       if (step === "bank_success") {
-         if (onBack) onBack();
-         else window.history.back();
+         navigateBackInApp();
          return;
       }
 
       if (typeof step !== "number") {
-         if (onBack) onBack();
-         else window.history.back();
+         navigateBackInApp();
          return;
       }
 
@@ -1672,9 +1684,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
          return;
       }
 
-      if (onBack) onBack();
-      else window.history.back();
-   }, [step, onBack]);
+      navigateBackInApp();
+   }, [step, onBack, onTabChange]);
 
    const handleConnectionComplete = (collectionId, snapshotData) => {
       if (snapshotData) {
