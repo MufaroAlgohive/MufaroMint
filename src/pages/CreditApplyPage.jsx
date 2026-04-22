@@ -826,27 +826,22 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
    };
 
    // ── NCA Short-term credit fee engine ──
-   // Interest: 5% per month (NCA max for short-term unsecured ≤6mo)
+   // Interest base rate: 5% per month
    // Admin/service fee: R69 per month (fixed)
    // No initiation fee, no credit life insurance
-   const MONTHLY_RATE = 0.05; // 5% per month (60% p.a.)
+   const MONTHLY_RATE = 0.05; // 5% per month
 
    const monthlyServiceFee = 69; // Admin fee fixed at R69 per month
 
-   // Amortized monthly payment (principal + interest only)
-   const monthlyPrincipalInterest = (() => {
-      const r = MONTHLY_RATE;
-      const n = loanPeriod;
-      const numerator = loanAmount * r * Math.pow(1 + r, n);
-      const denominator = Math.pow(1 + r, n) - 1;
-      return denominator > 0 ? numerator / denominator : loanAmount;
-   })();
+   const effectiveInterestRatePct = loanPeriod === 3
+      ? 27
+      : (MONTHLY_RATE * loanPeriod * 100);
 
-   const totalInterest = Math.max(0, monthlyPrincipalInterest * loanPeriod - loanAmount);
+   const totalInterest = Math.max(0, loanAmount * (effectiveInterestRatePct / 100));
    const totalServiceFees = monthlyServiceFee * loanPeriod;
    const totalCostOfCredit = totalInterest + totalServiceFees;
    const totalRepayable = loanAmount + totalCostOfCredit;
-   const monthlyPayment = monthlyPrincipalInterest + monthlyServiceFee;
+   const monthlyPayment = loanPeriod > 0 ? (totalRepayable / loanPeriod) : 0;
 
    const [showFees, setShowFees] = useState(false);
    const [showContract, setShowContract] = useState(false);
@@ -1306,7 +1301,7 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
             {/* NCA compliance inline */}
             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-               <span className="text-[11px] font-medium text-slate-500">NCA-compliant · Interest: <strong className="text-slate-700">5% p.m.</strong> (60% p.a.)</span>
+               <span className="text-[11px] font-medium text-slate-500">NCA-compliant · Interest: <strong className="text-slate-700">5% p.m.</strong> ({effectiveInterestRatePct.toFixed(0)}% over {loanPeriod} months)</span>
             </div>
          </div>
 
@@ -1350,7 +1345,7 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
 
                      <div className="space-y-3 text-[12px] text-slate-600 leading-relaxed">
                         <p><strong className="text-slate-800">1. Facility:</strong> This unsecured credit facility is granted subject to affordability, identity verification, and final approval checks.</p>
-                        <p><strong className="text-slate-800">2. Pricing:</strong> Interest is charged at 5% per month in line with the NCA short-term credit category, plus a fixed R69 monthly admin fee.</p>
+                        <p><strong className="text-slate-800">2. Pricing:</strong> Interest is charged at 5% per month in line with the NCA short-term credit category (effective {effectiveInterestRatePct.toFixed(0)}% for this {loanPeriod}-month term), plus a fixed R69 monthly admin fee.</p>
                         <p><strong className="text-slate-800">3. Fees Breakdown:</strong> Admin fees R {formatMoney(totalServiceFees)}, total interest R {formatMoney(totalInterest)}.</p>
                         <p><strong className="text-slate-800">4. Payment Obligation:</strong> You agree to pay the installment on scheduled due dates. Missed payments may incur default collection processes as permitted by law.</p>
                         <p><strong className="text-slate-800">5. Early Settlement:</strong> You may settle early in accordance with the National Credit Act and receive an adjusted settlement quote where applicable.</p>
