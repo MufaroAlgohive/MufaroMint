@@ -849,17 +849,19 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
       return Math.round((limited - min) / step) * step + min;
    };
 
-   // ── NCA Short-term credit fee engine ──
-   // Interest base rate: 5% per month
+   // ── NCA short-term credit fee engine ──
+   // Interest base rate: 4.5% per month (capped at 27% effective)
    // Admin/service fee: R69 per month (fixed)
    // No initiation fee, no credit life insurance
-   const MONTHLY_RATE = 0.05; // 5% per month
+   const MONTHLY_RATE = 0.045; // 4.5% per month
+   const MAX_EFFECTIVE_RATE_PCT = 27;
 
    const monthlyServiceFee = 69; // Admin fee fixed at R69 per month
 
-   const effectiveInterestRatePct = loanPeriod === 3
-      ? 27
-      : (MONTHLY_RATE * loanPeriod * 100);
+   const effectiveInterestRatePct = Math.min(
+      MAX_EFFECTIVE_RATE_PCT,
+      MONTHLY_RATE * loanPeriod * 100
+   );
 
    const totalInterest = Math.max(0, loanAmount * (effectiveInterestRatePct / 100));
    const totalServiceFees = monthlyServiceFee * loanPeriod;
@@ -1307,7 +1309,7 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
             {showFees && (
                <div className="mt-3 space-y-0 animate-in fade-in slide-in-from-top-2 duration-300">
                   {[
-                     { label: "Interest (5% p.m.)",       value: `R ${formatMoney(totalInterest)}` },
+                     { label: "Interest (4.5% p.m.)",       value: `R ${formatMoney(totalInterest)}` },
                      { label: "Admin fees (R69 × " + loanPeriod + ")", value: `R ${formatMoney(totalServiceFees)}` },
                   ].map((row, i, arr) => (
                      <div key={row.label} className={`flex items-center justify-between py-2 ${i < arr.length - 1 ? "border-b border-dashed border-slate-100" : ""}`}>
@@ -1325,7 +1327,7 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
             {/* NCA compliance inline */}
             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-               <span className="text-[11px] font-medium text-slate-500">NCA-compliant · Interest: <strong className="text-slate-700">5% p.m.</strong> ({effectiveInterestRatePct.toFixed(0)}% over {loanPeriod} months)</span>
+               <span className="text-[11px] font-medium text-slate-500">NCA-compliant · Interest: <strong className="text-slate-700">4.5% p.m.</strong> ({effectiveInterestRatePct.toFixed(0)}% over {loanPeriod} months, max 27%)</span>
             </div>
          </div>
 
@@ -1369,7 +1371,7 @@ const LoanCalculatorStep = ({ onSignedContinue }) => {
 
                      <div className="space-y-3 text-[12px] text-slate-600 leading-relaxed">
                         <p><strong className="text-slate-800">1. Facility:</strong> This unsecured credit facility is granted subject to affordability, identity verification, and final approval checks.</p>
-                        <p><strong className="text-slate-800">2. Pricing:</strong> Interest is charged at 5% per month in line with the NCA short-term credit category (effective {effectiveInterestRatePct.toFixed(0)}% for this {loanPeriod}-month term), plus a fixed R69 monthly admin fee.</p>
+                        <p><strong className="text-slate-800">2. Pricing:</strong> Interest is charged at 4.5% per month (effective {effectiveInterestRatePct.toFixed(0)}% for this {loanPeriod}-month term, capped at 27%), plus a fixed R69 monthly admin fee.</p>
                         <p><strong className="text-slate-800">3. Fees Breakdown:</strong> Admin fees R {formatMoney(totalServiceFees)}, total interest R {formatMoney(totalInterest)}.</p>
                         <p><strong className="text-slate-800">4. Payment Obligation:</strong> You agree to pay the installment on scheduled due dates. Missed payments may incur default collection processes as permitted by law.</p>
                         <p><strong className="text-slate-800">5. Early Settlement:</strong> You may settle early in accordance with the National Credit Act and receive an adjusted settlement quote where applicable.</p>
@@ -1834,12 +1836,12 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
             };
 
             // ── Full payload matching loan_application schema ─────────────────
-            // interest_rate stored as monthly % (5.00 = 5% p.m., NCR max for short-term)
+            // interest_rate stored as monthly % (4.50 = 4.5% p.m., max 27% effective)
             // step_number max allowed by CHECK constraint is 4
             const payload = {
                principal_amount: Math.round((quote?.loanAmount ?? 0) * 100) / 100,
                amount_repayable: Math.round((quote?.totalRepayable ?? 0) * 100) / 100,
-               interest_rate: 5.00,           // 5% per month (NCR max for unsecured short-term)
+               interest_rate: 4.50,           // 4.5% per month (max 27% effective)
                number_of_months: months,
                first_repayment_date: firstRepaymentDateStr,
                salary_date: salaryDayOfMonth, // day-of-month (1–31)
