@@ -1531,27 +1531,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
             return;
          }
 
-         // 4. If checkpoint says step 2, check whether employment details were already captured
-         if (checkpointStep >= 2) {
-            const { data: empSnap } = await supabase
-               .from("loan_engine_score")
-               .select("years_current_employer,contract_type,is_new_borrower,employment_sector,employer_name")
-               .eq("user_id", userId)
-               .order("created_at", { ascending: false })
-               .limit(1)
-               .maybeSingle();
-
-            const hasEmployment = Number.isFinite(Number(empSnap?.years_current_employer))
-               && Boolean(empSnap?.contract_type)
-               && typeof empSnap?.is_new_borrower === "boolean"
-               && Boolean(empSnap?.employment_sector)
-               && Boolean(empSnap?.employer_name);
-
-            setStep(hasEmployment ? 3 : 2);
-            setResolving(false);
-            return;
-         }
-
+         // 4. Do not auto-resume to step 2 from in-progress drafts.
+         //    Users should intentionally start at step 1 from the intro screen.
          // 5. Fresh user — stay on step 0
          setResolving(false);
       };
@@ -1611,6 +1592,28 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    const handleStart = () => {
       setStep(1);
    };
+
+   const handleWizardBack = useCallback(() => {
+      if (step === "bank_success") {
+         if (onBack) onBack();
+         else window.history.back();
+         return;
+      }
+
+      if (typeof step !== "number") {
+         if (onBack) onBack();
+         else window.history.back();
+         return;
+      }
+
+      if (step > 0) {
+         setStep(Math.max(0, step - 1));
+         return;
+      }
+
+      if (onBack) onBack();
+      else window.history.back();
+   }, [step, onBack]);
 
    const handleConnectionComplete = (collectionId, snapshotData) => {
       if (snapshotData) {
@@ -1874,7 +1877,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
 
                <div className="px-6 pb-6 pt-2 w-full flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
                   <button
-                     onClick={() => onBack ? onBack() : window.history.back()}
+                     onClick={handleWizardBack}
                      className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95 z-30"
                   >
                      <ArrowLeft className="h-5 w-5" />
@@ -1896,7 +1899,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                   </p>
                   <button
                      type="button"
-                     onClick={() => onBack ? onBack() : window.history.back()}
+                     onClick={handleWizardBack}
                      className="inline-flex items-center justify-center rounded-full bg-[#160d2a] px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-white shadow-lg shadow-violet-950/25 transition hover:-translate-y-0.5 active:scale-95"
                   >
                      Done
@@ -1956,7 +1959,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
 
                   <div className="px-6 pb-6 pt-2 w-full flex items-center justify-between bg-white border-b border-slate-100 sticky top-0 z-10 shadow-sm">
                      <button
-                        onClick={() => onBack ? onBack() : window.history.back()}
+                        onClick={handleWizardBack}
                         className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition active:scale-95 z-30"
                      >
                         <ArrowLeft className="h-5 w-5" />
@@ -2113,7 +2116,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
          title={getTitle()}
          subtitle={step === 1 ? "We need to verify your income via your primary bank account." : step === 2 ? "Review the details we found." : step === 4 ? "Configure your loan and sign your agreement." : ""}
          stepInfo={getStepInfo()}
-         onBack={() => onBack ? onBack() : window.history.back()}
+         onBack={handleWizardBack}
       >
          {renderContent()}
       </MintGradientLayout>
