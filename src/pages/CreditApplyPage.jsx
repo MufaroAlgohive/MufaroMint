@@ -501,7 +501,7 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 
 
 // Stage 3: Results
-const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResult, onRunAssessment, onContinue }) => {
+const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResult, onRunAssessment, onContinue, isPrefetching = false, onReapply }) => {
    const [showAllData, setShowAllData] = useState(false);
    const [loaderValue, setLoaderValue] = useState(0);
 
@@ -572,6 +572,20 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
    const statusText = hasAssessment
       ? (engineFailed ? "Error" : isCalculating ? statusMessages[messageIndex] : "Trust Score")
       : "Start Check";
+
+   if (isPrefetching) {
+      return (
+         <MintCard className="animate-in zoom-in-95 duration-500 min-h-[360px]">
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+               <div className="h-16 w-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
+                  <Loader2 className="h-7 w-7 animate-spin" />
+               </div>
+               <p className="text-sm font-semibold text-slate-800">Fetching Assessment Result</p>
+               <p className="text-xs text-slate-500 mt-1">Loading your latest credit engine score...</p>
+            </div>
+         </MintCard>
+      );
+   }
 
 
    return (
@@ -798,6 +812,16 @@ const ResultStage = ({ score, isCalculating, engineFailed, breakdown, engineResu
                      className="w-full mt-2 py-4 rounded-full bg-[#160d2a] text-white text-sm font-semibold uppercase tracking-[0.2em] shadow-lg shadow-violet-950/25 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                      {isDeclined ? "Loan declined" : "Continue to loan configuration"}
+                  </button>
+               )}
+
+               {isDeclined && onReapply && (
+                  <button
+                     type="button"
+                     onClick={onReapply}
+                     className="w-full mt-2 py-3 rounded-full border border-slate-300 bg-white text-slate-700 text-xs font-semibold uppercase tracking-[0.16em]"
+                  >
+                     Reapply
                   </button>
                )}
             </div>
@@ -1416,6 +1440,8 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
    const [showDetails, setShowDetails] = useState(false);
    const [isCheckingTruIDRecords, setIsCheckingTruIDRecords] = useState(false);
    const [autoStartTruID, setAutoStartTruID] = useState(false);
+   const [isPrefetchingAssessment, setIsPrefetchingAssessment] = useState(false);
+   const [autoAdvanceFromExistingScore, setAutoAdvanceFromExistingScore] = useState(false);
    const autoAdvanceTimerRef = useRef(null);
 
    // Real Hook Integration
@@ -1503,15 +1529,16 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
 
          if (existingStep3Data?.id) {
             const existingScore = Number(existingStep3Data.engine_score ?? 0);
-            // Always hydrate so ResultStage shows previous result (prevents re-run)
-            hydrateExistingScore(existingStep3Data);
-            if (existingScore >= 50) {
-               setStep(4);
-            } else {
-               // Declined — stay on step 3 results screen
-               setStep(3);
-            }
+            setStep(3);
             setResolving(false);
+            setIsPrefetchingAssessment(true);
+
+            setTimeout(() => {
+               hydrateExistingScore(existingStep3Data);
+               setIsPrefetchingAssessment(false);
+               setAutoAdvanceFromExistingScore(existingScore >= 50);
+            }, 900);
+
             return;
          }
 
@@ -1527,7 +1554,7 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
 
          const checkpointStep = Number(latestLoan?.step_number || 0);
 
-         // 3. If checkpoint says step 3, go straight there
+         // 3. If checkpoint says step 3, show assessment step
          if (checkpointStep >= 3) {
             setStep(3);
             setResolving(false);
@@ -1543,32 +1570,24 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
       resolveCheckpoint();
    }, [resolving, loadingProfile, snapshot, bankLinked, hydrateExistingScore]);
 
+   useEffect(() => {
+      if (!autoAdvanceFromExistingScore || isPrefetchingAssessment || step !== 3) return;
+      if (score < 50) return;
+
+      const timer = setTimeout(() => {
+         setStep(4);
+         setAutoAdvanceFromExistingScore(false);
+      }, 1800);
+
+      return () => clearTimeout(timer);
+   }, [autoAdvanceFromExistingScore, isPrefetchingAssessment, step, score]);
+
 
 
    useEffect(() => {
       if (loadingProfile || checkedExistingScore) return;
-
-      const checkExistingScore = async () => {
-         if (!supabase) return;
-         const { data: sessionData } = await supabase.auth.getSession();
-         const userId = sessionData?.session?.user?.id;
-         if (!userId) return;
-
-         const { data: scoreData } = await supabase
-            .from("loan_engine_score")
-            .select("engine_score")
-            .eq("user_id", userId)
-            .order("run_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-         if (Number.isFinite(scoreData?.engine_score) && scoreData.engine_score >= 50 && onComplete) {
-            onComplete();
-         }
-      };
-
-      checkExistingScore().finally(() => setCheckedExistingScore(true));
-   }, [loadingProfile, checkedExistingScore, onComplete]);
+      setCheckedExistingScore(true);
+   }, [loadingProfile, checkedExistingScore]);
 
    useEffect(() => {
       const loadLoanApplications = async () => {
@@ -2118,6 +2137,11 @@ const CreditApplyWizard = ({ onBack, onComplete, onTabChange, onOpenNotification
                engineResult={engineResult}
                onRunAssessment={handleRunAssessment}
                onContinue={() => setStep(4)}
+               isPrefetching={isPrefetchingAssessment}
+               onReapply={() => {
+                  setStep(1);
+                  setAutoAdvanceFromExistingScore(false);
+               }}
             />;
          case 4:
             return <LoanCalculatorStep onSignedContinue={handleLoanAgreementAccepted} />;
