@@ -510,7 +510,7 @@ const SwipeableBalanceCard = ({
     displayInvested > 0
       ? ((displayReturn / displayInvested) * 100).toFixed(1)
       : "0.0";
-  const chartColor = isLoss ? "#FB7185" : "#10B981";
+  const chartColor = isLoss ? "hsl(0,84%,60%)" : "hsl(160,70%,45%)";
 
   const masked = "••••";
 
