@@ -541,8 +541,8 @@ const SwipeableBalanceCard = ({
   return (
     <div className="rounded-3xl gradient-hero-card shadow-hero p-5 relative overflow-hidden border border-white/5">
       {/* Ambient glows */}
-      <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-violet-500/30 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-indigo-900/40 blur-3xl pointer-events-none" />
+      <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-accent/30 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-12 -left-8 w-32 h-32 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
 
       {/* Top row: label + visibility + LIVE */}
       <div className="flex items-center justify-between relative">
@@ -561,7 +561,7 @@ const SwipeableBalanceCard = ({
         <div className="flex items-center gap-1.5">
           {isConnected && (
             <>
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ animation: "pulse-dot 2s ease-in-out infinite" }} />
+              <div className="w-1.5 h-1.5 rounded-full bg-success" style={{ animation: "pulse-dot 2s ease-in-out infinite" }} />
               <span className="text-[9px] tracking-wider text-white/50 font-semibold">LIVE</span>
             </>
           )}
@@ -575,11 +575,11 @@ const SwipeableBalanceCard = ({
             {isVisible ? (selectedAsset ? formatKMB(displayBalance) : formatFull(displayBalance)) : masked}
           </h2>
           <div className="flex items-center gap-2 mt-2">
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isLoss ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300"}`}>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isLoss ? "bg-destructive/20 text-destructive" : "bg-success/20 text-success"}`}>
               <TrendIcon size={11} strokeWidth={2.5} />
               {isVisible ? formatKMB(Math.abs(displayReturn)) : masked}
             </span>
-            <span className={`text-[11px] font-medium ${isLoss ? "text-rose-300" : "text-emerald-300"}`}>
+            <span className={`text-[11px] font-medium ${isLoss ? "text-destructive" : "text-success"}`}>
               {isVisible ? `${isLoss ? "-" : "+"}${returnPct}%` : masked}
             </span>
           </div>

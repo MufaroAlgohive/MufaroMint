@@ -10,7 +10,10 @@ export default {
         foreground: 'hsl(var(--foreground))',
         primary: 'hsl(var(--primary))',
         muted: 'hsl(var(--muted))',
-        'muted-foreground': 'hsl(var(--muted-foreground))'
+        'muted-foreground': 'hsl(var(--muted-foreground))',
+        accent: '#7C3AED',
+        success: '#10B981',
+        destructive: '#FB7185',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
