@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer components {
+  .gradient-hero-card {
+    background: radial-gradient(circle at 78% 18%, rgba(88,62,186,0.45), rgba(8,8,48,0.95) 46%, rgba(5,5,33,0.98) 100%);
+  }
+
+  .shadow-hero {
+    box-shadow: 0 8px 40px rgba(0,0,0,0.45), 0 2px 12px rgba(88,62,186,0.25);
+  }
+
   .glass-card {
     background: linear-gradient(
         135deg,
