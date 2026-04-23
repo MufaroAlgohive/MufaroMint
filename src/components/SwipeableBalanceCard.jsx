@@ -45,7 +45,7 @@ const formatKMB = (value) => {
   return `${sign}R${formatted}`;
 };
 
-const TIMEFRAME_DAYS = { d: 7, w: 30, m: 90 };
+const TIMEFRAME_DAYS = { d: 7, w: 30, m: 90, y: 365, all: 1825 };
 
 const SwipeableBalanceCard = ({
   userId,
@@ -316,7 +316,7 @@ const SwipeableBalanceCard = ({
 
         // Process strategies first (serial to be safe, but with try/catch)
         const strategyPnlByDate = {};
-        const timeframeMap = { d: "1W", w: "1M", m: "3M" };
+        const timeframeMap = { d: "1W", w: "1M", m: "3M", y: "1Y", all: "All" };
         const tf = timeframeMap[activeTab] || "1M";
 
         const strategyHoldings = holdingsToChart.filter(h => h.isStrategy && h.strategyId);
@@ -677,7 +677,7 @@ const SwipeableBalanceCard = ({
 
       {/* Period selector */}
       <div className="mt-4 flex bg-black/20 backdrop-blur-sm rounded-full p-0.5 relative">
-        {[["d","D"],["w","W"],["m","M"]].map(([key, label]) => (
+        {[["d","D"],["w","W"],["m","M"],["y","Y"],["all","All"]].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
