@@ -46,6 +46,10 @@ const P2 = "#7C3AED";
 const P_BG = "#F5F3FF";
 const P_CARD = "#EDE9FE";
 
+// Feature flags
+const INSURE_ENABLED = import.meta.env.VITE_ENABLE_INSURE === "true";
+
+
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 
 function Avatar({ name, gradient, size = "h-12 w-12", text = "text-lg" }) {
@@ -1466,7 +1470,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
           )}
 
           {/* ── Get Insured Section ── */}
-          {(spouse || children.length > 0) && (
+          {INSURE_ENABLED && (spouse || children.length > 0) && (
             <motion.div
               variants={item}
               className="rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 p-6 text-center"
@@ -1487,6 +1491,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
               </button>
             </motion.div>
           )}
+
 
         </motion.div>
       </div>

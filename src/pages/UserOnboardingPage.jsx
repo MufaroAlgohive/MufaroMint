@@ -4,6 +4,7 @@ import MandateViewer from "../components/MandateViewer";
 import AccountAgreementStep from "../components/AccountAgreementStep";
 import { supabase } from "../lib/supabase";
 import { useProfile } from "../lib/useProfile";
+import AddressAutocomplete from "../components/AddressAutocomplete";
 import "../styles/onboarding-process.css";
 
 const ClipboardCheckIcon = (props) => (
@@ -159,11 +160,15 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const bankDropdownRef = useRef(null);
   const [kycAlreadyVerified, setKycAlreadyVerified] = useState(false);
   const [bankDone, setBankDone] = useState(false);
+  const [bankLetterDone, setBankLetterDone] = useState(false);
   const [mandateDone, setMandateDone] = useState(false);
   const [riskDone, setRiskDone] = useState(false);
   const [sofDone, setSofDone] = useState(false);
   const [taxDone, setTaxDone] = useState(false);
   const [taxNumber, setTaxNumber] = useState("");
+  const [address, setAddress] = useState("");
+  const [addressDone, setAddressDone] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(false);
   const [termsDone, setTermsDone] = useState(false);
   const [agreementSignedDone, setAgreementSignedDone] = useState(false);
   const [authStatus, setAuthStatus] = useState({
@@ -257,18 +262,20 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     const steps = [
       { step: 1, done: identityCheckDone },
       { step: 2, done: kycAlreadyVerified },
-      { step: 3, done: taxDone },
-      { step: 4, done: bankDone },
-      { step: 5, done: mandateDone },
-      { step: 6, done: riskDone },
-      { step: 7, done: sofDone },
-      { step: 8, done: termsDone },
-      { step: 9, done: agreementSignedDone },
+      { step: 3, done: addressDone },
+      { step: 4, done: taxDone },
+      { step: 5, done: bankDone },
+      { step: 6, done: bankLetterDone },
+      { step: 7, done: mandateDone },
+      { step: 8, done: riskDone },
+      { step: 9, done: sofDone },
+      { step: 10, done: termsDone },
+      { step: 11, done: agreementSignedDone },
     ];
     for (const s of steps) {
       if (s.step > afterStep && !s.done && s.step !== justCompletedStep) return s.step;
     }
-    return 9;
+    return 11;
   };
 
   const handleContinue = async () => {
@@ -347,10 +354,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const getPrevIncompleteStep = (beforeStep) => {
     const identityCheckDone = !!existingOnboardingId || kycAlreadyVerified;
     const steps = [
-      { step: 8, done: termsDone },
-      { step: 7, done: sofDone },
-      { step: 6, done: riskDone },
-      { step: 5, done: mandateDone },
+      { step: 9, done: termsDone },
+      { step: 8, done: sofDone },
+      { step: 7, done: riskDone },
+      { step: 6, done: mandateDone },
+      { step: 5, done: bankLetterDone },
       { step: 4, done: bankDone },
       { step: 3, done: taxDone },
       { step: 2, done: kycAlreadyVerified },
@@ -543,6 +551,10 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
             setTaxNumber(raw.tax_details.tax_number);
             setTaxDone(true);
           }
+          if (raw.address_details?.address || record.address) {
+            setAddress(raw.address_details?.address || record.address);
+            setAddressDone(true);
+          }
           if (raw.mandate_data?.agreedMandate === true || raw.mandate_accepted === true) setMandateDone(true);
           if (raw.risk_disclosure_accepted === true) setRiskDone(true);
           if (raw.source_of_funds_accepted === true) setSofDone(true);
@@ -553,6 +565,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
             if (expected_monthly_investment) setExpectedMonthlyInvestment(expected_monthly_investment);
           }
           if (raw.bank_details_saved === true) setBankDone(true);
+          if (raw.bank_letter_uploaded === true) setBankLetterDone(true);
+          if (raw.address_saved === true) setAddressDone(true);
           if (raw.terms_accepted === true) setTermsDone(true);
         }
       } catch (err) {
@@ -742,8 +756,10 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 const steps = [
                   { done: identityCheckDone, title: "Identity Check", doneDesc: "ID number confirmed", pendingDesc: "Confirm your ID number is unique in our records", badge: "Confirmed" },
                   { done: kycAlreadyVerified, title: "Identification", doneDesc: "Identity verification complete", pendingDesc: "Verify your identity for security purposes", badge: "Verified" },
+                  { done: addressDone, title: "Residential Address", doneDesc: "Address captured", pendingDesc: "Provide your current residential address", badge: "Captured" },
                   { done: taxDone, title: "Tax Details", doneDesc: "Tax details captured", pendingDesc: "Provide your tax reference number", badge: "Captured" },
                   { done: bankDone, title: "Bank Account", doneDesc: "Bank details saved", pendingDesc: "Add your bank account details", badge: "Saved" },
+                  { done: bankLetterDone, title: "Bank Confirmation Letter", doneDesc: "Letter uploaded", pendingDesc: "Upload your bank confirmation letter", badge: "Uploaded" },
                   { done: mandateDone, title: "Discretionary Mandate", doneDesc: "Mandate accepted", pendingDesc: "Review and accept the FSP investment mandate", badge: "Accepted" },
                   { done: riskDone, title: "Risk Disclosure", doneDesc: "Risk disclosure acknowledged", pendingDesc: "Review investment risk disclosure", badge: "Acknowledged" },
                   { done: sofDone, title: "Source of Funds", doneDesc: "Source of funds declared", pendingDesc: "Declare the origin of your investment funds", badge: "Declared" },
@@ -796,7 +812,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  You'll be taken through our nine-step process
+                  You'll be taken through our ten-step process
                 </p>
               </div>
             </div>
@@ -807,7 +823,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   className="text-xs uppercase tracking-[0.2em] mb-2"
                   style={{ color: "hsl(270 20% 55%)" }}
                 >
-                  Step 1 of 9
+                  Step 1 of 10
                 </p>
                 <h2
                   className="text-3xl font-light tracking-tight mb-2"
@@ -864,7 +880,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   className="text-xs uppercase tracking-[0.2em] mb-2"
                   style={{ color: "hsl(270 20% 55%)" }}
                 >
-                  Step 2 of 9
+                  Step 2 of 10
                 </p>
                 <h2
                   className="text-3xl font-light tracking-tight mb-2"
@@ -922,7 +938,77 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
             <div className="w-full max-w-xl mx-auto">
               <div className="text-center mb-8 animate-fade-in delay-1">
                 <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: "hsl(270 20% 55%)" }}>
-                  Step 3 of 9
+                  Step 3 of 11
+                </p>
+                <div className="hero-icon">
+                  <WalletIcon width={48} height={48} />
+                </div>
+                <h2 className="text-3xl font-light tracking-tight mb-2" style={{ color: "hsl(270 30% 25%)" }}>
+                  Residential Address
+                </h2>
+                <p className="text-sm" style={{ color: "hsl(270 20% 50%)" }}>
+                  Please provide your current residential address for FICA compliance
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="animate-fade-in delay-2">
+                  <label htmlFor="residential-address">Street Address</label>
+                  <AddressAutocomplete
+                    value={address}
+                    onChange={(value) => setAddress(value)}
+                    placeholder="Search for your residential address"
+                    containerClassName="glass-field-container"
+                    inputClassName="w-full bg-transparent border-none focus:ring-0 text-base py-1"
+                  />
+                  <p className="text-xs mt-2" style={{ color: "hsl(270 15% 60%)" }}>
+                    Your address is required for regulatory compliance and credit assessment.
+                  </p>
+                </div>
+
+                <div className="pt-4 text-center animate-fade-in delay-3">
+                  <button
+                    type="button"
+                    className="continue-button"
+                    onClick={async () => {
+                      if (address && address.length > 5) {
+                        setAddressLoading(true);
+                        try {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          if (session?.user) {
+                            // Save to profiles table
+                            await supabase
+                              .from("profiles")
+                              .update({ address: address })
+                              .eq("id", session.user.id);
+                            
+                            // Save flag to user_onboarding
+                            await saveProgressFlag("address_saved", {
+                              address_details: { address: address, savedAt: new Date().toISOString() },
+                            });
+                            
+                            setAddressDone(true);
+                            goToStep(getNextIncompleteStep(3));
+                          }
+                        } catch (err) {
+                          console.error("Failed to save address:", err);
+                        } finally {
+                          setAddressLoading(false);
+                        }
+                      }
+                    }}
+                    disabled={!address || address.length < 5 || addressLoading}
+                  >
+                    {addressLoading ? "Saving..." : "Continue"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : step === 4 ? (
+            <div className="w-full max-w-xl mx-auto">
+              <div className="text-center mb-8 animate-fade-in delay-1">
+                <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: "hsl(270 20% 55%)" }}>
+                  Step 4 of 11
                 </p>
                 <div className="hero-icon">
                   <FileContractIcon width={48} height={48} />
@@ -964,7 +1050,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                           tax_details: { tax_number: taxNumber, savedAt: new Date().toISOString() },
                         });
                         setTaxDone(true);
-                        goToStep(getNextIncompleteStep(3));
+                        goToStep(getNextIncompleteStep(4));
                       }
                     }}
                     disabled={!taxNumber || taxNumber.length < 5}
@@ -974,7 +1060,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
               </div>
             </div>
-          ) : step === 4 ? (
+          ) : step === 5 ? (
             <div className="w-full max-w-3xl mx-auto bank-step-wrapper">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -996,6 +1082,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
+                <div className="progress-step"></div>
                 <div className="progress-step"></div>
                 <div className="progress-step"></div>
                 <div className="progress-step"></div>
@@ -1200,7 +1288,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                       },
                     });
                     setBankDone(true);
-                    goToStep(getNextIncompleteStep(4, 4));
+                    goToStep(getNextIncompleteStep(5, 5));
                   }}
                 >
                   Continue
@@ -1209,11 +1297,134 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4 hide-when-dropdown-open">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 4 of 9
+                  Step 5 of 11
                 </p>
               </div>
             </div>
           ) : step === 5 ? (
+            <div className="w-full max-w-xl mx-auto">
+              <div className="text-center mb-8 animate-fade-in delay-1">
+                <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: "hsl(270 20% 55%)" }}>
+                  Step 5 of 10
+                </p>
+                <div className="hero-icon">
+                  <FileContractIcon width={48} height={48} />
+                </div>
+                <h2 className="text-3xl font-light tracking-tight mb-2" style={{ color: "hsl(270 30% 25%)" }}>
+                  Bank Confirmation Letter
+                </h2>
+                <p className="text-sm" style={{ color: "hsl(270 20% 50%)" }}>
+                  Please upload a bank confirmation letter (PDF or Image) not older than 3 months.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div className="animate-fade-in delay-2">
+                  <div 
+                    className="glass-field py-8 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl cursor-pointer hover:border-slate-400 transition-colors"
+                    onClick={() => document.getElementById('bank-letter-upload').click()}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="40" height="40" className="text-slate-400 mb-3">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                    </svg>
+                    <p className="text-sm font-medium" style={{ color: "hsl(270 30% 25%)" }}>
+                      {bankLetterDone ? "File uploaded successfully" : "Click to upload your letter"}
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "hsl(270 15% 60%)" }}>
+                      PDF, JPG or PNG (max 5MB)
+                    </p>
+                    <input 
+                      type="file" 
+                      id="bank-letter-upload" 
+                      className="hidden" 
+                      accept=".pdf,image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        
+                        setIsSubmitting(true);
+                        setSubmitError("");
+                        
+                        try {
+                          const reader = new FileReader();
+                          reader.onload = async (event) => {
+                            const base64 = event.target.result;
+                            const { data: { session } } = await supabase.auth.getSession();
+                            const token = session?.access_token;
+                            
+                            const res = await fetch("/api/onboarding/upload-bank-letter", {
+                              method: "POST",
+                              headers: { 
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}`
+                              },
+                              body: JSON.stringify({ 
+                                fileBase64: base64,
+                                fileType: file.type
+                              })
+                            });
+                            
+                            const result = await res.json();
+                            if (result.success) {
+                              setBankLetterDone(true);
+                              await saveProgressFlag("bank_letter_uploaded", {
+                                bank_letter_url: result.publicUrl,
+                                bank_letter_uploaded_at: new Date().toISOString()
+                              });
+                            } else {
+                              setSubmitError(result.error || "Failed to upload file");
+                            }
+                            setIsSubmitting(false);
+                          };
+                          reader.readAsDataURL(file);
+                        } catch (err) {
+                          setSubmitError("An error occurred during upload");
+                          setIsSubmitting(false);
+                        }
+                      }}
+                    />
+                  </div>
+                  
+                  {bankLetterDone && (
+                    <div className="mt-4 flex items-center justify-center gap-2 text-green-600 animate-fade-in">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" width="20" height="20">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                      </svg>
+                      <span className="text-sm font-medium">Upload Complete</span>
+                    </div>
+                  )}
+
+                  {submitError && (
+                    <p className="text-center mt-4 text-red-500 text-xs animate-fade-in">{submitError}</p>
+                  )}
+                  
+                  {isSubmitting && (
+                    <div className="mt-4 flex flex-col items-center justify-center gap-2 animate-fade-in">
+                       <div className="w-5 h-5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></div>
+                       <span className="text-xs text-slate-500">Uploading...</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 text-center animate-fade-in delay-3">
+                  <button
+                    type="button"
+                    className={`continue-button ${bankLetterDone ? "" : "opacity-50 cursor-not-allowed"}`}
+                    disabled={!bankLetterDone || isSubmitting}
+                    onClick={() => goToStep(getNextIncompleteStep(6, 6))}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+              
+              <div className="text-center mt-6 animate-fade-in delay-4">
+                <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
+                  Step 6 of 11
+                </p>
+              </div>
+            </div>
+          ) : step === 7 ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -1231,6 +1442,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1345,7 +1558,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${agreedMandate && mandateValid ? "enabled" : ""}`}
                   disabled={!agreedMandate || !mandateValid}
-                  onClick={async () => { await saveProgressFlag("mandate_accepted"); setMandateDone(true); goToStep(getNextIncompleteStep(5, 5)); }}
+                  onClick={async () => { await saveProgressFlag("mandate_accepted"); setMandateDone(true); goToStep(getNextIncompleteStep(7, 7)); }}
                 >
                   Continue
                 </button>
@@ -1353,11 +1566,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 5 of 9
+                  Step 7 of 11
                 </p>
               </div>
             </div>
-          ) : step === 6 ? (
+          ) : step === 8 ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -1375,6 +1588,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1443,7 +1658,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                   type="button"
                   className={`continue-button agreement-continue ${agreedRiskDisclosure ? "enabled" : ""}`}
                   disabled={!agreedRiskDisclosure}
-                  onClick={async () => { await saveProgressFlag("risk_disclosure_accepted"); setRiskDone(true); goToStep(getNextIncompleteStep(6, 6)); }}
+                  onClick={async () => { await saveProgressFlag("risk_disclosure_accepted"); setRiskDone(true); goToStep(getNextIncompleteStep(8, 8)); }}
                 >
                   Continue
                 </button>
@@ -1451,11 +1666,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 6 of 9
+                  Step 8 of 11
                 </p>
               </div>
             </div>
-          ) : step === 7 ? (
+          ) : step === 9 ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -1473,6 +1688,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1596,7 +1813,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                           expected_monthly_investment: expectedMonthlyInvestment,
                         },
                       });
-                      setSofDone(true); goToStep(getNextIncompleteStep(7, 7));
+                      setSofDone(true); goToStep(getNextIncompleteStep(9, 9));
                     }}
                   >
                     Continue
@@ -1605,12 +1822,12 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
                 <div className="text-center mt-6 animate-fade-in delay-4 hide-when-dropdown-open">
                   <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                    Step 7 of 9
+                    Step 9 of 11
                   </p>
                 </div>
               </div>
             </div>
-          ) : step === 8 ? (
+          ) : step === 10 ? (
             <div className="w-full max-w-3xl mx-auto">
               <div className="text-center animate-fade-in delay-1">
                 <div className="hero-icon">
@@ -1628,6 +1845,8 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
 
               <div className="progress-bar animate-fade-in delay-1">
+                <div className="progress-step active"></div>
+                <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
                 <div className="progress-step active"></div>
@@ -1710,7 +1929,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                     const { data: { flags: updatedFlags } } = await saveProgressFlag("terms_accepted");
                     setTermsDone(updatedFlags.terms_accepted);
                     setAgreementSignedDone(updatedFlags.agreement_signed); // Assuming agreement_signed is a flag
-                    goToStep(getNextIncompleteStep(8, 8));
+                    goToStep(getNextIncompleteStep(10, 10));
                   }}
                 >
                   Continue
@@ -1719,11 +1938,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
               <div className="text-center mt-6 animate-fade-in delay-4">
                 <p className="text-xs" style={{ color: "hsl(270 15% 60%)" }}>
-                  Step 8 of 9
+                  Step 10 of 11
                 </p>
               </div>
             </div>
-          ) : step === 9 ? (
+          ) : step === 11 ? (
             <AccountAgreementStep
               profile={profile}
               onboardingData={{
