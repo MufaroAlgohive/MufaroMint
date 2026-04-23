@@ -156,6 +156,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [identityNumber, setIdentityNumber] = useState("");
   const [identityCheckLoading, setIdentityCheckLoading] = useState(false);
   const [identityCheckError, setIdentityCheckError] = useState("");
+  const [applicantId, setApplicantId] = useState(null);
   const [bankDropdownOpen, setBankDropdownOpen] = useState(false);
   const bankDropdownRef = useRef(null);
   const [kycAlreadyVerified, setKycAlreadyVerified] = useState(false);
@@ -261,7 +262,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     const identityCheckDone = !!existingOnboardingId || kycAlreadyVerified;
     const steps = [
       { step: 1, done: identityCheckDone },
-      { step: 2, done: kycAlreadyVerified },
+      { step: 2, done: true },
       { step: 3, done: addressDone },
       { step: 4, done: taxDone },
       { step: 5, done: bankDone },
@@ -334,16 +335,16 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
 
       await ensureOnboardingRecord();
 
-      // Save the ID number to the onboarding record we just ensured exists
+      if (result.applicantId) {
+        setApplicantId(result.applicantId);
+      }
+
+      // Save the ID number and applicant ID to the onboarding record we just ensured exists
       await saveProgressFlag("identity_details_saved", {
-        identity_details: { identity_number: cleanIdNumber, savedAt: new Date().toISOString() },
+        identity_details: { identity_number: cleanIdNumber, applicantId: result.applicantId, savedAt: new Date().toISOString() },
       });
 
-      if (!kycAlreadyVerified) {
-        goToStep(2);
-      } else {
-        goToStep(getNextIncompleteStep(1));
-      }
+      goToStep(getNextIncompleteStep(1));
     } catch (err) {
       setIdentityCheckError(err?.message || "Failed to verify ID number.");
     } finally {
@@ -361,7 +362,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
       { step: 5, done: bankLetterDone },
       { step: 4, done: bankDone },
       { step: 3, done: taxDone },
-      { step: 2, done: kycAlreadyVerified },
+      { step: 2, done: true },
       { step: 1, done: identityCheckDone },
     ];
     for (const s of steps) {
@@ -874,66 +875,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
               </div>
             </div>
           ) : step === 2 ? (
-            <div className="w-full max-w-3xl mx-auto">
-              <div className="text-center mb-8 animate-fade-in delay-1">
-                <p
-                  className="text-xs uppercase tracking-[0.2em] mb-2"
-                  style={{ color: "hsl(270 20% 55%)" }}
-                >
-                  Step 2 of 10
-                </p>
-                <h2
-                  className="text-3xl font-light tracking-tight mb-2"
-                  style={{ color: "hsl(270 30% 25%)" }}
-                >
-                  Identity Verification
-                </h2>
-                <p className="text-sm" style={{ color: "hsl(270 20% 50%)" }}>
-                  {kycAlreadyVerified
-                    ? "Your identity has already been verified"
-                    : "Verify your identity securely with Sumsub"}
-                </p>
-              </div>
-              {kycAlreadyVerified ? (
-                <div className="text-center py-8 animate-fade-in delay-2">
-                  <div
-                    className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)" }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" className="w-8 h-8">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium mb-2" style={{ color: "hsl(270 30% 25%)" }}>
-                    Identity Verified
-                  </h3>
-                  <p className="text-sm mb-6" style={{ color: "hsl(270 20% 50%)" }}>
-                    Your identity has been successfully verified
-                  </p>
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium" style={{ background: "hsl(152 80% 95%)", color: "hsl(152 60% 30%)" }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                    </svg>
-                    <span>Verification Complete</span>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <SumsubVerification onVerified={() => setShowProceed(true)} />
-                </>
-              )}
-              {showProceed && (
-                <div className="text-center mt-8 animate-fade-in delay-2">
-                  <button
-                    type="button"
-                    className="continue-button proceed-button"
-                    onClick={() => goToStep(getNextIncompleteStep(2, 2))}
-                  >
-                    Continue
-                  </button>
-                </div>
-              )}
-            </div>
+            (() => {
+              setTimeout(() => goToStep(getNextIncompleteStep(2)), 0);
+              return <div />;
+            })()
+          )
           ) : step === 3 ? (
             <div className="w-full max-w-xl mx-auto">
               <div className="text-center mb-8 animate-fade-in delay-1">
