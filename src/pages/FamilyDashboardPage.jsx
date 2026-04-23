@@ -1041,7 +1041,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
 
 // ─── MemberRow ───────────────────────────────────────────────────────────────
 
-function MemberRow({ gradient, name, role, roleIcon, detail, onClick }) {
+function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) {
   return (
     <motion.div variants={item}>
       <button
@@ -1102,16 +1102,52 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
 
   async function fetchPortfolio() {
     if (!userId) return;
+    const spouseUserIds = members.filter(m => m.relationship === "spouse" && m.linked_user_id).map(m => m.linked_user_id);
+    const childMemberIds = members.filter(m => m.relationship === "child").map(m => m.id);
+    const allUserIds = [userId, ...spouseUserIds];
+    
     try {
-      const [holdingsRes, walletRes] = await Promise.all([
-        supabase.from("stock_holdings_c").select("market_value, unrealized_pnl").eq("user_id", userId),
-        supabase.from("wallets").select("balance").eq("user_id", userId).maybeSingle(),
+      const [holdingsRes, childHoldingsRes, walletRes] = await Promise.all([
+        supabase.from("stock_holdings_c").select("user_id, market_value, unrealized_pnl").in("user_id", allUserIds),
+        supabase.from("stock_holdings_c").select("family_member_id, market_value, unrealized_pnl").in("family_member_id", childMemberIds),
+        supabase.from("wallets").select("user_id, balance").in("user_id", allUserIds),
       ]);
+
       const holdings = holdingsRes.data || [];
-      setPortfolioValue(holdings.reduce((s, h) => s + (h.market_value || 0), 0));
-      setPortfolioChange(holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0));
-      const walletRands = walletRes.data?.balance || 0;
-      setWalletBalanceCents(Math.round(walletRands * 100));
+      const childHoldings = childHoldingsRes.data || [];
+      const wallets = walletRes.data || [];
+
+      // Total holdings (cents)
+      const totalHoldingsValue = holdings.reduce((s, h) => s + (h.market_value || 0), 0) + childHoldings.reduce((s, h) => s + (h.market_value || 0), 0);
+      const totalHoldingsChange = holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0) + childHoldings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0);
+      
+      // Total wallet (converted to cents)
+      const totalWalletRands = wallets.reduce((s, w) => s + (w.balance || 0), 0);
+      
+      setPortfolioValue(totalHoldingsValue + (totalWalletRands * 100));
+      setPortfolioChange(totalHoldingsChange);
+
+      // Map individual member balances
+      const balances = {};
+      
+      // Head of family balance
+      const mainHoldings = holdings.filter(h => h.user_id === userId);
+      const mainWallet = wallets.find(w => w.user_id === userId);
+      const headTotal = mainHoldings.reduce((s, h) => s + (h.market_value || 0), 0) + Math.round((mainWallet?.balance || 0) * 100);
+      setWalletBalanceCents(Math.round((mainWallet?.balance || 0) * 100));
+
+      // Calculate other member balances
+      members.forEach(m => {
+        if (m.relationship === "spouse" && m.linked_user_id) {
+          const sHoldings = holdings.filter(h => h.user_id === m.linked_user_id);
+          const sWallet = wallets.find(w => w.user_id === m.linked_user_id);
+          balances[m.id] = sHoldings.reduce((s, h) => s + (h.market_value || 0), 0) + Math.round((sWallet?.balance || 0) * 100);
+        } else if (m.relationship === "child") {
+          const cHoldings = childHoldings.filter(h => h.family_member_id === m.id);
+          balances[m.id] = cHoldings.reduce((s, h) => s + (h.market_value || 0), 0);
+        }
+      });
+      setMemberBalances(balances);
     } catch (e) { console.error("[family] portfolio", e); }
   }
 
@@ -1265,6 +1301,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                 role="Head"
                 roleIcon={<Crown className="h-2.5 w-2.5 mr-0.5" />}
                 detail="Main Account"
+                amount={portfolioValue - Object.values(memberBalances).reduce((a, b) => a + b, 0)}
                 onClick={() => {}}
               />
 
@@ -1289,6 +1326,9 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                         )}
                       </div>
                     </div>
+                    {memberBalances[spouse.id] !== undefined && (
+                      <p className="text-[14px] font-bold text-slate-800 tabular-nums flex-shrink-0 mr-1">{fmt(memberBalances[spouse.id])}</p>
+                    )}
                     <button
                       onClick={() => {
                         setConfirmRemove(confirmRemove?.id === spouse.id ? null : spouse);
@@ -1394,7 +1434,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
                               )}
                             </div>
                           </div>
-                          <p className="text-[14px] font-bold text-slate-800 tabular-nums flex-shrink-0">{fmt(child.available_balance || 0)}</p>
+                          <p className="text-[14px] font-bold text-slate-800 tabular-nums flex-shrink-0">{fmt(memberBalances[child.id] || 0)}</p>
                         </button>
                         <button onClick={() => {
                           setConfirmRemove(confirmRemove?.id === child.id ? null : child);
