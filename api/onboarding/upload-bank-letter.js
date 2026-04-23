@@ -4,7 +4,7 @@ import { supabaseAdmin, supabase } from "../_lib/supabase.js";
  * POST /api/onboarding/upload-bank-letter
  *
  * Accepts a base64-encoded file (PDF or Image) and uploads it to the
- * "onboarding-documents" Supabase Storage bucket.
+ * "signed-agreements" Supabase Storage bucket.
  *
  * Body: { fileBase64: string, fileType: string }
  * Returns: { success: true, publicUrl: string }
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const extension = fileType === "application/pdf" ? "pdf" : "png";
     const filePath = `${user.id}/bank-confirmation-${timestamp}.${extension}`;
-    const bucketName = "onboarding-documents";
+    const bucketName = "signed-agreements";
 
     // ── Upload to Supabase Storage ────────────────────────────────────────
     const storageClient = supabaseAdmin || supabase;
