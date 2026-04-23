@@ -1068,7 +1068,7 @@ function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) 
   );
 }
 
-// ─── Page ────────────────────�  async function fetchPortfolio() {
+// ─── Page ────────────────────�  async function fetchPortfolio() {
     if (!userId) return;
     const spouseUserIds = members.filter(m => m.relationship === "spouse" && m.linked_user_id).map(m => m.linked_user_id);
     const childMemberIds = members.filter(m => m.relationship === "child").map(m => m.id);
@@ -1120,7 +1120,8 @@ function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) 
       });
       setMemberBalances(balances);
     } catch (e) { console.error("[family] portfolio", e); }
-  } fetchMembers();
+  }
+  fetchMembers();
   }, [userId]);
 
   useEffect(() => {
