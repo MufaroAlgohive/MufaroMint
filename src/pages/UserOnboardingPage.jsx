@@ -874,13 +874,10 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </div>
               </div>
             </div>
-          ) : step === 2 ? (
-            (() => {
-              setTimeout(() => goToStep(getNextIncompleteStep(2)), 0);
-              return <div />;
-            })()
-          )
-          ) : step === 3 ? (
+          ) : step === 2 ? (() => {
+            setTimeout(() => goToStep(getNextIncompleteStep(2)), 0);
+            return <div />;
+          })() : step === 3 ? (
             <div className="w-full max-w-xl mx-auto">
               <div className="text-center mb-8 animate-fade-in delay-1">
                 <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: "hsl(270 20% 55%)" }}>
