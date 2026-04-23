@@ -265,9 +265,14 @@ const SwipeableBalanceCard = ({
           0,
         );
         const investedAmount = enrichedHoldings.reduce(
-          (acc, h) => acc + Number(h.invested_amount || h.market_value || 0) / 100,
+          (acc, h) => {
+            if (h.invested_amount !== undefined) return acc + Number(h.invested_amount) / 100;
+            // For stocks, use avg_fill * quantity as the initial invested amount
+            return acc + (Number(h.avg_fill || 0) * Number(h.quantity || 0)) / 100;
+          },
           0,
         );
+
 
         setDbData({
           holdings: enrichedHoldings,
@@ -503,10 +508,13 @@ const SwipeableBalanceCard = ({
     100
     : dbData.totalInvested;
   const displayInvestedAmount = selectedAsset
-    ? Number(selectedAsset.invested_amount || selectedAsset.market_value || 0) / 100
+    ? (selectedAsset.invested_amount !== undefined 
+        ? Number(selectedAsset.invested_amount) / 100 
+        : (Number(selectedAsset.avg_fill || 0) * Number(selectedAsset.quantity || 0)) / 100)
     : dbData.totalInvestedAmount;
   const displayReturn = displayMarketValue - displayInvested;
-  const displayBalance = displayInvestedAmount + displayReturn;
+  const displayBalance = displayMarketValue;
+
   const isLoss = displayReturn < 0;
   const returnPct =
     displayInvested > 0

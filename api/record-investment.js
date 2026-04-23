@@ -389,16 +389,19 @@ export default async function handler(req, res) {
         }
       }
 
-      const currentPriceRands = currentPriceCents ? currentPriceCents / 100 : investAmount;
-      // ENFORCE INTEGER: Prioritize shareCount from frontend if available
+      const currentPriceRands = currentPriceCents ? currentPriceCents / 100 : (shareCount > 0 ? investAmount / shareCount : 0);
+      
+      // Prioritize shareCount from frontend if available, otherwise calculate from price
       if (shareCount && Number(shareCount) > 0) {
         quantity = Math.floor(Number(shareCount));
       } else {
         quantity = currentPriceRands > 0 ? Math.floor(investAmount / currentPriceRands) : 1;
       }
-      if (quantity <= 0) quantity = 1; // Safeguard for very small amounts vs price
-      const avgFillCents = currentPriceCents || Math.round(investAmount * 100);
-      const marketValueCents = Math.round(quantity * (currentPriceCents || investAmount * 100));
+      if (quantity <= 0) quantity = 1; 
+
+      const avgFillCents = currentPriceCents || Math.round((investAmount / quantity) * 100);
+      const marketValueCents = Math.round(quantity * (currentPriceCents || (avgFillCents)));
+
 
       const { data: existing, error: fetchError } = await db
         .from("stock_holdings_c")
