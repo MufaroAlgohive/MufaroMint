@@ -120,7 +120,7 @@ export const getMarketsSecuritiesWithMetrics = async () => {
         currentPrice: intraday?.current_price ? Number(intraday.current_price) / 100 : null,
         changePct: intraday?.["1d_pct"] != null ? Number(intraday["1d_pct"]) : null,
         changeAbs: intraday?.["1d_abs"] != null ? Number(intraday["1d_abs"]) / 100 : null,
-        // Legacy aliases for backward compatibility
+        // Legacy aliases for backward compatibility - use Rands
         last_price: intraday?.current_price ? Number(intraday.current_price) / 100 : null,
         change_percentage: intraday?.["1d_pct"],
       };

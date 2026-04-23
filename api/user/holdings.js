@@ -61,10 +61,10 @@ export default async function handler(req, res) {
         db.from("securities_c")
           .select("id, symbol, name, logo_url, last_price, change_price, change_percent, sector, exchange")
           .in("id", securityIds),
-        db.from("security_prices")
-          .select("security_id, close_price, ts")
+        db.from("stock_returns_c")
+          .select("security_id, current_price, as_of_date")
           .in("security_id", securityIds)
-          .order("ts", { ascending: false })
+          .order("as_of_date", { ascending: false })
           .limit(securityIds.length * 2),
       ]);
 
@@ -76,7 +76,7 @@ export default async function handler(req, res) {
       (pricesResult.data || []).forEach(p => {
         if (!pricesBySecId[p.security_id]) pricesBySecId[p.security_id] = [];
         if (pricesBySecId[p.security_id].length < 2) {
-          pricesBySecId[p.security_id].push(p.close_price);
+          pricesBySecId[p.security_id].push(p.current_price);
         }
       });
       for (const [secId, prices] of Object.entries(pricesBySecId)) {

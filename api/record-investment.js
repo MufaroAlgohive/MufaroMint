@@ -204,7 +204,7 @@ export default async function handler(req, res) {
 
     if (isStrategyInvestment) {
       const { data: strategyData, error: stratError } = await db
-        .from("strategies")
+        .from("strategies_c")
         .select("holdings")
         .eq("id", strategyId)
         .maybeSingle();
@@ -377,15 +377,15 @@ export default async function handler(req, res) {
         currentPriceCents = Number(securityData.last_price);
       } else {
         const { data: priceData, error: priceError } = await db
-          .from("security_prices")
-          .select("close_price")
+          .from("stock_returns_c")
+          .select("current_price")
           .eq("security_id", securityId)
-          .order("price_date", { ascending: false })
+          .order("as_of_date", { ascending: false })
           .limit(1)
           .maybeSingle();
 
-        if (!priceError && priceData?.close_price) {
-          currentPriceCents = Number(priceData.close_price);
+        if (!priceError && priceData?.current_price) {
+          currentPriceCents = Number(priceData.current_price);
         }
       }
 

@@ -313,6 +313,7 @@ const SwipeableBalanceCard = ({
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - days);
         const startDateStr = cutoff.toISOString().split("T")[0];
+        console.log(`[SwipeableBalanceCard] Fetching history for tab: ${activeTab}, days: ${days}, startDate: ${startDateStr}`);
 
         // Process strategies first (serial to be safe, but with try/catch)
         const strategyPnlByDate = {};
@@ -360,18 +361,18 @@ const SwipeableBalanceCard = ({
         const pricePromises = stockHoldings.map(async (h) => {
           try {
             let { data, error } = await supabase
-              .from("security_prices")
-              .select("ts, close_price")
+              .from("stock_returns_c")
+              .select("as_of_date, current_price")
               .eq("security_id", h.security_id)
-              .gte("ts", startDateStr)
-              .order("ts", { ascending: true });
+              .gte("as_of_date", startDateStr)
+              .order("as_of_date", { ascending: true });
 
             if (error || !data || data.length < 2) {
               const fallback = await supabase
-                .from("security_prices")
-                .select("ts, close_price")
+                .from("stock_returns_c")
+                .select("as_of_date, current_price")
                 .eq("security_id", h.security_id)
-                .order("ts", { ascending: false })
+                .order("as_of_date", { ascending: false })
                 .limit(30);
               if (!fallback.error && fallback.data && fallback.data.length >= 2) {
                 data = fallback.data.reverse();
@@ -383,8 +384,8 @@ const SwipeableBalanceCard = ({
             const livePrice = Number(h.last_price || 0) / 100;
             
             const allMapped = data.map((p) => ({
-              ts: p.ts.split("T")[0],
-              close: Number(p.close_price) / 100,
+              ts: p.as_of_date.split("T")[0],
+              close: Number(p.current_price) / 100,
             }));
             
             let filteredPrices = allMapped.filter((p) => p.ts >= pDateStr);
@@ -481,6 +482,7 @@ const SwipeableBalanceCard = ({
           }
           if (hasVal) points.push({ d: dateKey, v: Number(totalPnl.toFixed(2)) });
         }
+        console.log(`[SwipeableBalanceCard] Final chart points: ${points.length}`);
         setChartData(points);
       } catch (err) {
         console.error("❌ [SwipeableBalanceCard] Chart fetch error:", err);

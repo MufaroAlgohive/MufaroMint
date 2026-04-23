@@ -31,7 +31,7 @@ export const getStrategiesWithMetrics = async () => {
 
     // Fetch strategies with nested strategy_metrics
     const { data: strategies, error: strategiesError } = await supabase
-      .from("strategies")
+      .from("strategies_c")
       .select(`
         *,
         strategy_metrics!strategy_metrics_strategy_id_fkey(*)
@@ -180,7 +180,7 @@ export const getStrategyById = async (strategyId) => {
 
   try {
     const { data: strategy, error } = await supabase
-      .from("strategies")
+      .from("strategies_c")
       .select(`
         *,
         strategy_metrics!strategy_metrics_strategy_id_fkey(*)
@@ -349,7 +349,7 @@ export const getStrategyPriceHistory = async (strategyId, timeframe = "6M") => {
     console.log(`🔍 Computing price history from holdings for strategy ${strategyId} (${timeframe})...`);
 
     const { data: strategy, error: stratError } = await supabase
-      .from("strategies")
+      .from("strategies_c")
       .select("holdings")
       .eq("id", strategyId)
       .single();
@@ -478,6 +478,7 @@ export const getStrategyPriceHistory = async (strategyId, timeframe = "6M") => {
 
     cache.priceHistory.set(cacheKey, { data: result, timestamp: Date.now() });
     console.log(`✅ Computed ${result.length} NAV points from holdings for strategy ${strategyId} (${timeframe})`);
+    if (result.length === 0) console.warn(`⚠️ Strategy ${strategyId} (${timeframe}) result is empty!`);
     return result;
 
   } catch (error) {
@@ -539,7 +540,7 @@ export const getMonthlyReturns = async (strategyId, startDate = null, actualPnlP
 
   try {
     const { data: strategy, error: stratError } = await supabase
-      .from("strategies")
+      .from("strategies_c")
       .select("holdings")
       .eq("id", strategyId)
       .single();
