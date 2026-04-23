@@ -917,6 +917,9 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                       if (address && address.length > 5) {
                         setAddressLoading(true);
                         try {
+                          if (!supabase) {
+                            throw new Error("Supabase not initialized");
+                          }
                           const { data: { session } } = await supabase.auth.getSession();
                           if (session?.user) {
                             // Save to profiles table
@@ -924,12 +927,12 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                               .from("profiles")
                               .update({ address: address })
                               .eq("id", session.user.id);
-                            
+
                             // Save flag to user_onboarding
                             await saveProgressFlag("address_saved", {
                               address_details: { address: address, savedAt: new Date().toISOString() },
                             });
-                            
+
                             setAddressDone(true);
                             goToStep(getNextIncompleteStep(3));
                           }
@@ -1289,6 +1292,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                         setSubmitError("");
                         
                         try {
+                          if (!supabase) {
+                            setSubmitError("Supabase not initialized");
+                            setIsSubmitting(false);
+                            return;
+                          }
                           const reader = new FileReader();
                           reader.onload = async (event) => {
                             const base64 = event.target.result;
