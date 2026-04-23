@@ -1108,8 +1108,8 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
     
     try {
       const [holdingsRes, childHoldingsRes, walletRes] = await Promise.all([
-        supabase.from("stock_holdings_c").select("user_id, market_value, unrealized_pnl").in("user_id", allUserIds),
-        supabase.from("stock_holdings_c").select("family_member_id, market_value, unrealized_pnl").in("family_member_id", childMemberIds),
+        supabase.from("stock_holdings_c").select("user_id, security_id, quantity, avg_fill").in("user_id", allUserIds).eq("Status", "active"),
+        supabase.from("stock_holdings_c").select("family_member_id, security_id, quantity, avg_fill").in("family_member_id", childMemberIds).eq("Status", "active"),
         supabase.from("wallets").select("user_id, balance").in("user_id", allUserIds),
       ]);
 
@@ -1117,23 +1117,53 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
       const childHoldings = childHoldingsRes.data || [];
       const wallets = walletRes.data || [];
 
-      // Total holdings (cents)
-      const totalHoldingsValue = holdings.reduce((s, h) => s + (h.market_value || 0), 0) + childHoldings.reduce((s, h) => s + (h.market_value || 0), 0);
-      const totalHoldingsChange = holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0) + childHoldings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0);
-      
+      // Fetch live prices (stored in rands) for all security_ids and normalize to cents
+      const securityIds = Array.from(new Set(
+        [...holdings, ...childHoldings].map(h => h.security_id).filter(Boolean)
+      ));
+      const livePriceCentsMap = {};
+      if (securityIds.length > 0) {
+        const { data: secs } = await supabase
+          .from("securities_c")
+          .select("id, last_price")
+          .in("id", securityIds);
+        (secs || []).forEach(s => {
+          livePriceCentsMap[s.id] = Math.round(Number(s.last_price || 0) * 100);
+        });
+      }
+
+      // avg_fill is in cents; livePriceCentsMap is in cents — everything stays in cents
+      const marketValueCents = (h) => {
+        const qty = Number(h.quantity || 0);
+        const avgFill = Number(h.avg_fill || 0);
+        const livePrice = livePriceCentsMap[h.security_id] ?? avgFill;
+        return Math.round(livePrice * qty);
+      };
+      const pnlCents = (h) => {
+        const qty = Number(h.quantity || 0);
+        const avgFill = Number(h.avg_fill || 0);
+        const livePrice = livePriceCentsMap[h.security_id] ?? avgFill;
+        return Math.round((livePrice - avgFill) * qty);
+      };
+
+      const totalHoldingsValue = holdings.reduce((s, h) => s + marketValueCents(h), 0)
+        + childHoldings.reduce((s, h) => s + marketValueCents(h), 0);
+      const totalHoldingsChange = holdings.reduce((s, h) => s + pnlCents(h), 0)
+        + childHoldings.reduce((s, h) => s + pnlCents(h), 0);
+
       // Total wallet (converted to cents)
       const totalWalletRands = wallets.reduce((s, w) => s + (w.balance || 0), 0);
-      
+
       setPortfolioValue(totalHoldingsValue + (totalWalletRands * 100));
       setPortfolioChange(totalHoldingsChange);
 
       // Map individual member balances
       const balances = {};
-      
+
       // Head of family balance
       const mainHoldings = holdings.filter(h => h.user_id === userId);
       const mainWallet = wallets.find(w => w.user_id === userId);
-      const headTotal = mainHoldings.reduce((s, h) => s + (h.market_value || 0), 0) + Math.round((mainWallet?.balance || 0) * 100);
+      const headTotal = mainHoldings.reduce((s, h) => s + marketValueCents(h), 0) + Math.round((mainWallet?.balance || 0) * 100);
       setWalletBalanceCents(Math.round((mainWallet?.balance || 0) * 100));
 
       // Calculate other member balances
@@ -1141,10 +1171,10 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
         if (m.relationship === "spouse" && m.linked_user_id) {
           const sHoldings = holdings.filter(h => h.user_id === m.linked_user_id);
           const sWallet = wallets.find(w => w.user_id === m.linked_user_id);
-          balances[m.id] = sHoldings.reduce((s, h) => s + (h.market_value || 0), 0) + Math.round((sWallet?.balance || 0) * 100);
+          balances[m.id] = sHoldings.reduce((s, h) => s + marketValueCents(h), 0) + Math.round((sWallet?.balance || 0) * 100);
         } else if (m.relationship === "child") {
           const cHoldings = childHoldings.filter(h => h.family_member_id === m.id);
-          balances[m.id] = cHoldings.reduce((s, h) => s + (h.market_value || 0), 0);
+          balances[m.id] = cHoldings.reduce((s, h) => s + marketValueCents(h), 0);
         }
       });
       setMemberBalances(balances);

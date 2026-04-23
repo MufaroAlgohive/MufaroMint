@@ -95,7 +95,8 @@ export default async function handler(req, res) {
         .select("id, symbol, last_price")
         .in("id", allSecurityIds);
       (secs || []).forEach(s => {
-        livePriceMap[s.id] = s.last_price || 0;
+        // last_price stored in rands; avg_fill in cents — normalize price to cents
+        livePriceMap[s.id] = Math.round(Number(s.last_price || 0) * 100);
         symbolMap[s.id] = s.symbol;
       });
     }
