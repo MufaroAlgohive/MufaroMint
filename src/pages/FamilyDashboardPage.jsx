@@ -1075,6 +1075,7 @@ export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboa
   const [portfolioChange, setPortfolioChange] = useState(0);
   const [addingType, setAddingType] = useState(null);
   const [walletBalanceCents, setWalletBalanceCents] = useState(0);
+  const [memberBalances, setMemberBalances] = useState({});
   const [confirmRemove, setConfirmRemove] = useState(null);
   const [removingId, setRemovingId] = useState(null);
   const [removePassword, setRemovePassword] = useState("");
