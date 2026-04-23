@@ -1244,11 +1244,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
                 </p>
               </div>
             </div>
-          ) : step === 5 ? (
+          ) : step === 6 ? (
             <div className="w-full max-w-xl mx-auto">
               <div className="text-center mb-8 animate-fade-in delay-1">
                 <p className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: "hsl(270 20% 55%)" }}>
-                  Step 5 of 10
+                  Step 6 of 11
                 </p>
                 <div className="hero-icon">
                   <FileContractIcon width={48} height={48} />
