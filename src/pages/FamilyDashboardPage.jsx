@@ -1041,7 +1041,7 @@ function AddMemberModal({ type, userId, profile, coGuardians = [], onSave, onClo
 
 // ─── MemberRow ───────────────────────────────────────────────────────────────
 
-function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) {
+function MemberRow({ gradient, name, role, roleIcon, detail, onClick }) {
   return (
     <motion.div variants={item}>
       <button
@@ -1059,74 +1059,36 @@ function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) 
             {detail && <span className="text-[11px] text-slate-400 truncate">{detail}</span>}
           </div>
         </div>
-        {amount !== undefined && (
-          <p className="text-[14px] font-bold text-slate-800 tabular-nums flex-shrink-0 mr-1">{fmt(amount)}</p>
-        )}
         <ChevronDown className="h-4 w-4 text-slate-300 -rotate-90 flex-shrink-0" />
       </button>
     </motion.div>
   );
 }
 
-// ─── Page ────────────────────�  async function fetchPortfolio() {
-    if (!userId) return;
-    const spouseUserIds = members.filter(m => m.relationship === "spouse" && m.linked_user_id).map(m => m.linked_user_id);
-    const childMemberIds = members.filter(m => m.relationship === "child").map(m => m.id);
-    const allUserIds = [userId, ...spouseUserIds];
-    
-    try {
-      const [holdingsRes, childHoldingsRes, walletRes] = await Promise.all([
-        supabase.from("stock_holdings_c").select("user_id, market_value, unrealized_pnl").in("user_id", allUserIds),
-        supabase.from("stock_holdings_c").select("family_member_id, market_value, unrealized_pnl").in("family_member_id", childMemberIds),
-        supabase.from("wallets").select("user_id, balance").in("user_id", allUserIds),
-      ]);
-      
-      const holdings = holdingsRes.data || [];
-      const childHoldings = childHoldingsRes.data || [];
-      const wallets = walletRes.data || [];
-      
-      const holdingsByUserId = holdings.reduce((acc, h) => {
-        acc[h.user_id] = (acc[h.user_id] || 0) + (h.market_value || 0);
-        return acc;
-      }, {});
-      
-      const holdingsByMemberId = childHoldings.reduce((acc, h) => {
-        acc[h.family_member_id] = (acc[h.family_member_id] || 0) + (h.market_value || 0);
-        return acc;
-      }, {});
-      
-      const walletByUserId = wallets.reduce((acc, w) => {
-        acc[w.user_id] = (w.balance || 0);
-        return acc;
-      }, {});
-      
-      const totalHoldingsValue = holdings.reduce((s, h) => s + (h.market_value || 0), 0) + childHoldings.reduce((s, h) => s + (h.market_value || 0), 0);
-      setPortfolioValue(totalHoldingsValue);
-      setPortfolioChange(holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0) + childHoldings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0));
-      
-      const headTotal = (holdingsByUserId[userId] || 0);
-      setHeadBalance(headTotal);
-      
-      const mainWallet = wallets.find(w => w.user_id === userId);
-      setWalletBalanceCents(Math.round((mainWallet?.balance || 0) * 100));
+// ─── Page ────────────────────────────────────────────────────────────────────
 
-      const balances = {};
-      members.forEach(m => {
-        if (m.relationship === "spouse") {
-          balances[m.id] = holdingsByUserId[m.linked_user_id] || 0;
-        } else {
-          balances[m.id] = holdingsByMemberId[m.id] || 0;
-        }
-      });
-      setMemberBalances(balances);
-    } catch (e) { console.error("[family] portfolio", e); }
-  }
-  fetchMembers();
-  }, [userId]);
+export default function FamilyDashboardPage({ onBack, userId, onOpenChildDashboard, onGetInsured }) {
+  const { profile } = useProfile();
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [portfolioValue, setPortfolioValue] = useState(0);
+  const [portfolioChange, setPortfolioChange] = useState(0);
+  const [addingType, setAddingType] = useState(null);
+  const [walletBalanceCents, setWalletBalanceCents] = useState(0);
+  const [confirmRemove, setConfirmRemove] = useState(null);
+  const [removingId, setRemovingId] = useState(null);
+  const [removePassword, setRemovePassword] = useState("");
+  const [removeError, setRemoveError] = useState("");
+
+  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ") || "My Account";
+  const familyLastName = profile?.lastName || "";
+  const spouse = members.find(m => m.relationship === "spouse");
+  const children = members.filter(m => m.relationship === "child");
+  const totalMembers = 1 + members.length;
 
   useEffect(() => {
-    if (userId) fetchPortfolio();
-  }, [userId, members]);
+    if (userId) { fetchMembers(); fetchPortfolio(); }
+  }, [userId]);
 
   async function fetchMembers() {
     setLoading(true);
@@ -1140,27 +1102,16 @@ function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) 
 
   async function fetchPortfolio() {
     if (!userId) return;
-    const allIds = [userId, ...members.map(m => m.member_id)].filter(Boolean);
     try {
       const [holdingsRes, walletRes] = await Promise.all([
-        supabase.from("stock_holdings_c").select("market_value, unrealized_pnl").in("user_id", allIds),
-        supabase.from("wallets").select("balance").in("user_id", allIds),
+        supabase.from("stock_holdings_c").select("market_value, unrealized_pnl").eq("user_id", userId),
+        supabase.from("wallets").select("balance").eq("user_id", userId).maybeSingle(),
       ]);
       const holdings = holdingsRes.data || [];
-      const totalHoldingsValue = holdings.reduce((s, h) => s + (h.market_value || 0), 0);
-      const totalHoldingsChange = holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0);
-      
-      const wallets = walletRes.data || [];
-      const totalWalletRands = wallets.reduce((s, w) => s + (w.balance || 0), 0);
-      
-      setPortfolioValue(totalHoldingsValue + (totalWalletRands * 100));
-      setPortfolioChange(totalHoldingsChange);
-
-      const mainHoldings = holdings.filter(h => h.user_id === userId);
-      const mainWallet = wallets.find(w => w.user_id === userId);
-      const headTotal = mainHoldings.reduce((s, h) => s + (h.market_value || 0), 0) + Math.round((mainWallet?.balance || 0) * 100);
-      setHeadBalance(headTotal);
-      setWalletBalanceCents(Math.round((mainWallet?.balance || 0) * 100));
+      setPortfolioValue(holdings.reduce((s, h) => s + (h.market_value || 0), 0));
+      setPortfolioChange(holdings.reduce((s, h) => s + (h.unrealized_pnl || 0), 0));
+      const walletRands = walletRes.data?.balance || 0;
+      setWalletBalanceCents(Math.round(walletRands * 100));
     } catch (e) { console.error("[family] portfolio", e); }
   }
 
@@ -1314,7 +1265,6 @@ function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) 
                 role="Head"
                 roleIcon={<Crown className="h-2.5 w-2.5 mr-0.5" />}
                 detail="Main Account"
-                amount={headBalance}
                 onClick={() => {}}
               />
 
@@ -1339,7 +1289,6 @@ function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) 
                         )}
                       </div>
                     </div>
-                    <p className="text-[14px] font-bold text-slate-800 tabular-nums flex-shrink-0">{fmt(memberBalances[spouse.id] || 0)}</p>
                     <button
                       onClick={() => {
                         setConfirmRemove(confirmRemove?.id === spouse.id ? null : spouse);
@@ -1445,7 +1394,7 @@ function MemberRow({ gradient, name, role, roleIcon, detail, amount, onClick }) 
                               )}
                             </div>
                           </div>
-                          <p className="text-[14px] font-bold text-slate-800 tabular-nums flex-shrink-0">{fmt(memberBalances[child.id] || 0)}</p>
+                          <p className="text-[14px] font-bold text-slate-800 tabular-nums flex-shrink-0">{fmt(child.available_balance || 0)}</p>
                         </button>
                         <button onClick={() => {
                           setConfirmRemove(confirmRemove?.id === child.id ? null : child);
