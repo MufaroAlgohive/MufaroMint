@@ -852,6 +852,7 @@ export default function LiquidityFlow({ principal, profile, loanId, termMonths =
   const [emailStatus, setEmailStatus] = useState('idle'); // idle, sending, sent, failed
 
   async function handleLegalNext(sig) {
+    if (isProcessing) return;
     if (!calculation || !profile || !principal) {
       console.error("[LiquidityFlow] Missing critical data for PDF generation:", { 
         hasCalculation: !!calculation, 

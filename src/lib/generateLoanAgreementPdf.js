@@ -4,19 +4,19 @@ import { CEO_SIGNATURE_B64 } from "./pdfAssets";
 
 const CONFIG = {
   COLORS: {
-    P:        [15,  43,  61 ], // Dark Navy #0f2b3d
-    P_ACCENT: [30,  74,  110], // Accent Blue #1e4a6e
-    P_LITE:   [241, 245, 249], // slate-100
-    WHITE:    [255, 255, 255],
-    BODY:     [17,  24,  39 ], // gray-900 for serious text
-    CLAUSE:   [55,  65,  81 ], // slate-700
-    DIV:      [203, 213, 225], // slate-300
-    AMBER:    [254, 243, 199], // Amber-100 for Confidential
+    P: [15, 43, 61], // Dark Navy #0f2b3d
+    P_ACCENT: [30, 74, 110], // Accent Blue #1e4a6e
+    P_LITE: [241, 245, 249], // slate-100
+    WHITE: [255, 255, 255],
+    BODY: [17, 24, 39], // gray-900 for serious text
+    CLAUSE: [55, 65, 81], // slate-700
+    DIV: [203, 213, 225], // slate-300
+    AMBER: [254, 243, 199], // Amber-100 for Confidential
   },
   PAGE: { WIDTH: 210, HEIGHT: 297 },
   MARGIN: { LEFT: 20, RIGHT: 20, TOP: 20 },
   FONT: { HEAD: 12, SUBHEAD: 10, BODY: 9, SMALL: 7 },
-  LOGO_ASPECT: 1, 
+  LOGO_ASPECT: 1,
 };
 
 function formatZAR(val) {
@@ -29,9 +29,9 @@ export default async function generateLoanAgreementPdf({
   calculation,
   salaryDay,
   verifiedAcc,
-  digitalSignature, 
+  digitalSignature,
   pledgedAssets = [],
-  computerShareId = "no_id" 
+  computerShareId = "no_id"
 }) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const now = new Date();
@@ -213,7 +213,7 @@ export default async function generateLoanAgreementPdf({
   doc.setFont("helvetica", "bold");
   doc.text("SIGNED for and on behalf of THE LENDER:", ML, y);
   y += 3;
-  
+
   // CEO SIGNATURE IMAGE
   try {
     const ceoSigH = 12.22;
@@ -284,12 +284,8 @@ export default async function generateLoanAgreementPdf({
   // Finalize & Save
   const safeName = (profile?.firstName || "user").replace(/\s/g, "_") + "_" + (profile?.lastName || "name").replace(/\s/g, "_");
   const fileName = `${safeName}_${profile?.mintNumber || "no_id"}_${computerShareId}_${isoDate}.pdf`;
-  
-  doc.save(fileName);
-  
-  const pdfOutput = doc.output("bloburl");
+
   const pdfBase64 = doc.output("datauristring");
-  window.open(pdfOutput, "_blank");
-  
+
   return { doc, agreementId, fileName, pdfBase64 };
 }

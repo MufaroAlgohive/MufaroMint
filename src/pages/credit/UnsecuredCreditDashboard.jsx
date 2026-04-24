@@ -545,6 +545,22 @@ const UnsecuredCreditDashboard = ({ profile, onTabChange, onOpenNotifications })
 
       if (loanError) throw loanError;
 
+      // INSERT INTO LEDGER (CRITICAL FOR HISTORY)
+      const { error: historyError } = await supabase
+        .from('credit_transactions_history')
+        .insert({
+          user_id: profile.id,
+          loan_application_id: loan.id,
+          loan_type: 'unsecured',
+          transaction_type: 'repayment',
+          direction: 'debit',
+          amount: amount,
+          description: 'Unsecured Facility Settlement (EFT)',
+          occurred_at: new Date().toISOString()
+        });
+
+      if (historyError) throw historyError;
+
       setShowEftModal(false);
       setPopFile(null);
       setPaymentAmount("");
