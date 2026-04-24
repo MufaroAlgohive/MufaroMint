@@ -93,7 +93,7 @@ const ActiveLiquidity = ({ onBack, profile, fonts }) => {
     return loans.map(loan => {
       const liveCollateralValue = loan.pbc_collateral_pledges?.reduce((acc, p) => {
         const livePrice = p.securities_c?.last_price || 0;
-        const liveBalance = (p.pledged_quantity * livePrice) / 100;
+        const liveBalance = (p.pledged_quantity * livePrice);
         return acc + (liveBalance > 0 ? liveBalance : (p.pledged_value || 0));
       }, 0) || 1;
 

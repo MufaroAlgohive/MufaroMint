@@ -73,6 +73,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
   const [activeLoanId, setActiveLoanId] = useState(null);
   const [nextSalaryDate, setNextSalaryDate] = useState(new Date().toISOString().split('T')[0]);
   const [termMonths, setTermMonths] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => { setPortalTarget(document.body); }, []);
 
@@ -161,6 +162,22 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
           }
         }
 
+        // 3. Fetch latest active secured loan to pre-populate the Active Liquidity card
+        const { data: activeLoan } = await supabase
+          .from('loan_application')
+          .select('id, principal_amount')
+          .eq('user_id', profile.id)
+          .eq('Secured_Unsecured', 'secured')
+          .neq('status', 'repaid')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (activeLoan?.id) {
+          setActiveLoanId(activeLoan.id);
+          setPledgeAmount(activeLoan.principal_amount || 0);
+        }
+
       } catch (err) {
         console.error("Initialization error:", err.message);
       } finally {
@@ -168,7 +185,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       }
     }
     initData();
-  }, [profile?.id]);
+  }, [profile?.id, refreshKey]);
 
   // --- CALCULATIONS & FILTER LOGIC ---
   const totalPortfolioValue = useMemo(() => portfolioItems.reduce((acc, item) => acc + item.balance, 0), [portfolioItems]);
@@ -345,6 +362,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
       */
 
       setWorkflowStep("liquidity_flow");
+      setRefreshKey(k => k + 1);
     } catch (err) {
       console.error("Pledge failed:", err);
     } finally {
@@ -861,8 +879,8 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
           </div>
 
           <div className="p-6 bg-white border-t border-slate-100 pb-28">
-            <button disabled={!pledgeAmount || pledgeAmount <= 0} onClick={handleConfirmPledge} className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all disabled:opacity-30">
-              Review & Sign Agreement
+            <button disabled={!pledgeAmount || pledgeAmount <= 0 || isProcessing} onClick={handleConfirmPledge} className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition-all disabled:opacity-30">
+              {isProcessing ? "Processing..." : "Review & Sign Agreement"}
             </button>
           </div>
         </div>
@@ -884,7 +902,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">New Credit Balance</p>
                 <h2 className="text-2xl font-bold text-slate-900" style={{ fontFamily: fonts.display }}>{formatZar(pledgeAmount)}</h2>
               </div>
-              <button onClick={closeDetail} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg">Return to Wealth</button>
+              <button onClick={() => { closeDetail(); setRefreshKey(k => k + 1); }} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg">Return to Wealth</button>
             </div>
           )}
         </div>
