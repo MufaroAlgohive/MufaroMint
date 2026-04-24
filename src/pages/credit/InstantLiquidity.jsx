@@ -95,7 +95,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
           .from('stock_holdings_c')
           .select(`
           quantity,
-          securities!inner (
+          securities_c!inner (
             id, symbol, name, last_price, market_cap, sector,
             logo_url,
             liquidity_grading, collateral_score, collateral_tier, 
@@ -104,15 +104,15 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
           )
         `)
           .eq('user_id', profile.id)
-          .neq('securities.exchange', 'MINT');
+          .neq('securities_c.exchange', 'MINT');
 
         if (error) throw error;
 
         if (data) {
           const formatted = await Promise.all(data.map(async item => {
-            const sec = item.securities;
+            const sec = item.securities_c;
             const { data: prices } = await supabase
-              .from('security_prices')
+              .from('security_prices_c')
               .select('close_price')
               .eq('security_id', sec.id)
               .order('ts', { ascending: false })
@@ -122,7 +122,7 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
               ? prices.map(p => parseFloat(p.close_price)).reverse()
               : [0, 0, 0, 0, 0, 0, 0];
 
-            const balance = (item.quantity * (sec.last_price || 0)) / 100;
+            const balance = (item.quantity * (sec.last_price || 0));
 
             return {
               id: sec.id,

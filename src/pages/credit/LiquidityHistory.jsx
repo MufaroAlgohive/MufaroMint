@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronLeft, Clock, ArrowUpRight, ArrowDownRight, History, Search } from "lucide-react";
+import { ChevronLeft, ArrowUpRight, ArrowDownRight, History, Search, Receipt, ArrowRight } from "lucide-react";
 import { formatZar } from "../../lib/formatCurrency";
 import { supabase } from "../../lib/supabase";
 
@@ -11,62 +11,46 @@ const LiquidityHistory = ({ onBack, profile, fonts }) => {
 
   useEffect(() => {
     async function fetchHistory() {
-      if (!profile?.id) return;
+      if (!profile?.id) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
 
       try {
         const { data, error } = await supabase
-          .from('loan_application')
+          .from('credit_transactions_history')
           .select('*')
           .eq('user_id', profile.id)
-          .order('created_at', { ascending: false });
+          .eq('loan_type', 'secured')
+          .order('occurred_at', { ascending: false });
 
         if (error) throw error;
 
-        const loans = data || [];
-        let txs = [];
+        const historyRows = data || [];
         let totalBorrowed = 0;
 
-        loans.forEach(loan => {
-          totalBorrowed += Number(loan.principal_amount || 0);
-
-          // 1. Disbursement Event (Money received)
-          txs.push({
-            id: `${loan.id}-disb`,
-            type: 'disbursement',
-            description: 'Facility Disbursement',
-            amount: Number(loan.principal_amount),
-            date: loan.created_at,
-            status: 'completed',
-            originalId: loan.id
-          });
-
-          // 2. Repayment Event (Money paid or pending)
-          if (loan.status === 'repaid') {
-            txs.push({
-              id: `${loan.id}-rep`,
-              type: 'repayment',
-              description: 'Facility Settlement',
-              amount: -Number(loan.amount_repayable || loan.principal_amount),
-              date: loan.updated_at || loan.created_at,
-              status: 'completed',
-              originalId: loan.id
-            });
-          } else {
-            txs.push({
-              id: `${loan.id}-rep-pend`,
-              type: 'pending_repayment',
-              description: 'Scheduled Settlement',
-              amount: -Number(loan.amount_repayable || loan.principal_amount),
-              date: loan.first_repayment_date || loan.created_at,
-              status: 'pending',
-              originalId: loan.id
-            });
+        const txs = historyRows.map(row => {
+          if (row.transaction_type === 'application_created' && row.direction === 'credit') {
+            totalBorrowed += Number(row.amount);
           }
-        });
 
-        // Sort all derived transactions by date, newest first
-        txs.sort((a, b) => new Date(b.date) - new Date(a.date));
+          const isCredit = row.direction === 'credit';
+          const isRepayment = row.transaction_type === 'repayment';
+          const isFee = row.transaction_type === 'fee';
+
+          return {
+            id: row.id,
+            type: row.transaction_type,
+            direction: row.direction,
+            description: row.description || (isCredit ? 'Facility Disbursement' : 'Facility Settlement'),
+            amount: isCredit ? Number(row.amount) : -Number(row.amount),
+            date: row.occurred_at,
+            status: 'completed',
+            originalId: row.loan_application_id,
+            isFee
+          };
+        });
 
         setTransactions(txs);
         setLifetimeBorrowed(totalBorrowed);
@@ -98,7 +82,7 @@ const LiquidityHistory = ({ onBack, profile, fonts }) => {
           <div>
             <h1 className="text-xl font-bold tracking-tight" style={{ fontFamily: fonts?.display }}>Transaction History</h1>
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              All Liquidity Transactions
+              Secured Liquidity Ledger
             </p>
           </div>
         </div>
@@ -123,7 +107,7 @@ const LiquidityHistory = ({ onBack, profile, fonts }) => {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
-            placeholder="Search transactions..."
+            placeholder="Search ledger events..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white border border-slate-100 rounded-2xl py-3.5 pl-11 pr-4 text-xs font-medium focus:outline-none focus:border-violet-300 shadow-sm transition-all"
@@ -137,8 +121,20 @@ const LiquidityHistory = ({ onBack, profile, fonts }) => {
               Syncing Ledger...
             </div>
           ) : filteredTransactions.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-xs italic">
-              No transactions found
+            <div className="bg-white rounded-[36px] p-10 text-center border border-slate-100 mt-8 shadow-sm animate-in fade-in duration-700">
+              <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-6 text-slate-300">
+                <History size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">No Transactions</h3>
+              <p className="text-xs text-slate-500 font-medium mb-8 leading-relaxed">
+                You haven't made any liquidity transactions yet. Start by applying for portfolio-backed credit.
+              </p>
+              <button
+                onClick={onBack}
+                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg flex justify-center items-center gap-2 active:scale-95 transition-all"
+              >
+                Start Application <ArrowRight size={14} />
+              </button>
             </div>
           ) : filteredTransactions.map((tx) => (
             <div
@@ -146,16 +142,16 @@ const LiquidityHistory = ({ onBack, profile, fonts }) => {
               className="bg-white rounded-[24px] p-4 flex items-center gap-4 shadow-sm border border-slate-100 hover:border-violet-100 transition-all animate-in slide-in-from-bottom-2"
             >
               {/* Transaction Icon */}
-              <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center border ${tx.type === 'disbursement' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
-                tx.type === 'repayment' ? 'bg-violet-50 text-violet-600 border-violet-100' :
-                  'bg-slate-50 text-slate-400 border-slate-200'
+              <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center border ${tx.direction === 'credit' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                tx.isFee ? 'bg-slate-50 text-slate-500 border-slate-200' :
+                  'bg-violet-50 text-violet-600 border-violet-100'
                 }`}>
-                {tx.type === 'disbursement' ? (
+                {tx.direction === 'credit' ? (
                   <ArrowDownRight size={20} strokeWidth={2.5} />
-                ) : tx.type === 'repayment' ? (
-                  <ArrowUpRight size={20} strokeWidth={2.5} />
+                ) : tx.isFee ? (
+                  <Receipt size={20} strokeWidth={2.5} />
                 ) : (
-                  <Clock size={20} strokeWidth={2.5} />
+                  <ArrowUpRight size={20} strokeWidth={2.5} />
                 )}
               </div>
 
@@ -165,7 +161,7 @@ const LiquidityHistory = ({ onBack, profile, fonts }) => {
                 <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
                   <span>{new Date(tx.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                   <span>•</span>
-                  <span className={tx.status === 'pending' ? 'text-amber-500' : 'text-emerald-500'}>
+                  <span className="text-emerald-500">
                     {tx.status}
                   </span>
                 </div>
@@ -173,13 +169,12 @@ const LiquidityHistory = ({ onBack, profile, fonts }) => {
 
               {/* Transaction Amount */}
               <div className="text-right shrink-0">
-                <span className={`block font-bold text-sm tracking-tight ${tx.type === 'disbursement' ? 'text-emerald-600' :
-                  tx.type === 'repayment' ? 'text-slate-900' : 'text-slate-400'
+                <span className={`block font-bold text-sm tracking-tight ${tx.direction === 'credit' ? 'text-emerald-600' : 'text-slate-900'
                   }`}>
                   {tx.amount > 0 ? '+' : '-'}{formatZar(Math.abs(tx.amount))}
                 </span>
-                <span className="text-[8px] font-mono text-slate-300">
-                  #{tx.originalId.slice(0, 6)}
+                <span className="text-[8px] font-mono text-slate-300 uppercase">
+                  {tx.type.replace('_', ' ')}
                 </span>
               </div>
             </div>

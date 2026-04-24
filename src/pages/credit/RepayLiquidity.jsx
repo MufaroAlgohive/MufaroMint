@@ -30,7 +30,10 @@ const RepayLiquidity = ({ onBack, profile, fonts }) => {
 
   // --- DATA FETCHING ---
   const fetchRepayable = async () => {
-    if (!profile?.id) return;
+    if (!profile?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -191,19 +194,19 @@ const RepayLiquidity = ({ onBack, profile, fonts }) => {
               Fetching Records...
             </div>
           ) : loans.length === 0 ? (
-            <div className="bg-white rounded-[36px] p-10 text-center border border-slate-100 shadow-sm mt-4">
+            <div className="bg-white rounded-[36px] p-10 text-center border border-slate-100 shadow-sm mt-4 animate-in fade-in duration-700">
               <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mx-auto mb-6 text-slate-300">
                 <ShieldCheck size={32} />
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">You're Debt Free</h3>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">No Active Obligations</h3>
               <p className="text-xs text-slate-500 font-medium mb-8 leading-relaxed">
-                You have no active obligations to settle. Your portfolio is fully unlocked.
+                You have no active loans to settle. Utilize your portfolio to generate instant capital.
               </p>
               <button
                 onClick={onBack}
                 className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg flex justify-center items-center gap-2 active:scale-95 transition-all"
               >
-                Return to Wealth <ArrowRight size={14} />
+                Start Application <ArrowRight size={14} />
               </button>
             </div>
           ) : (

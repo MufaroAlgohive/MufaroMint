@@ -35,7 +35,10 @@ const ActiveLiquidity = ({ onBack, profile, fonts }) => {
 
   // --- SUPABASE DATA FETCHING ---
   const fetchActiveLoans = async () => {
-    if (!profile?.id) return;
+    if (!profile?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     try {
@@ -49,7 +52,7 @@ const ActiveLiquidity = ({ onBack, profile, fonts }) => {
             pledged_value,
             pledged_quantity,
             security_id,
-            securities (
+            securities_c (
               name,
               last_price,
               ltv_pct,
@@ -61,6 +64,7 @@ const ActiveLiquidity = ({ onBack, profile, fonts }) => {
           )
         `)
         .eq('user_id', profile.id)
+        .eq('Secured_Unsecured', 'secured')
         .neq('status', 'repaid')
         .order('created_at', { ascending: false });
 
@@ -88,14 +92,14 @@ const ActiveLiquidity = ({ onBack, profile, fonts }) => {
   const processedLoans = useMemo(() => {
     return loans.map(loan => {
       const liveCollateralValue = loan.pbc_collateral_pledges?.reduce((acc, p) => {
-        const livePrice = p.securities?.last_price || 0;
+        const livePrice = p.securities_c?.last_price || 0;
         const liveBalance = (p.pledged_quantity * livePrice) / 100;
         return acc + (liveBalance > 0 ? liveBalance : (p.pledged_value || 0));
       }, 0) || 1;
 
       const outstanding = loan.principal_amount || 0;
       const currentLtv = (outstanding / liveCollateralValue) * 100;
-      const marginCall = (loan.pbc_collateral_pledges?.[0]?.securities?.margin_call_pct || 0.65) * 100;
+      const marginCall = (loan.pbc_collateral_pledges?.[0]?.securities_c?.margin_call_pct || 0.65) * 100;
       const zone = getRiskZone(currentLtv, marginCall);
 
       return { ...loan, liveCollateralValue, currentLtv, marginCall, zone };
@@ -361,7 +365,7 @@ const ActiveLiquidity = ({ onBack, profile, fonts }) => {
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Pledged Assets Breakdown</p>
                     <div className="space-y-3">
                       {loan.pbc_collateral_pledges?.map((pledge, idx) => {
-                        const sec = pledge.securities;
+                        const sec = pledge.securities_c;
                         const liveValue = (pledge.pledged_quantity * (sec?.last_price || 0)) / 100;
 
                         return (

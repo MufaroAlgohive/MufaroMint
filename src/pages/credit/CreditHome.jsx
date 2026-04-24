@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { 
-  Zap, ArrowRight, HelpCircle, ShieldCheck 
+import {
+  Zap, ArrowRight, HelpCircle, ShieldCheck
 } from "lucide-react";
 import { motion } from 'framer-motion';
 import NavigationPill from "../../components/NavigationPill";
@@ -58,17 +58,17 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
   }, [profile?.id, onTabChange, navigating]);
 
   const ctaCards = [
-    { 
+    {
       id: "portfolio",
-      label: "Portfolio Backed Credit", 
-      description: "Use your investment history for instant liquidity.", 
-      icon: ShieldCheck, 
+      label: "Portfolio Backed Credit",
+      description: "Borrow against your portfolio without selling your assets.",
+      icon: ShieldCheck,
     },
-    { 
+    {
       id: "unsecured",
-      label: "Unsecured Credit", 
-      description: "Access capital solutions based on your digital profile.", 
-      icon: Zap, 
+      label: "Unsecured Credit",
+      description: "Access capital solutions based on your digital profile.",
+      icon: Zap,
     }
   ];
 
@@ -76,45 +76,45 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
     <>
       <div className="fixed inset-0 -z-30 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-b from-[#3a1a7a] via-[#2d1261] to-[#1a083d]" />
-        
-        <motion.div 
-          animate={{ 
-            y: [0, -50, 0], 
+
+        <motion.div
+          animate={{
+            y: [0, -50, 0],
             x: [0, 30, 0],
-            scale: [1, 1.1, 1] 
+            scale: [1, 1.1, 1]
           }}
           transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[-5%] left-[-5%] w-[90%] h-[70%] bg-violet-500/40 blur-[120px] rounded-full" 
+          className="absolute top-[-5%] left-[-5%] w-[90%] h-[70%] bg-violet-500/40 blur-[120px] rounded-full"
         />
-        <motion.div 
-          animate={{ 
-            y: [0, 50, 0], 
+        <motion.div
+          animate={{
+            y: [0, 50, 0],
             x: [0, -30, 0],
-            scale: [1, 1.2, 1] 
+            scale: [1, 1.2, 1]
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          className="absolute bottom-[-10%] right-[-10%] w-[80%] h-[60%] bg-indigo-400/25 blur-[100px] rounded-full" 
+          className="absolute bottom-[-10%] right-[-10%] w-[80%] h-[60%] bg-indigo-400/25 blur-[100px] rounded-full"
         />
-        
-        <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" 
-             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
+
+        <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay"
+          style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
       </div>
 
-      <motion.img 
-        src="/assets/images/Illustration Coin1.webp" 
+      <motion.img
+        src="/assets/images/Illustration Coin1.webp"
         initial={{ y: 800, opacity: 0 }}
         animate={{ y: [0, -15, 0], opacity: 0.4 }}
-        transition={{ 
+        transition={{
           y: { duration: 4, repeat: Infinity, ease: "easeInOut" },
           default: { duration: 1.5, ease: "easeOut" }
         }}
         className="absolute top-24 right-[-40px] w-64 pointer-events-none z-0"
       />
-      <motion.img 
-        src="/assets/images/Illustration Coin2.webp" 
+      <motion.img
+        src="/assets/images/Illustration Coin2.webp"
         initial={{ y: 800, opacity: 0 }}
         animate={{ y: [0, 10, 0], opacity: 0.3 }}
-        transition={{ 
+        transition={{
           y: { duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.5 },
           default: { duration: 1.8, ease: "easeOut" }
         }}
@@ -124,11 +124,11 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
       <div className="absolute bottom-20 left-0 w-full h-64 opacity-30 pointer-events-none z-10">
         <svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none">
           {[...Array(8)].map((_, i) => (
-            <path 
+            <path
               key={i}
-              d={`M -50 ${190 - i*14} Q 120 ${210 - i*10} 450 ${130 - i*25}`}
-              fill="none" 
-              stroke="white" 
+              d={`M -50 ${190 - i * 14} Q 120 ${210 - i * 10} 450 ${130 - i * 25}`}
+              fill="none"
+              stroke="white"
               strokeWidth="0.6"
               style={{ opacity: 0.08 + (i * 0.04) }}
             />
@@ -159,7 +159,7 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
 
         </div>
       </div>
-      
+
 
       <div className="fixed bottom-[145px] left-6 right-6 z-30">
         <div className="mb-10">
@@ -174,26 +174,26 @@ const CreditHome = ({ profile, onOpenNotifications, onTabChange }) => {
 
         <div className="space-y-4">
           {ctaCards.map((item, i) => (
-            <button 
-                key={i} 
-                onClick={() => {
-                    if (item.id === "portfolio") onTabChange("instantLiquidity");
-                    if (item.id === "unsecured") handleUnsecuredClick();
-                }}
-                disabled={navigating}
-                className="w-full flex items-center justify-between bg-white p-2 pl-8 rounded-full group active:scale-[0.98] transition-all shadow-2xl"
+            <button
+              key={i}
+              onClick={() => {
+                if (item.id === "portfolio") onTabChange("instantLiquidity");
+                if (item.id === "unsecured") handleUnsecuredClick();
+              }}
+              disabled={navigating}
+              className="w-full flex items-center justify-between bg-white p-2 pl-8 rounded-full group active:scale-[0.98] transition-all shadow-2xl"
             >
-                <div className="flex flex-col text-left py-2">
-                    <span className="text-[#6366F1] text-[17px] font-bold tracking-tight">
-                        {item.label}
-                    </span>
-                    <span className="text-slate-400 text-[10px] font-medium leading-tight max-w-[180px]">
-                        {item.description}
-                    </span>
-                </div>
-                <div className="h-14 w-14 rounded-full bg-[#6366F1] flex items-center justify-center text-white shadow-lg">
-                    <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                </div>
+              <div className="flex flex-col text-left py-2">
+                <span className="text-[#6366F1] text-[17px] font-bold tracking-tight">
+                  {item.label}
+                </span>
+                <span className="text-slate-400 text-[10px] font-medium leading-tight max-w-[180px]">
+                  {item.description}
+                </span>
+              </div>
+              <div className="h-14 w-14 rounded-full bg-[#6366F1] flex items-center justify-center text-white shadow-lg">
+                <ArrowRight className="h-6 w-6 group-hover:translate-x-1 transition-transform" />
+              </div>
             </button>
           ))}
         </div>
