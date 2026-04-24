@@ -41,6 +41,7 @@ const RepayLiquidity = ({ onBack, profile, fonts }) => {
         .select('*')
         .neq('status', 'repaid')
         .eq('user_id', profile.id)
+        .eq('Secured_Unsecured', 'secured')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -107,7 +108,23 @@ const RepayLiquidity = ({ onBack, profile, fonts }) => {
 
       if (loanError) throw loanError;
 
-      // 4. Cleanup & Show Success
+      // 4. INSERT INTO LEDGER (CRITICAL FOR HISTORY PAGE)
+      const { error: historyError } = await supabase
+        .from('credit_transactions_history')
+        .insert({
+          user_id: profile.id,
+          loan_application_id: selectedLoan.id,
+          loan_type: 'secured',
+          transaction_type: 'repayment',
+          direction: 'debit',
+          amount: amount,
+          description: 'Facility Settlement (EFT)',
+          occurred_at: new Date().toISOString()
+        });
+
+      if (historyError) throw historyError;
+
+      // 5. Cleanup & Show Success
       setShowEftModal(false);
       setPopFile(null);
       setPaymentAmount("");
