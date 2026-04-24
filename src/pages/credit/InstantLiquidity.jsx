@@ -263,7 +263,6 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
 
       if (loanErr) throw loanErr;
 
-      // Insert actual pledges so details work correctly
       if (selectedAssets?.length > 0) {
         const totalSelectedBalance = selectedAssets.reduce((sum, item) => sum + item.balance, 0);
         const pledgesToInsert = selectedAssets.map(asset => {
@@ -276,11 +275,17 @@ const InstantLiquidity = ({ profile, onOpenNotifications, onTabChange, onLinkBan
             pledged_quantity: asset.quantity,
             pledged_value: asset.balance,
             loan_value: principal * weight,
-            recognised_value: asset.available
+            recognised_value: asset.available,
+            ltv_applied: asset.ltv
           };
         });
+
         const { error: pledgeErr } = await supabase.from('pbc_collateral_pledges').insert(pledgesToInsert);
-        if (pledgeErr) console.error("Failed to insert pledges", pledgeErr);
+
+        if (pledgeErr) {
+          console.error("Failed to insert pledges", pledgeErr);
+          throw pledgeErr;
+        }
       }
 
       setActiveLoanId(loan.id);
