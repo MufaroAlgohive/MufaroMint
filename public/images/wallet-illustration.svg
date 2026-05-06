@@ -14,8 +14,6 @@
     </filter>
   </defs>
   
-  <rect width="200" height="200" rx="24" fill="url(#bg-grad)"/>
-  
   <!-- Wallet Body -->
   <g filter="url(#shadow)">
     <!-- Back flap -->
