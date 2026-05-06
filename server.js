@@ -1250,6 +1250,98 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url.startsWith('/api/send-eft-email') && req.method === 'POST') {
+    const token = parseBearerToken(req.headers.authorization);
+    if (!token) {
+      sendJson(res, 401, { error: 'Missing Authorization bearer token' });
+      return;
+    }
+
+    (async () => {
+      try {
+        await fetchSupabaseJson('/auth/v1/user', token, false);
+        const body = await readJsonBody(req);
+        const { to, subject, html, walletId } = body;
+
+        if (!to || !html) {
+          sendJson(res, 400, { error: 'Missing to or html payload' });
+          return;
+        }
+
+        if (!resendApiKey || !orderbookEmailFrom) {
+          sendJson(res, 500, { error: 'Email service not configured. Set RESEND_API_KEY and ORDERBOOK_EMAIL_FROM' });
+          return;
+        }
+
+        const attachments = [];
+        try {
+          const bannerPath = path.join(publicDir, 'images', 'Mailer Funds put.avif');
+          if (fs.existsSync(bannerPath)) {
+            attachments.push({
+              filename: 'banner.avif',
+              content: fs.readFileSync(bannerPath).toString('base64'),
+              cid: 'banner'
+            });
+          }
+          const logoPath = path.join(publicDir, 'icon.png');
+          if (fs.existsSync(logoPath)) {
+            attachments.push({
+              filename: 'logo.png',
+              content: fs.readFileSync(logoPath).toString('base64'),
+              cid: 'logo'
+            });
+          }
+        } catch (e) {
+          console.error('[EFT Email] Error reading attachments:', e);
+        }
+
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            from: orderbookEmailFrom,
+            to: [to],
+            subject: subject || 'Funds Allocated - Mint',
+            html: html,
+            attachments: attachments
+          })
+        });
+
+        let payload = null;
+        try { payload = await response.json(); } catch { payload = null; }
+
+        if (!response.ok) {
+          const message = payload?.message || payload?.error || `Resend request failed with ${response.status}`;
+          throw new Error(message);
+        }
+
+        if (walletId) {
+          const sbHeaders = {
+            apikey: supabaseServiceRoleKey,
+            Authorization: `Bearer ${supabaseServiceRoleKey}`,
+            'Content-Type': 'application/json'
+          };
+          await fetch(`${supabaseUrl}/rest/v1/wallets?id=eq.${encodeURIComponent(walletId)}`, {
+            method: 'PATCH',
+            headers: sbHeaders,
+            body: JSON.stringify({ mailer: 'sent' })
+          });
+        }
+
+        sendJson(res, 200, { ok: true, message: 'Email sent successfully' });
+      } catch (error) {
+        sendJson(res, 500, {
+          error: 'Could not send EFT email',
+          details: error?.message || 'Unknown error'
+        });
+      }
+    })();
+    return;
+  }
+
   // Investor data endpoint — uses service role key to bypass RLS
   if (req.url === '/api/investors/data' && req.method === 'GET') {
     (async () => {
