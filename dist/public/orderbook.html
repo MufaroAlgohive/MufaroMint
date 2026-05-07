@@ -5281,7 +5281,8 @@
         labelEl.textContent = isBuy ? 'Broker Fill Price (R)' : 'Broker Exit Price (R)';
       }
 
-      priceInput.value = (Number(row.avgFill) || 0).toFixed(2);
+      const avgFillValue = Number(row.avgFillNumber);
+      priceInput.value = Number.isFinite(avgFillValue) ? avgFillValue.toFixed(2) : '';
       if (pricePasswordInput) pricePasswordInput.value = '';
       
       // Only show batch toggle if we have a rebalance batch ID
@@ -5336,9 +5337,9 @@
       orderbookTableBody.addEventListener('click', async (event) => {
         const editBtn = event.target.closest('[data-edit-price]');
         if (editBtn) {
-          const lineKey = editBtn.dataset.line;
-          const row = (allOrderbookRows || []).find(r => String(r.line) === String(lineKey));
-          if (row) openPriceModal(row);
+          event.stopPropagation();
+          const row = buildEditableRowFromButton(editBtn);
+          if (getEditableSourceIds(row).length) openPriceModal(row);
           return;
         }
 
@@ -5384,22 +5385,32 @@
             // Find all matching rows in our current data
             idsToUpdate = (allOrderbookRawRows || [])
               .filter(r => r.rebalanceBatchId === currentEditRow.rebalanceBatchId)
-              .map(r => r.id);
+              .flatMap(r => getEditableSourceIds(r));
           } else {
-            idsToUpdate = [currentEditRow.id];
+            idsToUpdate = getEditableSourceIds(currentEditRow);
           }
 
+          idsToUpdate = [...new Set(idsToUpdate.map(String).filter(Boolean))];
           if (!idsToUpdate.length) throw new Error('No records to update.');
 
+          const nowIso = new Date().toISOString();
+          const fillDateStr = nowIso.split('T')[0];
+          const side = String(currentEditRow.tradeSide || currentEditRow.side || '').toUpperCase();
+          const payload = {
+            avg_fill: newPriceCents,
+            avg_exit: newPriceCents,
+            "Fill_date": fillDateStr,
+            updated_at: nowIso,
+            as_of_date: fillDateStr
+          };
+          if (side === 'SELL') {
+            payload["Exit_date"] = fillDateStr;
+          }
+
           // Perform Supabase update
-          // Note: We update both avg_fill and avg_exit to be safe, 
-          // though usually one applies per row type.
           const { error } = await supabaseClient
             .from('stock_holdings_c')
-            .update({ 
-              avg_fill: newPriceCents,
-              avg_exit: newPriceCents
-            })
+            .update(payload)
             .in('id', idsToUpdate);
 
           if (error) throw error;
