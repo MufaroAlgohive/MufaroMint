@@ -1994,7 +1994,8 @@
         .map((row, i) => ({ ...row, line: i + 1 }));
     };
 
-    const renderStrategyDetailsTable = (row) => {
+    const renderStrategyDetailsTable = (row, options = {}) => {
+      const editable = options.editable !== false;
       const holdings = row.strategyHoldings || [];
       const users = row.strategyUsers || [];
 
@@ -2007,7 +2008,7 @@
             <td class="orderbook-cell-muted">${escapeHtml(h.ticker || '-')}</td>
             <td>${escapeHtml(h.side || '-')}</td>
             <td>${escapeHtml(String(h.totalQuantity ?? '-'))}</td>
-            <td>${renderEditableAvgFill(h)}</td>
+            <td>${editable ? renderEditableAvgFill(h) : escapeHtml(asRandValue(h.avgFill))}</td>
             <td>${escapeHtml(asRandValue(h.marketValue))}</td>
             <td>${escapeHtml(String(h.unrealizedPnl ?? '-'))}</td>
           </tr>
@@ -3962,7 +3963,7 @@
             <tr class="orderbook-detail-row is-hidden" data-closed-detail-row data-closed-line-key="${escapeHtml(rowKey)}">
               <td colspan="11">
                 <div class="orderbook-detail-wrap">
-                  ${row.isStrategy ? renderStrategyDetailsTable(row) : `<div class="orderbook-detail-title">BND Allocation Details</div>${renderSnapshotBndDetailsTable(rows, row, book.sequence)}`}
+                  ${row.isStrategy ? renderStrategyDetailsTable(row, { editable: false }) : `<div class="orderbook-detail-title">BND Allocation Details</div>${renderSnapshotBndDetailsTable(rows, row, book.sequence)}`}
                 </div>
               </td>
             </tr>
@@ -5419,6 +5420,21 @@
       priceModal.classList.remove('is-active');
       currentEditRow = null;
     };
+
+    // Pencil icons exist in multiple containers (active table, strategy details,
+    // archive/closed sections), so bind edit open at document level.
+    document.addEventListener('click', (event) => {
+      const editBtn = event.target.closest('[data-edit-price]');
+      if (!editBtn) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const row = buildEditableRowFromButton(editBtn);
+      if (getEditableSourceIds(row).length) {
+        openPriceModal(row);
+      }
+    });
 
     if (orderbookTableBody) {
       orderbookTableBody.addEventListener('click', async (event) => {
