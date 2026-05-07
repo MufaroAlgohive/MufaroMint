@@ -4333,8 +4333,10 @@
         const hasAvgFill = Number.isFinite(avgFillValue);
         const lastPrice = Number(security.last_price);
         const hasLastPrice = Number.isFinite(lastPrice);
-        const computedMarketValueNumber = (isQuantityNumeric && hasLastPrice)
-          ? (quantityValue * lastPrice)
+        const totalFillPrice = hasAvgFill ? avgFillValue : (hasLastPrice ? lastPrice : NaN);
+        const hasTotalFillPrice = Number.isFinite(totalFillPrice);
+        const computedMarketValueNumber = (isQuantityNumeric && hasTotalFillPrice)
+          ? (Math.abs(quantityValue) * totalFillPrice)
           : 0;
         const unrealizedPnlValue = Number(row.unrealized_pnl);
         const normalizedUnrealizedPnlNumber = Number.isFinite(unrealizedPnlValue) ? unrealizedPnlValue : 0;
@@ -4351,7 +4353,7 @@
         const avgFill = hasAvgFill
           ? `R ${avgFillValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
           : '-';
-        const marketValue = (isQuantityNumeric && hasLastPrice)
+        const marketValue = (isQuantityNumeric && hasTotalFillPrice)
           ? `R ${computedMarketValueNumber.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
           : '-';
         const unrealizedPnl = Number.isFinite(unrealizedPnlValue)
@@ -5398,12 +5400,12 @@
           const side = String(currentEditRow.tradeSide || currentEditRow.side || '').toUpperCase();
           const payload = {
             avg_fill: newPriceCents,
-            avg_exit: newPriceCents,
             "Fill_date": fillDateStr,
             updated_at: nowIso,
             as_of_date: fillDateStr
           };
           if (side === 'SELL') {
+            payload.avg_exit = newPriceCents;
             payload["Exit_date"] = fillDateStr;
           }
 

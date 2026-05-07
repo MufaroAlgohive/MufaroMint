@@ -4408,7 +4408,7 @@
         const totalFillPrice = hasAvgFill ? avgFillValue : (hasLastPrice ? lastPrice : NaN);
         const hasTotalFillPrice = Number.isFinite(totalFillPrice);
         const computedMarketValueNumber = (isQuantityNumeric && hasTotalFillPrice)
-          ? ((Math.abs(quantityValue) / 100) * totalFillPrice)
+          ? (Math.abs(quantityValue) * totalFillPrice)
           : 0;
         const unrealizedPnlValue = Number(row.unrealized_pnl);
         const normalizedUnrealizedPnlNumber = Number.isFinite(unrealizedPnlValue) ? unrealizedPnlValue : 0;
@@ -5542,12 +5542,12 @@
           const side = String(currentEditRow.tradeSide || currentEditRow.side || '').toUpperCase();
           const payload = {
             avg_fill: newPriceCents,
-            avg_exit: newPriceCents,
             "Fill_date": fillDateStr,
             updated_at: nowIso,
             as_of_date: fillDateStr
           };
           if (side === 'SELL') {
+            payload.avg_exit = newPriceCents;
             payload["Exit_date"] = fillDateStr;
           }
 
