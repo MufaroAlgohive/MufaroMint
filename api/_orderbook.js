@@ -327,7 +327,7 @@ const handleSendTradeConfirmation = async (req, res, token) => {
         : currentDateStr;
 
       const quantityDisplay = parseFloat(quantity.toFixed(4)).toLocaleString('en-ZA');
-      const nominalDisplay = `${quantityDisplay} @ R ${avgFill}`;
+      const nominalDisplay = `${quantityDisplay}`;
 
       htmlContent = buildEmailHtml({
         firstName,
@@ -335,7 +335,7 @@ const handleSendTradeConfirmation = async (req, res, token) => {
         orderDate: execDate,
         tableRowsHtml: buildTradeRow(side, ticker, nominalDisplay),
         subjectHeading: 'Order Executed.',
-        subjectIntro: `your trade for <strong>${security.name || ticker}</strong> has been successfully filled and allocated to your <strong>${strategyName}</strong> portfolio.`
+        subjectIntro: `Your trade for <strong>${security.name || ticker}</strong> has been successfully filled and allocated to your <strong>${strategyName}</strong> portfolio.`
       });
 
     } else {
@@ -363,7 +363,7 @@ const handleSendTradeConfirmation = async (req, res, token) => {
         const quantity = Math.abs(bHolding.quantity);
         const avgFill = (bHolding.avg_fill / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const quantityDisplay = parseFloat(quantity.toFixed(4)).toLocaleString('en-ZA');
-        const nominalDisplay = `${quantityDisplay} @ R ${avgFill}`;
+        const nominalDisplay = `${quantityDisplay}`;
         tableRowsHtml += buildTradeRow(side, ticker, nominalDisplay);
       }
 
@@ -373,7 +373,7 @@ const handleSendTradeConfirmation = async (req, res, token) => {
         orderDate: batchDate,
         tableRowsHtml,
         subjectHeading: 'Orders Executed.',
-        subjectIntro: `the realignment of your <strong>${strategyName}</strong> portfolio has been completed. The following trades were executed:`
+        subjectIntro: `The realignment of your <strong>${strategyName}</strong> portfolio has been completed. The following trades were executed:`
       });
     }
 
