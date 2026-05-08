@@ -63,7 +63,11 @@ module.exports = async (req, res) => {
         body: { user_id, balance: numericAmount, currency: 'ZAR' },
         extraHeaders: { Prefer: 'return=representation' },
       });
-      walletId = Array.isArray(created) ? created[0]?.id : created?.id;
+      if (Array.isArray(created) && created[0]) {
+        walletId = created[0].id;
+      } else if (created) {
+        walletId = created.id;
+      }
     }
 
     // Record transaction
