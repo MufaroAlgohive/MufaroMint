@@ -344,7 +344,7 @@ const handleSendTradeConfirmation = async (req, res, token) => {
         ? new Date(holding.fill_date).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })
         : currentDateStr;
 
-      const quantityDisplay = parseFloat(quantity.toFixed(4)).toLocaleString('en-ZA');
+      const quantityDisplay = Number(quantity).toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
       const totalAmountValue = (quantity * (holding.avg_fill || 0)) / 100;
       const totalAmountStr = `R ${totalAmountValue.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -381,7 +381,7 @@ const handleSendTradeConfirmation = async (req, res, token) => {
         const side = bHolding.trade_side || (bHolding.quantity < 0 ? 'SELL' : 'BUY');
         const quantity = Math.abs(bHolding.quantity);
         const avgFill = (bHolding.avg_fill / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        const quantityDisplay = parseFloat(quantity.toFixed(4)).toLocaleString('en-ZA');
+        const quantityDisplay = Number(quantity).toLocaleString('en-ZA', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
         const totalAmountValue = (quantity * (bHolding.avg_fill || 0)) / 100;
         const totalAmountStr = `R ${totalAmountValue.toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         const refBatch = `BND-${bHolding.id.substring(0, 8).toUpperCase()}`;
