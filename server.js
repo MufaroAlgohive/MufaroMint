@@ -722,21 +722,20 @@ const server = http.createServer((req, res) => {
         const balanceAfter = balanceBefore + refundRand;
         const nowIso = new Date().toISOString();
 
-        // 4. Delete holdings (service-role bypasses RLS).
-        // Bare DELETE — no Prefer/select — returns 204 No Content, avoiding
-        // the 405 some tables/views return with return=representation.
+        // 4. Delete holdings (service-role bypasses RLS) + verify.
         let deletedCount = 0;
         let leftoverIds = [];
         if (holdingIds.length) {
-          await requestSupabaseJson(
-            `/rest/v1/stock_holdings_c?id=in.(${buildInFilter(holdingIds)})`,
-            { method: 'DELETE', useServiceRoleAuth: true }
+          const deleted = await requestSupabaseJson(
+            `/rest/v1/stock_holdings_c?id=in.(${buildInFilter(holdingIds)})&select=id`,
+            { method: 'DELETE', useServiceRoleAuth: true, extraHeaders: { Prefer: 'return=representation' } }
           );
+          deletedCount = Array.isArray(deleted) ? deleted.length : 0;
           const stillThere = await fetchSupabaseJson(
             `/rest/v1/stock_holdings_c?id=in.(${buildInFilter(holdingIds)})&select=id`
           );
           leftoverIds = Array.isArray(stillThere) ? stillThere.map((r) => r.id) : [];
-          deletedCount = holdingIds.length - leftoverIds.length;
+          if (!deletedCount) deletedCount = holdingIds.length - leftoverIds.length;
           if (leftoverIds.length) {
             return sendJson(res, 500, {
               error: 'Holdings delete did not remove all rows',
