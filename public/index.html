@@ -7908,31 +7908,38 @@
             const pdfBlob = doc.output('blob');
             zip.file(`${safeFileName}_Details.pdf`, pdfBlob);
 
-            // ── Download certificate if available ──
-            if (child.certificate_url) {
-              try {
-                const certResolvedUrl = await resolveStorageUrl(child.certificate_url);
-                if (certResolvedUrl) {
-                  const certResponse = await fetch(certResolvedUrl);
-                  if (certResponse.ok) {
-                    const certBlob = await certResponse.blob();
-                    const mime = String(certBlob.type || '');
-                    let ext = 'bin';
-                    if (mime.includes('pdf')) ext = 'pdf';
-                    else if (mime.includes('png')) ext = 'png';
-                    else if (mime.includes('jpeg') || mime.includes('jpg')) ext = 'jpg';
-                    else if (mime.includes('gif')) ext = 'gif';
-                    else if (mime.includes('webp')) ext = 'webp';
-                    else {
-                      const urlExt = child.certificate_url.split('.').pop()?.split('?')[0]?.toLowerCase();
-                      if (['pdf','png','jpg','jpeg','gif','webp'].includes(urlExt)) ext = urlExt;
-                    }
-                    zip.file(`${safeFileName}_Certificate.${ext}`, certBlob);
+            // ── Download every document the Documents modal would show ──
+            // Mirrors getChildDocuments(child): certificate + matching files
+            // across CHILD_DOC_BUCKETS, fetched via resolveBucketObjectUrl.
+            try {
+              const docs = await getChildDocuments(child);
+              const usedNames = new Set();
+              for (const doc of docs) {
+                try {
+                  const url = await resolveBucketObjectUrl(doc.bucket, doc.path);
+                  if (!url) continue;
+                  const response = await fetch(url);
+                  if (!response.ok) continue;
+                  const blob = await response.blob();
+                  // Prefer the storage filename; ensure uniqueness inside the zip.
+                  let baseName = (doc.name || doc.path.split('/').pop() || 'document').replace(/[\\/:*?"<>|]+/g, '_');
+                  let zipName = `${safeFileName}_${baseName}`;
+                  let suffix = 1;
+                  while (usedNames.has(zipName)) {
+                    const dot = baseName.lastIndexOf('.');
+                    const stem = dot > 0 ? baseName.slice(0, dot) : baseName;
+                    const ext = dot > 0 ? baseName.slice(dot) : '';
+                    zipName = `${safeFileName}_${stem}_${suffix}${ext}`;
+                    suffix += 1;
                   }
+                  usedNames.add(zipName);
+                  zip.file(zipName, blob);
+                } catch (docErr) {
+                  console.warn('Could not include doc in pack:', doc.path, docErr);
                 }
-              } catch (certErr) {
-                console.warn('Could not download certificate for pack:', certErr);
               }
+            } catch (docsErr) {
+              console.warn('Could not enumerate child documents for pack:', docsErr);
             }
 
             // ── Generate and download ZIP ──
