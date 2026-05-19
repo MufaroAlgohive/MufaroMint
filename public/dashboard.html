@@ -5600,7 +5600,9 @@
         window.__dbgBreadcrumb('ovSelect:fetch-profiles');
         let profiles = {};
         let txnInceptionMap = {};  /* userId → earliest transaction_date */
-        let secPriceMap = {};      /* security_id → last_price (ZAR cents) */
+        let secPriceMap = {};      /* security_id → last_price (ZAR rands) */
+        let secYtdMap = {};        /* security_id → ytd_pct (%) */
+        let sec1yMap = {};         /* security_id → 1y_pct (%) */
         if (investRows.length) {
           const uids = [...new Set(investRows.map(r => r.user_id).filter(Boolean))];
           const sids = [...new Set(investRows.map(r => r.security_id).filter(Boolean))];
@@ -5613,7 +5615,7 @@
               .eq('status', 'posted')
               .gte('amount', 10000),
             sids.length
-              ? supabaseClient.from('stock_returns_c').select('security_id, current_price, as_of_date').in('security_id', sids).order('as_of_date', { ascending: false })
+              ? supabaseClient.from('stock_returns_c').select('security_id, current_price, ytd_pct, 1y_pct, as_of_date').in('security_id', sids).order('as_of_date', { ascending: false })
               : Promise.resolve({ data: [] })
           ];
           const [{ data: profs }, { data: txnRows }, { data: secRows }] = await Promise.all(fetches);
@@ -5629,6 +5631,8 @@
             if (_seenSec.has(s.security_id)) return;
             _seenSec.add(s.security_id);
             secPriceMap[s.security_id] = s.current_price != null ? Number(s.current_price) / 100 : 0;
+            if (s.ytd_pct != null) secYtdMap[s.security_id] = Number(s.ytd_pct);
+            if (s['1y_pct'] != null) sec1yMap[s.security_id] = Number(s['1y_pct']);
           });
         }
 
@@ -5645,10 +5649,29 @@
           }
         });
 
+        /* ── Weighted portfolio YTD/1Y from security-level returns (fallback when strategies_returns_c is empty) ── */
+        let calcYtd = null, calc1y = null;
+        if (investRows.length) {
+          let ytdSum = 0, ytdWeight = 0, r1ySum = 0, r1yWeight = 0;
+          investRows.forEach(r => {
+            const qty = Number(r.quantity) || 0;
+            const lp = secPriceMap[r.security_id] || 0;
+            const mv = qty * lp;
+            if (mv <= 0) return;
+            if (secYtdMap[r.security_id] != null) { ytdSum += mv * secYtdMap[r.security_id]; ytdWeight += mv; }
+            if (sec1yMap[r.security_id] != null)  { r1ySum += mv * sec1yMap[r.security_id];  r1yWeight += mv; }
+          });
+          if (ytdWeight > 0) calcYtd = ytdSum / ytdWeight;
+          if (r1yWeight > 0) calc1y  = r1ySum / r1yWeight;
+        }
+        const stratRetMerged = stratRet
+          ? { ...stratRet, ytd_pct: stratRet.ytd_pct ?? calcYtd, '1y_pct': stratRet['1y_pct'] ?? calc1y }
+          : (calcYtd != null || calc1y != null ? { ytd_pct: calcYtd, '1y_pct': calc1y } : null);
+
         window.__dbgBreadcrumb('ovSelect:render-titlebar');
         ovRenderTitleBar(strat, analytics, totalAum, investRows.length);
         window.__dbgBreadcrumb('ovSelect:render-kpi');
-        ovRenderKpiStrip(analytics, stratRet);
+        ovRenderKpiStrip(analytics, stratRetMerged);
         window.__dbgBreadcrumb('ovSelect:render-perfchart');
         ovRenderPerfChart(analytics, strat.name || 'Strategy');
         window.__dbgBreadcrumb('ovSelect:render-sectorchart');
