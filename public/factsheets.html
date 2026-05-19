@@ -1002,6 +1002,34 @@
         }
       }
 
+      /* Intraday prices — latest current_price (cents) per security for min-investment calc */
+      const intradayBySymbol = {};
+      if (holdings.length > 0) {
+        const secIdsForIntraday = [];
+        const secIdToSym = {};
+        holdings.forEach(h => {
+          const sym = h.ticker || h.symbol || h;
+          const sec = securitiesMap.get(sym) || securitiesMap.get(normalizeSymbol(sym));
+          if (sec?.id && !secIdToSym[sec.id]) {
+            secIdsForIntraday.push(sec.id);
+            secIdToSym[sec.id] = sym;
+          }
+        });
+        if (secIdsForIntraday.length > 0) {
+          const { data: intradayRows } = await supabaseClient
+            .from('stock_intraday_c')
+            .select('security_id,current_price,timestamp')
+            .in('security_id', secIdsForIntraday)
+            .order('timestamp', { ascending: false });
+          (intradayRows || []).forEach(r => {
+            const sym = secIdToSym[r.security_id];
+            if (sym && intradayBySymbol[sym] == null) {
+              intradayBySymbol[sym] = Number(r.current_price);
+            }
+          });
+        }
+      }
+
       /* Returns */
       const { data: retRows } = await supabaseClient
         .from('strategies_returns_c')
@@ -1035,9 +1063,23 @@
         };
       });
 
-      /* Estimate cash */
-      const minInv = strategy.min_investment || null;
-      const cashAmt = minInv ? minInv*0.08 : null;
+      /* Min investment — live intraday prices (cents) summed × 1.08, fallback to min_investment/100 */
+      let totalCents = 0, hasIntraday = false;
+      holdings.forEach(h => {
+        const sym = h.ticker || h.symbol || h;
+        const shares = Number(h.shares || h.quantity || 1);
+        const priceCents = intradayBySymbol[sym] ?? intradayBySymbol[normalizeSymbol(sym)] ?? null;
+        if (priceCents != null) { totalCents += shares * priceCents; hasIntraday = true; }
+      });
+      let minInv, cashAmt;
+      if (hasIntraday && totalCents > 0) {
+        const equitiesR = totalCents / 100;
+        cashAmt = equitiesR * 0.08;
+        minInv = equitiesR + cashAmt;
+      } else {
+        minInv = strategy.min_investment ? strategy.min_investment / 100 : null;
+        cashAmt = minInv ? minInv * 0.08 : null;
+      }
       holdingsWithMetrics.push({sym:'CASH',name:cashAmt?`Cash (${formatCurrency(cashAmt,strategy.base_currency||'ZAR')})`: 'Cash',weight:8,weightPct:8,logoUrl:null,change:null,mv:cashAmt||0});
 
       /* Calendar returns from basket_value */
