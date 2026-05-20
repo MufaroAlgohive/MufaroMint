@@ -2357,6 +2357,100 @@
         </div>`;
     };
 
+    /* Build the per-investor view of the strategy's holdings: only the rows
+       belonging to the selected user|fmId|created_at-bucket. Returns synthetic
+       holding objects that carry the user's specific sourceId, avg_fill, qty,
+       PnL so renderEditableAvgFill edits only that user's stock_holdings_c rows. */
+    const buildHoldingsForSelectedInvestor = (strategyId, userId, familyMemberId, createdAtFrom, createdAtTo) => {
+      if (!strategyId || !userId) return [];
+      const targetFm = familyMemberId || '';
+      const fromMs = createdAtFrom ? new Date(createdAtFrom).getTime() - 5000 : null;
+      const toMs   = createdAtTo   ? new Date(createdAtTo).getTime() + 5000   : null;
+      const rows = (allOrderbookRawRows || []).filter((r) => {
+        if (String(r.strategyId || '') !== String(strategyId)) return false;
+        if (String(r.userId || '') !== String(userId)) return false;
+        if (String(r.familyMemberId || '') !== String(targetFm)) return false;
+        if (fromMs != null && r.createdAt) {
+          const ts = new Date(r.createdAt).getTime();
+          if (Number.isFinite(ts) && ts < fromMs) return false;
+        }
+        if (toMs != null && r.createdAt) {
+          const ts = new Date(r.createdAt).getTime();
+          if (Number.isFinite(ts) && ts > toMs) return false;
+        }
+        return true;
+      });
+      return rows
+        .sort((a, b) => String(a.instrumentName || '').localeCompare(String(b.instrumentName || '')))
+        .map((r, i) => ({ ...r, line: i + 1 }));
+    };
+
+    /* Render the Holdings panel (top of the strategy detail). When an investor
+       is selected, switches to per-user view; otherwise shows the aggregated view. */
+    const renderStrategyHoldingsHtml = (row, options = {}) => {
+      const editable = options.editable !== false;
+      const aggregateHoldings = row.strategyHoldings || [];
+      if (!aggregateHoldings.length) {
+        return '<div class="filled-orderbook-empty">No holdings found for this strategy.</div>';
+      }
+
+      let titleSuffix = '';
+      let holdings = aggregateHoldings;
+      if (selectedInvestorKey) {
+        const users = row.strategyUsers || [];
+        const sel = users.find((u) => `${u.userId || ''}|${u.familyMemberId || ''}|${u.createdAtBucket || ''}` === selectedInvestorKey);
+        if (sel) {
+          const userHoldings = buildHoldingsForSelectedInvestor(
+            row.strategyId,
+            sel.userId,
+            sel.familyMemberId,
+            sel.createdAtFrom,
+            sel.createdAtTo
+          );
+          if (userHoldings.length) {
+            holdings = userHoldings;
+            titleSuffix = ` <span style="font-size:11px;font-weight:400;color:#7c3aed;margin-left:8px;">· filtered to ${escapeHtml(sel.clientName || '')}${sel.createdAtBucket ? ' @ ' + escapeHtml(sel.createdAtBucket.replace('T', ' ')) : ''}</span>`;
+          } else {
+            titleSuffix = ` <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:8px;">· no holdings found for selected investor</span>`;
+          }
+        }
+      }
+
+      const hBody = holdings.map((h) => `
+        <tr>
+          <td>${escapeHtml(String(h.line))}</td>
+          <td>${escapeHtml(h.instrumentName || '-')}</td>
+          <td class="orderbook-cell-muted">${escapeHtml(h.ticker || '-')}</td>
+          <td>${escapeHtml(h.side || '-')}</td>
+          <td>${escapeHtml(String(h.totalQuantity ?? '-'))}</td>
+          <td>${editable ? renderEditableAvgFill(h) : escapeHtml(asRandValue(h.avgFill))}</td>
+          <td>${escapeHtml(asRandValue(h.marketValue))}</td>
+          ${renderInitialPnlCell(h.unrealizedPnlNumber, h.unrealizedPnl)}
+        </tr>
+      `).join('');
+
+      return `
+        <div class="orderbook-detail-title">Holdings under ${escapeHtml(row.strategyName || 'Strategy')}${titleSuffix}</div>
+        <div class="orderbook-detail-table-wrap">
+          <table class="orderbook-detail-table">
+            <thead>
+              <tr>
+                <th>Line</th>
+                <th>Instrument Name</th>
+                <th>Ticker</th>
+                <th>Side</th>
+                <th>Total QYT</th>
+                <th>Avg Fill</th>
+                <th>Expected Fill</th>
+                <th>Initial PnL</th>
+              </tr>
+            </thead>
+            <tbody>${hBody}</tbody>
+          </table>
+        </div>
+      `;
+    };
+
     const renderStrategyDetailsTable = (row, options = {}) => {
       const editable = options.editable !== false;
       const cleanup = options.cleanup === true && options.bookId != null && options.rowIndex != null;
@@ -2366,44 +2460,9 @@
       const holdings = row.strategyHoldings || [];
       const users = row.strategyUsers || [];
 
-      let holdingsHtml;
-      if (holdings.length) {
-        const hBody = holdings.map((h) => `
-          <tr>
-            <td>${escapeHtml(String(h.line))}</td>
-            <td>${escapeHtml(h.instrumentName || '-')}</td>
-            <td class="orderbook-cell-muted">${escapeHtml(h.ticker || '-')}</td>
-            <td>${escapeHtml(h.side || '-')}</td>
-            <td>${escapeHtml(String(h.totalQuantity ?? '-'))}</td>
-            <td>${editable ? renderEditableAvgFill(h) : escapeHtml(asRandValue(h.avgFill))}</td>
-            <td>${escapeHtml(asRandValue(h.marketValue))}</td>
-            ${renderInitialPnlCell(h.unrealizedPnlNumber, h.unrealizedPnl)}
-          </tr>
-        `).join('');
-
-        holdingsHtml = `
-          <div class="orderbook-detail-title">Holdings under ${escapeHtml(row.strategyName || 'Strategy')}</div>
-          <div class="orderbook-detail-table-wrap">
-            <table class="orderbook-detail-table">
-              <thead>
-                <tr>
-                  <th>Line</th>
-                  <th>Instrument Name</th>
-                  <th>Ticker</th>
-                  <th>Side</th>
-                  <th>Total QYT</th>
-                  <th>Avg Fill</th>
-                  <th>Expected Fill</th>
-                  <th>Initial PnL</th>
-                </tr>
-              </thead>
-              <tbody>${hBody}</tbody>
-            </table>
-          </div>
-        `;
-      } else {
-        holdingsHtml = '<div class="filled-orderbook-empty">No holdings found for this strategy.</div>';
-      }
+      const holdingsHtml = holdings.length
+        ? `<div data-strategy-holdings-panel data-strategy-id="${escapeHtml(String(row.strategyId || ''))}">${renderStrategyHoldingsHtml(row, options)}</div>`
+        : '<div class="filled-orderbook-empty">No holdings found for this strategy.</div>';
 
       let usersHtml = '';
       if (users.length) {
@@ -6680,16 +6739,30 @@
       openReverseInvestorModal(payload).catch((err) => alert('Reverse modal error: ' + (err?.message || err)));
     });
 
-    /* Investor row click → select, highlight purple, render detail panel.
+    /* Investor row click → select, highlight purple, render detail panel,
+       AND re-render the Holdings table above to show only that investor's
+       holdings (with their own avg_fill that can be edited independently).
        Detail panel close button clears the selection. */
+    const refreshStrategyDetailViews = (strategyId) => {
+      if (!strategyId) return;
+      const stratRow = (allOrderbookRows || []).find((r) => r.isStrategy && String(r.strategyId || '') === String(strategyId));
+      if (!stratRow) return;
+      const holdingsPanel = document.querySelector(`[data-strategy-holdings-panel][data-strategy-id="${CSS.escape(strategyId)}"]`);
+      if (holdingsPanel) holdingsPanel.innerHTML = renderStrategyHoldingsHtml(stratRow);
+      const detailPanel = document.querySelector(`[data-investor-detail-panel][data-strategy-id="${CSS.escape(strategyId)}"]`);
+      if (detailPanel) detailPanel.innerHTML = renderInvestorDetailPanel(stratRow);
+    };
+
     document.addEventListener('click', (event) => {
       const closeBtn = event.target.closest('[data-investor-detail-close]');
       if (closeBtn) {
         event.preventDefault();
         event.stopPropagation();
+        const prevStrategyId = closeBtn.closest('[data-investor-detail-panel]')?.dataset?.strategyId || '';
         selectedInvestorKey = null;
         document.querySelectorAll('.investor-row.selected').forEach((r) => r.classList.remove('selected'));
-        document.querySelectorAll('[data-investor-detail-panel]').forEach((p) => { p.innerHTML = ''; });
+        if (prevStrategyId) refreshStrategyDetailViews(prevStrategyId);
+        else document.querySelectorAll('[data-investor-detail-panel]').forEach((p) => { p.innerHTML = ''; });
         return;
       }
 
@@ -6719,13 +6792,8 @@
         });
       }
 
-      /* Re-render the detail panel for this strategy */
-      const panel = document.querySelector(`[data-investor-detail-panel][data-strategy-id="${CSS.escape(strategyId)}"]`);
-      if (panel) {
-        /* Look up the strategy row in the orderbook to feed the panel */
-        const stratRow = (allOrderbookRows || []).find((r) => r.isStrategy && String(r.strategyId || '') === String(strategyId));
-        panel.innerHTML = stratRow ? renderInvestorDetailPanel(stratRow) : '';
-      }
+      /* Re-render the holdings panel (filter to selected user) + detail panel */
+      refreshStrategyDetailViews(strategyId);
     });
 
     // Reverse modal close / cancel / confirm / select-txn
