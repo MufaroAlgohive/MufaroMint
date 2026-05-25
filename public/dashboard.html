@@ -3397,14 +3397,25 @@
       const fetchStrategyReturns = async (strategyIds) => {
         if (!strategyIds || !strategyIds.length) return {};
         const map = {};
+        const uniqIds = [...new Set(strategyIds.filter(Boolean))];
+        /* Step 1: get the latest as_of_date (avoids 1000-row limit — strategies_returns_c has 300+ rows per strategy) */
+        const { data: dateRow } = await supabaseClient
+          .from('strategies_returns_c')
+          .select('as_of_date')
+          .order('as_of_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const latestDate = dateRow?.as_of_date;
+        if (!latestDate) return map;
+        /* Step 2: fetch all strategies for that single date — exactly 1 row per strategy */
         const chunks = [];
-        for (let i = 0; i < strategyIds.length; i += 50) chunks.push(strategyIds.slice(i, i + 50));
+        for (let i = 0; i < uniqIds.length; i += 200) chunks.push(uniqIds.slice(i, i + 200));
         const results = await Promise.all(
           chunks.map(chunk =>
             supabaseClient.from('strategies_returns_c')
               .select('strategy_id, 1d_pct, 5d_pct, 1m_pct, 6m_pct, ytd_pct, 1y_pct, 5y_pct, basket_value, as_of_date')
               .in('strategy_id', chunk)
-              .order('as_of_date', { ascending: false })
+              .eq('as_of_date', latestDate)
           )
         );
         results.forEach(({ data }) => {
@@ -4915,22 +4926,45 @@
           }
         } catch(_){}
 
-        /* Fetch spark data for all strategies */
+        /* Fetch spark data for all strategies — limit to last 90 days to stay under row cap */
         try {
           const ids = allStrategiesFullData.map(s => s.id).filter(Boolean);
           if (ids.length > 0) {
-            const { data: retRows } = await supabaseClient
-              .from('strategies_returns_c')
-              .select('strategy_id,basket_value,as_of_date')
-              .in('strategy_id', ids)
-              .order('as_of_date', { ascending: true });
+            const d90 = new Date(); d90.setDate(d90.getDate() - 90);
+            const d90str = d90.toISOString().slice(0, 10);
+            const chunks90 = [];
+            for (let i = 0; i < ids.length; i += 50) chunks90.push(ids.slice(i, i + 50));
+            const sparkResults = await Promise.all(chunks90.map(chunk =>
+              supabaseClient.from('strategies_returns_c')
+                .select('strategy_id,basket_value,as_of_date')
+                .in('strategy_id', chunk)
+                .gte('as_of_date', d90str)
+                .order('as_of_date', { ascending: true })
+            ));
             const sparks = {};
-            (retRows || []).forEach(r => {
-              if (r.basket_value == null) return;
-              if (!sparks[r.strategy_id]) sparks[r.strategy_id] = [];
-              sparks[r.strategy_id].push(Number(r.basket_value));
+            sparkResults.forEach(({ data: retRows }) => {
+              (retRows || []).forEach(r => {
+                if (r.basket_value == null) return;
+                if (!sparks[r.strategy_id]) sparks[r.strategy_id] = [];
+                sparks[r.strategy_id].push(Number(r.basket_value));
+              });
             });
             window._fsSparkMap = sparks;
+          }
+        } catch(_){}
+
+        /* Ensure strategyYtdMap is populated — fetchStrategyReturns if the map is missing entries */
+        try {
+          const ids = allStrategiesFullData.map(s => s.id).filter(Boolean);
+          const missing = ids.some(id => !strategyYtdMap || !strategyYtdMap.has(String(id)));
+          if (missing) {
+            const retMap = await fetchStrategyReturns(ids);
+            if (!strategyYtdMap) strategyYtdMap = new Map();
+            if (!strategyReturnsMap) strategyReturnsMap = new Map();
+            Object.entries(retMap).forEach(([id, row]) => {
+              strategyYtdMap.set(id, row.ytd_pct ?? null);
+              strategyReturnsMap.set(id, row);
+            });
           }
         } catch(_){}
 
@@ -5705,14 +5739,11 @@
               .eq('direction', 'debit')
               .eq('status', 'posted')
               .gte('amount', 10000),
-            sids.length
-              ? supabaseClient.from('stock_returns_c').select('security_id, current_price, ytd_pct, 1y_pct, as_of_date').in('security_id', sids).order('as_of_date', { ascending: false })
-              : Promise.resolve({ data: [] }),
             fmIds.length
               ? supabaseClient.from('family_members').select('id, first_name, last_name, relationship').in('id', fmIds)
               : Promise.resolve({ data: [] }),
           ];
-          const [{ data: profs }, { data: txnRows }, { data: secRows }, { data: fmRows }] = await Promise.all(fetches);
+          const [{ data: profs }, { data: txnRows }, { data: fmRows }] = await Promise.all(fetches);
           if (profs) profs.forEach(p => { profiles[p.id] = p; });
           (fmRows || []).forEach((fm) => { familyMembers[fm.id] = fm; });
           (txnRows || []).forEach(t => {
@@ -5720,15 +5751,15 @@
             if (d && (!txnInceptionMap[t.user_id] || d < txnInceptionMap[t.user_id]))
               txnInceptionMap[t.user_id] = d;
           });
-          /* current_price from stock_returns_c is already in cents — store directly */
-          const _seenSec = new Set();
-          (secRows || []).forEach(s => {
-            if (_seenSec.has(s.security_id)) return;
-            _seenSec.add(s.security_id);
-            secPriceMap[s.security_id] = s.current_price != null ? Number(s.current_price) / 100 : 0;
-            if (s.ytd_pct != null) secYtdMap[s.security_id] = Number(s.ytd_pct);
-            if (s['1y_pct'] != null) sec1yMap[s.security_id] = Number(s['1y_pct']);
-          });
+          /* Use fetchStockReturnsBySec (date-filtered, avoids 1000-row limit) for investor security data */
+          if (sids.length) {
+            const _secRet = await fetchStockReturnsBySec(sids);
+            Object.entries(_secRet).forEach(([sid, s]) => {
+              secPriceMap[sid] = s.current_price != null ? Number(s.current_price) / 100 : 0;
+              if (s['ytd_pct'] != null) secYtdMap[sid] = Number(s['ytd_pct']);
+              if (s['1y_pct']  != null) sec1yMap[sid]  = Number(s['1y_pct']);
+            });
+          }
         }
 
         /* Compute AUM from live prices (qty × last_price) or fall back to cost basis */
