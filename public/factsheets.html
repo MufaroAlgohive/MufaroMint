@@ -1291,18 +1291,39 @@
       /* YTD + spark data */
       try {
         const ids = strategies.map(s=>s.id).filter(Boolean);
-        const { data: retRows } = await supabaseClient
+        /* Step 1: get the latest as_of_date to avoid 1000-row default limit cutting off newest rows */
+        const { data: dateRow } = await supabaseClient
           .from('strategies_returns_c')
-          .select('strategy_id,ytd_pct,basket_value,as_of_date')
+          .select('as_of_date')
+          .order('as_of_date',{ascending:false})
+          .limit(1)
+          .maybeSingle();
+        const latestDate = dateRow?.as_of_date;
+        /* Step 2: fetch YTD for that single date only — exactly 1 row per strategy */
+        const latestYtd={};
+        if (latestDate) {
+          const { data: ytdRows } = await supabaseClient
+            .from('strategies_returns_c')
+            .select('strategy_id,ytd_pct')
+            .in('strategy_id',ids)
+            .eq('as_of_date',latestDate);
+          (ytdRows||[]).forEach(r=>{ latestYtd[r.strategy_id]=r.ytd_pct; });
+        }
+        _ytdMap=latestYtd;
+        /* Step 3: fetch last 90 days of basket_value for sparklines (well within row limit) */
+        const sparks={};
+        const d90=new Date(); d90.setDate(d90.getDate()-90);
+        const d90str=d90.toISOString().slice(0,10);
+        const { data: sparkRows } = await supabaseClient
+          .from('strategies_returns_c')
+          .select('strategy_id,basket_value,as_of_date')
           .in('strategy_id',ids)
+          .gte('as_of_date',d90str)
           .order('as_of_date',{ascending:true});
-        const latestYtd={}, sparks={};
-        (retRows||[]).forEach(r=>{
-          latestYtd[r.strategy_id]=r.ytd_pct;
+        (sparkRows||[]).forEach(r=>{
           if(!sparks[r.strategy_id]) sparks[r.strategy_id]=[];
           if(r.basket_value!=null) sparks[r.strategy_id].push(Number(r.basket_value));
         });
-        _ytdMap=latestYtd;
         _sparkMap=sparks;
       } catch(_){}
 
