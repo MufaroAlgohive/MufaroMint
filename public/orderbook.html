@@ -2027,7 +2027,14 @@
 
     const renderSnapshotBndDetailsTable = (snapshotRows, targetRow, parentSequence = null, options = {}) => {
       const allowReverse = options.allowReverse === true;
+      const cleanup = options.cleanup === true && options.bookId != null && options.rowIndex != null;
+      const cleanupBookId = options.bookId != null ? String(options.bookId) : '';
+      const cleanupRowIndex = options.rowIndex != null ? String(options.rowIndex) : '';
       const reverseHeader = allowReverse ? '<th class="reverse-investor-col" aria-label="Reverse"></th>' : '';
+      const deleteHeader = cleanup ? '<th class="cleanup-delete-col" aria-label="Remove"></th>' : '';
+      const buildDeleteCell = (row) => cleanup
+        ? `<td class="cleanup-delete-col"><button type="button" class="cleanup-delete-btn" data-cleanup-delete data-book-id="${escapeHtml(cleanupBookId)}" data-row-index="${escapeHtml(cleanupRowIndex)}" data-bnd-source-id="${escapeHtml(String(row.sourceId || ''))}" data-user-id="${escapeHtml(String(row.userId || ''))}" title="Remove this investor from this orderbook snapshot">&times;</button></td>`
+        : '';
       if (Array.isArray(targetRow?.bndRows) && targetRow.bndRows.length) {
         const body = targetRow.bndRows.map((row) => `
           <tr>
@@ -2042,6 +2049,7 @@
             <td>${escapeHtml(row.instructionType || 'Market')}</td>
             <td>${escapeHtml(row.settlementRef || '')}</td>
             ${allowReverse ? buildSnapshotReverseCell(row, allowReverse) : ''}
+            ${buildDeleteCell(row)}
           </tr>
         `).join('');
 
@@ -2061,6 +2069,7 @@
                   <th>Instruction Type</th>
                   <th>Settlement Ref</th>
                   ${reverseHeader}
+                  ${deleteHeader}
                 </tr>
               </thead>
               <tbody>
@@ -4368,7 +4377,7 @@
               <tr class="orderbook-detail-row is-hidden" data-archive-detail-row data-archive-line-key="${escapeHtml(rowKey)}">
                 <td colspan="${showActiveBooksFilledColumn ? '13' : '12'}">
                   <div class="orderbook-detail-wrap">
-                    ${row.isStrategy ? renderStrategyDetailsTable(row, { cleanup: cleanupMode, bookId: book.id, rowIndex, allowReverse: true }) : `<div class="orderbook-detail-title">BND Allocation Details</div>${renderSnapshotBndDetailsTable(rows, row, book.sequence, { allowReverse: true })}`}
+                    ${row.isStrategy ? renderStrategyDetailsTable(row, { cleanup: cleanupMode, bookId: book.id, rowIndex, allowReverse: true }) : `<div class="orderbook-detail-title">BND Allocation Details</div>${renderSnapshotBndDetailsTable(rows, row, book.sequence, { allowReverse: true, cleanup: cleanupMode, bookId: book.id, rowIndex })}`}
                   </div>
                 </td>
               </tr>
@@ -4570,7 +4579,7 @@
             <tr class="orderbook-detail-row is-hidden" data-closed-detail-row data-closed-line-key="${escapeHtml(rowKey)}">
               <td colspan="12">
                 <div class="orderbook-detail-wrap">
-                  ${row.isStrategy ? renderStrategyDetailsTable(row, { editable: false, cleanup: cleanupMode, bookId: book.id, rowIndex }) : `<div class="orderbook-detail-title">BND Allocation Details</div>${renderSnapshotBndDetailsTable(rows, row, book.sequence)}`}
+                  ${row.isStrategy ? renderStrategyDetailsTable(row, { editable: false, cleanup: cleanupMode, bookId: book.id, rowIndex }) : `<div class="orderbook-detail-title">BND Allocation Details</div>${renderSnapshotBndDetailsTable(rows, row, book.sequence, { cleanup: cleanupMode, bookId: book.id, rowIndex })}`}
                 </div>
               </td>
             </tr>
@@ -6301,40 +6310,87 @@
       const bookId = btn.dataset.bookId;
       const rowIndex = Number(btn.dataset.rowIndex);
       const userId = btn.dataset.userId;
-      if (!bookId || !Number.isFinite(rowIndex) || !userId) return;
+      const bndSourceId = btn.dataset.bndSourceId || '';
+      if (!bookId || !Number.isFinite(rowIndex)) return;
 
       const book = filledOrderbooksArchive.find((b) => String(b.id) === String(bookId));
       if (!book || !Array.isArray(book.rows)) return;
       const row = book.rows[rowIndex];
-      if (!row || !Array.isArray(row.strategyUsers)) return;
+      if (!row) return;
 
-      const target = row.strategyUsers.find((u) => String(u.userId) === String(userId));
-      const userName = target?.clientName || 'this investor';
+      /* Two cleanup flavours share this handler:
+         - Strategy rows: data-user-id only — remove a user from strategyUsers
+           (which also strips them out of bndRows).
+         - Single-security rows: data-bnd-source-id present — remove just that
+           one BND allocation (one investor's slice of the security order).
+         BND-source-id wins when present because a user can have multiple BND
+         lines on the same security (e.g. via different strategies). */
+      const isBndDelete = !!bndSourceId && Array.isArray(row.bndRows) && row.bndRows.length;
 
-      const isLast = row.strategyUsers.length <= 1;
-      const message = isLast
-        ? `Remove ${userName} from this orderbook?\n\nThis is the last investor in "${row.strategyName || 'Strategy'}", so the whole row will be removed from the snapshot.`
-        : `Remove ${userName} from this orderbook snapshot?`;
-      if (!window.confirm(message)) return;
+      if (isBndDelete) {
+        const target = row.bndRows.find((b) => String(b.sourceId || '') === String(bndSourceId));
+        if (!target) return;
+        const userName = target.clientNameFull || target.clientName || 'this investor';
+        const isLast = row.bndRows.length <= 1;
+        const securityLabel = row.instrumentName || row.ticker || 'Security';
+        const message = isLast
+          ? `Remove ${userName} from this orderbook?\n\nThis is the last investor in "${securityLabel}", so the whole row will be removed from the snapshot.`
+          : `Remove ${userName} from this orderbook snapshot?`;
+        if (!window.confirm(message)) return;
 
-      btn.disabled = true;
+        btn.disabled = true;
 
-      const removedMv = Number(target?.totalMarketValue || 0);
-      row.strategyUsers = row.strategyUsers.filter((u) => String(u.userId) !== String(userId));
+        const removedMv = Number(String(target.marketValue || '').replace(/[^\d.\-]/g, '')) || 0;
+        const removedQty = Number(target.quantityValue || 0);
+        row.bndRows = row.bndRows.filter((b) => String(b.sourceId || '') !== String(bndSourceId));
+        if (Array.isArray(row.sourceIds) && bndSourceId) {
+          row.sourceIds = row.sourceIds.filter((id) => String(id) !== String(bndSourceId));
+        }
+        if (Number.isFinite(removedMv) && removedMv) {
+          const currentMv = Number(row.marketValueNumber || 0);
+          const nextMv = currentMv - removedMv;
+          row.marketValueNumber = nextMv;
+          row.marketValue = `R ${nextMv.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+        if (Number.isFinite(removedQty) && removedQty) {
+          const currentQty = Number(row.quantityValue || 0);
+          const nextQty = currentQty - removedQty;
+          row.quantityValue = nextQty;
+          row.totalQuantity = nextQty.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 6 });
+        }
+        if (row.bndRows.length === 0) {
+          book.rows = book.rows.filter((_, idx) => idx !== rowIndex);
+        }
+      } else {
+        if (!userId || !Array.isArray(row.strategyUsers)) return;
+        const target = row.strategyUsers.find((u) => String(u.userId) === String(userId));
+        const userName = target?.clientName || 'this investor';
 
-      if (Array.isArray(row.bndRows) && row.bndRows.length) {
-        row.bndRows = row.bndRows.filter((b) => String(b.userId || '') !== String(userId));
-      }
+        const isLast = row.strategyUsers.length <= 1;
+        const message = isLast
+          ? `Remove ${userName} from this orderbook?\n\nThis is the last investor in "${row.strategyName || 'Strategy'}", so the whole row will be removed from the snapshot.`
+          : `Remove ${userName} from this orderbook snapshot?`;
+        if (!window.confirm(message)) return;
 
-      if (Number.isFinite(removedMv) && removedMv) {
-        const currentMv = Number(row.marketValueNumber || 0);
-        const nextMv = currentMv - removedMv;
-        row.marketValueNumber = nextMv;
-        row.marketValue = `R ${nextMv.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-      }
+        btn.disabled = true;
 
-      if (row.strategyUsers.length === 0) {
-        book.rows = book.rows.filter((_, idx) => idx !== rowIndex);
+        const removedMv = Number(target?.totalMarketValue || 0);
+        row.strategyUsers = row.strategyUsers.filter((u) => String(u.userId) !== String(userId));
+
+        if (Array.isArray(row.bndRows) && row.bndRows.length) {
+          row.bndRows = row.bndRows.filter((b) => String(b.userId || '') !== String(userId));
+        }
+
+        if (Number.isFinite(removedMv) && removedMv) {
+          const currentMv = Number(row.marketValueNumber || 0);
+          const nextMv = currentMv - removedMv;
+          row.marketValueNumber = nextMv;
+          row.marketValue = `R ${nextMv.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+
+        if (row.strategyUsers.length === 0) {
+          book.rows = book.rows.filter((_, idx) => idx !== rowIndex);
+        }
       }
 
       try {
