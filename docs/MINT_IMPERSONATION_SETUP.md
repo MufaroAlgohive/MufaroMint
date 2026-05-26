@@ -58,9 +58,11 @@ createClient(url, anonKey, {
 
 If your app passes `detectSessionInUrl: false` anywhere, flip it back to `true` on the entry route.
 
-## 3. (Optional, recommended) Read-only "admin view" mode
+## 3. (Recommended) "Admin view" banner
 
-The redirect URL appends `?admin_view=1` so the Mint app can recognise an admin session and hide destructive UI. Add this once near the app root:
+The redirect URL appends `?admin_view=1` so the Mint app can recognise that this session was opened by an admin via Client View Studio (rather than the real client signing in themselves). The admin **keeps full action capability** — they can place orders, edit the profile, submit KYC, etc., exactly as the client would. The only requirement is a visual banner so the admin always knows they are *not* logged in as themselves.
+
+Add this once near the app root:
 
 ```ts
 // e.g. in App.tsx or _app.tsx
@@ -68,7 +70,7 @@ useEffect(() => {
   const url = new URL(window.location.href);
   if (url.searchParams.get('admin_view') === '1') {
     sessionStorage.setItem('mint:admin_impersonation', '1');
-    // Optional: strip the query so refreshes inside the iframe still keep it
+    // Strip the query so refreshes inside the iframe stay clean
     url.searchParams.delete('admin_view');
     window.history.replaceState({}, '', url.toString());
   }
@@ -78,21 +80,17 @@ export const isAdminImpersonation = () =>
   typeof window !== 'undefined' && sessionStorage.getItem('mint:admin_impersonation') === '1';
 ```
 
-Then, in every place that mutates client data (place order, withdraw, edit profile, submit KYC, change bank, etc.):
-
-```tsx
-{!isAdminImpersonation() && <BuyButton />}
-```
-
-Add a small banner at the top of the app so the admin knows they're in read-only mode:
+Then render the banner at the top of the app:
 
 ```tsx
 {isAdminImpersonation() && (
   <div style={{background:'#fff7ed',color:'#9a3412',padding:'6px 12px',fontSize:12,fontWeight:600,textAlign:'center'}}>
-    Admin view — read only. No actions are sent on the client's behalf.
+    Admin view — you are signed in as this client. Any action you take is recorded against their account.
   </div>
 )}
 ```
+
+That's it — do **not** wrap buttons in `{!isAdminImpersonation() && …}`. Admins need full functionality (e.g. to help a client complete an order over the phone); the banner alone is enough to make it obvious which session you're in.
 
 The admin portal also posts `{ type: 'mint:admin_signout' }` via `window.postMessage` to the iframe when the admin clicks **Exit client view**. If you want the Mint app to actively sign the impersonated user out of its iframe storage on exit, listen for it:
 
