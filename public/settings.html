@@ -116,12 +116,27 @@
       .cp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;}
       .cp-pnl-pos{color:#34c759;} .cp-pnl-neg{color:#ff3b30;} .cp-muted{color:#8e8e93;}
       .cp-pending{font-size:9px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:5px;padding:2px 6px;text-transform:uppercase;}
-      /* ── Impersonation iframe ── */
-      .impersonation-panel{display:flex;flex-direction:column;height:100%;background:#000;}
-      .impersonation-frame{flex:1;width:100%;border:none;background:#f8f6fa;}
-      .impersonation-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#f8f6fa;color:#3c3c43;font-size:13px;font-weight:600;padding:24px;text-align:center;}
-      .impersonation-loading .spinner{width:30px;height:30px;border:3px solid #e5e5ea;border-top-color:#7c3aed;border-radius:50%;animation:spin .9s linear infinite;}
-      .impersonation-error{padding:18px;color:#ff3b30;font-size:12px;font-weight:600;line-height:1.4;}
+      /* ── Client launch card (replaces iframe) ── */
+      .impersonation-panel{display:flex;flex-direction:column;height:100%;background:#f8f6fa;align-items:center;justify-content:center;padding:20px;}
+      .client-launch-card{width:100%;background:#fff;border-radius:18px;box-shadow:0 2px 16px rgba(0,0,0,.08);overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:24px 20px 20px;}
+      .clc-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin-bottom:12px;}
+      .clc-name{font-size:15px;font-weight:700;color:#1c1c1e;text-align:center;margin-bottom:2px;}
+      .clc-email{font-size:11px;color:#8e8e93;text-align:center;margin-bottom:16px;word-break:break-all;}
+      .clc-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-bottom:18px;}
+      .clc-stat{background:#f8f6fa;border-radius:10px;padding:9px 12px;}
+      .clc-stat .k{font-size:9px;color:#8e8e93;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+      .clc-stat .v{font-size:13px;font-weight:700;color:#1c1c1e;margin-top:2px;}
+      .clc-open-btn{width:100%;border:none;border-radius:12px;background:#7c3aed;color:#fff;font-size:13px;font-weight:700;padding:13px 16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s;}
+      .clc-open-btn:hover{background:#6d28d9;}
+      .clc-open-btn:disabled{background:#c4b5fd;cursor:not-allowed;}
+      .clc-open-btn svg{flex-shrink:0;}
+      .clc-env-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:4px 9px;border-radius:20px;margin-bottom:14px;}
+      .clc-env-badge.dev{background:#ede9fe;color:#6d28d9;}
+      .clc-env-badge.live{background:#dcfce7;color:#15803d;}
+      .clc-loading{display:flex;flex-direction:column;align-items:center;gap:12px;color:#3c3c43;font-size:13px;font-weight:600;}
+      .clc-loading .spinner{width:30px;height:30px;border:3px solid #e5e5ea;border-top-color:#7c3aed;border-radius:50%;animation:spin .9s linear infinite;}
+      .clc-error{color:#ff3b30;font-size:12px;font-weight:600;text-align:center;line-height:1.4;padding:4px 0;}
+      .impersonation-loading{display:none;}
       @keyframes spin{to{transform:rotate(360deg);}}
       .env-toggle{display:inline-flex;border:1px solid #e5e5ea;border-radius:8px;overflow:hidden;background:#fff;}
       .env-toggle button{border:none;background:none;padding:6px 12px;font-size:12px;font-weight:600;color:#3c3c43;cursor:pointer;}
@@ -316,20 +331,14 @@
                           </div>
                         </div>
                       </div>
-                      <!-- Impersonation panel — live Mint app, signed in as the client -->
+                      <!-- Client launch card — opens Mint in a new tab as the selected client -->
                       <div class="phone-panel" style="position:relative;">
-                        <div class="impersonation-panel">
-                          <iframe id="impersonationFrame"
-                                  class="impersonation-frame"
-                                  title="Mint client view"
-                                  allow="clipboard-read; clipboard-write"
-                                  referrerpolicy="no-referrer"
-                                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-storage-access-by-user-activation"></iframe>
-                        </div>
-                        <div id="impersonationStatus" class="impersonation-loading" style="display:none;">
-                          <div class="spinner" id="impersonationSpinner"></div>
-                          <div id="impersonationStatusText">Signing in as client…</div>
-                          <div id="impersonationErrorText" class="impersonation-error" style="display:none;"></div>
+                        <div class="impersonation-panel" id="impersonationPanel">
+                          <!-- filled dynamically by loadClientImpersonation() -->
+                          <div class="clc-loading" id="clcLoading" style="display:none;">
+                            <div class="spinner"></div>
+                            <span>Loading…</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -452,18 +461,13 @@
         } catch (err) { console.warn('[Studio] studio-config fetch failed:', err); }
       })();
 
-      // Exit client view — tear down iframe and return to list
+      // Exit client view — clear card and return to list
       document.getElementById('exitImpersonationBtn').addEventListener('click', exitImpersonation);
 
       function exitImpersonation() {
         impersonationRequestId++;
         inspectorRequestId++;
-        if (impersonationLoadingTimer) { clearTimeout(impersonationLoadingTimer); impersonationLoadingTimer = null; }
-        const frame = document.getElementById('impersonationFrame');
-        try { frame.contentWindow?.postMessage({ type: 'mint:admin_signout' }, '*'); } catch {}
-        frame.onload = null;
-        frame.src = 'about:blank';
-        hideImpersonationStatus();
+        document.getElementById('impersonationPanel').innerHTML = '';
         document.getElementById('exitImpersonationBtn').style.display = 'none';
         currentClient = null;
         showPhonePanel('list');
@@ -543,28 +547,75 @@
         return session.access_token;
       }
 
-      function showImpersonationStatus(text) {
-        const statusEl = document.getElementById('impersonationStatus');
-        const textEl   = document.getElementById('impersonationStatusText');
-        const errEl    = document.getElementById('impersonationErrorText');
-        const spinner  = document.getElementById('impersonationSpinner');
-        if (spinner) spinner.style.display = '';
-        if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
-        if (textEl) { textEl.style.display = ''; textEl.textContent = text || 'Signing in as client…'; }
-        statusEl.style.display = 'flex';
+      // Render the client launch card into the impersonation panel
+      function renderLaunchCard(client, env, state) {
+        // state: 'loading' | 'ready' | { error: string }
+        const panel = document.getElementById('impersonationPanel');
+        const envLabel = env === 'live' ? 'Live' : 'Dev';
+        const envClass = env === 'live' ? 'live' : 'dev';
+        const dot = env === 'live' ? '🟢' : '🔵';
+
+        if (state === 'loading') {
+          panel.innerHTML = `
+            <div class="clc-loading">
+              <div class="spinner"></div>
+              <span>Generating sign-in link…</span>
+            </div>`;
+          return;
+        }
+
+        const errorHtml = state?.error
+          ? `<div class="clc-error">${escapeHtml(state.error)}</div>` : '';
+        const btnLabel = state?.error ? 'Try again' : `Open as ${escapeHtml(client.name)} in Mint`;
+        const btnDisabled = state === 'loading' ? 'disabled' : '';
+
+        panel.innerHTML = `
+          <div class="client-launch-card">
+            <div class="clc-avatar">${escapeHtml(client.initials || '?')}</div>
+            <div class="clc-name">${escapeHtml(client.name)}</div>
+            <div class="clc-email">${escapeHtml(client.email)}</div>
+            <span class="clc-env-badge ${envClass}">${dot} ${envLabel}</span>
+            <div class="clc-stats">
+              <div class="clc-stat"><div class="k">Portfolio</div><div class="v" id="clcPortfolio">${document.getElementById('mPortfolio')?.textContent || '…'}</div></div>
+              <div class="clc-stat"><div class="k">P&amp;L</div><div class="v" id="clcPnl">${document.getElementById('mPnl')?.textContent || '…'}</div></div>
+            </div>
+            ${errorHtml}
+            <button class="clc-open-btn" id="clcOpenBtn" ${btnDisabled}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+              ${btnLabel}
+            </button>
+          </div>`;
+
+        document.getElementById('clcOpenBtn').addEventListener('click', () => openClientInNewTab(client));
       }
-      function showImpersonationError(message) {
-        const statusEl = document.getElementById('impersonationStatus');
-        const textEl   = document.getElementById('impersonationStatusText');
-        const errEl    = document.getElementById('impersonationErrorText');
-        const spinner  = document.getElementById('impersonationSpinner');
-        if (spinner) spinner.style.display = 'none';
-        if (textEl) textEl.style.display = 'none';
-        if (errEl) { errEl.textContent = `Could not open client view: ${message || 'Unknown error'}`; errEl.style.display = ''; }
-        statusEl.style.display = 'flex';
-      }
-      function hideImpersonationStatus() {
-        document.getElementById('impersonationStatus').style.display = 'none';
+
+      // Generate a fresh link and open it in a new tab (called from the button)
+      async function openClientInNewTab(client) {
+        const reqId = ++impersonationRequestId;
+        const envAtClick = currentMintEnv;
+        renderLaunchCard(client, envAtClick, 'loading');
+        try {
+          const token = await getAdminBearer();
+          if (reqId !== impersonationRequestId) return;
+          const res = await fetch('/api/team?action=impersonate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ user_id: client.id, target: envAtClick })
+          });
+          if (reqId !== impersonationRequestId) return;
+          const data = await res.json().catch(() => ({}));
+          if (reqId !== impersonationRequestId) return;
+          if (!res.ok || !data.actionLink) {
+            renderLaunchCard(client, envAtClick, { error: data.error || `Sign-in failed (${res.status})` });
+            return;
+          }
+          renderLaunchCard(client, envAtClick, 'ready');
+          window.open(data.actionLink, '_blank', 'noopener');
+        } catch (err) {
+          if (reqId !== impersonationRequestId) return;
+          console.error('[Studio] impersonation failed:', err);
+          renderLaunchCard(client, envAtClick, { error: err?.message || 'Unknown error' });
+        }
       }
 
       async function loadClientImpersonation(client) {
@@ -572,15 +623,13 @@
         const inspReqId = ++inspectorRequestId;
         currentClient = client;
         const envAtStart = currentMintEnv;
-        showPhonePanel('profile'); // re-uses the slide-to-second-panel animation
+        showPhonePanel('profile');
         document.getElementById('exitImpersonationBtn').style.display = 'inline-flex';
-        const frame = document.getElementById('impersonationFrame');
-        frame.onload = null;
-        frame.src = 'about:blank';
-        if (impersonationLoadingTimer) { clearTimeout(impersonationLoadingTimer); impersonationLoadingTimer = null; }
-        showImpersonationStatus(`Signing in as ${client.name} (${envAtStart})…`);
 
-        // Reset inspector and start loading its data in parallel
+        // Show card in loading state while inspector loads in parallel
+        renderLaunchCard(client, envAtStart, 'loading');
+
+        // Reset + load inspector data
         document.getElementById('inspectorHint').textContent = 'Loading data for ' + client.name + '…';
         document.getElementById('mClient').textContent = client.name;
         document.getElementById('mPortfolio').textContent = '…';
@@ -590,43 +639,18 @@
         document.getElementById('inspectorHoldings').innerHTML = '<div class="placeholder">Loading…</div>';
         document.getElementById('inspectorTransactions').innerHTML = '<div class="placeholder">Loading…</div>';
 
-        const inspectorPromise = loadClientInspectorData(client, inspReqId).catch(err => {
-          if (inspReqId !== inspectorRequestId) return;
-          console.error('[Studio] inspector load failed:', err);
-          document.getElementById('inspectorHint').textContent = 'Could not load data: ' + (err?.message || 'Unknown');
-        });
+        // Load inspector data; the link is generated fresh when the button is clicked
+        const inspectorResult = await Promise.allSettled([loadClientInspectorData(client, inspReqId)]);
 
-        try {
-          const token = await getAdminBearer();
-          if (reqId !== impersonationRequestId) return;
-          const res = await fetch('/api/team?action=impersonate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ user_id: client.id, target: envAtStart })
-          });
-          if (reqId !== impersonationRequestId) return; // stale — newer click already started
-          const data = await res.json().catch(() => ({}));
-          if (reqId !== impersonationRequestId) return;
-          if (!res.ok || !data.actionLink) {
-            showImpersonationError(data.error || `Sign-in failed (${res.status})`);
-            return;
-          }
-          frame.onload = () => {
-            if (reqId !== impersonationRequestId) return;
-            if (impersonationLoadingTimer) { clearTimeout(impersonationLoadingTimer); impersonationLoadingTimer = null; }
-            hideImpersonationStatus();
-          };
-          frame.src = data.actionLink;
-          impersonationLoadingTimer = setTimeout(() => {
-            if (reqId !== impersonationRequestId) return;
-            showImpersonationStatus(`Still waiting for ${data.mintBase || 'the Mint app'}… If this hangs, the Mint app may be blocking iframe embedding (X-Frame-Options / CSP frame-ancestors). See docs/MINT_IMPERSONATION_SETUP.md.`);
-          }, 10000);
-        } catch (err) {
-          if (reqId !== impersonationRequestId) return;
-          console.error('[Studio] impersonation failed:', err);
-          showImpersonationError(err?.message || 'Unknown error');
+        if (reqId !== impersonationRequestId) return; // stale click
+
+        if (inspectorResult[0].status === 'rejected') {
+          console.error('[Studio] inspector load failed:', inspectorResult[0].reason);
+          document.getElementById('inspectorHint').textContent = 'Could not load data.';
         }
-        await inspectorPromise;
+
+        // Card is always ready for button click (link generated fresh on click)
+        renderLaunchCard(client, envAtStart, 'ready');
       }
 
       async function loadClientInspectorData(client, reqId) {
