@@ -500,7 +500,7 @@ module.exports = async (req, res) => {
         return sendJson(res, 404, { error: 'Client profile not found or has no email' });
       }
 
-      const redirectTo = `${mintBase}/?admin_view=1`;
+      const redirectTo = `${mintBase}/`;
       let actionLink = null;
       try {
         actionLink = await generateAuthLink('magiclink', profile.email, redirectTo);
