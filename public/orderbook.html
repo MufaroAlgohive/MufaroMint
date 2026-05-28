@@ -1466,6 +1466,7 @@
                   <th>Side</th>
                   <th>Total QYT</th>
                   <th>Avg Fill</th>
+                  <th>Actual Fill</th>
                   <th>Expected Fill</th>
                   <th>Order Type</th>
                   <th>Settlement Account</th>
@@ -1475,7 +1476,7 @@
               </thead>
               <tbody id="orderbookTableBody">
                 <tr>
-                  <td class="orderbook-empty-row" colspan="12">Loading orderbook...</td>
+                  <td class="orderbook-empty-row" colspan="13">Loading orderbook...</td>
                 </tr>
               </tbody>
             </table>
@@ -4948,7 +4949,7 @@
       exportOrderbookBtn.disabled = rows.length === 0;
 
       if (!rows.length) {
-        orderbookTableBody.innerHTML = '<tr><td class="orderbook-empty-row" colspan="12">No orderbook records found.</td></tr>';
+        orderbookTableBody.innerHTML = '<tr><td class="orderbook-empty-row" colspan="13">No orderbook records found.</td></tr>';
         return;
       }
 
@@ -5045,6 +5046,7 @@
             <td><span class="side-badge ${sideClass}">${escapeHtml(sideValue || '-')}</span></td>
             <td>${escapeHtml(String(row.totalQuantity ?? '-'))}</td>
             <td>${priceActionHtml}</td>
+            <td>${escapeHtml(asRandValue(row.actualFill))}</td>
             <td>${escapeHtml(asRandValue(row.marketValue))}</td>
             <td>${escapeHtml(row.orderType || '-')}</td>
             <td>
@@ -5060,7 +5062,7 @@
             ${renderInitialPnlCell(row.unrealizedPnlNumber, row.unrealizedPnl)}
           </tr>
           <tr class="orderbook-detail-row is-hidden" data-orderbook-detail-row data-line-key="${lineKey}">
-            <td colspan="12">
+            <td colspan="13">
               <div class="orderbook-detail-wrap">
                 ${row.isStrategy ? renderStrategyDetailsTable(row, { allowReverse: true }) : `<div class="orderbook-detail-title">BND Allocation Details</div>${renderBndDetailsTable(row)}`}
               </div>
@@ -5097,7 +5099,7 @@
       const [holdingsResult, rebEventsResult, rebBatchesResult] = await Promise.all([
         supabaseClient
           .from('stock_holdings_c')
-          .select('id, user_id, family_member_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, status:"Status", fill_date:"Fill_date", exit_date:"Exit_date", avg_exit, strategy_id, trade_side, is_active, closed_reason, closed_at, rebalance_batch_id, strategy_name_snapshot, transaction_id')
+          .select('id, user_id, family_member_id, security_id, quantity, avg_fill, market_value, unrealized_pnl, as_of_date, created_at, updated_at, status:"Status", fill_date:"Fill_date", exit_date:"Exit_date", avg_exit, strategy_id, trade_side, is_active, closed_reason, closed_at, rebalance_batch_id, strategy_name_snapshot, transaction_id, expected_fill:"Expected_fill"')
           .order('updated_at', { ascending: false }),
         supabaseClient
           .from('rebalance_event')
@@ -5303,19 +5305,33 @@
         const avgFillRaw = (row.avg_fill != null && row.avg_fill !== '') ? Number(row.avg_fill) : NaN;
         const avgFillValue = Number.isFinite(avgFillRaw) ? (avgFillRaw / 100) : NaN;
         const hasAvgFill = Number.isFinite(avgFillValue);
+        /* Expected_fill is the per-share price recorded at click time (rands).
+           Guard against legacy rows that stored it in cents — if >5× the
+           avg_fill-in-rands, treat as cents and divide. */
+        let actualFillValue = Number(row.expected_fill);
+        if (!Number.isFinite(actualFillValue) || actualFillValue <= 0) actualFillValue = NaN;
+        if (Number.isFinite(actualFillValue) && hasAvgFill && avgFillValue > 0 && actualFillValue > avgFillValue * 5) {
+          actualFillValue = actualFillValue / 100;
+        }
+        const hasActualFill = Number.isFinite(actualFillValue) && actualFillValue > 0;
+        /* Cost basis = higher of avg_fill and Expected_fill (both in rands). */
+        const costBasisValue = (hasAvgFill || hasActualFill)
+          ? Math.max(hasAvgFill ? avgFillValue : 0, hasActualFill ? actualFillValue : 0)
+          : NaN;
+        const hasCostBasis = Number.isFinite(costBasisValue) && costBasisValue > 0;
         // Prefer live intraday price; fall back to securities_c.last_price.
         const rawLastPrice = intradayPriceMap[row.security_id] ?? Number(security.last_price);
         const lastPrice = Number(rawLastPrice);
         const hasLastPrice = Number.isFinite(lastPrice) && lastPrice > 0;
-        // Expected Fill uses current market price primarily, falls back to avg fill.
-        const expectedFillPrice = hasLastPrice ? lastPrice : (hasAvgFill ? avgFillValue : NaN);
+        // Expected Fill column uses current market price; falls back to cost basis.
+        const expectedFillPrice = hasLastPrice ? lastPrice : (hasCostBasis ? costBasisValue : NaN);
         const hasExpectedFillPrice = Number.isFinite(expectedFillPrice);
         const computedMarketValueNumber = (isQuantityNumeric && hasExpectedFillPrice)
           ? (Math.abs(quantityValue) * expectedFillPrice)
           : 0;
-        // Initial PnL = qty × (lastPrice − avgFill). Only meaningful when both prices are known.
-        const computedInitialPnlNumber = (isQuantityNumeric && hasAvgFill && hasLastPrice)
-          ? (Math.abs(quantityValue) * (lastPrice - avgFillValue))
+        /* PnL = qty × (livePrice − higherOfCostBasis). */
+        const computedInitialPnlNumber = (isQuantityNumeric && hasCostBasis && hasLastPrice)
+          ? (Math.abs(quantityValue) * (lastPrice - costBasisValue))
           : 0;
         const normalizedUnrealizedPnlNumber = computedInitialPnlNumber;
         const explicitSide = String(row.trade_side || '').trim().toUpperCase();
@@ -5331,10 +5347,13 @@
         const avgFill = hasAvgFill
           ? `R ${avgFillValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
           : '-';
+        const actualFill = hasActualFill
+          ? `R ${actualFillValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          : '-';
         const marketValue = (isQuantityNumeric && hasExpectedFillPrice)
           ? `R ${computedMarketValueNumber.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
           : '-';
-        const unrealizedPnl = (isQuantityNumeric && hasAvgFill && hasLastPrice)
+        const unrealizedPnl = (isQuantityNumeric && hasCostBasis && hasLastPrice)
           ? computedInitialPnlNumber.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
           : '-';
 
@@ -5363,6 +5382,8 @@
           totalQuantity,
           avgFillNumber: hasAvgFill ? avgFillValue : null,
           avgFill,
+          actualFillNumber: hasActualFill ? actualFillValue : null,
+          actualFill,
           marketValueNumber: computedMarketValueNumber,
           marketValue,
           unrealizedPnlNumber: normalizedUnrealizedPnlNumber,
