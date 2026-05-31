@@ -85,8 +85,13 @@ module.exports = async (req, res) => {
       secIds.length
         ? sbGet(`stock_intraday_c?select=security_id,current_price,timestamp&security_id=in.(${secIds.join(',')})&order=timestamp.desc`)
         : Promise.resolve([]),
+      /* Pull the fee + buffer breakdown columns too so the investors page
+         can show the negative side of each client's activity: fees paid,
+         buffer consumed, etc. — not just deposits. base_amount_cents +
+         buffer_cents = the cash held during a buy; buffer_consumed_cents is
+         how much of that buffer the actual fill needed. */
       userIds.length
-        ? sbGet(`transactions?select=user_id,amount,direction,name,description,status,transaction_date&user_id=in.(${userIds.join(',')})&order=transaction_date.desc`)
+        ? sbGet(`transactions?select=user_id,family_member_id,amount,direction,name,description,status,transaction_date,broker_fee_cents,isin_fee_cents,transaction_fee_cents,base_amount_cents,buffer_cents,buffer_consumed_cents&user_id=in.(${userIds.join(',')})&order=transaction_date.desc`)
         : Promise.resolve([]),
       famIds.length
         ? sbGet(`family_members?select=id,first_name,last_name&id=in.(${famIds.join(',')})`)

@@ -872,26 +872,107 @@
     }
 
     /* ─── Tab: Transactions ─── */
+
+    /* Classify a transactions row by name + direction. Returns:
+       { label, color, bg, sign } so the UI styles consistently. */
+    function classifyTxn(t) {
+      const name = String(t.name || t.description || '').toLowerCase();
+      const dir = String(t.direction || '').toLowerCase();
+      // direction=debit = money INTO MINT (deposits, investments, fees charged)
+      // direction=credit = money OUT of MINT (withdrawals, refunds, residual credits)
+      if (/strategy investment|invest/i.test(name)) {
+        return { label: 'INVESTMENT', color: '#7c3aed', bg: '#ede9fe', sign: '-', isOutflow: true };
+      }
+      if (/withdraw/i.test(name)) {
+        return { label: 'WITHDRAWAL', color: '#dc2626', bg: '#fee2e2', sign: '-', isOutflow: true };
+      }
+      if (/fee/i.test(name)) {
+        return { label: 'FEE', color: '#b45309', bg: '#fef3c7', sign: '-', isOutflow: true };
+      }
+      if (/rebalance/i.test(name)) {
+        return { label: 'REBALANCE', color: '#0284c7', bg: '#e0f2fe', sign: '·', isOutflow: false };
+      }
+      if (/reversal|refund/i.test(name)) {
+        return { label: 'REFUND', color: '#059669', bg: '#dcfce7', sign: '+', isOutflow: false };
+      }
+      if (dir === 'debit') {
+        return { label: 'DEPOSIT', color: '#059669', bg: '#dcfce7', sign: '+', isOutflow: false };
+      }
+      return { label: 'WITHDRAWAL', color: '#dc2626', bg: '#fee2e2', sign: '-', isOutflow: true };
+    }
+
     function renderTxnsTab(i) {
       const txns = i.txns || [];
       if (!txns.length) return `<div style="background:#fff;border-radius:10px;padding:30px;text-align:center;color:#94a3b8;">No transactions found.</div>`;
+
+      /* KPI summary across all this user's transactions */
+      let totalDeposits = 0, totalWithdrawals = 0, totalFees = 0, totalInvested = 0, totalBufferConsumed = 0;
+      for (const t of txns) {
+        const amt = Number(t.amount) / 100;
+        const cls = classifyTxn(t);
+        if (cls.label === 'DEPOSIT') totalDeposits += amt;
+        else if (cls.label === 'WITHDRAWAL') totalWithdrawals += amt;
+        else if (cls.label === 'FEE') totalFees += amt;
+        else if (cls.label === 'INVESTMENT') {
+          totalInvested += Number(t.base_amount_cents || 0) / 100;
+          totalFees += (Number(t.broker_fee_cents || 0) + Number(t.isin_fee_cents || 0) + Number(t.transaction_fee_cents || 0)) / 100;
+          totalBufferConsumed += Number(t.buffer_consumed_cents || 0) / 100;
+        }
+      }
+
+      const kpi = (label, value, color) => `
+        <div style="background:#f8fafc;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:0.04em;">${label}</div>
+          <div style="font-size:14px;font-weight:700;color:${color};font-family:ui-monospace,monospace;margin-top:2px;">${fmtR2(value)}</div>
+        </div>`;
+
       return `
+        <div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 0 0 1px rgba(0,0,0,0.04);margin-bottom:14px;">
+          <div style="font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.04em;margin-bottom:10px;">CASH FLOW SUMMARY</div>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+            ${kpi('Deposits', totalDeposits, '#059669')}
+            ${kpi('Invested (base)', totalInvested, '#7c3aed')}
+            ${kpi('Fees paid', totalFees, '#b45309')}
+            ${kpi('Buffer used', totalBufferConsumed, '#0284c7')}
+            ${kpi('Withdrawals', totalWithdrawals, '#dc2626')}
+          </div>
+        </div>
         <div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 0 0 1px rgba(0,0,0,0.04);">
           <div style="font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.04em;margin-bottom:10px;">TRANSACTIONS (${txns.length})</div>
           <table class="ov-table">
-            <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Status</th><th class="r">Amount</th></tr></thead>
+            <thead><tr><th>Date</th><th>Description</th><th>Type</th><th>Status</th><th class="r">Amount</th><th class="r">Breakdown</th></tr></thead>
             <tbody>
               ${txns.map(t => {
                 const amt = Number(t.amount) / 100;
-                const isDeposit = t.direction === 'debit';
-                const sign = isDeposit ? '+' : '-';
-                const clr  = isDeposit ? '#059669' : '#dc2626';
+                const cls = classifyTxn(t);
+                /* For investment rows, render the fee breakdown inline so the
+                   reviewer can see what went into the gross amount without
+                   leaving the page. */
+                let breakdownHtml = '—';
+                if (cls.label === 'INVESTMENT') {
+                  const base = Number(t.base_amount_cents || 0) / 100;
+                  const buffer = Number(t.buffer_cents || 0) / 100;
+                  const consumed = Number(t.buffer_consumed_cents || 0) / 100;
+                  const broker = Number(t.broker_fee_cents || 0) / 100;
+                  const isin = Number(t.isin_fee_cents || 0) / 100;
+                  const txnFee = Number(t.transaction_fee_cents || 0) / 100;
+                  const lines = [];
+                  if (base > 0) lines.push(`Base: ${fmtR2(base)}`);
+                  if (buffer > 0) lines.push(`Buffer 8%: ${fmtR2(buffer)} (used ${fmtR2(consumed)})`);
+                  if (broker > 0) lines.push(`Broker 0.25%: ${fmtR2(broker)}`);
+                  if (isin > 0) lines.push(`Custody/ISIN: ${fmtR2(isin)}`);
+                  if (txnFee > 0) lines.push(`Txn fee 3.8%: ${fmtR2(txnFee)}`);
+                  if (lines.length) {
+                    breakdownHtml = `<span style="font-size:10px;color:#64748b;line-height:1.5;">${lines.join('<br/>')}</span>`;
+                  }
+                }
                 return `<tr>
                   <td>${fmtDate(t.transaction_date)}</td>
                   <td style="color:#64748b;">${t.name || t.description || '—'}</td>
-                  <td><span style="font-size:10px;color:${clr};background:${isDeposit?'#dcfce7':'#fee2e2'};padding:2px 7px;border-radius:10px;font-weight:600;">${isDeposit?'DEPOSIT':'WITHDRAWAL'}</span></td>
+                  <td><span style="font-size:10px;color:${cls.color};background:${cls.bg};padding:2px 7px;border-radius:10px;font-weight:600;">${cls.label}</span></td>
                   <td><span style="font-size:10px;color:#64748b;background:#f1f5f9;padding:2px 7px;border-radius:10px;">${t.status||'—'}</span></td>
-                  <td class="r ov-mono" style="color:${clr};font-weight:600;">${sign}${fmtR2(amt)}</td>
+                  <td class="r ov-mono" style="color:${cls.color};font-weight:600;">${cls.sign}${fmtR2(amt)}</td>
+                  <td class="r">${breakdownHtml}</td>
                 </tr>`;
               }).join('')}
             </tbody>
