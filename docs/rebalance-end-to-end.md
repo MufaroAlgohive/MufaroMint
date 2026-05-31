@@ -55,7 +55,7 @@ This is the full A → Z so you can sanity-check the design.
 | `stock_holdings_c` | One row per (user × security × strategy × transaction_id). The user's actual positions. | `avg_fill` (cents), `Expected_fill` (rands), `quantity`, `Status` ('active'/'inactive'), `is_active` (bool) |
 | `rebalance_batch` | One row per rebalance event you executed. | `total_sell_quantity`, `total_buy_quantity`, `net_proceeds`, `status` ('PENDING'/'SETTLED'/'REVERSED') |
 | `rebalance_event` | One row per (user × side) inside a batch. The orderbook reads these to show pending fills. | `quantity`, `price_at_commit` (cents), `avg_fill` (filled price, cents), `closed_reason` |
-| `strategy_rebalance_residuals` | **NEW** — per-(user, strategy) cash bucket from rebalances. | `balance_cents` |
+| `strategy_rebalance_residuals` | **NEW** — per-(user, strategy, family_member_id) cash bucket from rebalances. `family_member_id` is NULL for the parent's own residual; a uuid points at a child for per-child residual once the rebalance UI supports per-child execution. | `balance_cents` |
 | `wallets` | User's main spendable wallet. | `balance` (rands), `rebalance_residual` (cents, legacy) |
 
 ### Files (CRM side)
@@ -94,6 +94,19 @@ For a full rebalance, `rebExecute`:
    - `REBALANCE_EVENT_BUY` (primary buy funded by the sell proceeds)
    - `REBALANCE_EVENT_BUY_WALLET` (extra buy funded by residual + wallet)
 3. **Tops up each user's residual:** `rebUpsertWalletBalances(strategyId, balancesByUser)` upserts into `strategy_rebalance_residuals` keyed by `(user_id, strategy_id)`.
+
+### B.5 History entry written for the user (MINT activity feed)
+On every successful fill & settle, one `transactions` row is inserted per
+affected user. The row is purely informational:
+- `name` = `"Rebalance: <Strategy name>"`
+- `description` = `"sold X × SYM_A, bought Y × SYM_B"`
+- `amount` = 0 (the swap is positions↔positions, not money in/out)
+- `direction` = `'credit'` (so it groups with other "no-cost" events in MINT)
+- `status` = `'posted'`, `transaction_date` = now
+
+MINT's existing transactions list automatically picks this up. No new
+endpoint or component needed in the user app — the entry shows up under
+"Recent Transactions" alongside deposits, withdrawals, and purchases.
 
 ### C. Orderbook tab in MyMintAdmin (still admin)
 - The PENDING batch appears as a single grouped row.
@@ -164,9 +177,8 @@ This pairs naturally with per-strategy residual: the gain made on Strategy A's r
 
 ## What's NOT in this flow (gaps and future work)
 
-- **Family member residuals.** `strategy_rebalance_residuals` is keyed by `user_id` (parent) only. If you want per-family-member residual tracking, add a `family_member_id` column.
-- **History view in MINT.** A user can see their current holdings and current residual, but not "Strategy A swapped security X for Y on 2026-05-21" — that history lives in `rebalance_event` rows but isn't surfaced to the user.
-- **Migration of legacy `wallets.rebalance_residual`.** Untouched. If you ever want to attribute old residuals to specific strategies you'll need a manual SQL migration.
+- **Per-family-member rebalance execution.** The schema and the residual functions now support `(user_id, strategy_id, family_member_id)`, but the rebalance UI in `dashboard.html` still aggregates parent + child holdings into a single `userId` and writes residual with `family_member_id = NULL`. To actually split residual to a specific child, `rebRawHoldings` and `rebExecute` would need to track `family_member_id` per holding (plumbing exists end-to-end, just needs admin UI work).
+- **Migration of legacy `wallets.rebalance_residual`.** Untouched. Any residual that already existed in that per-user pool stays there as unallocated cash. If you want to retroactively attribute old residuals to specific strategies you'd write a one-off SQL with manual rules.
 
 ---
 

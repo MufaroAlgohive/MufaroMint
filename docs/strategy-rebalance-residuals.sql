@@ -13,21 +13,61 @@
 -- migrated automatically because they weren't tagged to a strategy at the
 -- time of creation. They remain spendable from the wallet modal.
 
+-- Safe to re-run: idempotent CREATE / ALTER blocks handle both a fresh
+-- install and an upgrade from the earlier (user_id, strategy_id)-only shape.
+
 CREATE TABLE IF NOT EXISTS public.strategy_rebalance_residuals (
   user_id       uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   strategy_id   uuid        NOT NULL REFERENCES public.strategies_c(id) ON DELETE CASCADE,
   balance_cents bigint      NOT NULL DEFAULT 0,
-  updated_at    timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (user_id, strategy_id)
+  updated_at    timestamptz NOT NULL DEFAULT now()
 );
 
+-- Add family_member_id (idempotent — no-op if column already there).
+ALTER TABLE public.strategy_rebalance_residuals
+  ADD COLUMN IF NOT EXISTS family_member_id uuid
+  REFERENCES public.family_members(id) ON DELETE CASCADE;
+
+-- Drop the old PK on (user_id, strategy_id) if it exists — we need to
+-- include family_member_id in the uniqueness constraint.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'strategy_rebalance_residuals_pkey'
+      AND conrelid = 'public.strategy_rebalance_residuals'::regclass
+  ) THEN
+    ALTER TABLE public.strategy_rebalance_residuals
+      DROP CONSTRAINT strategy_rebalance_residuals_pkey;
+  END IF;
+END $$;
+
+-- Uniqueness is per (user_id, strategy_id, family_member_id). Postgres treats
+-- NULLs as distinct in unique indexes by default; here we want NULL to count
+-- as a real value (= the parent's own residual) so we use COALESCE in the
+-- index expression to fold NULL into a sentinel UUID.
+CREATE UNIQUE INDEX IF NOT EXISTS strategy_rebalance_residuals_uniq
+  ON public.strategy_rebalance_residuals (
+    user_id,
+    strategy_id,
+    COALESCE(family_member_id, '00000000-0000-0000-0000-000000000000'::uuid)
+  );
+
 -- Lookup by strategy for admin views ("show me all clients with residual in
--- Strategy X"). The PK already covers user-first lookups.
+-- Strategy X").
 CREATE INDEX IF NOT EXISTS strategy_rebalance_residuals_strategy_idx
   ON public.strategy_rebalance_residuals(strategy_id);
 
--- RLS: a user can read only their own residuals. Writes happen exclusively
--- from the admin app via the service-role key (bypasses RLS).
+-- Lookup by family member for child-view reads in MINT.
+CREATE INDEX IF NOT EXISTS strategy_rebalance_residuals_fm_idx
+  ON public.strategy_rebalance_residuals(family_member_id)
+  WHERE family_member_id IS NOT NULL;
+
+-- RLS: a user can read only their own residuals (parent rows where
+-- family_member_id IS NULL, and child rows where they're the parent_user_id
+-- on the family_members row — which is captured by user_id matching auth.uid).
+-- Writes happen exclusively from the admin app via the service-role key
+-- (bypasses RLS).
 ALTER TABLE public.strategy_rebalance_residuals ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "user reads own residuals"

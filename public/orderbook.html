@@ -6072,6 +6072,55 @@
           await applyBuySettlement(walletBuyEvts, extraBuyFillCents || buyFillCents, 'WALLET_BUY', null);
         }
 
+        /* ── 2.5 Write a R0 transactions row per affected user so the
+           rebalance shows up in their MINT activity feed. One row per
+           (user, batch). The MINT transactions list reads name/description
+           as the display, so we describe the swap there. Amount = 0
+           because the swap is positions↔positions, not money in/out. */
+        try {
+          const securityIds = [...new Set([...sellEvts, ...buyEvts, ...walletBuyEvts]
+            .map((e) => e.security_id).filter(Boolean))];
+          const symbolBySecId = {};
+          if (securityIds.length) {
+            const { data: secs } = await supabaseClient
+              .from('securities_c')
+              .select('id, symbol')
+              .in('id', securityIds);
+            (secs || []).forEach((s) => { symbolBySecId[s.id] = s.symbol || String(s.id).slice(0, 6); });
+          }
+          const stratName = batch?.strategy_name_snapshot || 'Strategy';
+          const allUserIds = [...new Set([...sellEvts, ...buyEvts, ...walletBuyEvts]
+            .map((e) => String(e.user_id || '')).filter(Boolean))];
+          const txnRows = allUserIds.map((uid) => {
+            const userSells = sellEvts.filter((e) => String(e.user_id) === uid);
+            const userBuys = [...buyEvts, ...walletBuyEvts].filter((e) => String(e.user_id) === uid);
+            const sellSummary = userSells.length
+              ? `sold ${userSells.reduce((s, e) => s + Number(e.quantity || 0), 0)} × ${symbolBySecId[userSells[0].security_id] || '?'}`
+              : '';
+            const buySummary = userBuys.length
+              ? `bought ${userBuys.reduce((s, e) => s + Number(e.quantity || 0), 0)} × ${symbolBySecId[userBuys[0].security_id] || '?'}`
+              : '';
+            const parts = [sellSummary, buySummary].filter(Boolean);
+            return {
+              user_id: uid,
+              family_member_id: null,
+              amount: 0,
+              direction: 'credit',
+              status: 'posted',
+              name: `Rebalance: ${stratName}`,
+              description: parts.length ? parts.join(', ') : 'Strategy rebalance',
+              currency: 'ZAR',
+              transaction_date: nowIso,
+            };
+          });
+          if (txnRows.length) {
+            const { error: txnErr } = await supabaseClient.from('transactions').insert(txnRows);
+            if (txnErr) errors.push(`Rebalance txn insert: ${txnErr.message}`);
+          }
+        } catch (txnCatchErr) {
+          errors.push(`Rebalance txn step failed: ${txnCatchErr?.message || txnCatchErr}`);
+        }
+
         // â”€â”€ 3. Mark batch SETTLED â”€â”€
         const { error: settleErr } = await supabaseClient.from('rebalance_batch').update({
           status: 'SETTLED', settled_at: nowIso, updated_at: nowIso,
