@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const sumsubArchiveHandler = require('./api/sumsub/archive');
 const teamHandler = require('./api/team');
+const mintMorningsHandler = require('./api/mint-mornings');
 
 const port = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, 'public');
@@ -213,6 +214,30 @@ const startDailyOrderbookScheduler = () => {
   }, 30000);
 
   maybeRunDailyOrderbookScheduler().catch(err => console.error('[OrderbookScheduler] Startup error:', err?.message || err));
+};
+
+// ── Mint Mornings scheduler ────────────────────────────────────────────────────
+// Fires once per day at MINT_MORNINGS_SEND_HOUR_UTC:MINT_MORNINGS_SEND_MINUTE_UTC (default 05:00 UTC = 07:00 SAST)
+let _mintMorningsLastDateKey = '';
+const startMintMorningsScheduler = () => {
+  const runCheck = () => {
+    const now = new Date();
+    const targetHour   = parseInt(process.env.MINT_MORNINGS_SEND_HOUR_UTC   || '5',  10);
+    const targetMinute = parseInt(process.env.MINT_MORNINGS_SEND_MINUTE_UTC || '0',  10);
+    const utcHour   = now.getUTCHours();
+    const utcMinute = now.getUTCMinutes();
+    const dateKey   = now.toISOString().slice(0, 10);
+    if (utcHour === targetHour && utcMinute === targetMinute && _mintMorningsLastDateKey !== dateKey) {
+      _mintMorningsLastDateKey = dateKey;
+      mintMorningsHandler.runMintMornings().catch(err =>
+        console.error('[MintMorningsScheduler] Error:', err?.message || err)
+      );
+    }
+  };
+  setInterval(runCheck, 60000);
+  console.log('[MintMorningsScheduler] Started — daily send at UTC ' +
+    (process.env.MINT_MORNINGS_SEND_HOUR_UTC || '5').padStart(2,'0') + ':' +
+    (process.env.MINT_MORNINGS_SEND_MINUTE_UTC || '0').padStart(2,'0'));
 };
 
 const syncAllSecuritiesFromYahoo = async () => {
@@ -1799,6 +1824,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url.startsWith('/api/mint-mornings')) {
+    const token = parseBearerToken(req.headers.authorization);
+    if (!token) { sendJson(res, 401, { error: 'Missing Authorization bearer token' }); return; }
+    (async () => {
+      try {
+        await fetchSupabaseJson('/auth/v1/user', token, false);
+        await mintMorningsHandler(req, res);
+      } catch (err) {
+        sendJson(res, err.status || 500, { error: err.message });
+      }
+    })();
+    return;
+  }
+
   if (req.url.startsWith('/api/send-eft-email') && req.method === 'POST') {
     const token = parseBearerToken(req.headers.authorization);
     if (!token) {
@@ -2004,6 +2043,7 @@ const startServer = (portToUse) => {
       startDailyOrderbookScheduler();
     }
     startMarketDataScheduler();
+    startMintMorningsScheduler();
   });
 };
 
