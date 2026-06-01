@@ -236,81 +236,141 @@ const handleSendTradeConfirmation = async (req, res, token) => {
     const resendApiKey = process.env.RESEND_API_KEY;
     const orderbookEmailFrom = process.env.ORDERBOOK_EMAIL_FROM;
 
-    const HEADER_IMAGE_URL = 'https://my-mint-admin.vercel.app/images/OrderBookMail.avif';
     const DASHBOARD_URL = 'https://app.mymint.co.za';
     const currentDateStr = new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' });
 
     const buildTradeRow = ({ side, assetName, quantityDisplay, totalAmountStr, ref }) => {
-      const orderType = side === 'SELL' ? 'Stock Sale' : 'Stock Purchase';
-      const sideAccent = side === 'SELL' ? '#dc2626' : '#059669';
-      const sideBg = side === 'SELL' ? '#fff5f5' : '#f0fdf4';
+      const isSell = side === 'SELL';
+      const badgeColor = isSell ? '#dc2626' : '#059669';
+      const badgeBg = isSell ? '#fef2f2' : '#f0fdf4';
+      const badgeLabel = isSell ? 'SELL' : 'BUY';
       return `
-        <tr style="background:#f8fafc;">
-          <td style="padding:12px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;border-bottom:1px solid #e2e8f0;font-weight:700;">Order Type</td>
-          <td style="padding:12px 16px;font-size:13px;color:${sideAccent};font-weight:700;text-align:right;border-bottom:1px solid #e2e8f0;background:${sideBg};">${orderType}</td>
-        </tr>
-        <tr>
-          <td style="padding:12px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;border-bottom:1px solid #e2e8f0;font-weight:700;">Funding Source</td>
-          <td style="padding:12px 16px;font-size:13px;color:#1e293b;font-weight:600;text-align:right;border-bottom:1px solid #e2e8f0;">Wallet</td>
-        </tr>
-        <tr style="background:#f8fafc;">
-          <td style="padding:12px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;border-bottom:1px solid #e2e8f0;font-weight:700;">Portfolio Asset</td>
-          <td style="padding:12px 16px;font-size:13px;color:#1e293b;font-weight:600;text-align:right;border-bottom:1px solid #e2e8f0;">${assetName}</td>
-        </tr>
-        <tr>
-          <td style="padding:12px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;border-bottom:1px solid #e2e8f0;font-weight:700;">Total Amount</td>
-          <td style="padding:12px 16px;font-size:14px;color:#0f172a;font-weight:800;text-align:right;border-bottom:1px solid #e2e8f0;">${totalAmountStr}</td>
-        </tr>
-        <tr style="background:#f8fafc;">
-          <td style="padding:12px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;border-bottom:1px solid #e2e8f0;font-weight:700;">Quantity</td>
-          <td style="padding:12px 16px;font-size:13px;color:#1e293b;font-weight:600;text-align:right;border-bottom:1px solid #e2e8f0;">${quantityDisplay} shares</td>
-        </tr>
-        <tr>
-          <td style="padding:12px 16px;font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;border-bottom:1px solid #e2e8f0;font-weight:700;">Reference</td>
-          <td style="padding:12px 16px;font-size:13px;color:#7c3aed;font-weight:700;text-align:right;border-bottom:1px solid #e2e8f0;font-family:monospace;">${ref}</td>
-        </tr>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:12px;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+          <tr>
+            <td style="padding:16px 20px;background:#f8fafc;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="font-size:13px;font-weight:700;color:#0f172a;">${assetName}</td>
+                  <td style="text-align:right;">
+                    <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.05em;color:${badgeColor};background:${badgeBg};">${badgeLabel}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 20px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;">Total Amount</td>
+                  <td style="padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:15px;font-weight:800;color:#0f172a;text-align:right;">${totalAmountStr}</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;">Quantity</td>
+                  <td style="padding:12px 0;border-bottom:1px solid #f1f5f9;font-size:13px;font-weight:600;color:#1e293b;text-align:right;">${quantityDisplay} shares</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;">Reference</td>
+                  <td style="padding:12px 0;font-size:12px;font-weight:700;color:#7c3aed;text-align:right;font-family:monospace,monospace;">${ref}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       `;
     };
 
     const buildEmailHtml = ({ firstName, mintRef, orderDate, tableRowsHtml, subjectHeading, subjectIntro }) => `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light only">
+  <title>${subjectHeading}</title>
 </head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.6;color:#1e293b;margin:0;padding:0;">
-  <div style="background-color:#f8fafc;padding:20px;">
-    <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 6px rgba(0,0,0,0.05);">
-      <img src="${HEADER_IMAGE_URL}" width="600" alt="Mint Order Executed" style="display:block;width:100%;height:auto;border:0;">
-      <div style="padding:40px;">
-        <h1 style="font-size:28px;font-weight:800;color:#1e293b;margin-top:0;margin-bottom:16px;letter-spacing:-0.02em;">${subjectHeading}</h1>
-        <p style="font-size:16px;color:#475569;margin-bottom:8px;">Hello <strong>${firstName}</strong>,</p>
-        <p style="font-size:16px;color:#475569;margin-bottom:24px;">${subjectIntro}</p>
-        <div style="border-top:1px solid #f1f5f9;border-bottom:1px solid #f1f5f9;padding:20px 0;margin-bottom:30px;display:flex;">
-          <div style="text-align:center;flex:1;">
-            <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;font-weight:700;display:block;margin-bottom:4px;">Reference</span>
-            <span style="font-size:14px;font-weight:700;color:#1e293b;">${mintRef}</span>
-          </div>
-          <div style="text-align:center;flex:1;">
-            <span style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:#94a3b8;font-weight:700;display:block;margin-bottom:4px;">Order Date</span>
-            <span style="font-size:14px;font-weight:700;color:#1e293b;">${orderDate}</span>
-          </div>
-        </div>
-        <table style="width:100%;border-collapse:collapse;margin-bottom:30px;">
-          <tbody>
-            ${tableRowsHtml}
-          </tbody>
+<body style="margin:0;padding:0;background:#f4f4f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <span style="display:none!important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${subjectIntro.replace(/<[^>]+>/g, '')}</span>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" bgcolor="#f4f4f7" style="background:#f4f4f7;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 8px 32px rgba(15,23,42,0.07);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#31005e 0%,#5b21b6 50%,#7c3aed 100%);padding:36px 36px 28px 36px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <div style="display:inline-block;width:36px;height:36px;background:#ffffff;border-radius:10px;text-align:center;line-height:36px;font-weight:700;color:#7c3aed;font-size:18px;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">M</div>
+                  </td>
+                  <td style="vertical-align:middle;padding-left:12px;">
+                    <div style="color:#ffffff;font-weight:600;font-size:15px;letter-spacing:-0.2px;">Mint</div>
+                    <div style="color:rgba(255,255,255,0.7);font-size:12px;font-weight:500;">Investment Platform</div>
+                  </td>
+                </tr>
+              </table>
+              <h1 style="margin:24px 0 0 0;color:#ffffff;font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-0.5px;">${subjectHeading}</h1>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td style="padding:32px 36px 0 36px;">
+              <p style="margin:0 0 8px 0;font-size:16px;color:#1e293b;font-weight:600;">Hi ${firstName},</p>
+              <p style="margin:0;font-size:14px;color:#475569;line-height:1.6;">${subjectIntro}</p>
+            </td>
+          </tr>
+
+          <!-- Reference banner -->
+          <tr>
+            <td style="padding:24px 36px 0 36px;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#faf7ff;border:1px solid #ede5ff;border-radius:12px;">
+                <tr>
+                  <td style="padding:16px 20px;text-align:center;border-right:1px solid #ede5ff;width:50%;">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:4px;">Reference</div>
+                    <div style="font-size:13px;font-weight:700;color:#0f172a;font-family:monospace,monospace;">${mintRef}</div>
+                  </td>
+                  <td style="padding:16px 20px;text-align:center;width:50%;">
+                    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:4px;">Order Date</div>
+                    <div style="font-size:13px;font-weight:700;color:#0f172a;">${orderDate}</div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Trade rows -->
+          <tr>
+            <td style="padding:20px 36px 0 36px;">
+              ${tableRowsHtml}
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:28px 36px 36px 36px;text-align:center;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center">
+                <tr>
+                  <td style="border-radius:999px;background:#5c3bcf;box-shadow:0 4px 14px rgba(92,59,207,0.3);">
+                    <a href="${DASHBOARD_URL}" target="_blank" style="display:inline-block;padding:14px 36px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;letter-spacing:0.2px;">View Portfolio</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:24px 36px 32px 36px;border-top:1px solid #f0f0f3;">
+              <p style="margin:0 0 12px 0;font-size:10px;color:#94a3b8;line-height:1.6;text-align:justify;">MINT (Pty) Ltd is an authorised Financial Services Provider (FSP 55118) regulated by the Financial Sector Conduct Authority and a registered Credit Provider (NCRCP22892) under the National Credit Act. All investment activity carries risk, including the possible loss of capital and liquidity constraints. Any information provided here is educational in nature, does not constitute personalised financial advice, and should not be relied on as a recommendation to buy or sell securities.</p>
+              <p style="margin:0;font-size:10px;color:#94a3b8;">&copy; ${new Date().getFullYear()} MINT. All rights reserved. &middot; ${currentDateStr} &middot; <a href="https://www.mymint.co.za" style="color:#94a3b8;text-decoration:underline;">mymint.co.za</a></p>
+            </td>
+          </tr>
+
         </table>
-        <div style="text-align:center;margin:30px 0;">
-          <a href="${DASHBOARD_URL}" style="background-color:#7c3aed;color:#ffffff;padding:14px 32px;border-radius:999px;text-decoration:none;font-weight:700;font-size:15px;display:inline-block;">View Portfolio</a>
-        </div>
-      </div>
-      <div style="padding:40px;background-color:#f8fafc;font-size:11px;color:#94a3b8;line-height:1.5;">
-        <p style="font-size:11px;margin-bottom:12px;">MINT (Pty) Ltd is an authorised Financial Services Provider (FSP 55118) regulated by the Financial Sector Conduct Authority and a registered Credit Provider (NCRCP22892) under the National Credit Act. All investment activity carries risk, including the possible loss of capital and liquidity constraints. Any information provided here is educational in nature, does not constitute personalised financial advice, and should not be relied on as a recommendation to buy or sell securities. Please consider whether investing is appropriate for your circumstances and consult an independent adviser where necessary.</p>
-        <p style="font-size:11px;margin-bottom:0;">&copy; 2026 MINT. All rights reserved.<br>Date: ${currentDateStr}</p>
-      </div>
-    </div>
-  </div>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`;
 
