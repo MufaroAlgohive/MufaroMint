@@ -1046,21 +1046,35 @@
             ${kpi('Withdrawals', totalWithdrawals, '#dc2626')}
           </div>
         </div>
-        <div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 0 0 1px rgba(0,0,0,0.04);margin-bottom:14px;">
-          <div style="font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.04em;margin-bottom:10px;">FEES — WHERE THE MONEY GOES</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;">
-            ${kpi('Broker (0.25%)', feeBroker, '#b45309')}
-            ${kpi('Custody / ISIN', feeCustody, '#b45309')}
-            ${kpi('MINT revenue (3.8%)', feeMint, '#059669')}
+        <div style="background:#fff;border-radius:10px;box-shadow:0 0 0 1px rgba(0,0,0,0.04);margin-bottom:14px;overflow:hidden;">
+          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.chev').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg)';"
+            style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:14px;background:none;border:none;cursor:pointer;font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.04em;">
+            FEES — WHERE THE MONEY GOES
+            <span class="chev" style="transition:transform 0.2s;display:inline-block;">▾</span>
+          </button>
+          <div style="display:none;padding:0 14px 14px;">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+              ${kpi('Broker (0.25%)', feeBroker, '#b45309')}
+              ${kpi('Custody / ISIN', feeCustody, '#b45309')}
+              ${kpi('MINT revenue (3.8%)', feeMint, '#059669')}
+            </div>
           </div>
-          <div style="font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.04em;margin:14px 0 10px;">EXECUTION RESERVE (8% BUFFER)</div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-            ${kpi('Held', bufferHeld, '#0f172a')}
-            ${kpi('Consumed', ddConsumed, '#0284c7')}
-            ${kpi('Refunded', ddRefunded, '#059669')}
-            ${kpi('Still locked', bufferRemaining, '#64748b')}
+        </div>
+        <div style="background:#fff;border-radius:10px;box-shadow:0 0 0 1px rgba(0,0,0,0.04);margin-bottom:14px;overflow:hidden;">
+          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.chev').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg)';"
+            style="width:100%;display:flex;justify-content:space-between;align-items:center;padding:14px;background:none;border:none;cursor:pointer;font-size:11px;color:#94a3b8;font-weight:600;letter-spacing:0.04em;">
+            EXECUTION RESERVE (8% BUFFER)
+            <span class="chev" style="transition:transform 0.2s;display:inline-block;">▾</span>
+          </button>
+          <div style="display:none;padding:0 14px 14px;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+              ${kpi('Held', bufferHeld, '#0f172a')}
+              ${kpi('Consumed', ddConsumed, '#0284c7')}
+              ${kpi('Refunded', ddRefunded, '#059669')}
+              ${kpi('Still locked', bufferRemaining, '#64748b')}
+            </div>
+            ${ddShortfall > 0 ? `<div style="margin-top:10px;font-size:11px;color:#dc2626;font-weight:600;">⚠ Shortfall (slippage beyond buffer, absorbed by MINT): ${fmtR2(ddShortfall)}</div>` : ''}
           </div>
-          ${ddShortfall > 0 ? `<div style="margin-top:10px;font-size:11px;color:#dc2626;font-weight:600;">⚠ Shortfall (slippage beyond buffer, absorbed by MINT): ${fmtR2(ddShortfall)}</div>` : ''}
         </div>
         ${bufferEventsHtml}
         <div style="background:#fff;border-radius:10px;padding:14px;box-shadow:0 0 0 1px rgba(0,0,0,0.04);">

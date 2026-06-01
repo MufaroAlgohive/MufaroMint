@@ -6408,10 +6408,12 @@
           if (!txnResp.ok) throw new Error(txnRespJson?.error || 'Failed to load transactions');
           const allTxns = Array.isArray(txnRespJson.transactions) ? txnRespJson.transactions : [];
 
-          // Filter to txns referencing THIS strategy/security only â€” match by
-          // name substring (e.g. "Strategy Investment: Yield Basket" matches "Yield Basket")
-          // OR by the id appearing in the description JSON.
+          // Filter to txns referencing THIS strategy/security.
+          // Strategy: name includes strategy name (e.g. “Strategy Investment: Yield Basket”)
+          // Single security: name is “Purchased {ticker}” — match on ticker OR full
+          // instrument name OR security_id in description as fallback.
           const lowerTarget = String(targetName || '').toLowerCase().trim();
+          const lowerTicker = String(payload.ticker || '').toLowerCase().trim();
           const matchId = payload.context === 'strategy'
             ? String(payload.strategyId || '')
             : String(payload.securityId || '');
@@ -6419,6 +6421,7 @@
             const tn = String(t.name || '').toLowerCase();
             const desc = String(t.description || '');
             if (lowerTarget && tn.includes(lowerTarget)) return true;
+            if (lowerTicker && tn.includes(lowerTicker)) return true;
             if (matchId && desc.includes(matchId)) return true;
             return false;
           });

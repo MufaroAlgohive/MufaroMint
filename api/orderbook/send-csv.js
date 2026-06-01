@@ -29,7 +29,11 @@ module.exports = async (req, res) => {
       if (!userId) return sendJson(res, 400, { error: 'userId required' });
 
       const baseQs = () => {
-        let qs = `user_id=eq.${encodeURIComponent(userId)}&name=ilike.${encodeURIComponent('%Strategy Investment%')}&select=id,amount,name,description,direction,status,transaction_date,created_at,family_member_id&order=transaction_date.desc&limit=200`;
+        // Fetch both strategy ("Strategy Investment: X") and single-security
+        // ("Purchased X") transactions — the name filter was Strategy Investment
+        // only, which silently dropped direct stock buys. Client-side narrows
+        // to the specific security/strategy after fetch.
+        let qs = `user_id=eq.${encodeURIComponent(userId)}&select=id,amount,name,description,direction,status,transaction_date,created_at,family_member_id&order=transaction_date.desc&limit=400`;
         // Scope to the right account: family member's txns vs parent's own.
         if (familyMemberId) qs += `&family_member_id=eq.${encodeURIComponent(familyMemberId)}`;
         else qs += `&family_member_id=is.null`;
