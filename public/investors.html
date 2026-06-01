@@ -241,10 +241,20 @@
         <div id="kpiBar" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:8px;"></div>
         <div style="display:grid;grid-template-columns:300px 1fr;gap:12px;min-height:600px;">
           <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 0 0 1px rgba(0,0,0,0.05),0 1px 4px rgba(0,0,0,0.06);display:flex;flex-direction:column;gap:10px;">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               <span style="font-size:13px;font-weight:600;color:#0f172a;">Investors</span>
               <span id="investorCount" style="font-size:10px;color:#94a3b8;background:#f1f5f9;padding:1px 7px;border-radius:20px;">0</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;background:#f1f5f9;border-radius:8px;padding:3px;margin-bottom:2px;">
+              <button id="tabStrategy" onclick="switchView('strategy')"
+                style="border:none;border-radius:6px;padding:5px 0;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;background:#7c3aed;color:#fff;">
+                Strategies
+              </button>
+              <button id="tabSecurity" onclick="switchView('security')"
+                style="border:none;border-radius:6px;padding:5px 0;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s;background:transparent;color:#64748b;">
+                Single Securities
+              </button>
             </div>
             <input id="investorSearch" placeholder="Search investors..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px;color:#0f172a;outline:none;box-sizing:border-box;" />
             <select id="strategyFilter" style="width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px;color:#64748b;background:#fff;outline:none;box-sizing:border-box;"><option value="">All Strategies</option></select>
@@ -269,6 +279,7 @@
 
     /* ─── State ─── */
     let allInvestors = [], allStrategies = [], stratNavMap = {}, stratMetricsMap = {}, txnNameById = {};
+    let activeView = 'strategy'; // 'strategy' | 'security'
     let currentInvestor = null, currentTab = 'performance';
     const _charts = new WeakMap();
     function disposeChart(el) {
@@ -446,7 +457,7 @@
       });
 
       const investors = Object.values(byUser).map(u => {
-        if (!u.strategyId) return null;
+        const isStrategy = !!u.strategyId;
         const prof = profMap[u.userId] || {};
         const strat = stratMap[u.strategyId] || {};
         const parentName = [prof.first_name, prof.last_name].filter(Boolean).join(' ') || prof.email || u.userId.slice(0, 8);
@@ -478,16 +489,18 @@
         /* Add weights to holdings */
         u.holdings.forEach(h => { h.weight = current > 0 ? (h.currentR / current) * 100 : 0; });
         u.holdings.sort((a,b) => b.currentR - a.currentR);
-        /* Pull latest per-investor figures from client_strategy_returns_c */
-        const csrLatest = (stratMetricsMap[u.userId] || {}).latest || null;
+        /* Pull latest per-investor figures from client_strategy_returns_c
+           (only meaningful for strategy investors). */
+        const csrLatest = isStrategy ? ((stratMetricsMap[u.userId] || {}).latest || null) : null;
         const csrAum      = csrLatest ? csrLatest.basket_value / 100 : current;
         const csrPnl      = csrLatest ? csrLatest.inception_pnl / 100 : pnl;
         const csrInvested = csrLatest ? (csrLatest.basket_value - csrLatest.inception_pnl) / 100 : invested;
         const csrRetPct   = csrLatest ? csrLatest.inception_pct : retPct;
         const csrYtdPct   = csrLatest != null ? (csrLatest['ytd_pct'] ?? null) : null;
         return {
+          type: isStrategy ? 'strategy' : 'security',
           userId: u.userId, investorKey, familyMemberId: u.familyMemberId, isMinor: !!u.familyMemberId, name, email: prof.email, mintNo: prof.mint_number,
-          strategy: strat.short_name || strat.name || '—', strategyId: u.strategyId,
+          strategy: strat.short_name || strat.name || (isStrategy ? '—' : 'Direct securities'), strategyId: u.strategyId,
           strategyDesc: strat.description, riskLevel: strat.risk_level,
           invested, current, pnl, retPct: +retPct.toFixed(2),
           csrAum, csrInvested, csrPnl, csrRetPct, csrYtdPct,
@@ -496,7 +509,7 @@
           txns: userTxns,
           drawdowns: ddByUser[u.userId] || [],
         };
-      }).filter(Boolean).sort((a,b) => b.current - a.current);
+      }).sort((a,b) => b.current - a.current);
 
       allStrategies = strategies || [];
       return investors;
@@ -504,12 +517,13 @@
 
     /* ─── KPI Bar ─── */
     function renderKpiBar(investors) {
-      const aum = investors.reduce((s,i)=>s+i.csrAum,0);
-      const inv = investors.reduce((s,i)=>s+i.csrInvested,0);
-      const pnl = investors.reduce((s,i)=>s+i.csrPnl,0);
+      const visible = investors.filter(i => i.type === activeView);
+      const aum  = visible.reduce((s,i)=>s+i.csrAum,0);
+      const inv  = visible.reduce((s,i)=>s+i.csrInvested,0);
+      const pnl  = visible.reduce((s,i)=>s+i.csrPnl,0);
       /* Weighted average return — weight by each investor's AUM so small accounts don't distort the figure */
-      const avg = aum > 0 ? investors.reduce((s,i)=>s+(i.csrRetPct * i.csrAum), 0) / aum : 0;
-      const sorted = [...investors].sort((a,b) => b.csrRetPct - a.csrRetPct);
+      const avg = aum > 0 ? visible.reduce((s,i)=>s+(i.csrRetPct * i.csrAum), 0) / aum : 0;
+      const sorted = [...visible].sort((a,b) => b.csrRetPct - a.csrRetPct);
       const best  = sorted[0];
       const worst = sorted[sorted.length-1];
       const kpis = [
@@ -528,12 +542,33 @@
       ).join('');
     }
 
+    /* ─── View toggle ─── */
+    function switchView(view) {
+      activeView = view;
+      const stBtn = document.getElementById('tabStrategy');
+      const scBtn = document.getElementById('tabSecurity');
+      const sfEl  = document.getElementById('strategyFilter');
+      if (stBtn && scBtn) {
+        stBtn.style.background = view === 'strategy' ? '#7c3aed' : 'transparent';
+        stBtn.style.color      = view === 'strategy' ? '#fff'    : '#64748b';
+        scBtn.style.background = view === 'security' ? '#7c3aed' : 'transparent';
+        scBtn.style.color      = view === 'security' ? '#fff'    : '#64748b';
+      }
+      if (sfEl) sfEl.style.display = view === 'strategy' ? '' : 'none';
+      currentInvestor = null;
+      renderKpiBar(allInvestors);
+      renderList(allInvestors);
+      renderDetail();
+    }
+
     /* ─── Investor list ─── */
     function renderList(investors) {
       const q = document.getElementById('investorSearch').value.toLowerCase();
       const f = document.getElementById('strategyFilter').value;
       const list = investors.filter(i =>
-        i.name.toLowerCase().includes(q) && (!f || i.strategyId === f)
+        i.type === activeView &&
+        i.name.toLowerCase().includes(q) &&
+        (activeView !== 'strategy' || !f || i.strategyId === f)
       );
       document.getElementById('investorCount').textContent = list.length;
       document.getElementById('investorList').innerHTML = list.map(i => `
