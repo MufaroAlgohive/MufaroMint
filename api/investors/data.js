@@ -86,7 +86,7 @@ module.exports = async (req, res) => {
       }
     });
 
-    const [profiles, secMeta, secReturns, secIntraday, txns, familyMembers, drawdowns, residuals] = await Promise.all([
+    const [profiles, secMeta, secReturns, secIntraday, txns, familyMembers, drawdowns, residuals, rebEvents, rebBatches] = await Promise.all([
       userIds.length
         ? sbGet(`profiles?select=id,first_name,last_name,email,mint_number&id=in.(${userIds.join(',')})`)
         : Promise.resolve([]),
@@ -128,6 +128,13 @@ module.exports = async (req, res) => {
       userIds.length
         ? sbGet(`strategy_rebalance_residuals?select=user_id,strategy_id,family_member_id,balance_cents&user_id=in.(${userIds.join(',')})`)
         : Promise.resolve([]),
+      /* Rebalance events + batch statuses — so the admin reconciliation can show
+         rebalance fees (sell/buy brokerage + custody), which aren't written to the
+         transactions table (a rebalance posts a R0 audit row). Admin-only. */
+      userIds.length
+        ? sbGet(`rebalance_event?select=user_id,family_member_id,batch_id,trade_side,quantity,price_at_commit,avg_fill,closed_reason&user_id=in.(${userIds.join(',')})`)
+        : Promise.resolve([]),
+      sbGet(`rebalance_batch?select=id,status`),
     ]);
 
     /* Merge intraday current_price (cents) into secLive rows so the client
@@ -154,7 +161,7 @@ module.exports = async (req, res) => {
     });
 
     res.statusCode = 200;
-    res.end(JSON.stringify({ holdings, strategies, stratHist, profiles, secMeta, secLive, txns, familyMembers, drawdowns, residuals }));
+    res.end(JSON.stringify({ holdings, strategies, stratHist, profiles, secMeta, secLive, txns, familyMembers, drawdowns, residuals, rebEvents, rebBatches }));
   } catch (err) {
     res.statusCode = 500;
     res.end(JSON.stringify({ error: err.message }));
