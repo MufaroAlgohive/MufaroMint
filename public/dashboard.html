@@ -5722,7 +5722,7 @@
         window.__dbgBreadcrumb('ovSelect:fetch-investors');
         const { data: investorRows } = await supabaseClient
           .from('stock_holdings_c')
-          .select('user_id, family_member_id, quantity, avg_fill, expected_fill:"Expected_fill", market_value, strategy_id, trade_side, is_active, created_at, security_id')
+          .select('user_id, family_member_id, quantity, avg_fill, expected_fill:"Expected_fill", market_value, strategy_id, trade_side, is_active, created_at, security_id, rebalance_batch_id')
           .eq('is_active', true)
           .eq('trade_side', 'BUY')
           .eq('strategy_id', strat.id);
@@ -6415,11 +6415,33 @@
               Holdings inside the same minute (one purchase fanning out across
               N security rows) stay grouped &mdash; that's one event for the user. */
         const minuteBucket = (iso) => String(iso || '').slice(0, 16); // YYYY-MM-DDTHH:mm
+
+        /* Rebalance-created BUY holdings (those with rebalance_batch_id) are
+           position swaps, NOT new client money. Merging them into their own
+           minute-bucket would show the client twice and inflate "Invested".
+           Fix: find the earliest non-rebalance bucket per (user, fm) and re-use
+           it for any rebalance holdings from the same owner, so they all appear
+           on one card. Exclude their fill price from the cost basis. */
+        const earliestBucketByOwner = {};
+        investRows.forEach(r => {
+          if (r.rebalance_batch_id) return; // skip rebalance holdings in first pass
+          const ownerKey = `${r.user_id}|${r.family_member_id || ''}`;
+          const b = minuteBucket(r.created_at);
+          if (!earliestBucketByOwner[ownerKey] || b < earliestBucketByOwner[ownerKey])
+            earliestBucketByOwner[ownerKey] = b;
+        });
+
         const byBatch = {};
         investRows.forEach(r => {
           const uid = r.user_id;
           const fmId = r.family_member_id || '';
-          const bucket = minuteBucket(r.created_at);
+          const ownerKey = `${uid}|${fmId}`;
+          const isRebalance = !!r.rebalance_batch_id;
+          /* Use the original purchase bucket for rebalance holdings so they
+             group with the user's existing card, not as a new entry. */
+          const bucket = isRebalance
+            ? (earliestBucketByOwner[ownerKey] || minuteBucket(r.created_at))
+            : minuteBucket(r.created_at);
           const key = `${uid}|${fmId}|${bucket}`;
           if (!byBatch[key]) {
             byBatch[key] = {
@@ -6434,19 +6456,19 @@
           }
           const u = byBatch[key];
           const qty = Number(r.quantity) || 0;
-          /* Client cost basis = Expected_fill (the price the client saw at buy
-             time, in rands), NOT avg_fill &mdash; avg_fill (cents) carries MINT's
-             execution spread. Guards legacy Expected_fill rows stored in cents
-             (>5&times; avg_fill/100); falls back to avg_fill when no quote was recorded.
-             Mirrors the MINT client app, investors page and orderbook. */
-          const avgRands = (Number(r.avg_fill) || 0) / 100;
-          const expectedRaw = Number(r.expected_fill) || 0;
-          let fill = avgRands;
-          if (expectedRaw > 0) {
-            fill = (avgRands > 0 && expectedRaw > avgRands * 5) ? expectedRaw / 100 : expectedRaw;
+          /* Cost basis: skip rebalance holdings &mdash; they are position swaps
+             funded by sell proceeds, not fresh client money. Counting their fill
+             price would inflate "Invested" and show the user twice. */
+          if (!isRebalance) {
+            const avgRands = (Number(r.avg_fill) || 0) / 100;
+            const expectedRaw = Number(r.expected_fill) || 0;
+            let fill = avgRands;
+            if (expectedRaw > 0) {
+              fill = (avgRands > 0 && expectedRaw > avgRands * 5) ? expectedRaw / 100 : expectedRaw;
+            }
+            u.costBasis += (fill * qty);
           }
-          u.costBasis += (fill * qty);
-          /* Live current value: qty &times; last_price (cents &rarr; rands) */
+          /* Current value: include ALL holdings (original + rebalanced). */
           const lp = secPriceMap[r.security_id] || 0;
           if (lp > 0) u.currentVal += (qty * lp);
           if (r.created_at && new Date(r.created_at) < new Date(u.inception))
