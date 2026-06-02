@@ -233,6 +233,28 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Fetch execution-reserve (8% buffer) ledger rows via service-role key
+    // (bypasses RLS) so the orderbook's MINT PnL column can reliably show the
+    // shortfall (slippage beyond the reserve) regardless of RLS on the table.
+    if (action === 'get-buffer-drawdowns') {
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      const holdingIds = Array.isArray(body.holdingIds)
+        ? body.holdingIds.map((v) => String(v || '').trim()).filter(Boolean)
+        : [];
+      if (!holdingIds.length) return sendJson(res, 200, { drawdowns: [] });
+
+      const chunkSize = 150;
+      const all = [];
+      for (let i = 0; i < holdingIds.length; i += chunkSize) {
+        const chunk = holdingIds.slice(i, i + chunkSize);
+        const rows = await fetchSupabaseJson(
+          `/rest/v1/buffer_drawdowns_c?holding_id=in.(${buildInFilter(chunk)})&event_type=in.(slippage_drawdown,shortfall)&select=holding_id,event_type,delta_cents`
+        );
+        if (Array.isArray(rows)) all.push(...rows);
+      }
+      return sendJson(res, 200, { drawdowns: all });
+    }
+
     // Fetch confirmation statuses using service-role key (bypasses RLS)
     if (action === 'get-confirmation-statuses') {
       const body = req.body && typeof req.body === 'object' ? req.body : {};

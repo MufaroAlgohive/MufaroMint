@@ -5434,21 +5434,21 @@
       /* Execution-reserve (8% buffer) ledger â€” per-holding slippage the reserve
          absorbed (slippage_drawdown) vs. what spilled past it (shortfall = MINT's
          out-of-pocket loss). Folded into the MINT PnL column so admins see true
-         execution economics without an extra column. Same reconciled rows the CRM
-         investors tab reads. */
+         execution economics without an extra column. Read through the API's
+         service-role key so it works regardless of RLS on buffer_drawdowns_c. */
       if (holdingIds.length) {
-        const ddChunk = 150;
-        for (let i = 0; i < holdingIds.length; i += ddChunk) {
-          const chunk = holdingIds.slice(i, i + ddChunk);
+        const { data: ddSession } = await supabaseClient.auth.getSession();
+        const ddToken = ddSession?.session?.access_token;
+        if (ddToken) {
           parallelQueries.push(
-            supabaseClient
-              .from('buffer_drawdowns_c')
-              .select('holding_id, event_type, delta_cents')
-              .in('holding_id', chunk)
-              .in('event_type', ['slippage_drawdown', 'shortfall'])
-              .then(({ data, error }) => {
-                if (error) { console.error('Buffer drawdowns load error:', error); return; }
-                (data || []).forEach((d) => {
+            fetch('/api/orderbook/send-csv?action=get-buffer-drawdowns', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ddToken}` },
+              body: JSON.stringify({ holdingIds })
+            })
+              .then(r => r.ok ? r.json() : { drawdowns: [] })
+              .then(({ drawdowns }) => {
+                (drawdowns || []).forEach((d) => {
                   if (!d.holding_id) return;
                   const id = String(d.holding_id);
                   const cents = Math.max(0, Math.round(Number(d.delta_cents) || 0));
@@ -5459,6 +5459,7 @@
                   }
                 });
               })
+              .catch(err => console.error('get-buffer-drawdowns error:', err))
           );
         }
       }
@@ -7519,6 +7520,46 @@
       }
 
       await loadOrderbook();
+
+      /* ── Realtime live-price refresh ────────────────────────────────────────
+         Subscribe to intraday price ticks (and holding changes from fills) so
+         Live Price / Client PnL / MINT PnL update on their own. Guards:
+           • debounced (2s) + in-flight guarded  → no request storms
+           • skipped while an input is focused    → never wipes a value mid-edit
+           • skipped unless the admin has been idle ~12s → never collapses an
+             expanded panel or interrupts active work; prices catch up once they
+             pause. A 60s poll is the fallback if realtime isn't enabled on the
+             table (see docs/enable-realtime-prices.sql). */
+      (() => {
+        let rtTimer = null, rtInFlight = false, rtQueued = false, lastInteraction = 0;
+        const IDLE_MS = 12000;
+        ['mousedown', 'keydown', 'input', 'focusin', 'touchstart'].forEach((ev) =>
+          document.addEventListener(ev, () => { lastInteraction = Date.now(); }, true));
+        const isEditing = () => {
+          const el = document.activeElement;
+          return !!(el && (el.matches?.('input, textarea, select') || el.isContentEditable));
+        };
+        const doRtRefresh = async () => {
+          if (isEditing() || (Date.now() - lastInteraction) < IDLE_MS) { scheduleRt(); return; }
+          if (rtInFlight) { rtQueued = true; return; }
+          rtInFlight = true;
+          try { await loadOrderbook(); }
+          catch (e) { console.error('[orderbook] realtime refresh failed:', e?.message || e); }
+          finally { rtInFlight = false; if (rtQueued) { rtQueued = false; scheduleRt(); } }
+        };
+        const scheduleRt = () => {
+          if (rtTimer) clearTimeout(rtTimer);
+          rtTimer = setTimeout(doRtRefresh, 2000);
+        };
+        try {
+          ['stock_intraday_c', 'stock_holdings_c'].forEach((t) => {
+            supabaseClient.channel('ob-rt:' + t)
+              .on('postgres_changes', { event: '*', schema: 'public', table: t }, scheduleRt)
+              .subscribe();
+          });
+        } catch (e) { console.warn('[orderbook] realtime subscribe failed:', e?.message || e); }
+        setInterval(scheduleRt, 60000);
+      })();
     });
 
     startOrderbookTimer();

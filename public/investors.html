@@ -538,7 +538,7 @@
       const kpis = [
         { l:'TOTAL AUM',       v: fmtR(aum), c:'#0f172a' },
         { l:'TOTAL INVESTED',  v: fmtR(inv), c:'#64748b' },
-        { l:'TOTAL P&L',       v: (pnl>=0?'+':'')+fmtR(pnl), c: pctClr(pnl) },
+        { l:'TOTAL P&L',       v: (pnl>=0?'+':'')+fmtR2(pnl), c: pctClr(pnl) },
         { l:'AVG RETURN',      v: fmtPct(avg), c: pctClr(avg) },
         { l:'BEST PERFORMER',  v: best  ? `${best.name.split(' ')[0]} ${fmtPct(best.csrRetPct)}`   : '—', c:'#059669' },
         { l:'WORST PERFORMER', v: worst ? `${worst.name.split(' ')[0]} ${fmtPct(worst.csrRetPct)}` : '—', c:'#dc2626' },
@@ -640,7 +640,7 @@
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;">
             ${[
               ['Invested', fmtR(i.invested), '#64748b'],
-              ['P&L',      (i.pnl>=0?'+':'')+fmtR(i.pnl), pctClr(i.pnl)],
+              ['P&L',      (i.pnl>=0?'+':'')+fmtR2(i.pnl), pctClr(i.pnl)],
               ['YTD', i.csrYtdPct != null ? fmtPct(i.csrYtdPct) : '—', pctClr(i.csrYtdPct || 0)],
               ['Inception', fmtDate(i.inception)+' · '+i.days+'d', '#0f172a'],
             ].map(([l,v,c]) => `
@@ -889,7 +889,7 @@
                     <td class="r ov-mono">${fmtR2(h.priceR)}</td>
                     <td class="r ov-mono">${fmtR(h.currentR)}</td>
                     <td class="r ov-mono">${h.weight.toFixed(1)}%</td>
-                    <td class="r ov-mono" style="color:${pctClr(h.pnlR)};font-weight:600;">${(h.pnlR>=0?'+':'')+fmtR(h.pnlR)}</td>
+                    <td class="r ov-mono" style="color:${pctClr(h.pnlR)};font-weight:600;">${(h.pnlR>=0?'+':'')+fmtR2(h.pnlR)}</td>
                   </tr>`).join('') || `<tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:20px;">No holdings</td></tr>`}
               </tbody>
             </table>
@@ -1175,7 +1175,11 @@
           if (_refreshTimer) clearTimeout(_refreshTimer);
           _refreshTimer = setTimeout(doRefresh, 1500);
         };
-        ['stock_holdings_c','client_strategy_returns_c','stock_returns_c','transactions'].forEach(t => {
+        /* stock_intraday_c = the live market-price feed; subscribing here makes
+           PnLs move on each price tick (debounced) instead of only on the 60s
+           poll or a manual refresh. Requires the table to be in the
+           supabase_realtime publication (see docs/enable-realtime-prices.sql). */
+        ['stock_intraday_c','stock_holdings_c','client_strategy_returns_c','stock_returns_c','transactions'].forEach(t => {
           sb.channel('rt:'+t).on('postgres_changes', { event:'*', schema:'public', table:t }, scheduleRefresh).subscribe();
         });
         setInterval(scheduleRefresh, 60000);
