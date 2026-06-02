@@ -5802,6 +5802,28 @@
           ? { ...stratRet, ytd_pct: stratRet.ytd_pct ?? calcYtd, '1y_pct': stratRet['1y_pct'] ?? calc1y }
           : (calcYtd != null || calc1y != null ? { ytd_pct: calcYtd, '1y_pct': calc1y } : null);
 
+        /* Load residual cash per client for this strategy. Rebalances leave
+           leftover proceeds in strategy_rebalance_residuals; without including
+           it the strategy card makes the portfolio look smaller by that amount.
+           Read via the service-role endpoint (RLS blocks direct browser reads). */
+        let residualByUid = {};
+        try {
+          const allUids = investRows.length
+            ? [...new Set(investRows.map(r => r.user_id).filter(Boolean))]
+            : [];
+          if (allUids.length && strat?.id) {
+            const tok = await rebApiToken();
+            if (tok) {
+              const resp = await fetch('/api/orderbook/send-csv?action=rebalance-load-residuals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+                body: JSON.stringify({ strategyId: strat.id, userIds: allUids, familyMemberId: null }),
+              });
+              if (resp.ok) { const { balances } = await resp.json(); residualByUid = balances || {}; }
+            }
+          }
+        } catch (_) { /* residuals are best-effort; don't block the card render */ }
+
         window.__dbgBreadcrumb('ovSelect:render-titlebar');
         ovRenderTitleBar(strat, analytics, totalAum, investRows.length);
         window.__dbgBreadcrumb('ovSelect:render-kpi');
@@ -6456,18 +6478,17 @@
           }
           const u = byBatch[key];
           const qty = Number(r.quantity) || 0;
-          /* Cost basis: skip rebalance holdings &mdash; they are position swaps
-             funded by sell proceeds, not fresh client money. Counting their fill
-             price would inflate "Invested" and show the user twice. */
-          if (!isRebalance) {
-            const avgRands = (Number(r.avg_fill) || 0) / 100;
-            const expectedRaw = Number(r.expected_fill) || 0;
-            let fill = avgRands;
-            if (expectedRaw > 0) {
-              fill = (avgRands > 0 && expectedRaw > avgRands * 5) ? expectedRaw / 100 : expectedRaw;
-            }
-            u.costBasis += (fill * qty);
+          /* Cost basis: include ALL active holdings (original + rebalance).
+             Rebalance holdings use avg_fill as their cost (the broker fill price
+             is their real cost, just funded internally from sell proceeds rather
+             than from the client's wallet). Expected_fill wins when set. */
+          const avgRands = (Number(r.avg_fill) || 0) / 100;
+          const expectedRaw = Number(r.expected_fill) || 0;
+          let fill = avgRands;
+          if (expectedRaw > 0) {
+            fill = (avgRands > 0 && expectedRaw > avgRands * 5) ? expectedRaw / 100 : expectedRaw;
           }
+          u.costBasis += (fill * qty);
           /* Current value: include ALL holdings (original + rebalanced). */
           const lp = secPriceMap[r.security_id] || 0;
           if (lp > 0) u.currentVal += (qty * lp);
@@ -6521,8 +6542,13 @@
           const inceptionDate = data.inception ? data.inception.split('T')[0] : (txnInceptionMap[uid] || null);
           const days = inceptionDate ? Math.floor((Date.now() - new Date(inceptionDate)) / 86400000) : 0;
 
-          /* Use live current value; fall back to cost basis if no prices available */
-          const currentVal = data.currentVal > 0 ? data.currentVal : data.costBasis;
+          /* Use live current value + residual cash from rebalances.
+             Without the residual, a position swap leaves the strategy looking
+             smaller by the leftover cash amount. Falls back to cost basis if
+             no live prices are available. */
+          const residual = Number(residualByUid[uid] || 0);
+          const positionsVal = data.currentVal > 0 ? data.currentVal : data.costBasis;
+          const currentVal = positionsVal + residual;
           const returnPct  = data.costBasis > 0 ? (currentVal - data.costBasis) / data.costBasis * 100 : 0;
           const pnl        = currentVal - data.costBasis;
           const pending    = !!data.pending;
