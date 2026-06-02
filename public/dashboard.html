@@ -8620,11 +8620,10 @@
         try {
           const token = await rebApiToken();
           if (!token) return {};
-          const resp = await fetch("/api/rebalance/residuals", {
+          const resp = await fetch("/api/orderbook/send-csv?action=rebalance-load-residuals", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
-              action: "load",
               strategyId,
               userIds: ids,
               familyMemberId: rebSelectedFamilyMemberId || null,
@@ -8653,11 +8652,10 @@
            committing a batch with no residual. */
         const token = await rebApiToken();
         if (!token) throw new Error("No session token for residual upsert");
-        const resp = await fetch("/api/rebalance/residuals", {
+        const resp = await fetch("/api/orderbook/send-csv?action=rebalance-upsert-residuals", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({
-            action: "upsert",
             strategyId,
             balancesByUser: Object.fromEntries(entries),
             familyMemberId: familyMemberId || null,

@@ -255,6 +255,72 @@ module.exports = async (req, res) => {
       return sendJson(res, 200, { drawdowns: all });
     }
 
+    // Read strategy_rebalance_residuals with the service-role key. The table's
+    // RLS only grants SELECT to the owning user, so a browser read returns {} for
+    // every other client — this lets the admin see every holder's residual.
+    if (action === 'rebalance-load-residuals') {
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      const strategyId = String(body.strategyId || '').trim();
+      if (!strategyId) return sendJson(res, 400, { error: 'strategyId required' });
+      const userIds = Array.isArray(body.userIds)
+        ? [...new Set(body.userIds.map((v) => String(v || '').trim()).filter(Boolean))]
+        : [];
+      if (!userIds.length) return sendJson(res, 200, { balances: {} });
+      const familyMemberId = body.familyMemberId ? String(body.familyMemberId).trim() : null;
+      const fmFilter = familyMemberId
+        ? `&family_member_id=eq.${encodeURIComponent(familyMemberId)}`
+        : `&family_member_id=is.null`;
+
+      const rows = await fetchSupabaseJson(
+        `/rest/v1/strategy_rebalance_residuals?select=user_id,balance_cents&strategy_id=eq.${encodeURIComponent(strategyId)}&user_id=in.(${buildInFilter(userIds)})${fmFilter}`
+      );
+      const balances = {};
+      (rows || []).forEach((r) => {
+        const uid = String(r.user_id || '');
+        if (uid) balances[uid] = (Number(r.balance_cents) || 0) / 100;
+      });
+      return sendJson(res, 200, { balances });
+    }
+
+    // Upsert strategy_rebalance_residuals with the service-role key. The table has
+    // no write RLS policy (writes are service-role only by design), so a browser
+    // upsert fails with "new row violates row-level security policy".
+    if (action === 'rebalance-upsert-residuals') {
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      const strategyId = String(body.strategyId || '').trim();
+      if (!strategyId) return sendJson(res, 400, { error: 'strategyId required' });
+      const familyMemberId = body.familyMemberId ? String(body.familyMemberId).trim() : null;
+      const fmFilter = familyMemberId
+        ? `&family_member_id=eq.${encodeURIComponent(familyMemberId)}`
+        : `&family_member_id=is.null`;
+      const balancesByUser = body.balancesByUser && typeof body.balancesByUser === 'object'
+        ? body.balancesByUser
+        : {};
+      const entries = Object.entries(balancesByUser).filter(([uid]) => uid);
+      if (!entries.length) return sendJson(res, 200, { ok: true, upserted: 0 });
+
+      const nowIso = new Date().toISOString();
+      let upserted = 0;
+      // Manual read-then-update-or-insert per user — PostgREST on_conflict can't
+      // target the COALESCE(family_member_id, sentinel) unique index.
+      for (const [userId, balance] of entries) {
+        const balanceCents = Math.round((Number(balance) || 0) * 100);
+        const scope = `user_id=eq.${encodeURIComponent(userId)}&strategy_id=eq.${encodeURIComponent(strategyId)}${fmFilter}`;
+        const updated = await requestSupabaseJson(
+          `/rest/v1/strategy_rebalance_residuals?${scope}&select=user_id`,
+          { method: 'PATCH', body: { balance_cents: balanceCents, updated_at: nowIso }, extraHeaders: { Prefer: 'return=representation' } }
+        );
+        if (!Array.isArray(updated) || !updated.length) {
+          await requestSupabaseJson('/rest/v1/strategy_rebalance_residuals', {
+            method: 'POST',
+            body: { user_id: userId, strategy_id: strategyId, family_member_id: familyMemberId || null, balance_cents: balanceCents, updated_at: nowIso },
+          });
+        }
+        upserted += 1;
+      }
+      return sendJson(res, 200, { ok: true, upserted });
+    }
+
     // Fetch confirmation statuses using service-role key (bypasses RLS)
     if (action === 'get-confirmation-statuses') {
       const body = req.body && typeof req.body === 'object' ? req.body : {};
