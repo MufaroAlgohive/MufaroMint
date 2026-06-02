@@ -3361,10 +3361,10 @@
 
     /* MINT PnL = the TRUE execution result, summed per holding from the buffer
        ledger + fill prices (never from formatted strings, so no locale comma bug):
-         â€¢ gain  = filled BELOW the client's quote  â†’ max(0, Expected âˆ’ avg) Ã— qty
-         â€¢ loss  = slippage BEYOND the 8% reserve    â†’ âˆ’shortfall (0 if reserve absorbed it)
+         - gain  = filled BELOW the client's quote: max(0, Expected - avg) x qty
+         - loss  = slippage BEYOND the 8% reserve: -shortfall (0 if reserve absorbed it)
        So a cheaper fill reads as profit; slippage inside the cushion reads 0; only
-       slippage that exhausts the reserve shows a real (red) loss. Unfilled â†’ "-". */
+       slippage that exhausts the reserve shows a real (red) loss. Unfilled -> "-". */
     const renderMintPnlCell = (row) => {
       const ids = collectHoldingIds(row);
       let filled = false;
@@ -3385,15 +3385,15 @@
       const fmt = (c) => (c / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       let title;
       if (shortfallCents > 0) {
-        title = `Slippage beat the 8% execution reserve â€” MINT covered R ${fmt(shortfallCents)} out of pocket`
+        title = `Slippage beat the 8% execution reserve - MINT covered R ${fmt(shortfallCents)} out of pocket`
           + (gainCents > 0 ? `, offset by R ${fmt(gainCents)} gained on cheaper fills.` : '.');
       } else if (gainCents > 0) {
-        title = `Filled R ${fmt(gainCents)} below the client's quoted price â€” MINT spread profit`
+        title = `Filled R ${fmt(gainCents)} below the client's quoted price - MINT spread profit`
           + (bufferUsedCents > 0 ? `; R ${fmt(bufferUsedCents)} of slippage elsewhere was absorbed by the client's reserve (MINT net 0 on that).` : '.');
       } else if (bufferUsedCents > 0) {
-        title = `Slippage of R ${fmt(bufferUsedCents)} fully absorbed by the client's execution reserve â€” MINT net 0.`;
+        title = `Slippage of R ${fmt(bufferUsedCents)} fully absorbed by the client's execution reserve - MINT net 0.`;
       } else {
-        title = 'Filled at the client’s quoted price â€” MINT net 0 on execution.';
+        title = "Filled at the client's quoted price - MINT net 0 on execution.";
       }
       return `<td style="color:${color};font-weight:600;" title="${escapeHtml(title)}">${escapeHtml(display)}</td>`;
     };
@@ -4747,7 +4747,7 @@
         return `
           <details class="filled-orderbook-item">
             <summary class="filled-orderbook-summary">
-              <span>Rebalance â€” ${escapeHtml(sb.strategyName)} (${escapeHtml(sb.sellIsin)} â†’ ${escapeHtml(sb.buyIsin)}${sb.extraBuyIsin ? ' + ' + escapeHtml(sb.extraBuyIsin) : ''})</span>
+              <span>Rebalance &mdash; ${escapeHtml(sb.strategyName)} (${escapeHtml(sb.sellIsin)} &rarr; ${escapeHtml(sb.buyIsin)}${sb.extraBuyIsin ? ' + ' + escapeHtml(sb.extraBuyIsin) : ''})</span>
               <span class="filled-orderbook-meta">
                 ${rebalanceStatusPill(sb.batchStatus)}
                 <span>${sb.clientCount} client${sb.clientCount !== 1 ? 's' : ''}</span>
