@@ -33,8 +33,9 @@ const verifyToken = async (token) => {
 
 const getTeamMember = async (email) => {
   const { supabaseUrl, serviceRoleKey } = getSupabaseCreds();
+  const enc = encodeURIComponent(email);
   const res = await fetch(
-    `${supabaseUrl}/rest/v1/admin_team?email=eq.${encodeURIComponent(email)}&limit=1`,
+    `${supabaseUrl}/rest/v1/admin_team?or=(email.eq.${enc},alt_email.eq.${enc})&limit=1`,
     {
       headers: {
         'apikey': serviceRoleKey,
@@ -89,7 +90,7 @@ const requireAdmin = async (req, res) => {
   const result = await requireAuth(req, res);
   if (!result) return null;
   const role = result.member.role || 'staff';
-  if (role !== 'admin') {
+  if (role !== 'admin' && role !== 'superadmin') {
     sendJson(res, 403, { error: 'Admin access required' });
     return null;
   }
@@ -211,7 +212,7 @@ const recoverPasswordViaSupabase = async (email, redirectTo) => {
 const updateAuthUserEmail = async (userId, newEmail) => {
   const { supabaseUrl, serviceRoleKey } = getSupabaseCreds();
   const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
-    method: 'PATCH',
+    method: 'PUT',
     headers: {
       'apikey': serviceRoleKey,
       'Authorization': `Bearer ${serviceRoleKey}`,
