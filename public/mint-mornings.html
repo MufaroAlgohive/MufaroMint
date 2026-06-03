@@ -108,6 +108,7 @@
         <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zm4.24 16L12 15.45 7.77 18l1.12-4.81-3.73-3.23 4.92-.42L12 5l1.92 4.53 4.92.42-3.73 3.23L16.23 18z"/></svg>
         Mint Mornings
       </a>
+      <a class="nav-icon" href="/emailers.html"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8l8 5 8-5v10zm-8-7L4 6h16l-8 5z"/></svg>Emailers &amp; Triggers</a>
       <span class="sidebar-section-label">System</span>
       <a class="nav-icon" href="/settings.html"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.62l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.62l2.03 1.58c-.05.32-.07.64-.07.94s.02.62.07.94l-2.03 1.58c-.18.14-.23.41-.12.62l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.62l-2.01-1.58z"/></svg>Settings</a>
       <a class="nav-icon" id="teamNavLink" href="/team.html" style="display:none">
@@ -197,6 +198,28 @@
         </div>
       </div>
 
+      <!-- Email preview -->
+      <div class="action-card" id="previewCard" style="padding:0;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;">
+          <div>
+            <h2 style="margin-bottom:4px;">Email preview</h2>
+            <p style="margin-bottom:0;">See exactly what today's Mint Mornings email looks like before sending.</p>
+          </div>
+          <button class="btn btn-secondary" id="previewBtn" onclick="loadPreview()">
+            <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+            Load preview
+          </button>
+        </div>
+        <div id="previewWrap" style="display:none;border-top:1px solid #f2f2f7;">
+          <div style="background:#f9f9fb;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;">
+            <span id="previewMeta" style="font-size:11px;color:#8e8e93;"></span>
+            <button class="btn btn-secondary" style="padding:5px 10px;font-size:11px;border-radius:7px;" onclick="loadPreview()">Reload</button>
+          </div>
+          <iframe id="previewFrame" style="width:100%;height:640px;border:none;display:block;background:#f2f2f7;" title="Email preview"></iframe>
+        </div>
+        <div id="previewPlaceholder" style="padding:32px;text-align:center;font-size:12px;color:#8e8e93;">Click "Load preview" to render today's email.</div>
+      </div>
+
       <!-- Send log -->
       <div class="log-card">
         <h2>Send history</h2>
@@ -226,6 +249,32 @@
       t.className = 'toast show ' + type;
       clearTimeout(t._tid);
       t._tid = setTimeout(() => t.classList.remove('show'), 3500);
+    }
+
+    async function loadPreview() {
+      const btn = document.getElementById('previewBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spin">↻</span> Loading…';
+      document.getElementById('previewPlaceholder').style.display = 'none';
+      document.getElementById('previewWrap').style.display = 'none';
+      try {
+        const r = await fetch('/api/mint-mornings?action=preview', { headers: authHeaders() });
+        const data = await r.json();
+        if (data.html) {
+          document.getElementById('previewFrame').srcdoc = data.html;
+          document.getElementById('previewMeta').textContent = `${data.articleCount || '?'} article(s) · "${(data.title || '').slice(0, 60)}"`;
+          document.getElementById('previewWrap').style.display = 'block';
+        } else {
+          document.getElementById('previewPlaceholder').textContent = data.message || 'No articles available for today.';
+          document.getElementById('previewPlaceholder').style.display = 'block';
+        }
+      } catch (err) {
+        document.getElementById('previewPlaceholder').textContent = 'Error loading preview: ' + err.message;
+        document.getElementById('previewPlaceholder').style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg> Load preview';
+      }
     }
 
     function setLoading(btnId, loading) {

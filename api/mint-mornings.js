@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { logEmail } = require('./_email-logger');
 
 const DASHBOARD_URL = 'https://app.mymint.co.za';
 const F = "Inter,Segoe UI,Arial,sans-serif";
@@ -450,14 +451,18 @@ async function sendToAllUsers(articles, testEmail = null) {
         body: JSON.stringify({ from: fromAddress, to: [user.email], subject, html })
       });
       const payload = await res.json().catch(() => ({}));
+      const errMsg = payload.message || payload.error || null;
       if (!res.ok || payload.error) {
-        console.error(`[MintMornings] Failed for ${user.email}:`, payload.message || payload.error);
+        console.error(`[MintMornings] Failed for ${user.email}:`, errMsg);
+        await logEmail({ emailType: 'mint_mornings', recipient: user.email, subject, status: 'failed', triggerSource: testEmail ? 'manual' : 'scheduler', errorMessage: errMsg });
         failed++;
       } else {
+        await logEmail({ emailType: 'mint_mornings', recipient: user.email, subject, resendId: payload.id || null, status: 'sent', triggerSource: testEmail ? 'manual' : 'scheduler' });
         sent++;
       }
     } catch (err) {
       console.error(`[MintMornings] Error for ${user.email}:`, err.message);
+      await logEmail({ emailType: 'mint_mornings', recipient: user.email, subject: subject || null, status: 'failed', triggerSource: 'scheduler', errorMessage: err.message });
       failed++;
     }
     if (i < confirmedUsers.length - 1) {
@@ -482,6 +487,19 @@ module.exports = async (req, res) => {
       } catch {}
       const alreadySentToday = lastSend && lastSend.send_date === todayStr;
       return sendJson(res, 200, { ok: true, today: todayStr, alreadySentToday, lastSend });
+    } catch (err) {
+      return sendJson(res, 500, { error: err.message });
+    }
+  }
+
+  if (req.method === 'GET' && new URL(req.url, 'http://x').searchParams.get('action') === 'preview') {
+    try {
+      const articles = await fetchTodaysArticles();
+      if (articles.length === 0) {
+        return sendJson(res, 200, { html: null, articleCount: 0, message: 'No ALLBRF articles available for today.' });
+      }
+      const html = buildMintMorningsHtml(articles);
+      return sendJson(res, 200, { html, articleCount: articles.length, title: articles[0].title });
     } catch (err) {
       return sendJson(res, 500, { error: err.message });
     }

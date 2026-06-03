@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { sendJson, fetchSupabaseJson, requestSupabaseJson } = require('./_orderbook');
+const { logEmail } = require('./_email-logger');
 
 const parseBearerToken = (authHeader) => {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
@@ -192,6 +193,17 @@ module.exports = async (req, res) => {
       throw new Error(message);
     }
 
+    const resendId = payload?.id || null;
+    await logEmail({
+      emailType: 'eft',
+      recipient: to,
+      subject: subject || 'Funds Allocated - Mint',
+      resendId,
+      status: 'sent',
+      triggerSource: 'manual',
+      metadata: walletId ? { wallet_id: walletId } : null
+    });
+
     if (walletId) {
       await requestSupabaseJson(`/rest/v1/wallets?id=eq.${encodeURIComponent(walletId)}`, {
         method: 'PATCH',
@@ -202,6 +214,13 @@ module.exports = async (req, res) => {
 
     sendJson(res, 200, { ok: true, message: 'Email sent successfully' });
   } catch (error) {
+    await logEmail({
+      emailType: 'eft',
+      recipient: req?.body?.to || 'unknown',
+      status: 'failed',
+      triggerSource: 'manual',
+      errorMessage: error?.message
+    }).catch(() => {});
     sendJson(res, 500, {
       error: 'Could not send EFT email',
       details: error?.message || 'Unknown error'

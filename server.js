@@ -7,6 +7,7 @@ const path = require('path');
 const sumsubArchiveHandler = require('./api/sumsub/archive');
 const teamHandler = require('./api/team');
 const mintMorningsHandler = require('./api/mint-mornings');
+const webhooksHandler = require('./api/webhooks');
 
 const port = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, 'public');
@@ -1821,6 +1822,82 @@ const server = http.createServer((req, res) => {
       }
     })();
 
+    return;
+  }
+
+  // Supabase Database Webhook — NOT JWT-protected, secured by SUPABASE_WEBHOOK_SECRET header
+  if (req.url.startsWith('/api/webhooks/supabase') && req.method === 'POST') {
+    (async () => {
+      try { await webhooksHandler(req, res); }
+      catch (err) { sendJson(res, 500, { error: err.message }); }
+    })();
+    return;
+  }
+
+  // Webhook triggers API (admin CRUD) — JWT-protected
+  if (req.url.startsWith('/api/webhooks')) {
+    const token = parseBearerToken(req.headers.authorization);
+    if (!token) { sendJson(res, 401, { error: 'Missing Authorization bearer token' }); return; }
+    (async () => {
+      try {
+        await fetchSupabaseJson('/auth/v1/user', token, false);
+        const urlObj = new URL(req.url, 'http://x');
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const sbH = { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}`, 'Content-Type': 'application/json', 'Accept': 'application/json', 'Prefer': 'return=representation' };
+
+        if (req.method === 'GET') {
+          const r = await fetch(`${supabaseUrl}/rest/v1/email_webhook_triggers?select=*&order=created_at.desc`, { headers: sbH });
+          const d = await r.json().catch(() => []);
+          sendJson(res, r.ok ? 200 : 500, d);
+        } else if (req.method === 'POST') {
+          const body = await new Promise(resolve => { let s=''; req.on('data',c=>s+=c); req.on('end',()=>resolve(JSON.parse(s||'{}')));});
+          delete body.id; delete body.created_at; delete body.updated_at;
+          const r = await fetch(`${supabaseUrl}/rest/v1/email_webhook_triggers`, { method: 'POST', headers: sbH, body: JSON.stringify(body) });
+          const d = await r.json().catch(() => ({}));
+          sendJson(res, r.ok ? 201 : 500, d);
+        } else if (req.method === 'PATCH') {
+          const id = urlObj.searchParams.get('id');
+          if (!id) return sendJson(res, 400, { error: 'Missing id' });
+          const body = await new Promise(resolve => { let s=''; req.on('data',c=>s+=c); req.on('end',()=>resolve(JSON.parse(s||'{}')));});
+          delete body.id; delete body.created_at;
+          const r = await fetch(`${supabaseUrl}/rest/v1/email_webhook_triggers?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', headers: sbH, body: JSON.stringify(body) });
+          const d = await r.json().catch(() => ({}));
+          sendJson(res, r.ok ? 200 : 500, Array.isArray(d) ? d[0] : d);
+        } else if (req.method === 'DELETE') {
+          const id = urlObj.searchParams.get('id');
+          if (!id) return sendJson(res, 400, { error: 'Missing id' });
+          const r = await fetch(`${supabaseUrl}/rest/v1/email_webhook_triggers?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers: { ...sbH, 'Prefer': 'return=minimal' } });
+          sendJson(res, r.ok ? 200 : 500, { ok: r.ok });
+        } else {
+          sendJson(res, 405, { error: 'Method not allowed' });
+        }
+      } catch (err) { sendJson(res, 500, { error: err.message }); }
+    })();
+    return;
+  }
+
+  // Email logs API (read-only, JWT-protected)
+  if (req.url.startsWith('/api/email-logs')) {
+    const token = parseBearerToken(req.headers.authorization);
+    if (!token) { sendJson(res, 401, { error: 'Missing Authorization bearer token' }); return; }
+    (async () => {
+      try {
+        await fetchSupabaseJson('/auth/v1/user', token, false);
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const serviceKey  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const urlObj = new URL(req.url, 'http://x');
+        const type = urlObj.searchParams.get('type') || null;
+        const limit = Math.min(parseInt(urlObj.searchParams.get('limit') || '50', 10), 200);
+        let path = `/rest/v1/email_logs?select=*&order=created_at.desc&limit=${limit}`;
+        if (type) path += `&email_type=eq.${encodeURIComponent(type)}`;
+        const r = await fetch(`${supabaseUrl}${path}`, {
+          headers: { 'apikey': serviceKey, 'Authorization': `Bearer ${serviceKey}`, 'Accept': 'application/json' }
+        });
+        const d = await r.json().catch(() => []);
+        sendJson(res, r.ok ? 200 : 500, d);
+      } catch (err) { sendJson(res, 500, { error: err.message }); }
+    })();
     return;
   }
 
