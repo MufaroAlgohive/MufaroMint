@@ -631,7 +631,7 @@
         if (error) throw error;
 
         if (!wallets || wallets.length === 0) {
-          tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">No users with wallet balance</td></tr>';
+          tableBody.innerHTML = '<tr><td colspan="6" class="empty-state">No users with wallet balance</td></tr>';
           totalWalletCount.textContent = '0';
           totalWalletAmount.textContent = formatCurrency(0);
           return;
